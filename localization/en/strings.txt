@@ -1,0 +1,10 @@
+banner=Squirrel-OS/2
+prompt=> 
+files=Files:
+notfound=Not found
+unknown=Unknown command
+calc=Calculator
+edit=Text Editor
+draw=Drawing Program
+hello=Hello from Squirrel-OS/2
+result=2 + 2 = 4

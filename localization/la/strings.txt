@@ -1,0 +1,10 @@
+banner=Sciurus-OS/2
+prompt=> 
+files=Tabulae:
+notfound=Non inventum
+unknown=Mandatum ignotum
+calc=Calculator
+edit=Editor textus
+draw=Programma pingendi
+hello=Salve ex Sciurus-OS/2
+result=II + II = IV
