@@ -18,8 +18,9 @@ All components are original Squirrel-OS/2 code.
 
 ### 0.0.x — Bare-metal entry
 - **0.0.1** — Boot sector: VGA text output + periodic beep (done)
-- **0.0.2** — Native PIT timer interrupt
-- **0.0.3** — Protected-mode transition, own GDT/IDT
+- **0.0.2** — Native PIT timer interrupt (done)
+- **0.0.3** — Protected-mode transition, own GDT (done)
+- **0.0.4** — Restore native timer under a protected-mode IDT (next)
 
 ### 0.1.x — Minimal kernel services
 - **0.1.0** — Console (keyboard + VGA text)
