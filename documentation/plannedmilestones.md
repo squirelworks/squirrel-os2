@@ -1,47 +1,56 @@
 # Squirrel-OS/2 Planned Milestones
 
+## Competitor Landscape (analysis)
+
+| Project | Status | What exists | Gap relative to Squirrel-OS/2 1.0.0 goal |
+|---------|--------|-------------|------------------------------------------|
+| **osFree** | Deep alpha | FreeLdr, CMD tools, experimental L4 personality, partial SOM, DOS/WIN16 work | No complete bootable GUI OS; userland-focused |
+| **Voyager** | Stalled / archived | CLI fragments; WPS sources restricted | Not an active full system |
+| **ArcaOS** | Commercial, functional | Full Warp 4.52 derivative: WPS, PM, HPFS/JFS, drivers, UEFI, SMP, apps | Closed source; licensed IBM base |
+| **OS2World** | App/driver archive | Native programs, drivers, libraries | Not an OS |
+
+Squirrel-OS/2 remains original code only. The 1.0.0 target is a small functional system (file system + browser + three applications), not full Warp API compatibility.
+
 ## Vision for 1.0.0
 
-Version 1.0.0 is a functional operating system that:
+A functional original operating system that:
 
-- Boots and takes ownership of the machine
+- Boots and owns the machine
 - Provides a file system
 - Includes a file browser
-- Can load and run:
-  - a text editor
-  - a drawing program
-  - a calculator
+- Loads and runs a text editor, a drawing program, and a calculator
 
-All components are original Squirrel-OS/2 code.
+## Milestone Ladder (0.0.4 → 1.0.0)
 
-## Milestone Ladder
+### 0.0.x — Hardware ownership
+- **0.0.1** — Boot sector: VGA text + periodic beep (done)
+- **0.0.2** — Native PIT timer (done)
+- **0.0.3** — Protected-mode transition + GDT (done)
+- **0.0.4** — IDT + restore native timer in protected mode (next)
+- **0.0.5** — Keyboard input (IRQ1) + basic console
+- **0.0.6** — Simple memory map and page allocator
 
-### 0.0.x — Bare-metal entry
-- **0.0.1** — Boot sector: VGA text output + periodic beep (done)
-- **0.0.2** — Native PIT timer interrupt (done)
-- **0.0.3** — Protected-mode transition, own GDT (done)
-- **0.0.4** — Restore native timer under a protected-mode IDT (next)
-
-### 0.1.x — Minimal kernel services
-- **0.1.0** — Console (keyboard + VGA text)
-- **0.1.1** — Basic memory map and allocator
-- **0.1.2** — Simple task switch or cooperative loop
+### 0.1.x — Kernel services
+- **0.1.0** — Cooperative or preemptive task switch
+- **0.1.1** — System call interface (int 0x80 or equivalent)
+- **0.1.2** — Basic process model (create, exit, wait)
 
 ### 0.2.x — Storage
-- **0.2.0** — Block device driver (ATA or virtio-blk)
-- **0.2.1** — Minimal file system (e.g. flat or simple hierarchical)
-- **0.2.2** — File browser (list, open, basic navigation)
+- **0.2.0** — Block device driver (ATA PIO or virtio-blk)
+- **0.2.1** — Minimal file system (flat directory or simple hierarchical)
+- **0.2.2** — File open/read/write/close
+- **0.2.3** — File browser (list, navigate, launch)
 
-### 0.3.x — User programs
-- **0.3.0** — Program loader
+### 0.3.x — Applications
+- **0.3.0** — Program loader (flat binary or simple ELF)
 - **0.3.1** — Calculator
 - **0.3.2** — Text editor
-- **0.3.3** — Drawing program
+- **0.3.3** — Drawing program (VGA framebuffer or text-mode canvas)
 
 ### 0.9.x — Integration
-- **0.9.0** — File browser can launch the three applications
-- **0.9.1** — Persistent files across reboot
-- **0.9.2** — Polish and stability pass
+- **0.9.0** — File browser launches the three applications
+- **0.9.1** — Files persist across reboot
+- **0.9.2** — Stability and polish pass
 
 ### 1.0.0 — Functional OS
 - Boots to a usable environment
@@ -51,6 +60,7 @@ All components are original Squirrel-OS/2 code.
 
 ## Notes
 
-- Each milestone gets a release note under `releases/`.
+- Each milestone receives a release note under `releases/`.
 - Design details live in `architecture/` and `kernel/`.
 - External / contemporary sources stay outside this tree.
+- Scope is deliberately smaller than osFree or ArcaOS; the goal is a working original system, not binary compatibility.
