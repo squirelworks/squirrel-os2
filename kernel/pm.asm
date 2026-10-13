@@ -1,5 +1,5 @@
-; Squirrel-OS/2 0.0.6
-; PM + IDT + keyboard console + bump allocator
+; Squirrel-OS/2 0.1.0
+; Cooperative multitasking: two tasks yield to each other.
 BITS 16
 ORG 0x8000
 stage2:
@@ -18,7 +18,6 @@ pm:
     mov ss, ax
     mov esp, 0x9F000
 
-    ; IDT setup
     mov edi, idt
     mov ecx, 256
 .fill:
@@ -28,9 +27,6 @@ pm:
     loop .fill
     mov edi, idt+0x20*8
     mov eax, timer_isr
-    call set_gate
-    mov edi, idt+0x21*8
-    mov eax, kbd_isr
     call set_gate
     lidt [idt_desc]
 
@@ -48,11 +44,10 @@ pm:
     mov al, 1
     out 0x21, al
     out 0xA1, al
-    mov al, 0xFC
+    mov al, 0xFE
     out 0x21, al
     mov al, 0xFF
     out 0xA1, al
-
     mov al, 0x36
     out 0x43, al
     mov ax, 11932
@@ -63,22 +58,42 @@ pm:
     call cls
     mov esi, banner
     call puts
-
-    mov eax, 64
-    call kmalloc
-    mov esi, alloc_msg
-    call puts
-
     sti
-.loop:
-    hlt
-    jmp .loop
 
-kmalloc:
-    mov ebx, [heap_ptr]
-    add eax, ebx
-    mov [heap_ptr], eax
-    mov eax, ebx
+    mov dword [task0_esp], task0_stack_top
+    mov dword [task1_esp], task1_stack_top
+    mov dword [current], 0
+
+    mov esp, [task0_esp]
+    jmp task0
+
+task0:
+    mov esi, t0msg
+    call puts
+    call yield
+    jmp task0
+
+task1:
+    mov esi, t1msg
+    call puts
+    call yield
+    jmp task1
+
+yield:
+    pusha
+    mov eax, [current]
+    cmp eax, 0
+    je .save0
+    mov [task1_esp], esp
+    mov dword [current], 0
+    mov esp, [task0_esp]
+    jmp .restore
+.save0:
+    mov [task0_esp], esp
+    mov dword [current], 1
+    mov esp, [task1_esp]
+.restore:
+    popa
     ret
 
 set_gate:
@@ -108,8 +123,6 @@ puts:
     ret
 
 putc:
-    cmp al, 10
-    je .nl
     mov edi, 0xB8000
     mov ebx, [cur]
     shl ebx, 1
@@ -117,15 +130,6 @@ putc:
     mov ah, 0x07
     mov [edi], ax
     inc dword [cur]
-    ret
-.nl:
-    mov eax, [cur]
-    xor edx, edx
-    mov ebx, 80
-    div ebx
-    inc eax
-    mul ebx
-    mov [cur], eax
     ret
 
 timer_isr:
@@ -136,39 +140,24 @@ timer_isr:
     pop eax
     iretd
 
-kbd_isr:
-    push eax
-    push ebx
-    in al, 0x60
-    cmp al, 0x80
-    jae .e
-    movzx ebx, al
-    mov al, [scancode_map+ebx]
-    or al, al
-    jz .e
-    call putc
-.e:
-    mov al, 0x20
-    out 0x20, al
-    pop ebx
-    pop eax
-    iretd
-
 default_isr:
     iretd
 
-banner db 'Squirrel-OS/2 0.0.6 — allocator online', 10, 0
-alloc_msg db 'kmalloc(64) succeeded', 10, 0
+banner db 'Squirrel-OS/2 0.1.0 — cooperative tasks', 10, 0
+t0msg  db 'Task0 ', 0
+t1msg  db 'Task1 ', 0
 cur dd 0
 ticks dd 0
-heap_ptr dd 0x100000
+current dd 0
+task0_esp dd 0
+task1_esp dd 0
 
-scancode_map:
-    db 0,0,'1','2','3','4','5','6','7','8','9','0','-','=',0,0
-    db 'q','w','e','r','t','y','u','i','o','p','[',']',10,0
-    db 'a','s','d','f','g','h','j','k','l',';',39,'`',0,'\'
-    db 'z','x','c','v','b','n','m',',','.','/',0,0,0,' '
-    times 128 db 0
+align 16
+task0_stack: times 1024 db 0
+task0_stack_top:
+align 16
+task1_stack: times 1024 db 0
+task1_stack_top:
 
 align 8
 gdt:
