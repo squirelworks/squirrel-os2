@@ -1,0 +1,39 @@
+# Release Process
+
+## Versioning
+
+Squirrel-OS/2 uses a simple `major.minor.patch` scheme for early development:
+
+- **0.0.x** — boot sector / pre-kernel experiments
+- **0.1.x** — protected-mode entry and native timer
+- **0.2.x** — minimal kernel services (console, memory map, basic interrupts)
+
+## What belongs in a release
+
+1. Updated or new code under `kernel/` (or future source trees).
+2. Corresponding notes in `documentation/kernel/` and `documentation/architecture/`.
+3. A release marker in `documentation/releases/X.Y.Z.md` containing:
+   - Date
+   - Summary of changes
+   - Known limitations
+   - Build/run instructions if they changed
+
+## Steps
+
+1. Implement and manually verify the change (QEMU or equivalent).
+2. Update the relevant design or kernel note.
+3. Write the release file.
+4. Adjust `documentation/README.md` status line if the focus shifted.
+5. Tag the milestone in the project log (this file or a future CHANGELOG).
+
+## Current releases
+
+| Version | Date       | Summary                          |
+|---------|------------|----------------------------------|
+| 0.0.1   | 2026-10-14 | Initial boot sector (`UwU` + beep) |
+| 0.0.2   | 2026-10-14 | Native PIT timer (IRQ0)            |
+| 0.0.3   | 2026-10-14 | Protected-mode transition (GDT)    |
+
+## Next planned release
+
+**0.0.2** — PIT-driven timer (design in `architecture/pit-timer.md`).
