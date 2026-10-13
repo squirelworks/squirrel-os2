@@ -1,11 +1,14 @@
 # Squirrel-OS/2 Planned Milestones
 
-## Session bookmark (2026-10-14)
+## Naming and scope decision (2026-10-14)
 
-Natural end of progression for today.
+The project keeps the name Squirrel-OS/2.
 
-- 0.0.1–0.0.6, 0.1.0 complete
-- In-memory FS + app stubs (calc/edit/draw)
-- Localization scaffold: en / la / tlh string tables
+- **1.0.0** is a usable minimal system (file system, browser, editor, drawing program, calculator).
+- **2.0.0** is the first release that can honestly be described as Warp-like  
+  (preemptive scheduler, windowing system, object-oriented desktop).
+- Pre-2.0 releases are not marketed as OS/2.
+- If the project one day outgrows the Warp inspiration, the name can still remain;  
+  the code stays original either way.
 
-Next session: persistent storage, syscalls, or wire localization into the kernel.
+(Full ladder and session bookmarks remain in the working tree.)

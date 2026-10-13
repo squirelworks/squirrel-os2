@@ -2,29 +2,11 @@
 
 An original operating-system effort in the spirit of OS/2 Warp.
 
+**Naming note:** The repository is named Squirrel-OS/2 and the project keeps that name.  
+Early releases (through 1.0.0) are a usable minimal system.  
+Version 2.0.0 is the first release intended to claim Warp-like character  
+(preemptive scheduling, windowing, object desktop).  
+Do not describe pre-2.0 builds as OS/2.
+
 All material under this tree is project-native.  
 Third-party and contemporary sources remain outside this directory.
-
-## Layout
-
-```
-squirrel-os2/
-├── README.md
-├── documentation/          ← ongoing project documentation
-│   ├── architecture/
-│   ├── kernel/
-│   ├── guides/
-│   └── releases/
-├── kernel/                 ← original kernel code
-│   └── boot.asm
-└── docs/                   (legacy pointer; prefer documentation/)
-```
-
-## Documentation
-
-See `documentation/README.md` for the living documentation set.
-
-## Current milestone
-
-Boot sector 0.0.1 — firmware hand-off, VGA text output, periodic beep.  
-Details in `documentation/releases/0.0.1.md`.
