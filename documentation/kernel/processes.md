@@ -25,6 +25,7 @@ Location: `../../kernel/proc.asm` (included from `kernel/pm.asm`)
 | 24 | `waitpid` | Pid this process is waiting on |
 | 28 | `parent` | Pid of the creator |
 | 32 | `as` | Address space record, 0 = the kernel's (0.6.1, `memory.md`); loaded into CR3 on every switch |
+| 40 | `name` | 16 bytes: `shell`, the app or program name (0.8.2), shown by `ps` and in crash reports |
 
 ## Lifecycle
 

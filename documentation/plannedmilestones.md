@@ -112,7 +112,7 @@ This is a natural end-of-day point. Next session can resume at either:
 ### 0.8.x — Integration foundations
 - **0.8.0** — Hierarchical directories or long names in SQFS (done — directories via a parent id per entry, paths, `mkdir`/`cd`/`pwd`, `mv` between directories)
 - **0.8.1** — Localization runtime (done — `strings.inc` generated from `localization/`, `lang` switches at runtime with English fallback)
-- **0.8.2** — Better exception / crash reporting
+- **0.8.2** — Better exception / crash reporting (done — names, registers, page-fault decoding, stack, process names; any non-shell process is ended; the shell can be restarted)
 
 ### 0.9.x — Integration
 - **0.9.0** — File browser launches the applications (calc, edit, vedit, draw)

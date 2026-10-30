@@ -59,6 +59,7 @@ Squirrel-OS/2 uses a simple `major.minor.patch` scheme for early development:
 | 0.7.2   | 2026-10-30 | ATA disks as block devices           |
 | 0.8.0   | 2026-10-30 | SQFS directories                     |
 | 0.8.1   | 2026-10-30 | Localization runtime                 |
+| 0.8.2   | 2026-10-30 | Crash reports and shell restart      |
 
 ## Next planned release
 
