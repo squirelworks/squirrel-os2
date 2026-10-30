@@ -17,6 +17,9 @@ qemu-system-i386 -drive format=raw,file=os.img
 `tools/regress.sh` builds the image and types scripted commands into headless QEMU,
 checking the VGA text screen. Needs Python 3 as well. `tools/qemu_screen.py IMAGE KEYS...`
 does a single session and prints the screen, which is handy when adding a check.
+Uppercase letters and `+ * % ! ? : _` are sent with Shift.
+
+The hidden shell command `trap` executes `ud2` to show the CPU exception report.
 
 ## Adding documentation
 

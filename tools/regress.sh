@@ -28,4 +28,11 @@ check calc-sub     'Result: 85'             'run calc' '<ret>' '100 - 15' '<ret>
 check calc-div     'Result: 21'             'run calc' '<ret>' '84 / 4' '<ret>'
 check calc-div0    'division by zero'       'run calc' '<ret>' '9 / 0' '<ret>'
 check app-exit     'systest: PASS'          'run vedit' '<ret>' hi '<esc>' systest '<ret>'
+check shift-mul     'Result: 42'            'run calc' '<ret>' '6 * 7' '<ret>'
+check shift-pct     'Result: 30'            'run calc' '<ret>' '200 % 15' '<ret>'
+check calc-neg      'Result: -2'            'run calc' '<ret>' '7 - 9' '<ret>'
+check calc-1prompt  'calc> 1'               'run calc' '<ret>' '1'
+check cmd-bs        'systest: PASS'         systesx '<backspace>' t '<ret>'
+check scroll        'systest: PASS'         ls '<ret>' ls '<ret>' ls '<ret>' systest '<ret>'
+check exception     'CPU exception 6'       trap '<ret>'
 exit $fail
