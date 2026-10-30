@@ -17,7 +17,7 @@ Location: `kernel/browser.asm`. Start it with `run files`, or open the `files` e
 
 - Runs as its own process (spawned by the shell through `app_host`), reading raw scancodes with
   `kbd_getscan`, so it never blocks other processes.
-- App association is by name, through the shell's `run_table`. When the program loader (0.3.0) exists,
+- App association is by name, through the shell's `run_table`. Since the program loader (0.4.0),
   Enter on an executable file will load it instead.
 - Navigation is flat because SQFS has one directory; subdirectories would add an "enter directory" action here.
 

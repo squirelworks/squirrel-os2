@@ -153,9 +153,7 @@ fb_main:
     call fs_delete
     jmp .reload
 .quit:
-    call cls
-    mov esi, banner
-    call puts
+    call app_home
     xor eax, eax
     ret
 

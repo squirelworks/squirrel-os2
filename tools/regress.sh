@@ -8,13 +8,15 @@ mkdir -p "$out"
 (cd "$root/kernel" && nasm -f bin boot.asm -o "$out/boot.bin" \
     && nasm -f bin pm.asm -o "$out/pm.bin" 2>/dev/null)
 cat "$out/boot.bin" "$out/pm.bin" > "$out/os.img"
-for prog in hello wc elfhello; do
+for prog in hello wc elfhello ls cat; do
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
 done
 python3 "$root/tools/sqfs.py" "$out/progs.img" format 1024
-for prog in hello wc elfhello; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
+for prog in hello wc elfhello ls cat; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
 printf 'one two\nthree\n' > "$out/notes"
 python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/notes"
+printf '2 + 3\n6 * 7\n' > "$out/exprs"
+python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/exprs"
 head -c 70000 /dev/zero | tr '\0' 'x' > "$out/huge"
 python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/huge"
 rm -f "$out/data.img"
@@ -121,6 +123,19 @@ check ld-missing    'Unknown command or program'    'run nothere' '<ret>'
 check ld-again      'Argument: 2'           'run hello 1' '<ret>' 'run hello 2' '<ret>'
 check ld-browser    'Hello from a loaded'   'run files' '<ret>' '<home>' '<ret>'
 check ld-host-ls    'elfhello'              ls '<ret>'
+check up-ls         '8 file(s)'             'run ls' '<ret>'
+check up-ls-filter  '2 file(s)'             'run ls he' '<ret>'
+check up-cat        'three'                 'run cat notes' '<ret>'
+check up-cat-missing 'not found: zip'       'run cat zip notes' '<ret>'
+check sh-redirect   'hi there'              'echo hi there > greet' '<ret>' 'cat greet' '<ret>'
+check sh-append     'more'                  'echo more >> greet' '<ret>' 'cat greet' '<ret>'
+check sh-pipe       '1 3 6'                 'echo x y z | run cat | run wc' '<ret>'
+check sh-stdin      '= 42'                  'run calc < exprs > out' '<ret>' 'cat out' '<ret>'
+check sh-quiet      'calc> 2 + 3'           'run calc < exprs > out' '<ret>' 'run cat < out' '<ret>'
+check sh-ls-pipe    'elfhello'              'ls | run cat' '<ret>'
+check sh-badpipe    'command on both sides' 'ls |' '<ret>'
+check sh-noname     'needs a file name'     'cat >' '<ret>'
+check sh-nofile     'Cannot read nofile'    'run wc < nofile' '<ret>'
 disk=
 check no-disk       'no data disk'          blktest '<ret>'
 check rom-fallback  'Hello from Squirrel'   'cat edit' '<ret>'

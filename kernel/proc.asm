@@ -264,13 +264,8 @@ puts_pad:
     push edx
     movzx ebx, al
 .p:
-    mov eax, [cur]
-    xor edx, edx
-    push ebx
-    mov ebx, 80
-    div ebx
-    pop ebx
-    cmp edx, ebx
+    call con_column
+    cmp eax, ebx
     jae .d
     mov al, ' '
     call putc

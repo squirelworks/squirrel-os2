@@ -1,12 +1,14 @@
 ; wc — counts lines, words and bytes of a file. Original code.
-; run wc <file>
+; run wc <file>     a file
+; run wc            its input (a pipe, < file, or the keyboard until Esc)
 %include "sqx.inc"
 SQX_HEADER main
 
 main:
     mov esi, [esp+4]
+    xor ebp, ebp                ; 1 while inside a word
     cmp byte [esi], 0
-    je .usage
+    je .stdin
     mov eax, SYS_OPEN
     mov ebx, esi
     xor ecx, ecx
@@ -14,7 +16,6 @@ main:
     cmp eax, -1
     je .missing
     mov [fd], eax
-    xor ebp, ebp                ; 1 while inside a word
 .chunk:
     mov eax, SYS_READ
     mov ebx, [fd]
@@ -23,31 +24,27 @@ main:
     int 0x80
     test eax, eax
     jle .eof
-    add [bytes], eax
     mov ecx, eax
     mov esi, buf
 .ch:
     lodsb
-    cmp al, 10
-    jne .notnl
-    inc dword [lines]
-.notnl:
-    cmp al, ' '
-    jbe .space
-    test ebp, ebp
-    jnz .next
-    inc ebp
-    inc dword [words]
-    jmp .next
-.space:
-    xor ebp, ebp
-.next:
+    call count
     loop .ch
     jmp .chunk
+.stdin:
+    mov eax, SYS_GETC
+    int 0x80
+    cmp eax, -1                 ; end of redirected input
+    je .report
+    cmp eax, 27                 ; Esc ends keyboard input
+    je .report
+    call count
+    jmp .stdin
 .eof:
     mov eax, SYS_CLOSE
     mov ebx, [fd]
     int 0x80
+.report:
     mov eax, [lines]
     call putnum
     mov eax, [words]
@@ -62,15 +59,30 @@ main:
     int 0x80
     xor eax, eax
     ret
-.usage:
-    mov ebx, m_usage
-    jmp .fail
 .missing:
     mov ebx, m_missing
-.fail:
     mov eax, SYS_PUTS
     int 0x80
     mov eax, 1
+    ret
+
+; al = next byte: updates the counts (ebp = inside a word)
+count:
+    inc dword [bytes]
+    cmp al, 10
+    jne .notnl
+    inc dword [lines]
+.notnl:
+    cmp al, ' '
+    jbe .space
+    test ebp, ebp
+    jnz .r
+    inc ebp
+    inc dword [words]
+    ret
+.space:
+    xor ebp, ebp
+.r:
     ret
 
 ; eax = unsigned number, printed followed by a space
@@ -94,7 +106,6 @@ putnum:
     int 0x80
     ret
 
-m_usage db 'usage: run wc <file>', 10, 0
 m_missing db 'wc: file not found', 10, 0
 
 BUFSIZE equ 512

@@ -31,6 +31,7 @@ Documentation is active.
 - 0.2.1/0.2.2 SQFS file system implemented (`kernel/filesystem.md`, `releases/0.2.1.md`)
 - 0.2.3 file browser implemented (`apps/files.md`, `releases/0.2.3.md`)
 - 0.3.x apps: calculator polish, editors (`releases/0.3.2.md`), draw (`releases/0.3.3.md`)
-- 0.3.0 program loader implemented (`kernel/loader.md`, `releases/0.3.0.md`)
+- 0.4.0–0.4.2 program loader and user programs (`kernel/loader.md`, `releases/0.4.0.md`, `releases/0.4.2.md`)
 - 0.3.4 scientific and matrix calculators (`apps/calculators.md`, `releases/0.3.4.md`)
-- Next: persistence and stability (0.9.x)
+- 0.5.0 pipes and redirection (`kernel/shell.md`, `releases/0.5.0.md`)
+- Next: 0.5.1 command history, then the rest of 0.5.x–0.8.x

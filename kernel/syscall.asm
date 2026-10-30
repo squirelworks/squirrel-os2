@@ -24,7 +24,8 @@ SYS_CREATE  equ 14          ; ebx = name            -> 0 or -1
 SYS_DELETE  equ 15          ; ebx = name            -> 0 or -1
 SYS_RENAME  equ 16          ; ebx = old, ecx = new  -> 0 or -1
 SYS_EXEC    equ 17          ; ebx = file name, ecx = argument -> pid or LD_E* (< 0)
-SYS_COUNT   equ 18
+SYS_READDIR equ 18          ; ebx = cursor (0 first), ecx = 20-byte buf -> next cursor, 0 at end, -1 no disk
+SYS_COUNT   equ 19
 
 SYS_ENOSYS  equ -1
 SYSCALL_VEC equ 0x80
@@ -69,6 +70,7 @@ syscall_table:
     dd sys_delete
     dd sys_rename
     dd sys_exec
+    dd sys_readdir
 
 ; ---------- handlers: args in ebx/ecx/edx, result in eax ----------
 sys_putc:
@@ -88,6 +90,9 @@ sys_puts:
 ; Waits for a key press and returns its ASCII code.
 ; Enter -> 10, Backspace -> 8, Esc -> 27; releases and unmapped keys are skipped.
 sys_getc:
+    cmp byte [in_on], 0
+    jne in_getc                 ; input redirected (shell.asm): -1 at the end
+.key:
     call kbd_getscan
     call kbd_shift_track
     je sys_getc
@@ -182,6 +187,34 @@ sys_rename:
     mov esi, ebx
     mov edi, ecx
     jmp fs_rename
+
+; Directory listing, one entry per call: copies the 16-byte name and the
+; size (dword) of the first used entry at or after the cursor into the
+; buffer and returns the cursor for the next call.
+sys_readdir:
+    mov eax, -1
+    cmp byte [fs_mounted], 0
+    je .r
+.l:
+    xor eax, eax
+    cmp ebx, FS_MAXFILES
+    jae .r
+    mov esi, ebx
+    shl esi, 5                  ; * FS_DIRENT
+    add esi, FS_DIR
+    inc ebx
+    cmp byte [esi], 0
+    je .l
+    mov edi, ecx
+    mov edx, [esi+DE_SIZE]
+    push ecx
+    mov ecx, FS_NAMELEN/4
+    rep movsd
+    pop ecx
+    mov [edi], edx
+    mov eax, ebx
+.r:
+    ret
 
 ; ---------- shell commands exercising the gate ----------
 ; systest: calls each non-blocking syscall and checks results and

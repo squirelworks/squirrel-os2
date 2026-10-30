@@ -88,9 +88,7 @@ run_sci:
     mov byte [sci_deg], 0
     jmp .prompt
 .quit:
-    call cls
-    mov esi, banner
-    call puts
+    call app_home
     xor eax, eax
     ret
 

@@ -1,8 +1,8 @@
-# Program Loader (0.3.0)
+# Program Loader (0.4.0 / 0.4.1)
 
 Location: `../../kernel/loader.asm` (included from `kernel/pm.asm`)
 
-The loader runs programs stored as files on the SQFS data disk. Before 0.3.0 every app was
+The loader runs programs stored as files on the SQFS data disk. Before the loader, every app was
 built into the kernel image; now `run <name>` falls back to the disk when `<name>` is not a
 built-in app.
 
@@ -89,6 +89,9 @@ python3 tools/sqfs.py data.img ls
 python3 tools/sqfs.py data.img get notes       # copy a file out (to stdout)
 ```
 
-Sample programs live in `programs/`: `hello` (SQX, echoes its argument), `wc` (SQX, counts
-lines, words and bytes of a file) and `elfhello` (a hand-written ELF32 image that also checks
-its bss is zeroed).
+Sample programs live in `programs/` (see its README): `hello`, `wc`, `ls`, `cat` (SQX) and
+`elfhello` (a hand-written ELF32 image that also checks its bss is zeroed).
+
+The loader was first numbered 0.3.0 and is 0.4.0 (flat) / 0.4.1 (ELF32) in the 0.4.x–0.8.x
+laundry list. The list asked to hook `kernel/loaders/elf_stub.asm`; the native loader parses ELF
+itself instead, because the stub targets the Linux ABI (see `kernel/loaders/README.md`).

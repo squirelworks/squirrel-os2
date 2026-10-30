@@ -236,9 +236,10 @@ set_run_arg:
     pop ecx
     ret
 
-; ---------- command processor (called from keyboard on Enter) ----------
-do_command:
-    mov esi, cmdline
+; ---------- command processor ----------
+; Runs one simple command (esi = text, no pipes or redirections); the
+; pipeline driver do_command in shell.asm calls it for each stage.
+run_simple:
     cmp byte [esi], 0
     je .empty
     ; ls
@@ -387,10 +388,6 @@ do_command:
     call cmd_proctest_run
     jmp .empty
 .empty:
-    mov esi, prompt
-    call puts
-    mov byte [cmdline], 0
-    mov dword [cmdpos], 0
     ret
 
 streq:                        ; esi, edi
@@ -448,12 +445,15 @@ set_gate:
     ret
 
 cls:
+    cmp byte [cap_on], 0        ; keep the screen while output is redirected
+    jne .r
     mov edi, 0xB8000
     mov ecx, 80*25
     mov ax, 0x0720
     rep stosw
     mov dword [cur], 0
     call cursor_sync
+.r:
     ret
 
 puts:
@@ -466,6 +466,8 @@ puts:
     ret
 
 putc:                         ; al = char; preserves all registers
+    cmp byte [cap_on], 0
+    jne cap_putc                ; output redirected (shell.asm)
     push eax
     push ebx
     push edx
@@ -653,7 +655,7 @@ kbd_dispatch:
     or al, al
     jz .e
     mov ebx, [cmdpos]
-    cmp ebx, 60
+    cmp ebx, SH_LINE-8
     jae .e
     mov [cmdline+ebx], al
     mov byte [cmdline+ebx+1], 0
@@ -710,11 +712,13 @@ cmd_put db 'put ', 0
 cmd_mk db 'mk ', 0
 cmd_rm db 'rm ', 0
 cmd_mv db 'mv ', 0
+cmd_echo db 'echo ', 0
 arg_cmds:
     dd cmd_put, cmd_put_run
     dd cmd_mk, cmd_mk_run
     dd cmd_rm, cmd_rm_run
     dd cmd_mv, cmd_mv_run
+    dd cmd_echo, cmd_echo_run
     dd 0, 0
 cmd_disk db 'disk', 0
 cmd_blktest db 'blktest', 0
@@ -797,7 +801,7 @@ KBD_RING_SIZE equ 64
 kbd_ring times KBD_RING_SIZE db 0
 kbd_head dd 0
 kbd_tail dd 0
-cmdline times 64 db 0
+cmdline times 128 db 0         ; SH_LINE (shell.asm)
 cmdpos dd 0
 cur dd 0
 ticks dd 0
@@ -896,6 +900,7 @@ exc_at db ' at EIP 0x', 0
 %include "proc.asm"
 %include "ata.asm"
 %include "fs.asm"
+%include "shell.asm"
 %include "browser.asm"
 %include "calc.asm"
 %include "editor.asm"

@@ -97,7 +97,7 @@ starting at 0 (or at the end with `O_APPEND`). Eight descriptors are shared syst
 | `format` | Erase the data disk and reseed the built-in files |
 | `fstest` | Create, write 1300 bytes in two pieces (forcing a move), reopen, read back and compare, check EOF, rename, delete |
 
-`run <app>` still starts the built-in applications; loading programs from files is milestone 0.3.0.
+`run <app>` still starts the built-in applications; other names are loaded from files by the program loader (0.4.0, `loader.md`).
 
 ## Limitations
 

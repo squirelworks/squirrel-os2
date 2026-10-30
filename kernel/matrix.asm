@@ -80,9 +80,7 @@ run_matrix:
     call mx_list
     jmp .prompt
 .quit:
-    call cls
-    mov esi, banner
-    call puts
+    call app_home
     xor eax, eax
     ret
 

@@ -68,7 +68,7 @@ This is a natural end-of-day point. Next session can resume at either:
 - richer application stubs / syscall interface (0.1.1).
 
 ### 0.3.x — Applications
-- **0.3.0** — Program loader (done — SQX flat binaries and static ELF32 from SQFS, `run <file>`, `kernel/loader.md`)
+- **0.3.0** — Program loader: moved to 0.4.0 / 0.4.1 below
 - **0.3.1** — Calculator suite
   - Basic (`calc`): interactive integer arithmetic + percentage — polished (precedence, parentheses, `ans`, chaining, errors, history file) in `kernel/calc.asm`
   - Scientific (`sci`): floating-point + transcendentals — done in 0.3.4 (`kernel/sci.asm`, x87 FPU)
@@ -88,6 +88,31 @@ This is a natural end-of-day point. Next session can resume at either:
   - 64×18 canvas drawn in place, pen, brush, status line, `kernel/draw.asm`
   - Design: `documentation/apps/draw.md`
   - Pixel / framebuffer drawing deferred until graphics primitives and window manager exist
+
+### 0.4.x — Program loader & user programs
+- **0.4.0** — Flat binary loader (done — SQX format, `run <file>`, `kernel/loader.md`)
+- **0.4.1** — ELF32 loader (done — static `ET_EXEC`, `PT_LOAD` only, native parser in `kernel/loader.asm`)
+- **0.4.2** — User programs (done — `hello`, `wc`, `ls`, `cat`, `elfhello` in `programs/`, `SYS_READDIR`)
+
+### 0.5.x — Shell & command environment
+- **0.5.0** — Pipes and redirection (done — `|`, `>`, `>>`, `<`, `echo`; `kernel/shell.md`)
+- **0.5.1** — Command history and line editing, history persisted to a file
+- **0.5.2** — Batch files run line by line
+
+### 0.6.x — Memory management
+- **0.6.0** — Physical page allocator with free lists
+- **0.6.1** — Per-process address spaces (page directory bookkeeping)
+- **0.6.2** — Stack/heap growth
+
+### 0.7.x — Device model
+- **0.7.0** — Driver registration table (name, probe, ops)
+- **0.7.1** — Console and keyboard as devices
+- **0.7.2** — ATA block device registered as a driver
+
+### 0.8.x — Integration foundations
+- **0.8.0** — Hierarchical directories or long names in SQFS
+- **0.8.1** — Localization runtime (select `localization/` strings at run time)
+- **0.8.2** — Better exception / crash reporting
 
 ### 0.9.x — Integration
 - **0.9.0** — File browser launches the applications (calc, edit, vedit, draw)

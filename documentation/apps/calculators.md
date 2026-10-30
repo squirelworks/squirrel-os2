@@ -66,6 +66,8 @@ The FPU state is not saved on a process switch, so only one process should use f
 | `asin acos atan` | Inverses, result in the current angle mode | `atan(1)` → 45 in `deg` mode |
 | `sqrt ln log exp abs` | Root, natural and base-10 logarithm, e^x, absolute value | `log(1000)` → 3 |
 
+Input can come from a file or pipe (`run sci < sums`), one expression per line (0.5.0).
+
 Commands: `deg` / `rad` switch the angle mode (shown in the prompt, `rad` at first boot); `q`, `quit` or Esc return to the shell.
 
 Results show up to 10 significant digits, in plain notation for 1e-6 ≤ |x| < 1e15 and as `d.ddde±n` otherwise.

@@ -20,7 +20,7 @@ qemu-system-i386 -drive format=raw,file=os.img,index=0,media=disk \
                  -drive format=raw,file=data.img,index=1,media=disk
 ```
 
-A blank disk is formatted at first boot. To put programs on it from the host (0.3.0+), use
+A blank disk is formatted at first boot. To put programs on it from the host (0.4.0+), use
 `tools/sqfs.py` (see `kernel/loader.md`):
 
 ```bash

@@ -30,6 +30,7 @@ SYS_CREATE  equ 14
 SYS_DELETE  equ 15
 SYS_RENAME  equ 16
 SYS_EXEC    equ 17
+SYS_READDIR equ 18
 
 O_CREATE    equ 1
 O_TRUNC     equ 2
