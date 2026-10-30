@@ -39,3 +39,53 @@ Both run with interrupts off, so a timer or keyboard interrupt never sees a half
 - `memtest` allocates every page and checks that each comes back zeroed and distinct. It then frees them all, checks the free count is restored, and checks that a double free and a misaligned free are refused.
 
 The bump allocator from 0.0.6 (`kmalloc`) no longer exists in the current kernel. The page allocator replaces it.
+
+## Paging and address spaces (0.6.1)
+
+Location: `../../kernel/vm.asm`.
+
+### Kernel mapping
+
+`vm_init` runs right after `mm_init`. It takes two pages from the allocator and builds:
+
+- **A page table for 0–4 MB** with 4 KB pages, mapping every page to itself.
+- **The kernel page directory.** Entry 0 points at that table. Entries 1–63 are 4 MB pages (CR4.PSE) that identity-map 4–256 MB.
+  Everything above 256 MB is left unmapped.
+
+It then loads CR3 and sets CR0.PG. Because the mapping is the identity, the kernel keeps running at the same addresses, and every pointer in the system means the same thing before and after.
+
+### Per-program address spaces
+
+`as_create` builds one for each program the loader starts:
+
+| Pages | Content |
+|-------|---------|
+| 1 | Page directory: a copy of the kernel's |
+| 1 | Private copy of the 0–4 MB page table |
+| 16 | The program area `0x30000–0x3FFFF`, fresh zeroed pages |
+
+So a program sees the whole kernel at the usual addresses, but its own 64 KB at `0x30000`.
+Two programs linked at the same address can be alive at once. `nest` starts `hello` and waits for it, then checks that its own code and data at `0x30000` were not overwritten.
+
+The records live in `as_table` (one per process slot):
+
+| Field | Meaning |
+|-------|---------|
+| `AS_PD` | Physical address of the page directory (what CR3 is set to) |
+| `AS_REFS` | Processes using it; the last `as_release` frees every page |
+| `AS_PAGES` | Pages owned, shown by `ps` as memory in KB |
+
+Each PCB has a `PCB_AS` field (0 means the kernel's directory):
+
+- `proc_switch` loads the next process's directory, and skips the reload when it is the same one.
+- `proc_spawn` gives a child its parent's address space and adds a reference. So a thread spawned by a program runs in that program's memory.
+- The loader then moves a freshly loaded program to its own address space.
+- `proc_wait` releases a process's address space when it reaps it.
+
+### Faults
+
+The exception report now also prints CR2 for a page fault. If the faulting process has its own address space, the report ends with `Program ended: pid N`, the process exits with code −1, and the shell carries on (`run crash` reads `0xC0000000`).
+
+A fault anywhere else (the shell, a built-in app, the kernel) still halts the system as before.
+
+Everything still runs in ring 0, so a program can still write over kernel memory. Protection (user mode) remains a 2.x item.

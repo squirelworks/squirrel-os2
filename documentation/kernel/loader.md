@@ -20,8 +20,9 @@ The shell looks up `<file>` in the built-in app table first. If it is not there,
 | −1 | `Unknown command or program` (no such file, or no data disk) |
 | −2 | `Not a program (bad SQX/ELF header)` |
 | −3 | `Program too big for the 64 KB program area` |
-| −4 | `Another program is still running` |
+| −4 | (no longer returned since 0.6.1) |
 | −5 | `Too many processes` |
+| −6 | `Not enough memory to load the program` (0.6.1) |
 
 In the file browser (`run files`), Enter on a program file runs it and then waits for a key
 so its output stays visible. Enter on any other file still views it.
@@ -30,11 +31,15 @@ so its output stays visible. Enter on any other file still views it.
 
 | Range | Use |
 |-------|-----|
-| `0x30000–0x3FFFF` | Program area: the resident program's code, data and bss |
+| `0x30000–0x3FFFF` | Program area (virtual): the program's code, data and bss |
 | `0x40000–0x4FFFF` | Staging buffer: the whole file is read here first |
 
-Exactly one program is resident at a time. The loader remembers the last program's pid; a
-new `exec` is refused while that process is alive (not free or zombie). Each program runs in an
+Since 0.6.1 every program gets its own address space (`memory.md`): the program area is backed
+by 16 fresh pages that only that program sees, so any number of programs (up to the process
+table) can be alive at once, all linked at `0x30000`. The loader switches to the new address
+space while copying the image from the staging buffer, then switches back. The argument string
+is copied into a 64-byte buffer owned by the process slot. When the process is reaped, its pages
+go back to the page allocator. Each program runs in an
 ordinary process slot with that slot's 8 KB stack, so it is scheduled, waited on and reaped like
 the built-in apps. Programs run in ring 0 like the rest of the system. There is no protection
 yet (see 2.x).
