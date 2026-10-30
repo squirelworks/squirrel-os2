@@ -356,8 +356,7 @@ pt_worker:
 app_host:
     call [esp+4]
 .loop:
-    mov al, [editor_mode]
-    or al, [draw_mode]
+    mov al, [draw_mode]
     jz .done
     call kbd_getscan
     call kbd_dispatch

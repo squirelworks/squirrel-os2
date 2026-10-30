@@ -41,6 +41,8 @@ fb_main:
     je .view
     cmp al, 0x20                ; d
     je .delete
+    cmp al, 0x12                ; e
+    je .edit
     jmp .key
 .up:
     cmp dword [fb_sel], 0
@@ -85,6 +87,7 @@ fb_main:
     call fb_app_for             ; ebx = start routine or 0
     test ebx, ebx
     jz .view
+.launch:
     mov ecx, ebx                ; launch as a child process and wait
     mov ebx, app_host
     mov eax, SYS_SPAWN
@@ -95,6 +98,13 @@ fb_main:
     mov eax, SYS_WAIT
     int SYSCALL_VEC
     jmp .reload                 ; the app may have changed files
+.edit:
+    call fb_current
+    jc .key
+    mov edi, esi
+    call set_run_arg
+    mov ebx, run_edit
+    jmp .launch
 .view:
     call fb_current
     jc .key
@@ -302,7 +312,7 @@ fb_title db 'Files', 0
 fb_src_disk db ' (data disk)', 10, 10, 0
 fb_src_rom db ' (built-in, no data disk)', 10, 10, 0
 fb_tag_app db '[app]', 0
-fb_help db 10, 'Up/Down PgUp/PgDn Home/End  Enter: open  v: view  d: delete  Esc: exit', 10, 0
+fb_help db 10, 'Arrows PgUp/PgDn Home/End  Enter: open  v: view  e: edit  d: delete  Esc', 10, 0
 fb_nfiles db ' files', 0
 fb_anykey db 10, '-- press any key --', 0
 fb_confirm db 10, 'Delete this file? (y/n)', 0

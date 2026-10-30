@@ -25,33 +25,40 @@ For people who want every detail visible.
 - Command history and last-action description
 - Suitable for source code, configuration, and precise editing
 
-## Current Status (2026-10-14)
+## Current Status (2026-10-30)
 
-Basic interactive buffers are implemented in `kernel/pm.asm` for the present stage:
+Both editors are implemented in `kernel/editor.asm` as one full-screen engine running as its own process.
 
-- `run edit` / `run vedit` enter editor mode
-- Shared buffer (`edit_buf`, 256 bytes)
-- Insert printable characters
-- Backspace deletes last character
-- Enter inserts newline
-- Esc exits back to command line
-- Verbose mode shows a status prefix (full numeric status still scaffolded)
-- Redraws buffer after each change
-- Uses existing keyboard ISR path and VGA text output
+### Shared behaviour
 
-This matches the current kernel (no separate process, no persistent FS yet).
+- 16 KB buffer, drawn in place (rows 0–22 text, row 23 status, row 24 messages); vertical and horizontal scrolling keep the cursor visible.
+- Cursor: arrows, Home/End (line), PgUp/PgDn (23 lines); up/down remember the wanted column across short lines.
+- Editing: printable keys (with Shift), Enter, Backspace, Delete, Tab (4 spaces), Insert toggles insert/overwrite.
+- Files: `run edit <file>` / `run vedit <file>` loads the file (or starts a new one with that name);
+  Ctrl+S or F2 saves (asks for a name if untitled); Esc or Ctrl+Q quits, asking `s`ave / `d`iscard / cancel when modified.
+- Without a data disk the editors still work in memory and say that saving is unavailable.
+- From the file browser, `e` opens the selected file in `edit`.
 
-Next (scaffolded in plannedmilestones 0.3.2):
-- Cursor movement
-- Full numeric verbose status (line/col/offset/char)
-- Load/save to in-memory files
-- Larger capacity / proper line handling
+### `edit` status line
+
+`name [modified]` and the key reminder. Messages only for load/save/errors.
+
+### `vedit` additions
+
+- Line-number gutter on every line.
+- Status: `L<line> C<col> off <byte offset> '<char>' 0x<hex> (<dec>) INS|OVR MOD|--- <size>/<capacity> <name>`.
+- A message for every action: `Typed 'a' 0x61 (97)`, `Deleted '\n' 0x0A (10)`, `Moved.`, mode changes, load/save results.
+
+### Not yet
+
+- Control-character display toggle, command history, search, undo.
+- Files larger than 16 KB load truncated (with a warning).
 
 ## Commands
 
 ```
-run edit
-run vedit
+run edit [file]
+run vedit [file]
 ```
 
 ## Design Notes
@@ -59,5 +66,5 @@ run vedit
 - Both share the same underlying buffer primitives.
 - The verbose editor simply exposes more state and logs more actions.
 - Neither depends on external editor sources.
-- Keyboard input is already available (IRQ1).
-- File I/O will use the in-memory file table until persistent storage arrives.
+- Keys come from the scancode queue (`kbd_getscan`), with Shift and Ctrl tracked by `kbd_shift_track`.
+- File I/O uses the SQFS kernel API (`fs_open`/`fs_read`/`fs_write`).

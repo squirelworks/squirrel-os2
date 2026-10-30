@@ -31,7 +31,7 @@ check cmd-reuse    'systest: PASS'          'cat edit' '<ret>' systest '<ret>'
 check calc-sub     '= 85'             'run calc' '<ret>' '100 - 15' '<ret>'
 check calc-div     '= 21'             'run calc' '<ret>' '84 / 4' '<ret>'
 check calc-div0    'division by zero'       'run calc' '<ret>' '9 / 0' '<ret>'
-check app-exit     'systest: PASS'          'run vedit' '<ret>' hi '<esc>' systest '<ret>'
+check app-exit     'systest: PASS'          'run vedit' '<ret>' hi '<esc>' d systest '<ret>'
 check shift-mul     '= 42'            'run calc' '<ret>' '6 * 7' '<ret>'
 check shift-pct     '= 30'            'run calc' '<ret>' '200 % 15' '<ret>'
 check calc-neg      '= -2'            'run calc' '<ret>' '7 - 9' '<ret>'
@@ -67,6 +67,14 @@ check fb-launch     '= 42'            'run files' '<ret>' '<ret>' '6 * 7' '<ret>
 check fb-view       'press any key'         'run files' '<ret>' '<down>' v
 check fb-delete     'Not found'             'put junk x' '<ret>' 'run files' '<ret>' '<end>' d y '<esc>' 'cat junk' '<ret>'
 check fb-exit       'systest: PASS'         'run files' '<ret>' '<esc>' systest '<ret>'
+check ed-save       'Saved text'            'run edit memo1' '<ret>' 'Saved text' '<ctrl-s>' '<esc>' 'cat memo1' '<ret>'
+check ed-reload     'Loaded.'               'run edit memo1' '<ret>'
+check ed-move       'Hello editor!'         'run edit' '<ret>' 'Hello editor' '<ret>' 'two' '<up>' '<end>' '!'
+check ed-vstatus    'L1 C4 off 3'           'run vedit' '<ret>' abc
+check ed-vaction    "Deleted 'c'"           'run vedit' '<ret>' abc '<backspace>'
+check ed-unsaved    'Unsaved changes'       'run edit' '<ret>' x '<esc>'
+check ed-saveas     'memo2'                 'run edit' '<ret>' hi '<f2>' memo2 '<ret>' '<esc>' ls '<ret>'
+check fb-edit       'Loaded.'               'run files' '<ret>' '<home>' e
 check disk-detect   'disk 1: 2048 sectors'  disk '<ret>'
 check blktest       'blktest: PASS'         blktest '<ret>' blktest '<ret>'
 disk=
