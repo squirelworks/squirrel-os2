@@ -38,4 +38,5 @@ Documentation is active.
 - 0.5.2 batch files (`kernel/shell.md`, `releases/0.5.2.md`)
 - 0.6.0 page allocator (`kernel/memory.md`, `releases/0.6.0.md`)
 - 0.6.1 paging and per-process address spaces (`kernel/memory.md`, `releases/0.6.1.md`)
-- Next: 0.6.2 heap growth, then 0.7.x–0.8.x
+- 0.6.2 program heaps with `SYS_SBRK` (`kernel/memory.md`, `releases/0.6.2.md`)
+- Next: 0.7.x driver model, then 0.8.x

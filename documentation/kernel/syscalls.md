@@ -44,6 +44,7 @@ add its `SYS_*` constant, bump `SYS_COUNT`.
 | 17 | `SYS_EXEC` | `ebx` = file name, `ecx` = argument or 0 | pid, or < 0 | Added in 0.4.0, see `loader.md` |
 | 18 | `SYS_READDIR` | `ebx` = cursor (0 to start), `ecx` = 20-byte buffer | next cursor; 0 at the end; −1 without a disk | Added in 0.4.2: fills the 16-byte name and the size (dword at +16) of the next file |
 | 19–20 | `SYS_PALLOC`, `SYS_PFREE` | | | Added in 0.6.0, see `memory.md` |
+| 21 | `SYS_SBRK` | `ebx` = bytes to grow (negative shrinks, 0 asks) | the old break, or −1 | Added in 0.6.2: moves the end of the program's heap at `0x40000000` (up to 4 MB), see `memory.md` |
 
 Example:
 
