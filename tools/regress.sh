@@ -8,11 +8,14 @@ mkdir -p "$out"
 (cd "$root/kernel" && nasm -f bin boot.asm -o "$out/boot.bin" \
     && nasm -f bin pm.asm -o "$out/pm.bin" 2>/dev/null)
 cat "$out/boot.bin" "$out/pm.bin" > "$out/os.img"
+rm -f "$out/data.img"
+dd if=/dev/zero of="$out/data.img" bs=1024 count=1024 2>/dev/null
 
 fail=0
+disk=$out/data.img              # data disk attached as primary slave
 check() {   # check NAME EXPECTED KEYS...
     name=$1; want=$2; shift 2
-    if python3 "$root/tools/qemu_screen.py" "$out/os.img" "$@" | grep -qF -- "$want"; then
+    if python3 "$root/tools/qemu_screen.py" ${disk:+--disk "$disk"} "$out/os.img" "$@" | grep -qF -- "$want"; then
         echo "ok   $name"
     else
         echo "FAIL $name (expected: $want)"; fail=1
@@ -41,4 +44,8 @@ check interleave    'worker 3 step 1'       proctest '<ret>'
 check app-process   'Result: 42'            'run calc' '<ret>' '6 * 7' '<ret>' '<esc>' 'run calc' '<ret>' '6 * 7' '<ret>'
 check slot-reuse    'exit code 30'          'run sci' '<ret>' 'run sci' '<ret>' 'run sci' '<ret>' 'run sci' '<ret>' \
                     'run sci' '<ret>' 'run sci' '<ret>' 'run sci' '<ret>' 'run sci' '<ret>' proctest '<ret>'
+check disk-detect   'disk 1: 2048 sectors'  disk '<ret>'
+check blktest       'blktest: PASS'         blktest '<ret>' blktest '<ret>'
+disk=
+check no-disk       'no data disk'          blktest '<ret>'
 exit $fail

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Boot the Squirrel-OS/2 image in headless QEMU, type keys, print the screen.
 
-Usage: qemu_screen.py IMAGE [KEYS...]
+Usage: qemu_screen.py [--disk DATA_IMAGE] IMAGE [KEYS...]
 Each KEYS argument is typed as text; a token like "<ret>", "<esc>",
-"<backspace>" or "<up>" is sent as that single QEMU key name. The 80x25 VGA text buffer is printed at the end.
+"<backspace>" or "<up>" is sent as that single QEMU key name.
+--disk attaches DATA_IMAGE as the primary slave (the kernel's data disk). The 80x25 VGA text buffer is printed at the end.
 """
 import os, socket, subprocess, sys, tempfile, time
 
@@ -15,7 +16,7 @@ KEYMAP = {' ': 'spc', '\n': 'ret', '-': 'minus', '=': 'equal', '/': 'slash',
 
 def monitor(sock, cmd):
     sock.sendall((cmd + '\n').encode())
-    time.sleep(0.08)
+    time.sleep(0.04)
     sock.setblocking(False)
     try:
         while sock.recv(4096):
@@ -26,12 +27,18 @@ def monitor(sock, cmd):
 
 
 def main():
-    image, keys = sys.argv[1], sys.argv[2:]
+    args = sys.argv[1:]
+    drives = []
+    if args[:1] == ['--disk']:
+        drives = ['-drive', f'format=raw,file={args[1]},index=1,media=disk']
+        args = args[2:]
+    image, keys = args[0], args[1:]
     tmp = tempfile.mkdtemp()
     path = os.path.join(tmp, 'mon')
     dump = os.path.join(tmp, 'vga.bin')
     qemu = subprocess.Popen(['qemu-system-i386', '-display', 'none',
-                             '-drive', f'format=raw,file={image}',
+                             '-drive', f'format=raw,file={image},index=0,media=disk',
+                             *drives,
                              '-monitor', f'unix:{path},server,nowait'])
     try:
         for _ in range(50):

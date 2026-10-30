@@ -40,7 +40,8 @@ Squirrel-OS/2 uses a simple `major.minor.patch` scheme for early development:
 | 0.3.1   | 2026-10-14 | Calculator suite (basic interactive) |
 | 0.1.1   | 2026-10-30 | System call interface (`int 0x80`)   |
 | 0.1.2   | 2026-10-30 | Basic process model                  |
+| 0.2.0   | 2026-10-30 | ATA PIO block device driver          |
 
 ## Next planned release
 
-**0.2.0** — Block device driver (ATA PIO).
+**0.2.1** — On-disk file system.

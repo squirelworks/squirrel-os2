@@ -14,7 +14,9 @@ SYS_SPAWN   equ 4           ; ebx = entry, ecx = arg -> pid or -1
 SYS_EXIT    equ 5           ; ebx = exit code       (does not return)
 SYS_WAIT    equ 6           ; ebx = pid             -> exit code or -1
 SYS_GETPID  equ 7           ;                       -> pid
-SYS_COUNT   equ 8
+SYS_BREAD   equ 8           ; ebx = LBA, ecx = buf, edx = drive -> 0 or -1
+SYS_BWRITE  equ 9           ; ebx = LBA, ecx = buf (data disk only) -> 0 or -1
+SYS_COUNT   equ 10
 
 SYS_ENOSYS  equ -1
 SYSCALL_VEC equ 0x80
@@ -49,6 +51,8 @@ syscall_table:
     dd sys_exit
     dd sys_wait
     dd sys_getpid
+    dd sys_bread
+    dd sys_bwrite
 
 ; ---------- handlers: args in ebx/ecx/edx, result in eax ----------
 sys_putc:
@@ -110,6 +114,28 @@ sys_getpid:
     mov eax, [eax+PCB_PID]
     ret
 
+; Raw sector access. Writes are limited to the data disk (drive 1) so a
+; program cannot overwrite the boot image.
+sys_bread:
+    mov edi, ecx
+    mov ecx, ebx
+    mov ebx, edx
+    call ata_read
+    jmp sys_cf_result
+
+sys_bwrite:
+    mov esi, ecx
+    mov ecx, ebx
+    mov ebx, 1
+    call ata_write
+    ; fall through
+sys_cf_result:                  ; CF -> eax = -1, else 0
+    mov eax, 0
+    jnc .ok
+    dec eax
+.ok:
+    ret
+
 ; ---------- shell commands exercising the gate ----------
 ; systest: calls each non-blocking syscall and checks results and
 ; register preservation. Prints PASS or FAIL.
@@ -144,6 +170,23 @@ cmd_systest_run:
     mov eax, SYS_GETPID     ; the shell is pid 0
     int SYSCALL_VEC
     test eax, eax
+    call st_check
+
+    mov eax, SYS_BREAD      ; boot sector of drive 0 ends in 0xAA55
+    xor ebx, ebx
+    mov ecx, KSCRATCH+0x600
+    xor edx, edx
+    int SYSCALL_VEC
+    test eax, eax
+    call st_check
+    cmp word [KSCRATCH+0x600+510], 0xAA55
+    call st_check
+
+    mov eax, SYS_BWRITE     ; past the end of any disk -> -1
+    mov ebx, 0x0FFFFFFF
+    mov ecx, KSCRATCH+0x600
+    int SYSCALL_VEC
+    cmp eax, -1
     call st_check
 
     mov eax, SYS_COUNT      ; first unused number

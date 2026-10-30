@@ -39,6 +39,7 @@ add its `SYS_*` constant, bump `SYS_COUNT`.
 | 2 | `SYS_GETC` | — | ASCII code | Blocks. Enter → 10, Backspace → 8, Esc → 27. Key releases and unmapped keys are skipped |
 | 3 | `SYS_YIELD` | — | 0 | Switches to the next ready process; if none, halts until the next interrupt |
 | 4–7 | `spawn`, `exit`, `wait`, `getpid` | | | Added in 0.1.2, see `processes.md` |
+| 8–9 | `bread`, `bwrite` | | | Added in 0.2.0, see `block-device.md` |
 
 Example:
 

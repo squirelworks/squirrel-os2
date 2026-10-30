@@ -1,0 +1,20 @@
+# Physical Memory Map (as of 0.2.0)
+
+| Range | Use |
+|-------|-----|
+| `0x00000–0x004FF` | Real-mode IVT / BIOS data (left alone) |
+| `0x07C00–0x07DFF` | Boot sector |
+| `0x08000–0x0BFFF` | Kernel image (`pm.asm`, 16 KB, loaded by the boot sector) |
+| `0x20000–0x2FFFF` | `KSCRATCH`: kernel scratch buffers (ATA identify/test buffers, later FS cache) |
+| `0x70000–0x7FFFF` | Process stacks, 8 KB per slot (slot *i* top = `0x70000 + i*0x2000`) |
+| `0x9F000` and down | Boot / shell (pid 0) stack |
+| `0xB8000–0xB8F9F` | VGA text buffer |
+
+Scratch layout inside `KSCRATCH`:
+
+| Offset | Size | Use |
+|--------|------|-----|
+| `0x000` | 512 | ATA IDENTIFY data |
+| `0x200` | 512 | `blktest` output buffer |
+| `0x400` | 512 | `blktest` input buffer |
+| `0x600` | 512 | `systest` sector buffer |

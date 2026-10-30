@@ -5,6 +5,9 @@
 ; Original code.
 BITS 16
 ORG 0x8000
+
+; Memory map (see documentation/kernel/memory-map.md)
+KSCRATCH equ 0x20000            ; 64 KB kernel scratch (driver/FS buffers)
 stage2:
     cli
     lgdt [gdt_desc]
@@ -48,6 +51,7 @@ pm:
     call syscall_init
     lidt [idt_desc]
     call proc_init
+    call ata_init
 
     ; PIC + PIT
     mov al, 0x11
@@ -528,6 +532,14 @@ do_command:
     jne .notrap
     ud2
 .notrap:
+    ; disk
+    mov edi, cmd_disk
+    call streq
+    je .disk
+    ; blktest
+    mov edi, cmd_blktest
+    call streq
+    je .blktest
     ; ps
     mov edi, cmd_ps
     call streq
@@ -594,6 +606,12 @@ do_command:
     jmp .empty
 .ps:
     call cmd_ps_run
+    jmp .empty
+.disk:
+    call cmd_disk_run
+    jmp .empty
+.blktest:
+    call cmd_blktest_run
     jmp .empty
 .proctest:
     call cmd_proctest_run
@@ -1052,7 +1070,8 @@ default_isr:
 
 ; ---------- data ----------
 banner db 'Squirrel-OS/2 — in-memory FS + apps', 10
-       db 'Commands: ls | cat <name> | run <name> | ps | systest | proctest | keys', 10
+       db 'Commands: ls | cat <name> | run <name> | ps | disk', 10
+       db 'Tests: systest | proctest | blktest | keys', 10
        db 'Apps: calc, sci, graph, matrix, diff, topo, edit, vedit, draw', 10, 0
 prompt db '> ', 0
 fs_header db 'Files:', 10, 0
@@ -1065,6 +1084,8 @@ cmd_systest db 'systest', 0
 cmd_keys db 'keys', 0
 cmd_trap db 'trap', 0
 cmd_ps db 'ps', 0
+cmd_disk db 'disk', 0
+cmd_blktest db 'blktest', 0
 cmd_proctest db 'proctest', 0
 proc_full db 'Too many processes', 10, 0
 
@@ -1264,6 +1285,7 @@ exc_at db ' at EIP 0x', 0
 
 %include "syscall.asm"
 %include "proc.asm"
+%include "ata.asm"
 
 align 8
 gdt:

@@ -47,7 +47,7 @@ A functional original operating system that:
 - **0.1.2** — Basic process model (create, exit, wait) (done — cooperative spawn/exit/wait/getpid, `run` spawns; see `kernel/processes.md`)
 
 ### 0.2.x — Storage
-- **0.2.0** — Block device driver (ATA PIO or virtio-blk)
+- **0.2.0** — Block device driver (ATA PIO or virtio-blk) (done — ATA PIO LBA28, `kernel/block-device.md`)
 - **0.2.1** — Minimal file system (flat directory or simple hierarchical)
 - **0.2.2** — File open/read/write/close
 - **0.2.3** — File browser (list, navigate, launch)
