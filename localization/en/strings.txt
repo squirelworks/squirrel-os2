@@ -8,3 +8,6 @@ edit=Text Editor
 draw=Drawing Program
 hello=Hello from Squirrel-OS/2
 result=2 + 2 = 4
+keys=Type keys, Enter to finish:
+systest_pass=systest: PASS
+systest_fail=systest: FAIL

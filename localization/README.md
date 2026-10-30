@@ -1,4 +1,45 @@
 # Localization
 
-Basic set: English (en), Latin (la), Klingon (tlh).
-Every user-visible string should exist in all three.
+Squirrel-OS/2 will carry a basic localization set for every user-visible string:
+
+| Code | Language |
+|------|----------|
+| `en` | English |
+| `la` | Latin |
+| `tlh` | Klingon |
+
+## Layout
+
+```
+localization/
+├── README.md
+├── en/
+│   └── strings.txt
+├── la/
+│   └── strings.txt
+└── tlh/
+    └── strings.txt
+```
+
+## Current strings (scaffold)
+
+| Key | English | Latin | Klingon |
+|-----|---------|-------|---------|
+| banner | Squirrel-OS/2 | Sciurus-OS/2 | Squirrel-OS/2 |
+| prompt | > | > | > |
+| files | Files: | Tabulae: | tebwI': |
+| notfound | Not found | Non inventum | tu'lu'be' |
+| unknown | Unknown command | Mandatum ignotum | ra' tlhaQ |
+| calc | Calculator | Calculator | Calculator |
+| edit | Text Editor | Editor textus | ghItlh editor |
+| draw | Drawing Program | Programma pingendi | naD program |
+| keys | Type keys, Enter to finish: | Claves preme, Enter ad finiendum: | leQmey yIbach, Enter yIbach rInmeH: |
+| systest_pass | systest: PASS | systest: PROBATUM | systest: Qapla' |
+| systest_fail | systest: FAIL | systest: DEFECIT | systest: luj |
+
+## Policy
+
+- Every new user-visible string gets an entry in all three files.
+- Kernel and applications look up strings by key.
+- Fallback is English if a translation is missing.
+- This is scaffolding; full message catalogs and runtime switching come later.

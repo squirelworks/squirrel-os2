@@ -10,4 +10,30 @@ Version 3.0.0 is the 64-bit evolution aimed at competing with contemporary
 desktop operating systems.  
 Do not describe pre-2.0 builds as OS/2.
 
-All material under this tree is project-native.
+All material under this tree is project-native.  
+Third-party and contemporary sources remain outside this directory.
+
+## Layout
+
+```
+squirrel-os2/
+├── README.md
+├── documentation/          ← ongoing project documentation
+│   ├── architecture/
+│   ├── kernel/
+│   ├── guides/
+│   └── releases/
+├── kernel/                 ← original kernel code
+├── squirrelbios/           ← own firmware tree (also on GitHub)
+├── firmware/               ← stub pointer to squirrelbios/
+└── docs/                   (legacy pointer; prefer documentation/)
+```
+
+## Documentation
+
+See `documentation/README.md` for the living documentation set.
+
+## Current milestone
+
+Current: in-memory FS, interactive basic calculator, dual editors, interactive drawing canvas. See documentation.  
+Details in `documentation/releases/0.0.1.md`.
