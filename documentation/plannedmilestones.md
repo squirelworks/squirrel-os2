@@ -84,10 +84,9 @@ This is a natural end-of-day point. Next session can resume at either:
   - Both load/save via in-memory FS first, then persistent FS
   - Design: `documentation/apps/editors.md`
   - Current: interactive mode via keyboard ISR (`run edit`, `run vedit`, Esc to exit)
-- **0.3.3** — Drawing program (ASCII drawer only, until GUI)
-  - Interactive ASCII canvas (32×10), cursor movement, plot/erase/clear
+- **0.3.3** — Drawing program (done — ASCII drawer with load/save, lines, rectangles, fill, `apps/draw.md`)
+  - 64×18 canvas drawn in place, pen, brush, status line, `kernel/draw.asm`
   - Design: `documentation/apps/draw.md`
-  - Current: basic interactive mode via keyboard ISR (`run draw`, Esc to exit)
   - Pixel / framebuffer drawing deferred until graphics primitives and window manager exist
 
 ### 0.9.x — Integration

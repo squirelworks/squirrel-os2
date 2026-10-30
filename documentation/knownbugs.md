@@ -30,7 +30,7 @@ Open at 0.1.1 (all resolved after 0.1.1, ship with 0.1.2):
 
 Open:
 
-- **KB-7** `draw`, `edit` and `vedit` redraw by appending a fresh copy below the old one rather than in place, so the screen scrolls on every key. (Resolved for `edit`/`vedit` in 0.3.2; `draw` remains.)
+- **KB-7** `draw`, `edit` and `vedit` redraw by appending a fresh copy below the old one rather than in place, so the screen scrolls on every key. (Resolved: `edit`/`vedit` in 0.3.2, `draw` in 0.3.3.)
 
 ## Notes
 

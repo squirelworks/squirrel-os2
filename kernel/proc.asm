@@ -351,19 +351,10 @@ pt_worker:
     imul eax, 10
     ret
 
-; Hosts an interactive app as a process: arg = the app's start routine.
-; Feeds raw scancodes to kbd_dispatch until the app clears its mode flag.
+; Hosts an app as a process: arg = the app's start routine, which runs
+; its own key loop and returns when the app quits.
 app_host:
-    call [esp+4]
-.loop:
-    cmp byte [draw_mode], 0
-    je .done
-    call kbd_getscan
-    call kbd_dispatch
-    jmp .loop
-.done:
-    xor eax, eax
-    ret
+    jmp [esp+4]
 
 ; Blocking raw scancode read; lets other processes run while waiting.
 kbd_getscan:

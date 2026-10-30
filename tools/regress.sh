@@ -75,7 +75,13 @@ check ed-vaction    "Deleted 'c'"           'run vedit' '<ret>' abc '<backspace>
 check ed-unsaved    'Unsaved changes'       'run edit' '<ret>' x '<esc>'
 check ed-saveas     'memo2'                 'run edit' '<ret>' hi '<f2>' memo2 '<ret>' '<esc>' ls '<ret>'
 check fb-edit       'Loaded.'               'run files' '<ret>' '<home>' e
-check draw-exit     'systest: PASS'         'run draw' '<ret>' '<right>' '<spc>' '<esc>' systest '<ret>'
+check draw-exit     'systest: PASS'         'run draw' '<ret>' '<right>' '<spc>' '<esc>' d systest '<ret>'
+check draw-unsaved  'Unsaved changes'       'run draw' '<ret>' '<spc>' '<esc>'
+check draw-rect     '*ooo*'                 'run draw pic' '<ret>' r '<right>' '<right>' '<right>' '<right>' \
+                    '<down>' '<down>' r '<left>' '<up>' b o f '<ctrl-s>' '<esc>' 'cat pic' '<ret>'
+check draw-line     '**'                    'run draw diag' '<ret>' l '<right>' '<right>' '<right>' '<down>' l \
+                    '<ctrl-s>' '<esc>' 'cat diag' '<ret>'
+check draw-reload   'Loaded.'               'run draw pic' '<ret>'
 check disk-detect   'disk 1: 2048 sectors'  disk '<ret>'
 check blktest       'blktest: PASS'         blktest '<ret>' blktest '<ret>'
 disk=
