@@ -12,6 +12,14 @@ cat boot.bin pm.bin > os.img
 qemu-system-i386 -drive format=raw,file=os.img
 ```
 
+To use the data disk (0.2.0+), attach a second image as primary slave:
+
+```bash
+dd if=/dev/zero of=data.img bs=1M count=1
+qemu-system-i386 -drive format=raw,file=os.img,index=0,media=disk \
+                 -drive format=raw,file=data.img,index=1,media=disk
+```
+
 ## Regression run
 
 `tools/regress.sh` builds the image and types scripted commands into headless QEMU,

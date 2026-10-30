@@ -27,4 +27,5 @@ Documentation is active.
 - Current milestone: in-memory FS + interactive basic calculator + editor stubs + calculator suite scaffolds (session bookmark 2026-10-14)
 - 0.1.1 syscall interface implemented (`kernel/syscalls.md`, `releases/0.1.1.md`); regression script `tools/regress.sh`
 - 0.1.2 process model implemented (`kernel/processes.md`, `releases/0.1.2.md`)
-- Next: 0.2.0 block device
+- 0.2.0 ATA PIO block driver implemented (`kernel/block-device.md`, `releases/0.2.0.md`)
+- Next: 0.2.1 on-disk file system
