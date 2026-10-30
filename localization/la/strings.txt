@@ -8,3 +8,6 @@ edit=Editor textus
 draw=Programma pingendi
 hello=Salve ex Sciurus-OS/2
 result=II + II = IV
+keys=Claves preme, Enter ad finiendum:
+systest_pass=systest: PROBATUM
+systest_fail=systest: DEFECIT

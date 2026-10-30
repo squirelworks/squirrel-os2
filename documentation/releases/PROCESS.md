@@ -38,7 +38,8 @@ Squirrel-OS/2 uses a simple `major.minor.patch` scheme for early development:
 | 0.0.6   | 2026-10-14 | Bump allocator                     |
 | 0.1.0   | 2026-10-14 | Cooperative task switch            |
 | 0.3.1   | 2026-10-14 | Calculator suite (basic interactive) |
+| 0.1.1   | 2026-10-30 | System call interface (`int 0x80`)   |
 
 ## Next planned release
 
-**0.3.1** — Calculator suite (see `releases/0.3.1.md`). Next candidates: calculator polish or 0.1.1 syscalls.
+**0.1.2** — Basic process model (create, exit, wait). Other candidates: 0.2.0 block device, calculator polish.

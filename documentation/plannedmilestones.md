@@ -43,7 +43,7 @@ A functional original operating system that:
 
 ### 0.1.x — Kernel services
 - **0.1.0** — Cooperative task switch (done)
-- **0.1.1** — System call interface (int 0x80 or equivalent)
+- **0.1.1** — System call interface (int 0x80 or equivalent) (done — `int 0x80`: putc, puts, getc, yield; see `kernel/syscalls.md`)
 - **0.1.2** — Basic process model (create, exit, wait)
 
 ### 0.2.x — Storage

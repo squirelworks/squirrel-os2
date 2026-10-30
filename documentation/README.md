@@ -25,4 +25,5 @@ Documentation is active.
 - Known bugs list added (`knownbugs.md`)
 - Specifications added (`specifications.md`) — capabilities and intentional limitations
 - Current milestone: in-memory FS + interactive basic calculator + editor stubs + calculator suite scaffolds (session bookmark 2026-10-14)
-- Next session: persistent storage or 0.1.1 syscalls or richer editor buffers
+- 0.1.1 syscall interface implemented (`kernel/syscalls.md`, `releases/0.1.1.md`); regression script `tools/regress.sh`
+- Next session: 0.1.2 process model or 0.2.0 block device

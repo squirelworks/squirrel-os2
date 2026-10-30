@@ -1,6 +1,7 @@
 ; Squirrel-OS/2 — in-memory FS + apps
 ; Commands: ls, cat <name>, run <name>
 ; Editors: edit (normal), vedit (verbose) — basic buffer + insert
+; Syscalls (0.1.1): int 0x80 gate, see syscall.asm; test with systest / keys
 ; Original code.
 BITS 16
 ORG 0x8000
@@ -34,6 +35,7 @@ pm:
     mov edi, idt+0x21*8
     mov eax, kbd_isr
     call set_gate
+    call syscall_init
     lidt [idt_desc]
 
     ; PIC + PIT
@@ -70,7 +72,17 @@ pm:
     sti
 
 .cmdloop:
+    ; keyboard IRQ only queues scancodes; they are handled here, outside
+    ; interrupt context, so commands may block in syscalls such as getc
+    cli
+    call kbd_dequeue
+    jnc .key
+    sti
     hlt
+    jmp .cmdloop
+.key:
+    sti
+    call kbd_dispatch
     jmp .cmdloop
 
 ; ---------- file system ----------
@@ -253,9 +265,10 @@ calc_eval:
 .div:
     test edx, edx
     jz .div0
+    mov ecx, edx              ; cdq overwrites edx
     mov eax, ebx
     cdq
-    idiv edx
+    idiv ecx
     mov ebx, eax
     jmp .print
 .pct:
@@ -294,6 +307,7 @@ calc_eval:
 
 ; atoi: esi points to digits, ecx remaining length, returns eax = number, advances esi/ecx
 atoi:
+    push ebx
     xor eax, eax
     xor ebx, ebx
 .al:
@@ -311,6 +325,7 @@ atoi:
     dec ecx
     jmp .al
 .adone:
+    pop ebx
     ret
 
 ; itoa: eax = number, writes to num_buf (null terminated)
@@ -486,6 +501,14 @@ do_command:
     mov edi, cmd_cat
     call streq_prefix
     je .cat
+    ; systest
+    mov edi, cmd_systest
+    call streq
+    je .systest
+    ; keys
+    mov edi, cmd_keys
+    call streq
+    je .keys
     ; run
     mov edi, cmd_run
     call streq_prefix
@@ -495,6 +518,12 @@ do_command:
     jmp .empty
 .ls:
     call fs_list
+    jmp .empty
+.systest:
+    call cmd_systest_run
+    jmp .empty
+.keys:
+    call cmd_keys_run
     jmp .empty
 .cat:
     ; skip "cat "
@@ -637,17 +666,19 @@ puts:
 .d:
     ret
 
-putc:
+putc:                         ; al = char; preserves all registers
+    push eax
+    push ebx
+    push edx
     cmp al, 10
     je .nl
-    mov edi, 0xB8000
+    cmp al, 8
+    je .bs
     mov ebx, [cur]
-    shl ebx, 1
-    add edi, ebx
     mov ah, 0x07
-    mov [edi], ax
+    mov [0xB8000+ebx*2], ax
     inc dword [cur]
-    ret
+    jmp .r
 .nl:
     mov eax, [cur]
     xor edx, edx
@@ -656,6 +687,18 @@ putc:
     inc eax
     mul ebx
     mov [cur], eax
+    jmp .r
+.bs:
+    mov ebx, [cur]
+    test ebx, ebx
+    jz .r
+    dec ebx
+    mov [cur], ebx
+    mov word [0xB8000+ebx*2], 0x0720
+.r:
+    pop edx
+    pop ebx
+    pop eax
     ret
 
 ; ---------- ISRs ----------
@@ -667,10 +710,47 @@ timer_isr:
     pop eax
     iretd
 
+; IRQ1: queue the raw scancode (dropped if the ring is full)
 kbd_isr:
     push eax
     push ebx
+    push ecx
     in al, 0x60
+    mov ebx, [kbd_head]
+    lea ecx, [ebx+1]
+    and ecx, KBD_RING_SIZE-1
+    cmp ecx, [kbd_tail]
+    je .full
+    mov [kbd_ring+ebx], al
+    mov [kbd_head], ecx
+.full:
+    mov al, 0x20
+    out 0x20, al
+    pop ecx
+    pop ebx
+    pop eax
+    iretd
+
+; Pops one scancode into al; CF set if the ring is empty. Clobbers ebx.
+; Call with interrupts disabled.
+kbd_dequeue:
+    mov ebx, [kbd_tail]
+    cmp ebx, [kbd_head]
+    je .empty
+    mov al, [kbd_ring+ebx]
+    inc ebx
+    and ebx, KBD_RING_SIZE-1
+    mov [kbd_tail], ebx
+    clc
+    ret
+.empty:
+    stc
+    ret
+
+; Handles one scancode (al) for the shell or the active app.
+kbd_dispatch:
+    push eax
+    push ebx
     cmp al, 0x80
     jae .e
     cmp byte [calc_mode], 0
@@ -690,6 +770,7 @@ kbd_isr:
     cmp ebx, 60
     jae .e
     mov [cmdline+ebx], al
+    mov byte [cmdline+ebx+1], 0
     inc dword [cmdpos]
     call putc
     jmp .e
@@ -866,18 +947,16 @@ kbd_isr:
     call puts
     jmp .e
 .e:
-    mov al, 0x20
-    out 0x20, al
     pop ebx
     pop eax
-    iretd
+    ret
 
 default_isr:
     iretd
 
 ; ---------- data ----------
 banner db 'Squirrel-OS/2 — in-memory FS + apps', 10
-       db 'Commands: ls | cat <name> | run <name>', 10
+       db 'Commands: ls | cat <name> | run <name> | systest | keys', 10
        db 'Apps: calc, sci, graph, matrix, diff, topo, edit, vedit, draw', 10, 0
 prompt db '> ', 0
 fs_header db 'Files:', 10, 0
@@ -886,6 +965,8 @@ unknown db 'Unknown command', 10, 0
 cmd_ls db 'ls', 0
 cmd_cat db 'cat ', 0
 cmd_run db 'run ', 0
+cmd_systest db 'systest', 0
+cmd_keys db 'keys', 0
 name_calc db 'calc', 0
 name_edit db 'edit', 0
 name_vedit db 'vedit', 0
@@ -957,6 +1038,10 @@ file_table:
     dd banner
     dd 80
 
+KBD_RING_SIZE equ 64
+kbd_ring times KBD_RING_SIZE db 0
+kbd_head dd 0
+kbd_tail dd 0
 cmdline times 64 db 0
 cmdpos dd 0
 cur dd 0
@@ -982,6 +1067,8 @@ scancode_map:
     db 'a','s','d','f','g','h','j','k','l',';',39,'`',0,'\'
     db 'z','x','c','v','b','n','m',',','.','/',0,0,0,' '
     times 128 db 0
+
+%include "syscall.asm"
 
 align 8
 gdt:

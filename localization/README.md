@@ -33,6 +33,9 @@ localization/
 | calc | Calculator | Calculator | Calculator |
 | edit | Text Editor | Editor textus | ghItlh editor |
 | draw | Drawing Program | Programma pingendi | naD program |
+| keys | Type keys, Enter to finish: | Claves preme, Enter ad finiendum: | leQmey yIbach, Enter yIbach rInmeH: |
+| systest_pass | systest: PASS | systest: PROBATUM | systest: Qapla' |
+| systest_fail | systest: FAIL | systest: DEFECIT | systest: luj |
 
 ## Policy
 
