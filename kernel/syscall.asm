@@ -25,7 +25,9 @@ SYS_DELETE  equ 15          ; ebx = name            -> 0 or -1
 SYS_RENAME  equ 16          ; ebx = old, ecx = new  -> 0 or -1
 SYS_EXEC    equ 17          ; ebx = file name, ecx = argument -> pid or LD_E* (< 0)
 SYS_READDIR equ 18          ; ebx = cursor (0 first), ecx = 20-byte buf -> next cursor, 0 at end, -1 no disk
-SYS_COUNT   equ 19
+SYS_PALLOC  equ 19          ;                       -> zeroed 4 KB page or 0
+SYS_PFREE   equ 20          ; ebx = page            -> 0 or -1
+SYS_COUNT   equ 21
 
 SYS_ENOSYS  equ -1
 SYSCALL_VEC equ 0x80
@@ -71,6 +73,8 @@ syscall_table:
     dd sys_rename
     dd sys_exec
     dd sys_readdir
+    dd sys_palloc
+    dd sys_pfree
 
 ; ---------- handlers: args in ebx/ecx/edx, result in eax ----------
 sys_putc:

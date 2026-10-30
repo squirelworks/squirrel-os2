@@ -36,4 +36,5 @@ Documentation is active.
 - 0.5.0 pipes and redirection (`kernel/shell.md`, `releases/0.5.0.md`)
 - 0.5.1 line editing and command history (`kernel/shell.md`, `releases/0.5.1.md`)
 - 0.5.2 batch files (`kernel/shell.md`, `releases/0.5.2.md`)
-- Next: 0.6.x memory management, then 0.7.x–0.8.x
+- 0.6.0 page allocator (`kernel/memory.md`, `releases/0.6.0.md`)
+- Next: 0.6.1 address spaces, 0.6.2 heap growth, then 0.7.x–0.8.x

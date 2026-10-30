@@ -43,6 +43,7 @@ add its `SYS_*` constant, bump `SYS_COUNT`.
 | 10–16 | `open`, `read`, `write`, `close`, `create`, `delete`, `rename` | | | Added in 0.2.1, see `filesystem.md` |
 | 17 | `SYS_EXEC` | `ebx` = file name, `ecx` = argument or 0 | pid, or < 0 | Added in 0.4.0, see `loader.md` |
 | 18 | `SYS_READDIR` | `ebx` = cursor (0 to start), `ecx` = 20-byte buffer | next cursor; 0 at the end; −1 without a disk | Added in 0.4.2: fills the 16-byte name and the size (dword at +16) of the next file |
+| 19–20 | `SYS_PALLOC`, `SYS_PFREE` | | | Added in 0.6.0, see `memory.md` |
 
 Example:
 
