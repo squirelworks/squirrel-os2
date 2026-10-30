@@ -50,6 +50,7 @@ pm:
     call set_gate
     call syscall_init
     lidt [idt_desc]
+    call fpu_init
     call proc_init
     call ata_init
 
@@ -152,24 +153,10 @@ rom_find:                     ; esi = name, returns eax = entry or 0
     ret
 
 ; ---------- apps ----------
-run_sci:
-    mov esi, sci_banner
-    call puts
-    mov esi, sci_stub
-    call puts
-    ret
-
 run_graph:
     mov esi, graph_banner
     call puts
     mov esi, graph_stub
-    call puts
-    ret
-
-run_matrix:
-    mov esi, matrix_banner
-    call puts
-    mov esi, matrix_stub
     call puts
     ret
 
@@ -759,12 +746,8 @@ name_matrix db 'matrix', 0
 name_diff db 'diff', 0
 name_topo db 'topo', 0
 
-sci_banner db 'Scientific Calculator', 10, 0
-sci_stub db 'Scaffolded. Floating-point and transcendentals pending FPU support.', 10, 'See documentation/apps/calculators.md', 10, 0
 graph_banner db 'Graphing Calculator', 10, 0
 graph_stub db 'Scaffolded. Requires graphics primitives (milestone 1.3).', 10, 'See documentation/apps/calculators.md', 10, 0
-matrix_banner db 'Matrix Calculator', 10, 0
-matrix_stub db 'Scaffolded. Linear algebra (add, mul, det, inv) pending.', 10, 'See documentation/apps/calculators.md', 10, 0
 diff_banner db 'DiffEq / Calculus Calculator', 10, 0
 diff_stub db 'Scaffolded. Numerical derivatives, integrals, ODEs pending.', 10, 'See documentation/apps/calculators.md', 10, 0
 topo_banner db 'Topology Calculator', 10, 0
@@ -780,14 +763,14 @@ file_table:
     dd calc_help
     dd 70
     db 'sci', 0, 0, 0, 0, 0
-    dd sci_stub
-    dd 90
+    dd sci_help
+    dd sci_help_len
     db 'graph', 0, 0, 0
     dd graph_stub
     dd 80
     db 'matrix', 0, 0
-    dd matrix_stub
-    dd 80
+    dd mx_help
+    dd mx_help_len
     db 'diff', 0, 0, 0, 0
     dd diff_stub
     dd 80
@@ -918,6 +901,8 @@ exc_at db ' at EIP 0x', 0
 %include "editor.asm"
 %include "draw.asm"
 %include "loader.asm"
+%include "sci.asm"
+%include "matrix.asm"
 
 align 8
 gdt:

@@ -32,4 +32,5 @@ Documentation is active.
 - 0.2.3 file browser implemented (`apps/files.md`, `releases/0.2.3.md`)
 - 0.3.x apps: calculator polish, editors (`releases/0.3.2.md`), draw (`releases/0.3.3.md`)
 - 0.3.0 program loader implemented (`kernel/loader.md`, `releases/0.3.0.md`)
-- Next: sci/matrix calculators, then persistence and stability (0.9.x)
+- 0.3.4 scientific and matrix calculators (`apps/calculators.md`, `releases/0.3.4.md`)
+- Next: persistence and stability (0.9.x)

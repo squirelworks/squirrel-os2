@@ -71,9 +71,9 @@ This is a natural end-of-day point. Next session can resume at either:
 - **0.3.0** — Program loader (done — SQX flat binaries and static ELF32 from SQFS, `run <file>`, `kernel/loader.md`)
 - **0.3.1** — Calculator suite
   - Basic (`calc`): interactive integer arithmetic + percentage — polished (precedence, parentheses, `ans`, chaining, errors, history file) in `kernel/calc.asm`
-  - Scientific (`sci`): floating-point + transcendentals — scaffolded
+  - Scientific (`sci`): floating-point + transcendentals — done in 0.3.4 (`kernel/sci.asm`, x87 FPU)
   - Graphing (`graph`): function plots — scaffolded (needs graphics)
-  - Matrix (`matrix`): linear algebra — scaffolded
+  - Matrix (`matrix`): linear algebra — done in 0.3.4 (add, multiply, scale, det, transpose, inverse; `kernel/matrix.asm`)
   - DiffEq / Calculus (`diff`): numerical derivatives, integrals, ODEs — scaffolded
   - Topology (`topo`): simplicial homology sketches — scaffolded (long-term)
   - Design: `documentation/apps/calculators.md`
