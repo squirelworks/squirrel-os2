@@ -228,78 +228,6 @@ itoa:                         ; signed
     pop ebx
     ret
 
-run_draw:
-    mov byte [draw_mode], 1
-    call cls
-    mov esi, draw_banner
-    call puts
-    mov esi, draw_help
-    call puts
-    ; init canvas to spaces
-    mov edi, draw_canvas
-    mov ecx, 32*10
-    mov al, ' '
-    rep stosb
-    mov byte [draw_cx], 0
-    mov byte [draw_cy], 0
-    call draw_redraw
-    ret
-
-draw_redraw:
-    ; print canvas with cursor marker
-    mov al, 10
-    call putc
-    mov ebx, 0                  ; row
-.rowloop:
-    mov esi, draw_canvas
-    mov eax, ebx
-    shl eax, 5                  ; *32
-    add esi, eax
-    mov ecx, 32
-    mov edx, 0                  ; col
-.colloop:
-    mov al, [esi]
-    cmp dl, [draw_cx]
-    jne .nocur
-    cmp bl, [draw_cy]
-    jne .nocur
-    cmp al, ' '
-    jne .keep
-    mov al, '+'
-.keep:
-.nocur:
-    push ebx
-    push edx
-    call putc
-    pop edx
-    pop ebx
-    inc esi
-    inc edx
-    loop .colloop
-    push ebx
-    mov al, 10
-    call putc
-    pop ebx
-    inc ebx
-    cmp ebx, 10
-    jl .rowloop
-    ; status
-    mov esi, draw_status
-    call puts
-    movzx eax, byte [draw_cx]
-    call itoa
-    mov esi, num_buf
-    call puts
-    mov al, ','
-    call putc
-    movzx eax, byte [draw_cy]
-    call itoa
-    mov esi, num_buf
-    call puts
-    mov al, 10
-    call putc
-    ret
-
 ; edi = ASCIIZ -> run_arg (truncated to a file name)
 set_run_arg:
     push ecx
@@ -721,8 +649,6 @@ kbd_dispatch:
     je .e
     cmp al, 0x80
     jae .e
-    cmp byte [draw_mode], 0
-    jne .draw
     ; command mode
     cmp al, 0x1C             ; Enter
     je .enter
@@ -753,78 +679,6 @@ kbd_dispatch:
     mov byte [cmdline+ebx], 0
     mov al, 8
     call putc
-    jmp .e
-.draw:
-    cmp al, 0x01             ; Esc
-    je .exit_draw
-    cmp al, 0x48             ; Up
-    je .draw_up
-    cmp al, 0x50             ; Down
-    je .draw_down
-    cmp al, 0x4B             ; Left
-    je .draw_left
-    cmp al, 0x4D             ; Right
-    je .draw_right
-    cmp al, 0x39             ; Space
-    je .draw_plot
-    cmp al, 0x2D             ; x (scancode for x is 0x2D)
-    je .draw_erase
-    cmp al, 0x2E             ; c
-    je .draw_clear
-    jmp .e
-.draw_up:
-    cmp byte [draw_cy], 0
-    je .e
-    dec byte [draw_cy]
-    call draw_redraw
-    jmp .e
-.draw_down:
-    cmp byte [draw_cy], 9
-    jae .e
-    inc byte [draw_cy]
-    call draw_redraw
-    jmp .e
-.draw_left:
-    cmp byte [draw_cx], 0
-    je .e
-    dec byte [draw_cx]
-    call draw_redraw
-    jmp .e
-.draw_right:
-    cmp byte [draw_cx], 31
-    jae .e
-    inc byte [draw_cx]
-    call draw_redraw
-    jmp .e
-.draw_plot:
-    ; plot * at cursor
-    movzx eax, byte [draw_cy]
-    shl eax, 5
-    movzx ebx, byte [draw_cx]
-    add eax, ebx
-    mov byte [draw_canvas+eax], '*'
-    call draw_redraw
-    jmp .e
-.draw_erase:
-    movzx eax, byte [draw_cy]
-    shl eax, 5
-    movzx ebx, byte [draw_cx]
-    add eax, ebx
-    mov byte [draw_canvas+eax], ' '
-    call draw_redraw
-    jmp .e
-.draw_clear:
-    mov edi, draw_canvas
-    mov ecx, 32*10
-    mov al, ' '
-    rep stosb
-    call draw_redraw
-    jmp .e
-.exit_draw:
-    mov byte [draw_mode], 0
-    call cls
-    mov esi, banner
-    call puts
     jmp .e
 .e:
     pop ebx
@@ -909,9 +763,6 @@ topo_stub db 'Scaffolded. Simplicial homology sketches (long-term).', 10, 'See d
 edit_sample db 'Hello from Squirrel-OS/2', 10, 0
 vedit_sample db 'Line 1, col 1, byte 0, char 0x48 ', 39, 'H', 39, 10
              db 'Insert mode, unmodified, size 0/4096', 10, 0
-draw_banner db 'Drawing Program (Esc to exit)', 10, 0
-draw_help db 'Arrows: move  Space: plot *  x: erase  c: clear', 10, 0
-draw_status db 'Pos: ', 0
 draw_art db '  *  ', 10, ' *** ', 10, '*****', 10, 0
 
 file_count dd 11
@@ -958,10 +809,6 @@ cmdline times 64 db 0
 cmdpos dd 0
 cur dd 0
 ticks dd 0
-draw_mode db 0
-draw_canvas times 320 db ' '
-draw_cx db 0
-draw_cy db 0
 num_buf times 16 db 0
 
 kbd_shift db 0
@@ -1060,6 +907,7 @@ exc_at db ' at EIP 0x', 0
 %include "browser.asm"
 %include "calc.asm"
 %include "editor.asm"
+%include "draw.asm"
 
 align 8
 gdt:

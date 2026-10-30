@@ -23,3 +23,7 @@ Scratch layout inside `KSCRATCH`:
 | `0x1000` | 2048 | SQFS directory cache |
 | `0x1800` | 256 | `cat` buffer |
 | `0x2000` | 2048 | `fstest` pattern buffers |
+| `0x4000` | 16384 | Editor text buffer (`edit`/`vedit`) |
+| `0x8000` | 1152 | `draw` canvas (64 × 18) |
+| `0x9000` | 20480 | `draw` flood-fill stack |
+| `0xE000` | 1170 | `draw` load/save buffer |
