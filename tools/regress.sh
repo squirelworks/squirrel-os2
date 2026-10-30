@@ -26,11 +26,11 @@ fail=0
 disk=$out/data.img              # data disk attached as primary slave
 check() {   # check NAME EXPECTED KEYS...
     name=$1; want=$2; shift 2
-    if python3 "$root/tools/qemu_screen.py" ${disk:+--disk "$disk"} "$out/os.img" "$@" | grep -qF -- "$want"; then
-        echo "ok   $name"
-    else
-        echo "FAIL $name (expected: $want)"; fail=1
-    fi
+    screen=$(python3 "$root/tools/qemu_screen.py" ${disk:+--disk "$disk"} "$out/os.img" "$@")
+    case $screen in
+        *"$want"*) echo "ok   $name" ;;
+        *) echo "FAIL $name (expected: $want)"; fail=1 ;;
+    esac
 }
 
 check fs-format     'formatted SQFS'        ls '<ret>'   # must run first: blank disk
@@ -56,6 +56,11 @@ check calc-syntax   'syntax at column 5'    'run calc' '<ret>' '2 + * 3' '<ret>'
 check calc-hist     '6 * 7 = 42'            'run calc' '<ret>' '6 * 7' '<ret>' hist '<ret>'
 check calc-1prompt  'calc> 1'               'run calc' '<ret>' '1'
 check cmd-bs        'systest: PASS'         systesx '<backspace>' t '<ret>'
+check line-edit     'hello world'           'echo hllo' '<left>' '<left>' '<left>' e '<end>' ' world' '<ret>'
+check line-delete   'systest: PASS'         'xsystest' '<home>' '<delete>' '<ret>'
+check line-esc      'systest: PASS'         'junk' '<esc>' systest '<ret>'
+check hist-up       'abZ'                   'echo abc' '<ret>' '<up>' '<backspace>' Z '<ret>'
+check hist-draft    '> half'                'echo abc' '<ret>' half '<up>' '<down>'
 check scroll        'systest: PASS'         ls '<ret>' ls '<ret>' ls '<ret>' systest '<ret>'
 check exception     'CPU exception 6'       trap '<ret>'
 check ps            '0        running'      ps '<ret>'
@@ -86,6 +91,8 @@ check fs-ls         'help'                  ls '<ret>'
 check fstest        'fstest: PASS'          fstest '<ret>'
 check fs-put        'ok'                    'put persist Saved across reboot!' '<ret>'
 check fs-persist    'Saved across reboot!'  'cat persist' '<ret>'
+check hist-file     'put persist Saved'     'cat shell.hist' '<ret>'
+check hist-reboot   '> cat shell.hist'      '<up>'
 check fs-mv         'renamed'               'mv persist renamed' '<ret>' ls '<ret>'
 check fs-rm         'Not found'             'rm renamed' '<ret>' 'cat renamed' '<ret>'
 check fs-dup        'error'                 'mk calc' '<ret>'
@@ -123,8 +130,8 @@ check ld-missing    'Unknown command or program'    'run nothere' '<ret>'
 check ld-again      'Argument: 2'           'run hello 1' '<ret>' 'run hello 2' '<ret>'
 check ld-browser    'Hello from a loaded'   'run files' '<ret>' '<home>' '<ret>'
 check ld-host-ls    'elfhello'              ls '<ret>'
-check up-ls         '8 file(s)'             'run ls' '<ret>'
-check up-ls-filter  '2 file(s)'             'run ls he' '<ret>'
+check up-ls         '9 file(s)'             'run ls' '<ret>'
+check up-ls-filter  '3 file(s)'             'run ls he' '<ret>'
 check up-cat        'three'                 'run cat notes' '<ret>'
 check up-cat-missing 'not found: zip'       'run cat zip notes' '<ret>'
 check sh-redirect   'hi there'              'echo hi there > greet' '<ret>' 'cat greet' '<ret>'

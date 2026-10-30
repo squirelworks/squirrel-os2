@@ -16,6 +16,16 @@ stage2:
     mov cr0, eax
     jmp 0x08:pm
 
+; The GDT stays in the first 32 KB: real mode reaches it with a 16-bit offset.
+align 8
+gdt:
+    dq 0
+    dw 0xFFFF,0,0x9A00,0x00CF
+    dw 0xFFFF,0,0x9200,0x00CF
+gdt_desc:
+    dw $-gdt-1
+    dd gdt
+
 BITS 32
 pm:
     mov ax, 0x10
@@ -83,9 +93,14 @@ pm:
     call cls
     mov esi, banner
     call puts
-    call fs_mount_boot
-    mov esi, prompt
+    cmp dword [0x8000+KERNEL_SIZE-4], KERNEL_SIG
+    je .whole
+    mov esi, msg_partial
     call puts
+.whole:
+    call fs_mount_boot
+    call hist_load
+    call sh_prompt
     sti
 
 .cmdloop:
@@ -510,6 +525,7 @@ putc:                         ; al = char; preserves all registers
 
 ; Moves the text screen up one row and blanks the last row.
 scroll_up:
+    inc dword [scroll_count]
     push ecx
     push esi
     push edi
@@ -640,46 +656,14 @@ kbd_ascii:
 
 ; Handles one scancode (al) for the shell or the active app.
 kbd_dispatch:
-    push eax
-    push ebx
+    pushad
     call kbd_shift_track
     je .e
     cmp al, 0x80
     jae .e
-    ; command mode
-    cmp al, 0x1C             ; Enter
-    je .enter
-    cmp al, 0x0E             ; Backspace
-    je .cmd_bs
-    call kbd_ascii
-    or al, al
-    jz .e
-    mov ebx, [cmdpos]
-    cmp ebx, SH_LINE-8
-    jae .e
-    mov [cmdline+ebx], al
-    mov byte [cmdline+ebx+1], 0
-    inc dword [cmdpos]
-    call putc
-    jmp .e
-.enter:
-    mov al, 10
-    call putc
-    call do_command
-    jmp .e
-.cmd_bs:
-    mov ebx, [cmdpos]
-    test ebx, ebx
-    jz .e
-    dec ebx
-    mov [cmdpos], ebx
-    mov byte [cmdline+ebx], 0
-    mov al, 8
-    call putc
-    jmp .e
+    call sh_key                 ; line editing and history (lineedit.asm)
 .e:
-    pop ebx
-    pop eax
+    popad
     ret
 
 default_isr:
@@ -692,6 +676,7 @@ banner db 'Squirrel-OS/2 0.2.3', 10
        db 'Tests: systest | proctest | blktest | fstest | keys', 10
        db 'Apps: files, calc, sci, graph, matrix, diff, topo, edit, vedit, draw', 10, 0
 prompt db '> ', 0
+msg_partial db 'Warning: kernel image only partly loaded', 10, 0
 fs_header db 'Files:', 10, 0
 notfound db 'Not found', 10, 0
 unknown db 'Unknown command', 10, 0
@@ -802,7 +787,8 @@ kbd_ring times KBD_RING_SIZE db 0
 kbd_head dd 0
 kbd_tail dd 0
 cmdline times 128 db 0         ; SH_LINE (shell.asm)
-cmdpos dd 0
+cmdpos dd 0                     ; cursor position in cmdline
+scroll_count dd 0               ; rows scrolled so far (line editor)
 cur dd 0
 ticks dd 0
 num_buf times 16 db 0
@@ -901,6 +887,7 @@ exc_at db ' at EIP 0x', 0
 %include "ata.asm"
 %include "fs.asm"
 %include "shell.asm"
+%include "lineedit.asm"
 %include "browser.asm"
 %include "calc.asm"
 %include "editor.asm"
@@ -910,16 +897,14 @@ exc_at db ' at EIP 0x', 0
 %include "matrix.asm"
 
 align 8
-gdt:
-    dq 0
-    dw 0xFFFF,0,0x9A00,0x00CF
-    dw 0xFFFF,0,0x9200,0x00CF
-gdt_desc:
-    dw $-gdt-1
-    dd gdt
-align 8
 idt: times 256 dq 0
 idt_desc:
     dw 256*8-1
     dd idt
-times 32768-($-$$) db 0
+KERNEL_SIZE equ 65536           ; boot.asm loads 128 sectors
+KERNEL_SIG equ 0x4B4F3253       ; 'S2OK'
+%if $-$$ > KERNEL_SIZE-4
+%error kernel image is larger than KERNEL_SIZE
+%endif
+times KERNEL_SIZE-4-($-$$) db 0
+dd KERNEL_SIG                   ; checked at boot: the whole image arrived

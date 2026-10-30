@@ -1,10 +1,10 @@
-# Physical Memory Map (as of 0.5.0)
+# Physical Memory Map (as of 0.5.1)
 
 | Range | Use |
 |-------|-----|
 | `0x00000–0x004FF` | Real-mode IVT / BIOS data (left alone) |
 | `0x07C00–0x07DFF` | Boot sector |
-| `0x08000–0x0FFFF` | Kernel image (`pm.asm`, 32 KB since 0.2.1, loaded by the boot sector) |
+| `0x08000–0x17FFF` | Kernel image (`pm.asm`, 64 KB since 0.5.1; 32 KB from 0.2.1), loaded by the boot sector |
 | `0x20000–0x2FFFF` | `KSCRATCH`: kernel scratch buffers (ATA identify/test buffers, later FS cache) |
 | `0x30000–0x3FFFF` | Program area: the resident loaded program (0.4.0, `loader.md`) |
 | `0x40000–0x4FFFF` | Loader staging buffer |
@@ -27,6 +27,7 @@ Scratch layout inside `KSCRATCH`:
 | `0x1000` | 2048 | SQFS directory cache |
 | `0x1800` | 256 | `cat` buffer |
 | `0x2000` | 2048 | `fstest` pattern buffers |
+| `0x2800` | 2048 | Shell history: 16 lines × 128 bytes (0.5.1) |
 | `0x4000` | 16384 | Editor text buffer (`edit`/`vedit`) |
 | `0x8000` | 1152 | `draw` canvas (64 × 18) |
 | `0x9000` | 20480 | `draw` flood-fill stack |

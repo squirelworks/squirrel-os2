@@ -133,11 +133,7 @@ do_command:
 .done:
     mov byte [cap_on], 0
     mov byte [in_on], 0
-    mov esi, prompt
-    call puts
-    mov byte [cmdline], 0
-    mov dword [cmdpos], 0
-    ret
+    jmp sh_prompt
 
 ; esi = stage text: removes "< name", "> name" and ">> name", copying
 ; the names to sh_inname / sh_outname (sh_append set for >>).
