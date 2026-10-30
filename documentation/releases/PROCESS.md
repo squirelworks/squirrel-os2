@@ -54,6 +54,9 @@ Squirrel-OS/2 uses a simple `major.minor.patch` scheme for early development:
 | 0.6.0   | 2026-10-30 | Physical page allocator              |
 | 0.6.1   | 2026-10-30 | Paging and per-process address spaces |
 | 0.6.2   | 2026-10-30 | Program heaps (`SYS_SBRK`)           |
+| 0.7.0   | 2026-10-30 | Driver registration table            |
+| 0.7.1   | 2026-10-30 | Console and keyboard as devices      |
+| 0.7.2   | 2026-10-30 | ATA disks as block devices           |
 
 ## Next planned release
 

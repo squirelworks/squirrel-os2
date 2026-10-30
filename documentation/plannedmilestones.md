@@ -105,9 +105,9 @@ This is a natural end-of-day point. Next session can resume at either:
 - **0.6.2** — Stack/heap growth (done — per-program heap at `0x40000000` grown and shrunk by `SYS_SBRK`; stacks stay fixed at 8 KB)
 
 ### 0.7.x — Device model
-- **0.7.0** — Driver registration table (name, probe, ops)
-- **0.7.1** — Console and keyboard as devices
-- **0.7.2** — ATA block device registered as a driver
+- **0.7.0** — Driver registration table (name, probe, ops) (done — `dev.asm`, `devices`, `SYS_DEVFIND`/`DEVREAD`/`DEVWRITE`)
+- **0.7.1** — Console and keyboard as devices (done — `con` and `kbd`; `SYS_PUTS`/`SYS_GETC` go through them)
+- **0.7.2** — ATA block device registered as a driver (done — `hd0`/`hd1`; SQFS and the block syscalls use them)
 
 ### 0.8.x — Integration foundations
 - **0.8.0** — Hierarchical directories or long names in SQFS

@@ -1,10 +1,11 @@
 ; Squirrel-OS/2 — SQFS on-disk file system (0.2.1 / 0.2.2)
 ; Included from pm.asm. Original code.
 ;
-; Flat directory of contiguous extents on the data disk (drive 1).
+; Flat directory of contiguous extents on the data disk (device hd1,
+; the primary slave).
 ; See documentation/kernel/filesystem.md for the format.
 
-FS_DRIVE      equ 1
+FS_DEV        equ dev_hd1     ; the data disk (0.7.2: through the device table)
 FS_MAGIC      equ 0x53465153    ; 'SQFS'
 FS_VERSION    equ 1
 FS_DIR_LBA    equ 1
@@ -47,12 +48,12 @@ FS_DIR        equ KSCRATCH+0x1000   ; 2 KB directory cache (write-through)
 fs_mount_boot:
     pushad
     mov byte [fs_mounted], 0
-    cmp dword [ata_sectors+FS_DRIVE*4], FS_DATA_LBA+2
+    cmp dword [FS_DEV+DEV_SIZE], FS_DATA_LBA+2
     jb .out                     ; no (usable) data disk
-    mov ebx, FS_DRIVE
+    mov ebx, FS_DEV
     xor ecx, ecx
     mov edi, FS_SB
-    call ata_read
+    call dev_bread
     jc .out
     cmp dword [FS_SB+SB_MAGIC], FS_MAGIC
     je .mount
@@ -81,11 +82,11 @@ fs_mount_boot:
 ; Superblock in FS_SB -> loads the directory and marks mounted. CF on error.
 fs_load:
     pushad
-    mov ebx, FS_DRIVE
+    mov ebx, FS_DEV
     mov ecx, FS_DIR_LBA
     mov edi, FS_DIR
 .r:
-    call ata_read
+    call dev_bread
     jc .fail
     inc ecx
     add edi, SECTOR_SIZE
@@ -113,7 +114,7 @@ fs_format:
     rep stosd
     mov dword [FS_SB+SB_MAGIC], FS_MAGIC
     mov dword [FS_SB+SB_VERSION], FS_VERSION
-    mov eax, [ata_sectors+FS_DRIVE*4]
+    mov eax, [FS_DEV+DEV_SIZE]
     dec eax                     ; last sector is kept for blktest
     mov [FS_SB+SB_TOTAL], eax
     mov dword [FS_SB+SB_DIRLBA], FS_DIR_LBA
@@ -127,10 +128,10 @@ fs_format:
     mov [fs_total], eax
     call fs_flush_dir
     jc .fail
-    mov ebx, FS_DRIVE
+    mov ebx, FS_DEV
     xor ecx, ecx
     mov esi, FS_SB
-    call ata_write
+    call dev_bwrite
     jc .fail
     mov byte [fs_mounted], 1
     mov dword [fs_fds], 0       ; drop any open descriptors
@@ -178,11 +179,11 @@ fs_seed:
 
 fs_flush_dir:
     pushad
-    mov ebx, FS_DRIVE
+    mov ebx, FS_DEV
     mov ecx, FS_DIR_LBA
     mov esi, FS_DIR
 .w:
-    call ata_write
+    call dev_bwrite
     jc .fail
     inc ecx
     add esi, SECTOR_SIZE
@@ -347,20 +348,20 @@ fs_ensure_cap:
     jae .moved
     push ecx
     push edi
-    mov ebx, FS_DRIVE
+    mov ebx, FS_DEV
     mov ecx, [edi+DE_START]
     add ecx, esi
     mov edi, FS_SEC
-    call ata_read
+    call dev_bread
     pop edi
     pop ecx
     jc .fail
     push ecx
     push esi
-    mov ebx, FS_DRIVE
+    mov ebx, FS_DEV
     lea ecx, [ebp+esi]
     mov esi, FS_SEC
-    call ata_write
+    call dev_bwrite
     pop esi
     pop ecx
     jc .fail
@@ -603,12 +604,12 @@ fs_read:
     mov eax, [edx+FD_POS]
     push ecx
     push edx
-    mov ebx, FS_DRIVE
+    mov ebx, FS_DEV
     mov ecx, eax
     shr ecx, 9
     add ecx, [esi+DE_START]
     mov edi, FS_SEC
-    call ata_read
+    call dev_bread
     pop edx
     pop ecx
     jc .fail
@@ -673,13 +674,13 @@ fs_write:
     mov eax, [edx+FD_POS]
     push ecx
     push edx
-    mov ebx, FS_DRIVE
+    mov ebx, FS_DEV
     mov ecx, eax
     shr ecx, 9
     add ecx, [esi+DE_START]
     mov [fs_xfer_lba], ecx
     mov edi, FS_SEC
-    call ata_read               ; read-modify-write
+    call dev_bread               ; read-modify-write
     pop edx
     pop ecx
     jc .fail
@@ -702,10 +703,10 @@ fs_write:
     push ebx
     push ecx
     push esi
-    mov ebx, FS_DRIVE
+    mov ebx, FS_DEV
     mov ecx, [fs_xfer_lba]
     mov esi, FS_SEC
-    call ata_write
+    call dev_bwrite
     pop esi
     pop ecx
     pop ebx
@@ -909,7 +910,7 @@ cmd_mv_run:
 
 ; format: wipe the data disk and reseed the built-in files
 cmd_format_run:
-    cmp dword [ata_sectors+FS_DRIVE*4], FS_DATA_LBA+2
+    cmp dword [FS_DEV+DEV_SIZE], FS_DATA_LBA+2
     jb .nodisk
     call fs_format
     mov eax, 0

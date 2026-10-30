@@ -1,5 +1,7 @@
 # Block Device Driver (0.2.0)
 
+Since 0.7.2 the two drives are also registered as the block devices `hd0` and `hd1` (`drivers.md`). SQFS and `SYS_BREAD`/`SYS_BWRITE` reach them through the device table, and a drive number other than 0 or 1 is now refused.
+
 Location: `../../kernel/ata.asm` (included from `kernel/pm.asm`)
 
 ## Scope
