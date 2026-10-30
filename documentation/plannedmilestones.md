@@ -70,7 +70,7 @@ This is a natural end-of-day point. Next session can resume at either:
 ### 0.3.x — Applications
 - **0.3.0** — Program loader (flat binary or simple ELF)
 - **0.3.1** — Calculator suite
-  - Basic (`calc`): interactive integer arithmetic + percentage — implemented in `kernel/pm.asm`
+  - Basic (`calc`): interactive integer arithmetic + percentage — polished (precedence, parentheses, `ans`, chaining, errors, history file) in `kernel/calc.asm`
   - Scientific (`sci`): floating-point + transcendentals — scaffolded
   - Graphing (`graph`): function plots — scaffolded (needs graphics)
   - Matrix (`matrix`): linear algebra — scaffolded

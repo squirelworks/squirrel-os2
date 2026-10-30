@@ -13,7 +13,39 @@ For taxes, budgeting, and trivial arithmetic.
 - Status shows last result and operation count
 - Suitable for everyday use on the console
 
-Current status (2026-10-14): interactive integer evaluator implemented in `kernel/pm.asm`.
+Current status (2026-10-30): polished evaluator in `kernel/calc.asm`, running as its own process.
+
+### Expressions
+
+| Input | Meaning | Example → result |
+|-------|---------|------------------|
+| `+ - * /` | Signed 32-bit integer arithmetic, `* /` before `+ -`, left to right | `2 + 3 * 4` → 14 |
+| `( )` | Grouping, nestable | `(2 + 3) * 4` → 20 |
+| unary `-` | Negation | `-7 / 2` → -3 (truncates toward zero) |
+| `a + b%`, `a - b%` | Add/subtract b percent **of a** (tax, discount) | `100 + 15%` → 115, `100 - 10%` → 90 |
+| `a * b%`, `a / b%` | Multiply/divide by b/100 | `200 * 15%` → 30, `50 / 20%` → 250 |
+| `a % b` | Binary percent: a × b / 100 (kept from 0.3.1) | `200 % 15` → 30 |
+| `ans` | Previous result | `ans * 2` |
+| line starting with `+ * / %` or `- ` | Continue from `ans` | after 20: `+ 1` → 21 |
+
+A `%` is postfix when it ends a term (followed by the end of the line, `)` or an operator), otherwise binary.
+So `200 % -3` reads as `200% - 3`; write `200 % (-3)` for the binary form.
+
+### Errors
+
+`Error: syntax at column N`, `Error: division by zero`, `Error: overflow` (any intermediate result outside
+±2^31, including `a*b` before a percent division), `Error: number too large`.
+
+### Commands at the `calc>` prompt
+
+- `clear` resets `ans` and the count.
+- `hist` prints the history file.
+- `q` / `quit` / Esc return to the shell.
+
+### History file
+
+With a data disk mounted, every successful line is appended to `calc.hist` as `expression = result`.
+It persists across reboots and can also be read with `cat calc.hist` or the file browser.
 
 ## Scientific Calculator (`sci`)
 
@@ -72,7 +104,8 @@ Scaffolded. Long-term; requires symbolic algebra primitives and careful memory m
 
 ## Design Notes
 
-- All calculators share a common input buffer and expression parser where possible.
+- All calculators share a common input buffer and expression parser where possible
+  (`calc.asm`'s recursive-descent parser is the starting point for `sci` and `matrix`).
 - The basic calculator is usable today; the others are progressive enhancements.
 - No code is copied from external sources.
 - Integration path: console apps now, windowed desktop objects in 2.0.

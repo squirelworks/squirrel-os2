@@ -152,19 +152,6 @@ rom_find:                     ; esi = name, returns eax = entry or 0
     ret
 
 ; ---------- apps ----------
-run_calc:
-    mov byte [calc_mode], 1
-    call cls
-    mov esi, calc_banner
-    call puts
-    mov esi, calc_help
-    call puts
-    mov dword [calc_len], 0
-    mov byte [calc_buf], 0
-    mov esi, calc_prompt
-    call puts
-    ret
-
 run_sci:
     mov esi, sci_banner
     call puts
@@ -198,147 +185,6 @@ run_topo:
     call puts
     mov esi, topo_stub
     call puts
-    ret
-
-; ---------- basic calculator evaluator ----------
-; Expects expression in calc_buf of length calc_len
-; Supports: number op number   where op is + - * / %
-; % means percent of first number: a % b  => a * b / 100
-calc_eval:
-    push eax
-    push ebx
-    push ecx
-    push edx
-    push esi
-    ; simple parse: skip leading spaces, atoi, skip spaces, get op, skip spaces, atoi
-    mov esi, calc_buf
-    mov ecx, [calc_len]
-    ; skip spaces
-.skip1:
-    cmp ecx, 0
-    je .err
-    cmp byte [esi], ' '
-    jne .num1
-    inc esi
-    dec ecx
-    jmp .skip1
-.num1:
-    call atoi
-    mov ebx, eax          ; first number in ebx
-    ; skip spaces
-.skip2:
-    cmp ecx, 0
-    je .err
-    cmp byte [esi], ' '
-    jne .op
-    inc esi
-    dec ecx
-    jmp .skip2
-.op:
-    mov al, [esi]
-    mov byte [calc_op], al
-    inc esi
-    dec ecx
-    ; skip spaces
-.skip3:
-    cmp ecx, 0
-    je .err
-    cmp byte [esi], ' '
-    jne .num2
-    inc esi
-    dec ecx
-    jmp .skip3
-.num2:
-    call atoi
-    mov edx, eax          ; second number
-    ; compute
-    mov al, [calc_op]
-    cmp al, '+'
-    je .add
-    cmp al, '-'
-    je .sub
-    cmp al, '*'
-    je .mul
-    cmp al, '/'
-    je .div
-    cmp al, '%'
-    je .pct
-    jmp .err
-.add:
-    add ebx, edx
-    jmp .print
-.sub:
-    sub ebx, edx
-    jmp .print
-.mul:
-    mov eax, ebx
-    imul edx
-    mov ebx, eax
-    jmp .print
-.div:
-    test edx, edx
-    jz .div0
-    mov ecx, edx              ; cdq overwrites edx
-    mov eax, ebx
-    cdq
-    idiv ecx
-    mov ebx, eax
-    jmp .print
-.pct:
-    ; a % b = a * b / 100
-    mov eax, ebx
-    imul edx
-    mov ebx, 100
-    cdq
-    idiv ebx
-    mov ebx, eax
-    jmp .print
-.print:
-    mov esi, calc_result_prefix
-    call puts
-    mov eax, ebx
-    call itoa
-    mov esi, num_buf
-    call puts
-    mov al, 10
-    call putc
-    jmp .done
-.div0:
-    mov esi, div0_msg
-    call puts
-    jmp .done
-.err:
-    mov esi, calc_err
-    call puts
-.done:
-    pop esi
-    pop edx
-    pop ecx
-    pop ebx
-    pop eax
-    ret
-
-; atoi: esi points to digits, ecx remaining length, returns eax = number, advances esi/ecx
-atoi:
-    push ebx
-    xor eax, eax
-    xor ebx, ebx
-.al:
-    cmp ecx, 0
-    je .adone
-    mov bl, [esi]
-    cmp bl, '0'
-    jb .adone
-    cmp bl, '9'
-    ja .adone
-    imul eax, 10
-    sub bl, '0'
-    add eax, ebx
-    inc esi
-    dec ecx
-    jmp .al
-.adone:
-    pop ebx
     ret
 
 ; itoa: eax = number, writes to num_buf (null terminated)
@@ -895,8 +741,6 @@ kbd_dispatch:
     je .e
     cmp al, 0x80
     jae .e
-    cmp byte [calc_mode], 0
-    jne .calc
     cmp byte [editor_mode], 0
     jne .editor
     cmp byte [draw_mode], 0
@@ -931,51 +775,6 @@ kbd_dispatch:
     mov byte [cmdline+ebx], 0
     mov al, 8
     call putc
-    jmp .e
-.calc:
-    cmp al, 0x01             ; Esc
-    je .exit_calc
-    cmp al, 0x0E             ; Backspace
-    je .calc_bs
-    cmp al, 0x1C             ; Enter
-    je .calc_enter
-    call kbd_ascii
-    or al, al
-    jz .e
-    ; insert into calc_buf
-    mov ebx, [calc_len]
-    cmp ebx, 60
-    jae .e
-    mov [calc_buf+ebx], al
-    inc dword [calc_len]
-    call putc
-    jmp .e
-.calc_bs:
-    mov ebx, [calc_len]
-    test ebx, ebx
-    jz .e
-    dec dword [calc_len]
-    ; erase char (simple: backspace space backspace)
-    mov al, 8
-    call putc
-    mov al, ' '
-    call putc
-    mov al, 8
-    call putc
-    jmp .e
-.calc_enter:
-    mov al, 10
-    call putc
-    call calc_eval
-    mov dword [calc_len], 0
-    mov esi, calc_prompt
-    call puts
-    jmp .e
-.exit_calc:
-    mov byte [calc_mode], 0
-    call cls
-    mov esi, banner
-    call puts
     jmp .e
 .editor:
     cmp al, 0x01             ; Esc
@@ -1158,12 +957,6 @@ name_matrix db 'matrix', 0
 name_diff db 'diff', 0
 name_topo db 'topo', 0
 
-calc_banner db 'Basic Calculator (Esc to exit)', 10, 0
-calc_help db 'Enter: number +|-|*|/|% number', 10, 'Example: 100 + 15%  or  50 * 3', 10, 0
-calc_prompt db 'calc> ', 0
-calc_result_prefix db 'Result: ', 0
-calc_err db 'Error: bad expression', 10, 0
-div0_msg db 'Error: division by zero', 10, 0
 sci_banner db 'Scientific Calculator', 10, 0
 sci_stub db 'Scaffolded. Floating-point and transcendentals pending FPU support.', 10, 'See documentation/apps/calculators.md', 10, 0
 graph_banner db 'Graphing Calculator', 10, 0
@@ -1239,10 +1032,6 @@ draw_mode db 0
 draw_canvas times 320 db ' '
 draw_cx db 0
 draw_cy db 0
-calc_mode db 0
-calc_buf times 64 db 0
-calc_len dd 0
-calc_op db 0
 num_buf times 16 db 0
 
 kbd_shift db 0
@@ -1338,6 +1127,7 @@ exc_at db ' at EIP 0x', 0
 %include "ata.asm"
 %include "fs.asm"
 %include "browser.asm"
+%include "calc.asm"
 
 align 8
 gdt:
