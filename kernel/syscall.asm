@@ -192,8 +192,9 @@ sys_rename:
     jmp fs_rename
 
 ; Directory listing, one entry per call: copies the 16-byte name and the
-; size (dword) of the first used entry at or after the cursor into the
-; buffer and returns the cursor for the next call.
+; size (dword) of the next entry of the current directory at or after
+; the cursor into the buffer and returns the cursor for the next call.
+; A subdirectory's size reads as -1 (0.8.0).
 sys_readdir:
     mov eax, -1
     cmp byte [fs_mounted], 0
@@ -208,8 +209,15 @@ sys_readdir:
     inc ebx
     cmp byte [esi], 0
     je .l
+    mov dl, [fs_cwd]
+    cmp [esi+DE_PARENT], dl
+    jne .l
     mov edi, ecx
     mov edx, [esi+DE_SIZE]
+    cmp byte [esi+DE_KIND], DK_DIR
+    jne .copy
+    mov edx, -1
+.copy:
     push ecx
     mov ecx, FS_NAMELEN/4
     rep movsd

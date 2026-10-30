@@ -1,8 +1,10 @@
 ; Squirrel-OS/2 — SQFS on-disk file system (0.2.1 / 0.2.2)
 ; Included from pm.asm. Original code.
 ;
-; Flat directory of contiguous extents on the data disk (device hd1,
-; the primary slave).
+; One table of 64 entries, each a contiguous extent, on the data disk
+; (device hd1, the primary slave). Since 0.8.0 an entry may be a
+; directory, and every entry names the directory it is in, so names are
+; paths: "notes/todo", "/shell.hist", "../x".
 ; See documentation/kernel/filesystem.md for the format.
 
 FS_DEV        equ dev_hd1     ; the data disk (0.7.2: through the device table)
@@ -29,6 +31,14 @@ DE_NAME       equ 0
 DE_START      equ 16
 DE_SIZE       equ 20            ; bytes
 DE_CAP        equ 24            ; sectors allocated
+DE_PARENT     equ 28            ; byte: directory id it is in (0.8.0)
+DE_KIND       equ 29            ; byte: DK_FILE or DK_DIR (0.8.0)
+
+DK_FILE       equ 0
+DK_DIR        equ 1
+; A directory's id is its entry index + 1; the root is 0. Entries
+; written before 0.8.0 have zeros there: files in the root.
+FS_PATHMAX    equ 64
 
 ; open flags
 O_CREATE      equ 1
@@ -134,6 +144,7 @@ fs_format:
     call dev_bwrite
     jc .fail
     mov byte [fs_mounted], 1
+    mov byte [fs_cwd], 0
     mov dword [fs_fds], 0       ; drop any open descriptors
     mov edi, fs_fds
     mov ecx, FS_MAXFD*4
@@ -199,14 +210,123 @@ fs_flush_dir:
 
 ; ---------- directory helpers ----------
 
-; esi = name -> edi = dirent or 0
-fs_lookup:
+; ---------- paths (0.8.0) ----------
+
+; esi = path -> [fs_base] = its last part (a copy, in fs_pathbuf),
+; dl = id of the directory that part is in. Leading '/' starts at the
+; root, otherwise at fs_cwd; "." and ".." are understood. CF if the
+; path is too long or a directory on the way does not exist.
+fs_walk:
+    push eax
+    push ecx
+    push esi
+    push edi
+    mov dl, [fs_cwd]
+    cmp byte [esi], '/'
+    jne .copy
+    xor dl, dl
+.copy:
+    mov edi, fs_pathbuf
+    mov ecx, FS_PATHMAX
+.c:
+    lodsb
+    stosb
+    test al, al
+    jz .copied
+    loop .c
+    jmp .fail                   ; too long
+.copied:
+    mov esi, fs_pathbuf
+.part:
+    cmp byte [esi], '/'         ; skip separators
+    jne .scan
+    inc esi
+    jmp .part
+.scan:
+    mov edi, esi
+.s:
+    mov al, [edi]
+    test al, al
+    jz .last
+    cmp al, '/'
+    je .mid
+    inc edi
+    jmp .s
+.mid:
+    mov byte [edi], 0
+    inc edi
+.trail:                         ; "a/" and "a//": a is the last part
+    cmp byte [edi], '/'
+    jne .more
+    inc edi
+    jmp .trail
+.more:
+    cmp byte [edi], 0
+    je .last
+    call fs_step
+    jc .fail
+    mov esi, edi
+    jmp .scan
+.last:
+    mov [fs_base], esi
+    pop edi
+    pop esi
+    pop ecx
+    pop eax
+    clc
+    ret
+.fail:
+    pop edi
+    pop esi
+    pop ecx
+    pop eax
+    stc
+    ret
+
+; esi = one path part, dl = directory -> dl = the directory it names
+; ("", ".", ".." or a subdirectory). CF if there is none.
+fs_step:
+    push edi
+    cmp byte [esi], 0
+    je .ok
+    cmp word [esi], '.'         ; "."
+    je .ok
+    cmp word [esi], '..'
+    jne .name
+    cmp byte [esi+2], 0
+    jne .name
+    test dl, dl
+    jz .ok                      ; the root is its own parent
+    movzx edi, dl
+    shl edi, 5
+    mov dl, [FS_DIR-FS_DIRENT+edi+DE_PARENT]
+    jmp .ok
+.name:
+    call fs_find_in
+    test edi, edi
+    jz .no
+    cmp byte [edi+DE_KIND], DK_DIR
+    jne .no
+    call fs_dir_id
+.ok:
+    pop edi
+    clc
+    ret
+.no:
+    pop edi
+    stc
+    ret
+
+; esi = name, dl = directory -> edi = its entry, or 0
+fs_find_in:
     push ecx
     mov edi, FS_DIR
     mov ecx, FS_MAXFILES
 .l:
     cmp byte [edi], 0
     je .n
+    cmp [edi+DE_PARENT], dl
+    jne .n
     push edi
     call streq_bounded
     pop edi
@@ -217,6 +337,70 @@ fs_lookup:
     xor edi, edi
 .hit:
     pop ecx
+    ret
+
+; edi = directory entry -> dl = its id
+fs_dir_id:
+    push edi
+    sub edi, FS_DIR
+    shr edi, 5
+    inc edi
+    mov edx, edi                ; (only dl is the result)
+    pop edi
+    ret
+
+; esi = path -> edi = its entry (file or directory), or 0. Also sets
+; [fs_base] and fs_lk_dir (the directory the last part is in).
+fs_lookup:
+    push edx
+    push esi
+    call fs_walk
+    jc .none
+    mov [fs_lk_dir], dl
+    mov esi, [fs_base]
+    call fs_find_in
+    jmp .out
+.none:
+    xor edi, edi
+.out:
+    pop esi
+    pop edx
+    ret
+
+; esi = path of a directory (may be "/", ".", "..") -> dl = its id, CF if
+; it is not a directory
+fs_find_dir:
+    push esi
+    call fs_walk
+    jc .r
+    mov esi, [fs_base]
+    call fs_step
+.r:
+    pop esi
+    ret
+
+; dl = directory -> CF if some entry is in it
+fs_dir_used:
+    push ecx
+    push edi
+    mov edi, FS_DIR
+    mov ecx, FS_MAXFILES
+.l:
+    cmp byte [edi], 0
+    je .n
+    cmp [edi+DE_PARENT], dl
+    je .yes
+.n:
+    add edi, FS_DIRENT
+    loop .l
+    pop edi
+    pop ecx
+    clc
+    ret
+.yes:
+    pop edi
+    pop ecx
+    stc
     ret
 
 ; esi, edi = names; ZF set if equal (compares at most FS_NAMELEN bytes)
@@ -245,7 +429,7 @@ streq_bounded:
     pop eax
     ret
 
-; esi = name -> CF set if empty or too long
+; esi = name -> CF set if empty, too long, "." or ".."
 fs_check_name:
     push eax
     call strlen
@@ -253,6 +437,13 @@ fs_check_name:
     jz .bad
     cmp eax, FS_NAMELEN-1
     ja .bad
+    cmp byte [esi], '.'
+    jne .ok
+    cmp eax, 2
+    ja .ok
+    cmp byte [esi+eax-1], '.'   ; "." or ".."
+    je .bad
+.ok:
     pop eax
     clc
     ret
@@ -383,14 +574,26 @@ fs_ensure_cap:
 
 ; ---------- public API (kernel; also behind syscalls 10..16) ----------
 
-; esi = name -> eax = 0, or -1 (bad name, exists, directory full, no FS)
+; esi = path -> eax = 0, or -1 (bad name, exists, no such directory,
+; table full, no FS)
 fs_create:
+    mov al, DK_FILE
+    jmp fs_make
+
+; esi = path -> eax = 0 or -1, as fs_create (0.8.0)
+fs_mkdir:
+    mov al, DK_DIR
+fs_make:
     pushad
+    mov bl, al
     cmp byte [fs_mounted], 0
     je .fail
+    call fs_walk
+    jc .fail
+    mov esi, [fs_base]
     call fs_check_name
     jc .fail
-    call fs_lookup
+    call fs_find_in
     test edi, edi
     jnz .fail
     mov edi, FS_DIR
@@ -407,6 +610,8 @@ fs_create:
     xor eax, eax
     rep stosd
     pop edi
+    mov [edi+DE_PARENT], dl
+    mov [edi+DE_KIND], bl
     push edi
     call strlen
     mov ecx, eax
@@ -422,7 +627,8 @@ fs_create:
     mov eax, -1
     ret
 
-; esi = name -> 0 or -1. Refused while the file is open.
+; esi = path -> 0 or -1. Refused while the file is open, and for a
+; directory that is not empty or is the current one.
 fs_delete:
     pushad
     cmp byte [fs_mounted], 0
@@ -432,6 +638,14 @@ fs_delete:
     jz .fail
     call fs_is_open
     jc .fail
+    cmp byte [edi+DE_KIND], DK_DIR
+    jne .gone
+    call fs_dir_id
+    cmp dl, [fs_cwd]
+    je .fail
+    call fs_dir_used
+    jc .fail
+.gone:
     mov byte [edi], 0
     mov dword [edi+DE_CAP], 0
     call fs_flush_dir
@@ -444,29 +658,51 @@ fs_delete:
     mov eax, -1
     ret
 
-; esi = old name, edi = new name -> 0 or -1
+; esi = old path, edi = new path -> 0 or -1. The entry may move to
+; another directory, but a directory not into itself.
 fs_rename:
     pushad
     cmp byte [fs_mounted], 0
     je .fail
-    push esi
+    mov ebp, esi                ; old path
     mov esi, edi
+    call fs_walk                ; dl = new directory, [fs_base] = new name
+    jc .fail
+    mov esi, [fs_base]
     call fs_check_name
-    jc .fail_pop
-    call fs_lookup              ; new name must not exist
+    jc .fail
+    call fs_find_in             ; must not exist yet
     test edi, edi
-    jnz .fail_pop
-    mov ebx, esi                ; ebx = new name
-    pop esi
+    jnz .fail
+    mov edi, fs_newname         ; keep it: the path buffer is reused
+    mov ecx, FS_NAMELEN
+    rep movsb
+    mov bh, dl
+    mov esi, ebp
     call fs_lookup
     test edi, edi
     jz .fail
+    cmp byte [edi+DE_KIND], DK_DIR
+    jne .move
+    call fs_dir_id              ; dl = the directory being moved
+    mov al, bh
+.up:                            ; the new home must not lie inside it
+    cmp al, dl
+    je .fail
+    test al, al
+    jz .move
+    movzx ecx, al
+    shl ecx, 5
+    mov al, [FS_DIR-FS_DIRENT+ecx+DE_PARENT]
+    jmp .up
+.move:
+    mov [edi+DE_PARENT], bh
     push edi
     mov ecx, FS_NAMELEN/4
     xor eax, eax
     rep stosd
     pop edi
-    mov esi, ebx
+    mov esi, fs_newname
     call strlen
     mov ecx, eax
     rep movsb
@@ -475,8 +711,6 @@ fs_rename:
     popad
     xor eax, eax
     ret
-.fail_pop:
-    pop esi
 .fail:
     popad
     mov eax, -1
@@ -522,6 +756,8 @@ fs_open:
     jnz .fail
     call fs_lookup
 .found:
+    cmp byte [edi+DE_KIND], DK_DIR
+    je .fail                    ; directories hold no data
     mov ebx, fs_fds
     xor edx, edx
 .f:
@@ -733,10 +969,14 @@ fs_write:
 
 ; ---------- shell commands ----------
 
-; ls: FS listing with sizes, or the ROM table when no FS is mounted
+; ls: FS listing of the current directory with sizes, or the ROM table
+; when no FS is mounted
 fs_list:
     cmp byte [fs_mounted], 0
     je rom_list
+    mov dl, [fs_cwd]
+; dl = directory: lists it (subdirectories first get a '/')
+fs_list_dir:
     mov esi, fs_header
     call puts
     mov ebx, FS_DIR
@@ -744,14 +984,27 @@ fs_list:
 .l:
     cmp byte [ebx], 0
     je .n
+    cmp [ebx+DE_PARENT], dl
+    jne .n
     mov esi, ebx
     call puts
+    cmp byte [ebx+DE_KIND], DK_DIR
+    jne .file
+    mov al, '/'
+    call putc
+    mov al, 18
+    call puts_pad
+    mov esi, fs_m_dir
+    call puts
+    jmp .eol
+.file:
     mov al, 18
     call puts_pad
     mov eax, [ebx+DE_SIZE]
     call itoa
     mov esi, num_buf
     call puts
+.eol:
     mov al, 10
     call putc
 .n:
@@ -893,6 +1146,90 @@ cmd_rm_run:
 .r:
     ret
 
+; ls <dir>
+cmd_ls_run:
+    call fs_need
+    jc .r
+    call next_word
+    call fs_find_dir
+    jc fs_no_dir
+    jmp fs_list_dir
+.r:
+    ret
+
+fs_no_dir:
+    mov esi, fs_m_nodir
+    jmp puts
+
+; mkdir <dir>
+cmd_mkdir_run:
+    call fs_need
+    jc .r
+    call next_word
+    call fs_mkdir
+    call fs_report
+.r:
+    ret
+
+; cd [dir]: without a directory, back to the root
+cmd_cd_run:
+    call fs_need
+    jc .r
+    call next_word
+    xor dl, dl
+    cmp byte [esi], 0
+    je .set
+    call fs_find_dir
+    jc fs_no_dir
+.set:
+    mov [fs_cwd], dl
+.r:
+    ret
+
+; pwd
+cmd_pwd_run:
+    call fs_need
+    jc .r
+    mov dl, [fs_cwd]
+    call fs_print_path
+    mov al, 10
+    call putc
+.r:
+    ret
+
+; dl = directory -> prints its path from the root ("/" for the root)
+fs_print_path:
+    pushad
+    xor ecx, ecx
+.up:                            ; push the ids on the way to the root
+    test dl, dl
+    jz .print
+    movzx eax, dl
+    push eax
+    inc ecx
+    shl eax, 5
+    mov dl, [FS_DIR-FS_DIRENT+eax+DE_PARENT]
+    cmp ecx, FS_MAXFILES        ; (a damaged table could loop)
+    jb .up
+.print:
+    mov al, '/'
+    call putc
+    jecxz .done
+.p:
+    pop eax
+    shl eax, 5
+    lea esi, [FS_DIR-FS_DIRENT+eax]
+    call puts
+    cmp ecx, 1
+    je .last
+    mov al, '/'
+    call putc
+.last:
+    loop .p
+.done:
+    popad
+    ret
+
 ; mv <old> <new>
 cmd_mv_run:
     call fs_need
@@ -1021,9 +1358,17 @@ cmd_fstest_run:
 
 FT_LEN  equ 1300
 FT_BUF  equ KSCRATCH+0x2000
-FT_BUF2 equ KSCRATCH+0x2800
+FT_BUF2 equ KSCRATCH+0xF000       ; (0x2800 is the shell history)
 
 fs_mounted db 0
+fs_cwd db 0                     ; current directory id, 0 = root (0.8.0)
+fs_lk_dir db 0
+align 4
+fs_base dd 0
+fs_pathbuf times FS_PATHMAX db 0
+fs_newname times FS_NAMELEN db 0
+fs_m_dir db '<dir>', 0
+fs_m_nodir db 'No such directory', 10, 0
 fs_cat_last db 0
 fs_total dd 0
 fs_xfer_total dd 0
