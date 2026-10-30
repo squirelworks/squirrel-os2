@@ -82,6 +82,7 @@ pm:
     call cls
     mov esi, banner
     call puts
+    call fs_mount_boot
     mov esi, prompt
     call puts
     sti
@@ -102,7 +103,9 @@ pm:
 
 ; ---------- file system ----------
 ; Flat table: name (8 bytes), data ptr, length
-fs_list:
+; Built-in (ROM) files, used when no data disk is mounted and to seed
+; a freshly formatted one.
+rom_list:
     mov esi, fs_header
     call puts
     mov ecx, [file_count]
@@ -116,8 +119,8 @@ fs_list:
     loop .l
     ret
 
-fs_cat:                       ; esi = name
-    call fs_find
+rom_cat:                      ; esi = name
+    call rom_find
     test eax, eax
     jz .nf
     mov esi, [eax+8]          ; data ptr
@@ -128,19 +131,14 @@ fs_cat:                       ; esi = name
     call puts
     ret
 
-fs_find:                      ; esi = name, returns eax = entry or 0
+rom_find:                     ; esi = name, returns eax = entry or 0
     push ecx
     push ebx
     mov ecx, [file_count]
     mov ebx, file_table
 .s:
-    push esi
-    push ebx
     mov edi, ebx
-    mov ecx, 8
-    repe cmpsb
-    pop ebx
-    pop esi
+    call streq
     je .found
     add ebx, 16
     loop .s
@@ -540,6 +538,14 @@ do_command:
     mov edi, cmd_blktest
     call streq
     je .blktest
+    ; format
+    mov edi, cmd_format
+    call streq
+    je .format
+    ; fstest
+    mov edi, cmd_fstest
+    call streq
+    je .fstest
     ; ps
     mov edi, cmd_ps
     call streq
@@ -556,8 +562,33 @@ do_command:
     mov edi, cmd_run
     call streq_prefix
     je .run
+    ; commands taking arguments: "<word> <args>"
+    mov ebx, arg_cmds
+.argc:
+    mov edi, [ebx]
+    test edi, edi
+    jz .unknown
+    call streq_prefix
+    je .arggo
+    add ebx, 8
+    jmp .argc
+.arggo:
+    push esi
+    mov esi, edi
+    call strlen
+    pop esi
+    add esi, eax
+    call [ebx+4]
+    jmp .empty
+.unknown:
     mov esi, unknown
     call puts
+    jmp .empty
+.format:
+    call cmd_format_run
+    jmp .empty
+.fstest:
+    call cmd_fstest_run
     jmp .empty
 .ls:
     call fs_list
@@ -1069,9 +1100,10 @@ default_isr:
     iretd
 
 ; ---------- data ----------
-banner db 'Squirrel-OS/2 — in-memory FS + apps', 10
-       db 'Commands: ls | cat <name> | run <name> | ps | disk', 10
-       db 'Tests: systest | proctest | blktest | keys', 10
+banner db 'Squirrel-OS/2 0.2.1', 10
+       db 'Commands: ls | cat <f> | run <app> | put <f> <text> | mk <f> | rm <f>', 10
+       db '          mv <f> <new> | format | ps | disk', 10
+       db 'Tests: systest | proctest | blktest | fstest | keys', 10
        db 'Apps: calc, sci, graph, matrix, diff, topo, edit, vedit, draw', 10, 0
 prompt db '> ', 0
 fs_header db 'Files:', 10, 0
@@ -1084,6 +1116,18 @@ cmd_systest db 'systest', 0
 cmd_keys db 'keys', 0
 cmd_trap db 'trap', 0
 cmd_ps db 'ps', 0
+cmd_format db 'format', 0
+cmd_fstest db 'fstest', 0
+cmd_put db 'put ', 0
+cmd_mk db 'mk ', 0
+cmd_rm db 'rm ', 0
+cmd_mv db 'mv ', 0
+arg_cmds:
+    dd cmd_put, cmd_put_run
+    dd cmd_mk, cmd_mk_run
+    dd cmd_rm, cmd_rm_run
+    dd cmd_mv, cmd_mv_run
+    dd 0, 0
 cmd_disk db 'disk', 0
 cmd_blktest db 'blktest', 0
 cmd_proctest db 'proctest', 0
@@ -1286,6 +1330,7 @@ exc_at db ' at EIP 0x', 0
 %include "syscall.asm"
 %include "proc.asm"
 %include "ata.asm"
+%include "fs.asm"
 
 align 8
 gdt:
@@ -1300,4 +1345,4 @@ idt: times 256 dq 0
 idt_desc:
     dw 256*8-1
     dd idt
-times 16384-($-$$) db 0
+times 32768-($-$$) db 0

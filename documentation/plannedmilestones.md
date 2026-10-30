@@ -48,8 +48,8 @@ A functional original operating system that:
 
 ### 0.2.x — Storage
 - **0.2.0** — Block device driver (ATA PIO or virtio-blk) (done — ATA PIO LBA28, `kernel/block-device.md`)
-- **0.2.1** — Minimal file system (flat directory or simple hierarchical)
-- **0.2.2** — File open/read/write/close
+- **0.2.1** — Minimal file system (flat directory or simple hierarchical) (done — SQFS, flat, `kernel/filesystem.md`)
+- **0.2.2** — File open/read/write/close (done — plus create/delete/rename, syscalls 10–16)
 - **0.2.3** — File browser (list, navigate, launch)
 
 ### Session bookmark (2026-10-14)

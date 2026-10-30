@@ -1,5 +1,13 @@
 # Kernel Notes
 
+## boot.asm (current — 0.2.1)
+
+- Loads 64 sectors (LBA 1–64, the 32 KB `pm.asm` image) to `0x8000` with the BIOS
+  extended read (int 0x13, AH=0x42, disk address packet), keeping the firmware's boot drive in `dl`.
+- Jumps to `0000:8000`; halts if the read fails.
+- Earlier revisions used CHS reads (AH=0x02) of 16, then 32 sectors.
+
+
 ## boot.asm (current — 0.0.2)
 
 Location: `../../kernel/boot.asm`

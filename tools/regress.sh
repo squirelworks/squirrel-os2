@@ -22,6 +22,7 @@ check() {   # check NAME EXPECTED KEYS...
     fi
 }
 
+check fs-format     'formatted SQFS'        ls '<ret>'   # must run first: blank disk
 check systest      'systest: PASS'          systest '<ret>'
 check getc-echo    'abz'                    keys '<ret>' abcd '<backspace>' '<backspace>' z '<ret>'
 check ls-all       'help'                   ls '<ret>'
@@ -44,8 +45,18 @@ check interleave    'worker 3 step 1'       proctest '<ret>'
 check app-process   'Result: 42'            'run calc' '<ret>' '6 * 7' '<ret>' '<esc>' 'run calc' '<ret>' '6 * 7' '<ret>'
 check slot-reuse    'exit code 30'          'run sci' '<ret>' 'run sci' '<ret>' 'run sci' '<ret>' 'run sci' '<ret>' \
                     'run sci' '<ret>' 'run sci' '<ret>' 'run sci' '<ret>' 'run sci' '<ret>' proctest '<ret>'
+# file system: the first boot formats the blank data disk; later checks
+# reuse the same disk, so the persist check reads what fs-put wrote
+check fs-ls         'help'                  ls '<ret>'
+check fstest        'fstest: PASS'          fstest '<ret>'
+check fs-put        'ok'                    'put persist Saved across reboot!' '<ret>'
+check fs-persist    'Saved across reboot!'  'cat persist' '<ret>'
+check fs-mv         'renamed'               'mv persist renamed' '<ret>' ls '<ret>'
+check fs-rm         'Not found'             'rm renamed' '<ret>' 'cat renamed' '<ret>'
+check fs-dup        'error'                 'mk calc' '<ret>'
 check disk-detect   'disk 1: 2048 sectors'  disk '<ret>'
 check blktest       'blktest: PASS'         blktest '<ret>' blktest '<ret>'
 disk=
 check no-disk       'no data disk'          blktest '<ret>'
+check rom-fallback  'Hello from Squirrel'   'cat edit' '<ret>'
 exit $fail
