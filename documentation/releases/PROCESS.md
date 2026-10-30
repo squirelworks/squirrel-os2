@@ -43,6 +43,7 @@ Squirrel-OS/2 uses a simple `major.minor.patch` scheme for early development:
 | 0.2.0   | 2026-10-30 | ATA PIO block device driver          |
 | 0.2.1   | 2026-10-30 | SQFS on-disk file system (+0.2.2 API) |
 | 0.2.3   | 2026-10-30 | File browser                         |
+| 0.3.2   | 2026-10-30 | Full-screen editors with load/save   |
 
 ## Next planned release
 

@@ -77,7 +77,7 @@ This is a natural end-of-day point. Next session can resume at either:
   - DiffEq / Calculus (`diff`): numerical derivatives, integrals, ODEs — scaffolded
   - Topology (`topo`): simplicial homology sketches — scaffolded (long-term)
   - Design: `documentation/apps/calculators.md`
-- **0.3.2** — Text editor project
+- **0.3.2** — Text editor project (done — full-screen `edit`/`vedit` with load/save, `apps/editors.md`)
   - Shared buffer primitives (insert, delete, cursor, capacity) — basic insert/backspace/enter/esc implemented in `kernel/pm.asm`
   - Normal editor (`edit`): minimal status line, ordinary feedback
   - Verbose editor (`vedit`): full status (line, column, offset, char code, mode, size, capacity) — prefix shown; numeric still scaffolded

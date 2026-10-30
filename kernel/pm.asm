@@ -228,59 +228,6 @@ itoa:                         ; signed
     pop ebx
     ret
 
-run_edit:
-    mov byte [editor_mode], 1
-    mov byte [editor_verbose], 0
-    jmp editor_enter
-
-run_vedit:
-    mov byte [editor_mode], 2
-    mov byte [editor_verbose], 1
-    jmp editor_enter
-
-editor_enter:
-    call cls
-    mov esi, edit_banner
-    cmp byte [editor_verbose], 0
-    je .norm
-    mov esi, vedit_banner
-.norm:
-    call puts
-    ; init buffer with sample
-    mov esi, edit_sample
-    mov edi, edit_buf
-    mov ecx, 24
-    rep movsb
-    mov dword [edit_len], 24
-    mov dword [edit_pos], 24
-    call editor_redraw
-    ret
-
-editor_redraw:
-    ; simple: reprint buffer on new line
-    mov al, 10
-    call putc
-    mov esi, edit_buf
-    mov ecx, [edit_len]
-    test ecx, ecx
-    jz .empty
-.l:
-    lodsb
-    call putc
-    loop .l
-.empty:
-    mov al, 10
-    call putc
-    cmp byte [editor_verbose], 0
-    je .done
-    ; verbose status
-    mov esi, vedit_status
-    call puts
-.done:
-    mov esi, edit_prompt
-    call puts
-    ret
-
 run_draw:
     mov byte [draw_mode], 1
     call cls
@@ -351,6 +298,27 @@ draw_redraw:
     call puts
     mov al, 10
     call putc
+    ret
+
+; edi = ASCIIZ -> run_arg (truncated to a file name)
+set_run_arg:
+    push ecx
+    push esi
+    push edi
+    mov esi, edi
+    mov edi, run_arg
+    mov ecx, FS_NAMELEN-1
+.c:
+    lodsb
+    test al, al
+    jz .z
+    stosb
+    loop .c
+.z:
+    mov byte [edi], 0
+    pop edi
+    pop esi
+    pop ecx
     ret
 
 ; ---------- command processor (called from keyboard on Enter) ----------
@@ -452,6 +420,8 @@ do_command:
     jmp .empty
 .run:
     add esi, 4
+    call next_word              ; esi = app name, edi = argument (may be empty)
+    call set_run_arg
     mov ebx, run_table
 .rfind:
     mov edi, [ebx]
@@ -697,9 +667,13 @@ kbd_dequeue:
     stc
     ret
 
-; Tracks Shift. Returns ZF set if al was a Shift make/break code
+; Tracks Shift and Ctrl. Returns ZF set if al was a modifier make/break code
 ; (the caller should then ignore it).
 kbd_shift_track:
+    cmp al, 0x1D
+    je .cdown
+    cmp al, 0x9D
+    je .cup
     cmp al, 0x2A
     je .down
     cmp al, 0x36
@@ -716,6 +690,12 @@ kbd_shift_track:
 .up:
     mov byte [kbd_shift], 0
     cmp al, al
+    ret
+.cdown:
+    mov byte [kbd_ctrl], 1
+    ret                       ; ZF set by the compare
+.cup:
+    mov byte [kbd_ctrl], 0
     ret
 
 ; al = make code -> al = ASCII (0 if unmapped), honouring Shift.
@@ -741,8 +721,6 @@ kbd_dispatch:
     je .e
     cmp al, 0x80
     jae .e
-    cmp byte [editor_mode], 0
-    jne .editor
     cmp byte [draw_mode], 0
     jne .draw
     ; command mode
@@ -775,48 +753,6 @@ kbd_dispatch:
     mov byte [cmdline+ebx], 0
     mov al, 8
     call putc
-    jmp .e
-.editor:
-    cmp al, 0x01             ; Esc
-    je .exit_edit
-    cmp al, 0x0E             ; Backspace
-    je .bs
-    cmp al, 0x1C             ; Enter
-    je .nl
-    call kbd_ascii
-    or al, al
-    jz .e
-    ; insert char
-    mov ebx, [edit_len]
-    cmp ebx, 250
-    jae .e
-    mov [edit_buf+ebx], al
-    inc dword [edit_len]
-    inc dword [edit_pos]
-    call editor_redraw
-    jmp .e
-.bs:
-    mov ebx, [edit_len]
-    test ebx, ebx
-    jz .e
-    dec dword [edit_len]
-    dec dword [edit_pos]
-    call editor_redraw
-    jmp .e
-.nl:
-    ; treat as newline in buffer (limited)
-    mov ebx, [edit_len]
-    cmp ebx, 250
-    jae .e
-    mov byte [edit_buf+ebx], 10
-    inc dword [edit_len]
-    call editor_redraw
-    jmp .e
-.exit_edit:
-    mov byte [editor_mode], 0
-    call cls
-    mov esi, banner
-    call puts
     jmp .e
 .draw:
     cmp al, 0x01             ; Esc
@@ -914,6 +850,9 @@ cmd_run db 'run ', 0
 cmd_systest db 'systest', 0
 cmd_keys db 'keys', 0
 cmd_trap db 'trap', 0
+
+; argument for the next app started with run (e.g. run edit notes)
+run_arg times 16 db 0           ; FS_NAMELEN
 cmd_ps db 'ps', 0
 cmd_format db 'format', 0
 cmd_fstest db 'fstest', 0
@@ -967,13 +906,9 @@ diff_banner db 'DiffEq / Calculus Calculator', 10, 0
 diff_stub db 'Scaffolded. Numerical derivatives, integrals, ODEs pending.', 10, 'See documentation/apps/calculators.md', 10, 0
 topo_banner db 'Topology Calculator', 10, 0
 topo_stub db 'Scaffolded. Simplicial homology sketches (long-term).', 10, 'See documentation/apps/calculators.md', 10, 0
-edit_banner db 'Text Editor (Esc to exit)', 10, 0
 edit_sample db 'Hello from Squirrel-OS/2', 10, 0
-vedit_banner db 'Verbose Editor (Esc to exit)', 10, 0
 vedit_sample db 'Line 1, col 1, byte 0, char 0x48 ', 39, 'H', 39, 10
              db 'Insert mode, unmodified, size 0/4096', 10, 0
-vedit_status db 'Status: len=', 0
-edit_prompt db 'edit> ', 0
 draw_banner db 'Drawing Program (Esc to exit)', 10, 0
 draw_help db 'Arrows: move  Space: plot *  x: erase  c: clear', 10, 0
 draw_status db 'Pos: ', 0
@@ -1023,11 +958,6 @@ cmdline times 64 db 0
 cmdpos dd 0
 cur dd 0
 ticks dd 0
-editor_mode db 0
-editor_verbose db 0
-edit_buf times 256 db 0
-edit_len dd 0
-edit_pos dd 0
 draw_mode db 0
 draw_canvas times 320 db ' '
 draw_cx db 0
@@ -1035,6 +965,7 @@ draw_cy db 0
 num_buf times 16 db 0
 
 kbd_shift db 0
+kbd_ctrl db 0
 
 ; Set-1 make codes 0x00..0x7F. Keypad * - + are mapped; other keypad
 ; keys stay 0 so arrows (0x48/0x4B/0x4D/0x50) remain free for apps.
@@ -1128,6 +1059,7 @@ exc_at db ' at EIP 0x', 0
 %include "fs.asm"
 %include "browser.asm"
 %include "calc.asm"
+%include "editor.asm"
 
 align 8
 gdt:

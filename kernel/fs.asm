@@ -767,6 +767,7 @@ fs_cat:
     cmp eax, -1
     je .nf
     mov ebx, eax
+    mov byte [fs_cat_last], 10
 .r:
     mov edi, FS_CATBUF
     mov ecx, 255
@@ -774,11 +775,18 @@ fs_cat:
     test eax, eax
     jle .end
     mov byte [FS_CATBUF+eax], 0
+    mov dl, [FS_CATBUF+eax-1]
+    mov [fs_cat_last], dl
     mov esi, FS_CATBUF
     call puts
     jmp .r
 .end:
     call fs_close
+    cmp byte [fs_cat_last], 10  ; finish an unterminated last line
+    je .nl
+    mov al, 10
+    call putc
+.nl:
     ret
 .nf:
     mov esi, notfound
@@ -1015,6 +1023,7 @@ FT_BUF  equ KSCRATCH+0x2000
 FT_BUF2 equ KSCRATCH+0x2800
 
 fs_mounted db 0
+fs_cat_last db 0
 fs_total dd 0
 fs_xfer_total dd 0
 fs_xfer_lba dd 0
