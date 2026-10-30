@@ -50,6 +50,7 @@ Squirrel-OS/2 uses a simple `major.minor.patch` scheme for early development:
 | 0.4.2   | 2026-10-30 | User programs: ls, cat (+ readdir)   |
 | 0.5.0   | 2026-10-30 | Pipes and redirection                |
 | 0.5.1   | 2026-10-30 | Line editing and command history     |
+| 0.5.2   | 2026-10-30 | Batch files and autoexec.bat         |
 
 ## Next planned release
 

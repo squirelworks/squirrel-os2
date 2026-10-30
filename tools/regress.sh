@@ -19,6 +19,12 @@ printf '2 + 3\n6 * 7\n' > "$out/exprs"
 python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/exprs"
 head -c 70000 /dev/zero | tr '\0' 'x' > "$out/huge"
 python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/huge"
+printf '# demo\necho start\n@echo quiet line\necho a b c | run wc > cnt\nrun cat cnt\nrun demo2.bat\necho never\n' > "$out/demo.bat"
+printf 'echo in demo2\n' > "$out/demo2.bat"
+for f in demo.bat demo2.bat; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$f"; done
+python3 "$root/tools/sqfs.py" "$out/auto.img" format 1024
+printf 'echo autoexec ran\n' > "$out/autoexec.bat"
+python3 "$root/tools/sqfs.py" "$out/auto.img" put "$out/autoexec.bat"
 rm -f "$out/data.img"
 dd if=/dev/zero of="$out/data.img" bs=1024 count=1024 2>/dev/null
 
@@ -130,7 +136,7 @@ check ld-missing    'Unknown command or program'    'run nothere' '<ret>'
 check ld-again      'Argument: 2'           'run hello 1' '<ret>' 'run hello 2' '<ret>'
 check ld-browser    'Hello from a loaded'   'run files' '<ret>' '<home>' '<ret>'
 check ld-host-ls    'elfhello'              ls '<ret>'
-check up-ls         '9 file(s)'             'run ls' '<ret>'
+check up-ls         '11 file(s)'             'run ls' '<ret>'
 check up-ls-filter  '3 file(s)'             'run ls he' '<ret>'
 check up-cat        'three'                 'run cat notes' '<ret>'
 check up-cat-missing 'not found: zip'       'run cat zip notes' '<ret>'
@@ -143,6 +149,13 @@ check sh-ls-pipe    'elfhello'              'ls | run cat' '<ret>'
 check sh-badpipe    'command on both sides' 'ls |' '<ret>'
 check sh-noname     'needs a file name'     'cat >' '<ret>'
 check sh-nofile     'Cannot read nofile'    'run wc < nofile' '<ret>'
+check bat-run       'in demo2'              'batch demo.bat' '<ret>'
+check bat-quiet     'quiet line'            'batch demo.bat' '<ret>'
+check bat-pipe      '1 3 6'                 'batch demo.bat' '<ret>'
+check bat-chain     '> echo in demo2'       'run demo.bat' '<ret>'
+check bat-missing   'Cannot read nope'      'batch nope' '<ret>'
+disk=$out/auto.img
+check bat-autoexec  'autoexec ran'
 disk=
 check no-disk       'no data disk'          blktest '<ret>'
 check rom-fallback  'Hello from Squirrel'   'cat edit' '<ret>'
