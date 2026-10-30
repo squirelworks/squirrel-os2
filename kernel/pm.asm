@@ -1100,11 +1100,11 @@ default_isr:
     iretd
 
 ; ---------- data ----------
-banner db 'Squirrel-OS/2 0.2.1', 10
+banner db 'Squirrel-OS/2 0.2.3', 10
        db 'Commands: ls | cat <f> | run <app> | put <f> <text> | mk <f> | rm <f>', 10
        db '          mv <f> <new> | format | ps | disk', 10
        db 'Tests: systest | proctest | blktest | fstest | keys', 10
-       db 'Apps: calc, sci, graph, matrix, diff, topo, edit, vedit, draw', 10, 0
+       db 'Apps: files, calc, sci, graph, matrix, diff, topo, edit, vedit, draw', 10, 0
 prompt db '> ', 0
 fs_header db 'Files:', 10, 0
 notfound db 'Not found', 10, 0
@@ -1144,11 +1144,14 @@ run_table:
     dd name_edit, run_edit
     dd name_vedit, run_vedit
     dd name_draw, run_draw
+    dd name_files, fb_main
     dd 0, 0
 name_calc db 'calc', 0
 name_edit db 'edit', 0
 name_vedit db 'vedit', 0
 name_draw db 'draw', 0
+name_files db 'files', 0
+files_desc db 'File browser. Open it with: run files', 10, 0
 name_sci db 'sci', 0
 name_graph db 'graph', 0
 name_matrix db 'matrix', 0
@@ -1183,7 +1186,7 @@ draw_help db 'Arrows: move  Space: plot *  x: erase  c: clear', 10, 0
 draw_status db 'Pos: ', 0
 draw_art db '  *  ', 10, ' *** ', 10, '*****', 10, 0
 
-file_count dd 10
+file_count dd 11
 file_table:
     db 'calc', 0, 0, 0, 0
     dd calc_help
@@ -1215,6 +1218,9 @@ file_table:
     db 'help', 0, 0, 0, 0
     dd banner
     dd 80
+    db 'files', 0, 0, 0
+    dd files_desc
+    dd 0
 
 KBD_RING_SIZE equ 64
 kbd_ring times KBD_RING_SIZE db 0
@@ -1331,6 +1337,7 @@ exc_at db ' at EIP 0x', 0
 %include "proc.asm"
 %include "ata.asm"
 %include "fs.asm"
+%include "browser.asm"
 
 align 8
 gdt:

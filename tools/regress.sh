@@ -54,6 +54,11 @@ check fs-persist    'Saved across reboot!'  'cat persist' '<ret>'
 check fs-mv         'renamed'               'mv persist renamed' '<ret>' ls '<ret>'
 check fs-rm         'Not found'             'rm renamed' '<ret>' 'cat renamed' '<ret>'
 check fs-dup        'error'                 'mk calc' '<ret>'
+check fb-list       '[app]'                 'run files' '<ret>'
+check fb-launch     'Result: 42'            'run files' '<ret>' '<ret>' '6 * 7' '<ret>'
+check fb-view       'press any key'         'run files' '<ret>' '<down>' v
+check fb-delete     '> files'               'put junk x' '<ret>' 'run files' '<ret>' '<end>' d y
+check fb-exit       'systest: PASS'         'run files' '<ret>' '<esc>' systest '<ret>'
 check disk-detect   'disk 1: 2048 sectors'  disk '<ret>'
 check blktest       'blktest: PASS'         blktest '<ret>' blktest '<ret>'
 disk=
