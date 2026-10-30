@@ -41,6 +41,7 @@ add its `SYS_*` constant, bump `SYS_COUNT`.
 | 4–7 | `spawn`, `exit`, `wait`, `getpid` | | | Added in 0.1.2, see `processes.md` |
 | 8–9 | `bread`, `bwrite` | | | Added in 0.2.0, see `block-device.md` |
 | 10–16 | `open`, `read`, `write`, `close`, `create`, `delete`, `rename` | | | Added in 0.2.1, see `filesystem.md` |
+| 17 | `SYS_EXEC` | `ebx` = file name, `ecx` = argument or 0 | pid, or < 0 | Added in 0.3.0, see `loader.md` |
 
 Example:
 

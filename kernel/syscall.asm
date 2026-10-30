@@ -23,7 +23,8 @@ SYS_CLOSE   equ 13          ; ebx = fd              -> 0 or -1
 SYS_CREATE  equ 14          ; ebx = name            -> 0 or -1
 SYS_DELETE  equ 15          ; ebx = name            -> 0 or -1
 SYS_RENAME  equ 16          ; ebx = old, ecx = new  -> 0 or -1
-SYS_COUNT   equ 17
+SYS_EXEC    equ 17          ; ebx = file name, ecx = argument -> pid or LD_E* (< 0)
+SYS_COUNT   equ 18
 
 SYS_ENOSYS  equ -1
 SYSCALL_VEC equ 0x80
@@ -67,6 +68,7 @@ syscall_table:
     dd sys_create
     dd sys_delete
     dd sys_rename
+    dd sys_exec
 
 ; ---------- handlers: args in ebx/ecx/edx, result in eax ----------
 sys_putc:

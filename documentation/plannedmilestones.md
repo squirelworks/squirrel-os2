@@ -68,7 +68,7 @@ This is a natural end-of-day point. Next session can resume at either:
 - richer application stubs / syscall interface (0.1.1).
 
 ### 0.3.x — Applications
-- **0.3.0** — Program loader (flat binary or simple ELF)
+- **0.3.0** — Program loader (done — SQX flat binaries and static ELF32 from SQFS, `run <file>`, `kernel/loader.md`)
 - **0.3.1** — Calculator suite
   - Basic (`calc`): interactive integer arithmetic + percentage — polished (precedence, parentheses, `ans`, chaining, errors, history file) in `kernel/calc.asm`
   - Scientific (`sci`): floating-point + transcendentals — scaffolded

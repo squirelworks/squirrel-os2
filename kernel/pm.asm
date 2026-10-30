@@ -349,6 +349,7 @@ do_command:
 .run:
     add esi, 4
     call next_word              ; esi = app name, edi = argument (may be empty)
+    mov [run_rest], edi
     call set_run_arg
     mov ebx, run_table
 .rfind:
@@ -360,8 +361,14 @@ do_command:
     add ebx, 8
     jmp .rfind
 .rnone:
-    mov esi, unknown
-    call puts
+    ; not built in: load it from the data disk (0.3.0 program loader)
+    mov ebx, esi
+    mov ecx, [run_rest]
+    mov eax, SYS_EXEC
+    int SYSCALL_VEC
+    test eax, eax
+    jns .rwait
+    call ld_perror
     jmp .empty
 .rgo:
     ; the app runs as its own process; the shell waits for it
@@ -371,6 +378,7 @@ do_command:
     int SYSCALL_VEC
     cmp eax, -1
     je .rfull
+.rwait:
     mov ebx, eax
     mov eax, SYS_WAIT
     int SYSCALL_VEC
@@ -690,7 +698,7 @@ default_isr:
 
 ; ---------- data ----------
 banner db 'Squirrel-OS/2 0.2.3', 10
-       db 'Commands: ls | cat <f> | run <app> | put <f> <text> | mk <f> | rm <f>', 10
+       db 'Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>', 10
        db '          mv <f> <new> | format | ps | disk', 10
        db 'Tests: systest | proctest | blktest | fstest | keys', 10
        db 'Apps: files, calc, sci, graph, matrix, diff, topo, edit, vedit, draw', 10, 0
@@ -707,6 +715,7 @@ cmd_trap db 'trap', 0
 
 ; argument for the next app started with run (e.g. run edit notes)
 run_arg times 16 db 0           ; FS_NAMELEN
+run_rest dd 0                   ; whole argument text, for loaded programs
 cmd_ps db 'ps', 0
 cmd_format db 'format', 0
 cmd_fstest db 'fstest', 0
@@ -908,6 +917,7 @@ exc_at db ' at EIP 0x', 0
 %include "calc.asm"
 %include "editor.asm"
 %include "draw.asm"
+%include "loader.asm"
 
 align 8
 gdt:

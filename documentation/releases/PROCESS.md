@@ -45,6 +45,7 @@ Squirrel-OS/2 uses a simple `major.minor.patch` scheme for early development:
 | 0.2.3   | 2026-10-30 | File browser                         |
 | 0.3.2   | 2026-10-30 | Full-screen editors with load/save   |
 | 0.3.3   | 2026-10-30 | Drawing program polish               |
+| 0.3.0   | 2026-10-30 | Program loader (SQX + ELF32)         |
 
 ## Next planned release
 

@@ -8,6 +8,15 @@ mkdir -p "$out"
 (cd "$root/kernel" && nasm -f bin boot.asm -o "$out/boot.bin" \
     && nasm -f bin pm.asm -o "$out/pm.bin" 2>/dev/null)
 cat "$out/boot.bin" "$out/pm.bin" > "$out/os.img"
+for prog in hello wc elfhello; do
+    nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
+done
+python3 "$root/tools/sqfs.py" "$out/progs.img" format 1024
+for prog in hello wc elfhello; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
+printf 'one two\nthree\n' > "$out/notes"
+python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/notes"
+head -c 70000 /dev/zero | tr '\0' 'x' > "$out/huge"
+python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/huge"
 rm -f "$out/data.img"
 dd if=/dev/zero of="$out/data.img" bs=1024 count=1024 2>/dev/null
 
@@ -84,6 +93,18 @@ check draw-line     '**'                    'run draw diag' '<ret>' l '<right>' 
 check draw-reload   'Loaded.'               'run draw pic' '<ret>'
 check disk-detect   'disk 1: 2048 sectors'  disk '<ret>'
 check blktest       'blktest: PASS'         blktest '<ret>' blktest '<ret>'
+# program loader: a disk prepared on the host with tools/sqfs.py
+disk=$out/progs.img
+check ld-sqx        'Hello from a loaded program!'  'run hello' '<ret>'
+check ld-arg        'Argument: world'       'run hello world' '<ret>'
+check ld-wc         '2 3 14 notes'          'run wc notes' '<ret>'
+check ld-elf        'Hello from an ELF program!'    'run elfhello' '<ret>'
+check ld-notprog    'Not a program'         'run notes' '<ret>'
+check ld-big        'too big'               'run huge' '<ret>'
+check ld-missing    'Unknown command or program'    'run nothere' '<ret>'
+check ld-again      'Argument: 2'           'run hello 1' '<ret>' 'run hello 2' '<ret>'
+check ld-browser    'Hello from a loaded'   'run files' '<ret>' '<home>' '<ret>'
+check ld-host-ls    'elfhello'              ls '<ret>'
 disk=
 check no-disk       'no data disk'          blktest '<ret>'
 check rom-fallback  'Hello from Squirrel'   'cat edit' '<ret>'

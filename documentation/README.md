@@ -30,4 +30,6 @@ Documentation is active.
 - 0.2.0 ATA PIO block driver implemented (`kernel/block-device.md`, `releases/0.2.0.md`)
 - 0.2.1/0.2.2 SQFS file system implemented (`kernel/filesystem.md`, `releases/0.2.1.md`)
 - 0.2.3 file browser implemented (`apps/files.md`, `releases/0.2.3.md`)
-- Next: 0.3.0 program loader, then sci/matrix
+- 0.3.x apps: calculator polish, editors (`releases/0.3.2.md`), draw (`releases/0.3.3.md`)
+- 0.3.0 program loader implemented (`kernel/loader.md`, `releases/0.3.0.md`)
+- Next: sci/matrix calculators, then persistence and stability (0.9.x)
