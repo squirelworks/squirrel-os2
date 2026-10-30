@@ -977,8 +977,8 @@ fs_list:
     mov dl, [fs_cwd]
 ; dl = directory: lists it (subdirectories first get a '/')
 fs_list_dir:
-    mov esi, fs_header
-    call puts
+    mov esi, [lstr+LS_FILES*4]
+    call lputs_nl
     mov ebx, FS_DIR
     mov ecx, FS_MAXFILES
 .l:
@@ -1043,9 +1043,8 @@ fs_cat:
 .nl:
     ret
 .nf:
-    mov esi, notfound
-    call puts
-    ret
+    mov esi, [lstr+LS_NOTFOUND*4]
+    jmp lputs_nl
 FS_CATBUF equ KSCRATCH+0x1800
 
 ; Splits the first word off esi: returns esi = word (zero-terminated in

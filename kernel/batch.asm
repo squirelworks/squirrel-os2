@@ -93,7 +93,7 @@ bat_run_pending:
     cmp al, '@'
     je .quiet
     push esi
-    mov esi, prompt
+    mov esi, [lstr+LS_PROMPT*4]
     call puts
     pop esi
     push esi

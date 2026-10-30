@@ -11,3 +11,5 @@ result=II + II = IV
 keys=Claves preme, Enter ad finiendum:
 systest_pass=systest: PROBATUM
 systest_fail=systest: DEFECIT
+lang_now=Lingua:
+lang_bad=Lingua ignota

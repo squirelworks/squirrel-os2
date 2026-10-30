@@ -11,3 +11,5 @@ result=cha' + cha' = loS
 keys=leQmey yIbach, Enter yIbach rInmeH:
 systest_pass=systest: Qapla'
 systest_fail=systest: luj
+lang_now=Hol:
+lang_bad=Hol Sovbe'lu'

@@ -5,6 +5,7 @@ set -e
 root=$(cd "$(dirname "$0")/.." && pwd)
 out=${TMPDIR:-/tmp}/squirrel-os2-build
 mkdir -p "$out"
+python3 "$root/tools/mkstrings.py" --check || exit 1
 (cd "$root/kernel" && nasm -f bin boot.asm -o "$out/boot.bin" \
     && nasm -f bin pm.asm -o "$out/pm.bin" 2>/dev/null)
 cat "$out/boot.bin" "$out/pm.bin" > "$out/os.img"
@@ -23,7 +24,7 @@ printf '# demo\necho start\n@echo quiet line\necho a b c | run wc > cnt\nrun cat
 printf 'echo in demo2\n' > "$out/demo2.bat"
 for f in demo.bat demo2.bat; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$f"; done
 python3 "$root/tools/sqfs.py" "$out/auto.img" format 1024
-printf 'echo autoexec ran\n' > "$out/autoexec.bat"
+printf 'echo autoexec ran\nlang la\n' > "$out/autoexec.bat"
 python3 "$root/tools/sqfs.py" "$out/auto.img" put "$out/autoexec.bat"
 rm -f "$out/data.img"
 dd if=/dev/zero of="$out/data.img" bs=1024 count=1024 2>/dev/null
@@ -182,8 +183,15 @@ check dir-mv-cycle  'error'                 'mkdir d5' '<ret>' 'mkdir d5/e' '<re
 check dir-mv-into   'g                 6'   'put g nutty' '<ret>' 'mv g d5/g' '<ret>' 'ls d5' '<ret>'
 check dir-cd-bad    'No such directory'     'cd nowhere' '<ret>'
 check dir-rm-empty  '0 file(s)'             'rm d1' '<ret>' 'run ls d1' '<ret>'
+check lang-show     'Language: en (en la tlh)'  lang '<ret>'
+check lang-la       'Tabulae:'              'lang la' '<ret>' ls '<ret>'
+check lang-tlh      "ra' tlhaQ"             'lang tlh' '<ret>' xyz '<ret>'
+check lang-bad      'Unknown language (en la tlh)'  'lang fr' '<ret>'
+check lang-banner   'Sciurus-OS/2 0.2.3'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
+check lang-systest  'systest: PROBATUM'     'lang la' '<ret>' systest '<ret>'
 disk=$out/auto.img
 check bat-autoexec  'autoexec ran'
+check lang-autoexec 'Tabulae:'              ls '<ret>'
 disk=
 check no-disk       'no data disk'          blktest '<ret>'
 check devices-nodisk 'hd1     block   absent'  devices '<ret>'

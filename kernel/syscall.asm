@@ -338,13 +338,12 @@ cmd_systest_run:
     cmp edi, 0xA5A54321
     call st_check
 
-    mov esi, st_pass
+    mov esi, [lstr+LS_SYSTEST_PASS*4]
     cmp dword [st_fail], 0
     je .out
-    mov esi, st_failmsg
+    mov esi, [lstr+LS_SYSTEST_FAIL*4]
 .out:
-    call puts
-    ret
+    jmp lputs_nl
 
 st_check:                   ; counts a failure unless ZF is set
     je .ok
@@ -355,7 +354,10 @@ st_check:                   ; counts a failure unless ZF is set
 ; keys: echoes typed characters through getc/putc until Enter.
 cmd_keys_run:
     mov eax, SYS_PUTS
-    mov ebx, keys_msg
+    mov ebx, [lstr+LS_KEYS*4]
+    int SYSCALL_VEC
+    mov eax, SYS_PUTC
+    mov ebx, 10
     int SYSCALL_VEC
 .loop:
     mov eax, SYS_GETC
@@ -375,7 +377,4 @@ cmd_keys_run:
 st_puts_msg db 'syscall puts: ok', 10, 0
 st_puts_len equ $ - st_puts_msg - 1
 st_file db 'systest.tmp', 0
-st_pass db 'systest: PASS', 10, 0
-st_failmsg db 'systest: FAIL', 10, 0
 st_fail dd 0
-keys_msg db 'Type keys, Enter to finish:', 10, 0
