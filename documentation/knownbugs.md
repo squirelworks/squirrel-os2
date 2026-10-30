@@ -18,14 +18,19 @@ Resolved in 0.1.1:
 - `calc`: `a - b` and `a / b` gave wrong results (`atoi` clobbered the first operand). Resolved.
 - `calc`: any division hung the machine (`cdq` overwrote the divisor, divide error looped through `default_isr`). Resolved.
 
+Open at 0.1.1 (all resolved after 0.1.1, ship with 0.1.2):
+
+- **KB-1** No Shift handling, so `+`, `*` and `%` could not be typed. Resolved: Shift tracked, shifted map added, keypad `* - +` mapped.
+- **KB-2** `calc` printed negative results as large unsigned numbers. Resolved: `itoa` is signed.
+- **KB-3** Console did not scroll. Resolved: `putc` scrolls at row 25 and moves the hardware cursor.
+- **KB-4** `run calc` showed `calc> > `. Resolved: the shell prompt is skipped when an interactive app starts.
+- **KB-5** `default_isr` returned to the faulting instruction, hanging on any CPU exception. Resolved: vectors 0–31 print `*** CPU exception N at EIP 0x...` and halt (`trap` command demonstrates).
+- **KB-6** NASM warning on `vedit_sample`. Resolved.
+- Also: the shell command line now accepts Backspace; the calculator banner no longer advertises an unimplemented `q` exit.
+
 Open:
 
-- **KB-1** No Shift handling, so `+`, `*` and `%` cannot be typed; `calc` effectively supports only `-` and `/`.
-- **KB-2** `calc` prints negative results as large unsigned numbers (`itoa` is unsigned).
-- **KB-3** Console does not scroll; output past row 25 is written beyond the visible screen (redraws in `draw`/`edit` run off quickly).
-- **KB-4** `run calc` shows `calc> > ` because the shell prompt is printed after the app prompt.
-- **KB-5** `default_isr` returns to the faulting instruction, so any CPU exception hangs instead of reporting.
-- **KB-6** `vedit_sample` in `pm.asm` triggers an NASM warning (`''H''` is not a valid escaped quote).
+- **KB-7** `draw`, `edit` and `vedit` redraw by appending a fresh copy below the old one rather than in place, so the screen scrolls on every key.
 
 ## Notes
 

@@ -8,7 +8,9 @@ Each KEYS argument is typed as text; a token like "<ret>", "<esc>",
 import os, socket, subprocess, sys, tempfile, time
 
 KEYMAP = {' ': 'spc', '\n': 'ret', '-': 'minus', '=': 'equal', '/': 'slash',
-          '.': 'dot', ',': 'comma', ';': 'semicolon', '*': 'asterisk'}
+          '.': 'dot', ',': 'comma', ';': 'semicolon',
+          '+': 'shift-equal', '*': 'shift-8', '%': 'shift-5', '!': 'shift-1',
+          '?': 'shift-slash', ':': 'shift-semicolon', '_': 'shift-minus'}
 
 
 def monitor(sock, cmd):
@@ -44,7 +46,10 @@ def main():
                 monitor(sock, 'sendkey ' + chunk[1:-1])
                 continue
             for ch in chunk:
-                monitor(sock, 'sendkey ' + KEYMAP.get(ch, ch))
+                key = KEYMAP.get(ch, ch)
+                if ch.isupper():
+                    key = 'shift-' + ch.lower()
+                monitor(sock, 'sendkey ' + key)
         time.sleep(0.5)
         monitor(sock, f'pmemsave 0xb8000 4000 "{dump}"')
         for _ in range(50):

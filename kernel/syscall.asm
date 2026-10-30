@@ -68,14 +68,16 @@ sys_getc:
     jmp sys_getc
 .got:
     sti
+    call kbd_shift_track
+    je sys_getc
     cmp al, 0x80
     jae sys_getc
     cmp al, 0x01
     je .esc
     cmp al, 0x0E
     je .bs
-    movzx ebx, al
-    movzx eax, byte [scancode_map+ebx]
+    call kbd_ascii
+    movzx eax, al
     test eax, eax
     jz sys_getc
     ret

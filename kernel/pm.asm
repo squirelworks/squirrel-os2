@@ -29,6 +29,16 @@ pm:
     call set_gate
     add edi, 8
     loop .fill
+    ; CPU exceptions 0..31 report and halt instead of looping
+    mov edi, idt
+    mov esi, exc_stubs
+    mov ecx, 32
+.exc:
+    mov eax, esi
+    call set_gate
+    add edi, 8
+    add esi, EXC_STUB_SIZE
+    loop .exc
     mov edi, idt+0x20*8
     mov eax, timer_isr
     call set_gate
@@ -329,12 +339,18 @@ atoi:
     ret
 
 ; itoa: eax = number, writes to num_buf (null terminated)
-itoa:
+itoa:                         ; signed
     push ebx
     push ecx
     push edx
     mov edi, num_buf
     mov ecx, 0
+    test eax, eax
+    jns .nonneg
+    mov byte [edi], '-'
+    inc edi
+    neg eax
+.nonneg:
     test eax, eax
     jnz .pos
     mov byte [edi], '0'
@@ -505,6 +521,12 @@ do_command:
     mov edi, cmd_systest
     call streq
     je .systest
+    ; trap (diagnostic: raises #UD to show the exception report)
+    mov edi, cmd_trap
+    call streq
+    jne .notrap
+    ud2
+.notrap:
     ; keys
     mov edi, cmd_keys
     call streq
@@ -564,7 +586,7 @@ do_command:
     jmp .empty
 .rcalc:
     call run_calc
-    jmp .empty
+    jmp .noprompt
 .rsci:
     call run_sci
     jmp .empty
@@ -582,15 +604,17 @@ do_command:
     jmp .empty
 .redit:
     call run_edit
-    jmp .empty
+    jmp .noprompt
 .rvedit:
     call run_vedit
-    jmp .empty
+    jmp .noprompt
 .rdraw:
     call run_draw
+    jmp .noprompt
 .empty:
     mov esi, prompt
     call puts
+.noprompt:
     mov byte [cmdline], 0
     mov dword [cmdpos], 0
     ret
@@ -655,6 +679,7 @@ cls:
     mov ax, 0x0720
     rep stosw
     mov dword [cur], 0
+    call cursor_sync
     ret
 
 puts:
@@ -678,7 +703,7 @@ putc:                         ; al = char; preserves all registers
     mov ah, 0x07
     mov [0xB8000+ebx*2], ax
     inc dword [cur]
-    jmp .r
+    jmp .wrap
 .nl:
     mov eax, [cur]
     xor edx, edx
@@ -687,7 +712,7 @@ putc:                         ; al = char; preserves all registers
     inc eax
     mul ebx
     mov [cur], eax
-    jmp .r
+    jmp .wrap
 .bs:
     mov ebx, [cur]
     test ebx, ebx
@@ -695,9 +720,53 @@ putc:                         ; al = char; preserves all registers
     dec ebx
     mov [cur], ebx
     mov word [0xB8000+ebx*2], 0x0720
+    jmp .r
+.wrap:
+    cmp dword [cur], 80*25
+    jb .r
+    call scroll_up
 .r:
+    call cursor_sync
     pop edx
     pop ebx
+    pop eax
+    ret
+
+; Moves the text screen up one row and blanks the last row.
+scroll_up:
+    push ecx
+    push esi
+    push edi
+    mov esi, 0xB8000+160
+    mov edi, 0xB8000
+    mov ecx, 80*24/2
+    rep movsd
+    mov eax, 0x07200720
+    mov ecx, 80/2
+    rep stosd
+    sub dword [cur], 80
+    pop edi
+    pop esi
+    pop ecx
+    ret
+
+; Puts the blinking hardware cursor at [cur].
+cursor_sync:
+    push eax
+    push edx
+    mov dx, 0x3D4
+    mov al, 0x0F
+    out dx, al
+    inc dx
+    mov al, [cur]
+    out dx, al
+    dec dx
+    mov al, 0x0E
+    out dx, al
+    inc dx
+    mov al, [cur+1]
+    out dx, al
+    pop edx
     pop eax
     ret
 
@@ -747,10 +816,48 @@ kbd_dequeue:
     stc
     ret
 
+; Tracks Shift. Returns ZF set if al was a Shift make/break code
+; (the caller should then ignore it).
+kbd_shift_track:
+    cmp al, 0x2A
+    je .down
+    cmp al, 0x36
+    je .down
+    cmp al, 0xAA
+    je .up
+    cmp al, 0xB6
+    je .up
+    ret                       ; ZF clear: not a shift key
+.down:
+    mov byte [kbd_shift], 1
+    cmp al, al
+    ret
+.up:
+    mov byte [kbd_shift], 0
+    cmp al, al
+    ret
+
+; al = make code -> al = ASCII (0 if unmapped), honouring Shift.
+kbd_ascii:
+    push ebx
+    movzx ebx, al
+    and ebx, 0x7F
+    cmp byte [kbd_shift], 0
+    jne .sh
+    mov al, [scancode_map+ebx]
+    pop ebx
+    ret
+.sh:
+    mov al, [scancode_map_shift+ebx]
+    pop ebx
+    ret
+
 ; Handles one scancode (al) for the shell or the active app.
 kbd_dispatch:
     push eax
     push ebx
+    call kbd_shift_track
+    je .e
     cmp al, 0x80
     jae .e
     cmp byte [calc_mode], 0
@@ -762,8 +869,9 @@ kbd_dispatch:
     ; command mode
     cmp al, 0x1C             ; Enter
     je .enter
-    movzx ebx, al
-    mov al, [scancode_map+ebx]
+    cmp al, 0x0E             ; Backspace
+    je .cmd_bs
+    call kbd_ascii
     or al, al
     jz .e
     mov ebx, [cmdpos]
@@ -779,6 +887,16 @@ kbd_dispatch:
     call putc
     call do_command
     jmp .e
+.cmd_bs:
+    mov ebx, [cmdpos]
+    test ebx, ebx
+    jz .e
+    dec ebx
+    mov [cmdpos], ebx
+    mov byte [cmdline+ebx], 0
+    mov al, 8
+    call putc
+    jmp .e
 .calc:
     cmp al, 0x01             ; Esc
     je .exit_calc
@@ -786,8 +904,7 @@ kbd_dispatch:
     je .calc_bs
     cmp al, 0x1C             ; Enter
     je .calc_enter
-    movzx ebx, al
-    mov al, [scancode_map+ebx]
+    call kbd_ascii
     or al, al
     jz .e
     ; insert into calc_buf
@@ -834,8 +951,7 @@ kbd_dispatch:
     je .bs
     cmp al, 0x1C             ; Enter
     je .nl
-    movzx ebx, al
-    mov al, [scancode_map+ebx]
+    call kbd_ascii
     or al, al
     jz .e
     ; insert char
@@ -967,6 +1083,7 @@ cmd_cat db 'cat ', 0
 cmd_run db 'run ', 0
 cmd_systest db 'systest', 0
 cmd_keys db 'keys', 0
+cmd_trap db 'trap', 0
 name_calc db 'calc', 0
 name_edit db 'edit', 0
 name_vedit db 'vedit', 0
@@ -977,7 +1094,7 @@ name_matrix db 'matrix', 0
 name_diff db 'diff', 0
 name_topo db 'topo', 0
 
-calc_banner db 'Basic Calculator (Esc or q to exit)', 10, 0
+calc_banner db 'Basic Calculator (Esc to exit)', 10, 0
 calc_help db 'Enter: number +|-|*|/|% number', 10, 'Example: 100 + 15%  or  50 * 3', 10, 0
 calc_prompt db 'calc> ', 0
 calc_result_prefix db 'Result: ', 0
@@ -996,7 +1113,7 @@ topo_stub db 'Scaffolded. Simplicial homology sketches (long-term).', 10, 'See d
 edit_banner db 'Text Editor (Esc to exit)', 10, 0
 edit_sample db 'Hello from Squirrel-OS/2', 10, 0
 vedit_banner db 'Verbose Editor (Esc to exit)', 10, 0
-vedit_sample db 'Line 1, col 1, byte 0, char 0x48 ''H''', 10
+vedit_sample db 'Line 1, col 1, byte 0, char 0x48 ', 39, 'H', 39, 10
              db 'Insert mode, unmodified, size 0/4096', 10, 0
 vedit_status db 'Status: len=', 0
 edit_prompt db 'edit> ', 0
@@ -1061,12 +1178,93 @@ calc_len dd 0
 calc_op db 0
 num_buf times 16 db 0
 
+kbd_shift db 0
+
+; Set-1 make codes 0x00..0x7F. Keypad * - + are mapped; other keypad
+; keys stay 0 so arrows (0x48/0x4B/0x4D/0x50) remain free for apps.
 scancode_map:
     db 0,0,'1','2','3','4','5','6','7','8','9','0','-','=',0,0
     db 'q','w','e','r','t','y','u','i','o','p','[',']',10,0
     db 'a','s','d','f','g','h','j','k','l',';',39,'`',0,'\'
-    db 'z','x','c','v','b','n','m',',','.','/',0,0,0,' '
-    times 128 db 0
+    db 'z','x','c','v','b','n','m',',','.','/',0,'*',0,' '
+    times 0x4A-($-scancode_map) db 0
+    db '-',0,0,0,'+'
+    times 128-($-scancode_map) db 0
+scancode_map_shift:
+    db 0,0,'!','@','#','$','%','^','&','*','(',')','_','+',0,0
+    db 'Q','W','E','R','T','Y','U','I','O','P','{','}',10,0
+    db 'A','S','D','F','G','H','J','K','L',':','"','~',0,'|'
+    db 'Z','X','C','V','B','N','M','<','>','?',0,'*',0,' '
+    times 0x4A-($-scancode_map_shift) db 0
+    db '-',0,0,0,'+'
+    times 128-($-scancode_map_shift) db 0
+
+; ---------- CPU exceptions ----------
+; One fixed-size stub per vector pushes its number; the report prints
+; it with the faulting EIP and halts. (Vectors with an error code push
+; it first, so EIP is read from the right slot for those.)
+EXC_STUB_SIZE equ 8
+exc_stubs:
+%assign v 0
+%rep 32
+    push dword v
+    jmp exc_report
+    times exc_stubs+(v+1)*EXC_STUB_SIZE-$ nop
+%assign v v+1
+%endrep
+
+exc_report:
+    cli
+    mov ebx, [esp]            ; vector
+    mov eax, 1
+    mov ecx, ebx
+    shl eax, cl
+    test eax, EXC_ERRCODE_MASK
+    mov edx, [esp+4]          ; eip without error code
+    jz .noerr
+    mov edx, [esp+8]
+.noerr:
+    mov esi, exc_msg
+    call puts
+    mov eax, ebx
+    call itoa
+    mov esi, num_buf
+    call puts
+    mov esi, exc_at
+    call puts
+    mov eax, edx
+    call puthex
+    mov al, 10
+    call putc
+.halt:
+    hlt
+    jmp .halt
+
+; eax -> 8 hex digits on the console
+puthex:
+    push ecx
+    push edx
+    mov edx, eax
+    mov ecx, 8
+.h:
+    rol edx, 4
+    mov al, dl
+    and al, 0x0F
+    add al, '0'
+    cmp al, '9'
+    jbe .d
+    add al, 'A'-'9'-1
+.d:
+    call putc
+    loop .h
+    pop edx
+    pop ecx
+    ret
+
+; #DF #TS #NP #SS #GP #PF #AC push an error code
+EXC_ERRCODE_MASK equ (1<<8)|(1<<10)|(1<<11)|(1<<12)|(1<<13)|(1<<14)|(1<<17)
+exc_msg db 10, '*** CPU exception ', 0
+exc_at db ' at EIP 0x', 0
 
 %include "syscall.asm"
 
