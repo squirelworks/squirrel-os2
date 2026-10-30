@@ -35,4 +35,10 @@ check calc-1prompt  'calc> 1'               'run calc' '<ret>' '1'
 check cmd-bs        'systest: PASS'         systesx '<backspace>' t '<ret>'
 check scroll        'systest: PASS'         ls '<ret>' ls '<ret>' ls '<ret>' systest '<ret>'
 check exception     'CPU exception 6'       trap '<ret>'
+check ps            '0        running'      ps '<ret>'
+check proctest      'reaped pid 3 exit code 30'  proctest '<ret>'
+check interleave    'worker 3 step 1'       proctest '<ret>'
+check app-process   'Result: 42'            'run calc' '<ret>' '6 * 7' '<ret>' '<esc>' 'run calc' '<ret>' '6 * 7' '<ret>'
+check slot-reuse    'exit code 30'          'run sci' '<ret>' 'run sci' '<ret>' 'run sci' '<ret>' 'run sci' '<ret>' \
+                    'run sci' '<ret>' 'run sci' '<ret>' 'run sci' '<ret>' 'run sci' '<ret>' proctest '<ret>'
 exit $fail

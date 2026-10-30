@@ -44,7 +44,7 @@ A functional original operating system that:
 ### 0.1.x — Kernel services
 - **0.1.0** — Cooperative task switch (done)
 - **0.1.1** — System call interface (int 0x80 or equivalent) (done — `int 0x80`: putc, puts, getc, yield; see `kernel/syscalls.md`)
-- **0.1.2** — Basic process model (create, exit, wait)
+- **0.1.2** — Basic process model (create, exit, wait) (done — cooperative spawn/exit/wait/getpid, `run` spawns; see `kernel/processes.md`)
 
 ### 0.2.x — Storage
 - **0.2.0** — Block device driver (ATA PIO or virtio-blk)

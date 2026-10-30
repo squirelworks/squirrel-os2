@@ -37,7 +37,8 @@ add its `SYS_*` constant, bump `SYS_COUNT`.
 | 0 | `SYS_PUTC` | `ebx` = char | 0 | `10` = newline, `8` = backspace (erase previous cell) |
 | 1 | `SYS_PUTS` | `ebx` = ASCIIZ pointer | bytes written | No pointer validation yet |
 | 2 | `SYS_GETC` | — | ASCII code | Blocks. Enter → 10, Backspace → 8, Esc → 27. Key releases and unmapped keys are skipped |
-| 3 | `SYS_YIELD` | — | 0 | Halts until the next interrupt (timer tick at ~100 Hz or a key) |
+| 3 | `SYS_YIELD` | — | 0 | Switches to the next ready process; if none, halts until the next interrupt |
+| 4–7 | `spawn`, `exit`, `wait`, `getpid` | | | Added in 0.1.2, see `processes.md` |
 
 Example:
 
@@ -72,7 +73,5 @@ through headless QEMU.
 ## Limitations / next steps
 
 - No ring-3 code exists yet, so no privilege transition or pointer checks are exercised.
-- `yield` does not switch tasks: the 0.1.0 two-task demo is not part of the current
-  `pm.asm`. The process model (0.1.2) should turn `SYS_YIELD` into a scheduler entry and add
-  `create`/`exit`/`wait` calls.
+- (0.1.2) `yield` now switches processes; see `processes.md`.
 - Do not call `SYS_GETC` from an interrupt handler; it needs IRQ1 to be deliverable.

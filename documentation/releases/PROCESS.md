@@ -39,7 +39,8 @@ Squirrel-OS/2 uses a simple `major.minor.patch` scheme for early development:
 | 0.1.0   | 2026-10-14 | Cooperative task switch            |
 | 0.3.1   | 2026-10-14 | Calculator suite (basic interactive) |
 | 0.1.1   | 2026-10-30 | System call interface (`int 0x80`)   |
+| 0.1.2   | 2026-10-30 | Basic process model                  |
 
 ## Next planned release
 
-**0.1.2** — Basic process model (create, exit, wait). Other candidates: 0.2.0 block device, calculator polish.
+**0.2.0** — Block device driver (ATA PIO).
