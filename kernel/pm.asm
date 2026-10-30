@@ -47,6 +47,7 @@ pm:
     call set_gate
     call syscall_init
     lidt [idt_desc]
+    call proc_init
 
     ; PIC + PIT
     mov al, 0x11
@@ -88,7 +89,7 @@ pm:
     call kbd_dequeue
     jnc .key
     sti
-    hlt
+    call proc_idle
     jmp .cmdloop
 .key:
     sti
@@ -527,6 +528,14 @@ do_command:
     jne .notrap
     ud2
 .notrap:
+    ; ps
+    mov edi, cmd_ps
+    call streq
+    je .ps
+    ; proctest
+    mov edi, cmd_proctest
+    call streq
+    je .proctest
     ; keys
     mov edi, cmd_keys
     call streq
@@ -554,67 +563,44 @@ do_command:
     jmp .empty
 .run:
     add esi, 4
-    mov edi, name_calc
+    mov ebx, run_table
+.rfind:
+    mov edi, [ebx]
+    test edi, edi
+    jz .rnone
     call streq
-    je .rcalc
-    mov edi, name_sci
-    call streq
-    je .rsci
-    mov edi, name_graph
-    call streq
-    je .rgraph
-    mov edi, name_matrix
-    call streq
-    je .rmatrix
-    mov edi, name_diff
-    call streq
-    je .rdiff
-    mov edi, name_topo
-    call streq
-    je .rtopo
-    mov edi, name_edit
-    call streq
-    je .redit
-    mov edi, name_vedit
-    call streq
-    je .rvedit
-    mov edi, name_draw
-    call streq
-    je .rdraw
+    je .rgo
+    add ebx, 8
+    jmp .rfind
+.rnone:
     mov esi, unknown
     call puts
     jmp .empty
-.rcalc:
-    call run_calc
-    jmp .noprompt
-.rsci:
-    call run_sci
+.rgo:
+    ; the app runs as its own process; the shell waits for it
+    mov ecx, [ebx+4]
+    mov ebx, app_host
+    mov eax, SYS_SPAWN
+    int SYSCALL_VEC
+    cmp eax, -1
+    je .rfull
+    mov ebx, eax
+    mov eax, SYS_WAIT
+    int SYSCALL_VEC
     jmp .empty
-.rgraph:
-    call run_graph
+.rfull:
+    mov esi, proc_full
+    call puts
     jmp .empty
-.rmatrix:
-    call run_matrix
+.ps:
+    call cmd_ps_run
     jmp .empty
-.rdiff:
-    call run_diff
+.proctest:
+    call cmd_proctest_run
     jmp .empty
-.rtopo:
-    call run_topo
-    jmp .empty
-.redit:
-    call run_edit
-    jmp .noprompt
-.rvedit:
-    call run_vedit
-    jmp .noprompt
-.rdraw:
-    call run_draw
-    jmp .noprompt
 .empty:
     mov esi, prompt
     call puts
-.noprompt:
     mov byte [cmdline], 0
     mov dword [cmdpos], 0
     ret
@@ -941,8 +927,6 @@ kbd_dispatch:
     call cls
     mov esi, banner
     call puts
-    mov esi, prompt
-    call puts
     jmp .e
 .editor:
     cmp al, 0x01             ; Esc
@@ -984,8 +968,6 @@ kbd_dispatch:
     mov byte [editor_mode], 0
     call cls
     mov esi, banner
-    call puts
-    mov esi, prompt
     call puts
     jmp .e
 .draw:
@@ -1059,8 +1041,6 @@ kbd_dispatch:
     call cls
     mov esi, banner
     call puts
-    mov esi, prompt
-    call puts
     jmp .e
 .e:
     pop ebx
@@ -1072,7 +1052,7 @@ default_isr:
 
 ; ---------- data ----------
 banner db 'Squirrel-OS/2 — in-memory FS + apps', 10
-       db 'Commands: ls | cat <name> | run <name> | systest | keys', 10
+       db 'Commands: ls | cat <name> | run <name> | ps | systest | proctest | keys', 10
        db 'Apps: calc, sci, graph, matrix, diff, topo, edit, vedit, draw', 10, 0
 prompt db '> ', 0
 fs_header db 'Files:', 10, 0
@@ -1084,6 +1064,22 @@ cmd_run db 'run ', 0
 cmd_systest db 'systest', 0
 cmd_keys db 'keys', 0
 cmd_trap db 'trap', 0
+cmd_ps db 'ps', 0
+cmd_proctest db 'proctest', 0
+proc_full db 'Too many processes', 10, 0
+
+; run <name>: app start routines, each hosted in its own process
+run_table:
+    dd name_calc, run_calc
+    dd name_sci, run_sci
+    dd name_graph, run_graph
+    dd name_matrix, run_matrix
+    dd name_diff, run_diff
+    dd name_topo, run_topo
+    dd name_edit, run_edit
+    dd name_vedit, run_vedit
+    dd name_draw, run_draw
+    dd 0, 0
 name_calc db 'calc', 0
 name_edit db 'edit', 0
 name_vedit db 'vedit', 0
@@ -1267,6 +1263,7 @@ exc_msg db 10, '*** CPU exception ', 0
 exc_at db ' at EIP 0x', 0
 
 %include "syscall.asm"
+%include "proc.asm"
 
 align 8
 gdt:

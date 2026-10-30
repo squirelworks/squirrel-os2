@@ -10,7 +10,11 @@ SYS_PUTC    equ 0           ; ebx = char            -> 0
 SYS_PUTS    equ 1           ; ebx = ptr to ASCIIZ   -> length written
 SYS_GETC    equ 2           ; (blocking)            -> ASCII code
 SYS_YIELD   equ 3           ;                       -> 0
-SYS_COUNT   equ 4
+SYS_SPAWN   equ 4           ; ebx = entry, ecx = arg -> pid or -1
+SYS_EXIT    equ 5           ; ebx = exit code       (does not return)
+SYS_WAIT    equ 6           ; ebx = pid             -> exit code or -1
+SYS_GETPID  equ 7           ;                       -> pid
+SYS_COUNT   equ 8
 
 SYS_ENOSYS  equ -1
 SYSCALL_VEC equ 0x80
@@ -41,6 +45,10 @@ syscall_table:
     dd sys_puts
     dd sys_getc
     dd sys_yield
+    dd sys_spawn
+    dd sys_exit
+    dd sys_wait
+    dd sys_getpid
 
 ; ---------- handlers: args in ebx/ecx/edx, result in eax ----------
 sys_putc:
@@ -60,14 +68,7 @@ sys_puts:
 ; Waits for a key press and returns its ASCII code.
 ; Enter -> 10, Backspace -> 8, Esc -> 27; releases and unmapped keys are skipped.
 sys_getc:
-    cli
-    call kbd_dequeue
-    jnc .got
-    sti
-    hlt
-    jmp sys_getc
-.got:
-    sti
+    call kbd_getscan
     call kbd_shift_track
     je sys_getc
     cmp al, 0x80
@@ -88,12 +89,25 @@ sys_getc:
     mov eax, 8
     ret
 
-; Gives up the CPU until the next interrupt. Becomes a scheduler entry
-; once the process model (0.1.2) exists.
+; Lets the next READY process run; if there is none, sleeps until the
+; next interrupt.
 sys_yield:
-    sti
-    hlt
+    call proc_idle
     xor eax, eax
+    ret
+
+sys_spawn:
+    jmp proc_spawn
+
+sys_exit:
+    jmp proc_exit
+
+sys_wait:
+    jmp proc_wait
+
+sys_getpid:
+    mov eax, [proc_cur]
+    mov eax, [eax+PCB_PID]
     ret
 
 ; ---------- shell commands exercising the gate ----------
@@ -123,6 +137,11 @@ cmd_systest_run:
     int SYSCALL_VEC
 
     mov eax, SYS_YIELD
+    int SYSCALL_VEC
+    test eax, eax
+    call st_check
+
+    mov eax, SYS_GETPID     ; the shell is pid 0
     int SYSCALL_VEC
     test eax, eax
     call st_check
