@@ -33,7 +33,12 @@ Squirrel-OS/2 uses a simple `major.minor.patch` scheme for early development:
 | 0.0.1   | 2026-10-14 | Initial boot sector (`UwU` + beep) |
 | 0.0.2   | 2026-10-14 | Native PIT timer (IRQ0)            |
 | 0.0.3   | 2026-10-14 | Protected-mode transition (GDT)    |
+| 0.0.4   | 2026-10-14 | IDT + native timer in PM           |
+| 0.0.5   | 2026-10-14 | Keyboard input + console           |
+| 0.0.6   | 2026-10-14 | Bump allocator                     |
+| 0.1.0   | 2026-10-14 | Cooperative task switch            |
+| 0.3.1   | 2026-10-14 | Calculator suite (basic interactive) |
 
 ## Next planned release
 
-**0.0.2** — PIT-driven timer (design in `architecture/pit-timer.md`).
+**0.3.1** — Calculator suite (see `releases/0.3.1.md`). Next candidates: calculator polish or 0.1.1 syscalls.

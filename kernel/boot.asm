@@ -1,5 +1,12 @@
-; Squirrel-OS/2 0.0.6 — simple bump allocator
-; Extends 0.0.5 with a kernel bump allocator and a small demo.
+; Squirrel-OS/2 — in-memory file system + application stubs
+; 0.2.x / 0.3.x progress
+; Original code.
+;
+; Files:
+;   calc  — simple calculator stub
+;   edit  — text editor stub
+;   draw  — drawing program stub
+
 BITS 16
 ORG 0x7C00
 start:
@@ -10,7 +17,7 @@ start:
     mov ss, ax
     mov sp, 0x7C00
     mov ah, 0x02
-    mov al, 16
+    mov al, 32
     mov ch, 0
     mov cl, 2
     mov dh, 0
