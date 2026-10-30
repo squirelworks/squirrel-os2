@@ -28,4 +28,5 @@ Documentation is active.
 - 0.1.1 syscall interface implemented (`kernel/syscalls.md`, `releases/0.1.1.md`); regression script `tools/regress.sh`
 - 0.1.2 process model implemented (`kernel/processes.md`, `releases/0.1.2.md`)
 - 0.2.0 ATA PIO block driver implemented (`kernel/block-device.md`, `releases/0.2.0.md`)
-- Next: 0.2.1 on-disk file system
+- 0.2.1/0.2.2 SQFS file system implemented (`kernel/filesystem.md`, `releases/0.2.1.md`)
+- Next: 0.2.3 file browser

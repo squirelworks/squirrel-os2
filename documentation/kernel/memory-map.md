@@ -4,7 +4,7 @@
 |-------|-----|
 | `0x00000–0x004FF` | Real-mode IVT / BIOS data (left alone) |
 | `0x07C00–0x07DFF` | Boot sector |
-| `0x08000–0x0BFFF` | Kernel image (`pm.asm`, 16 KB, loaded by the boot sector) |
+| `0x08000–0x0FFFF` | Kernel image (`pm.asm`, 32 KB since 0.2.1, loaded by the boot sector) |
 | `0x20000–0x2FFFF` | `KSCRATCH`: kernel scratch buffers (ATA identify/test buffers, later FS cache) |
 | `0x70000–0x7FFFF` | Process stacks, 8 KB per slot (slot *i* top = `0x70000 + i*0x2000`) |
 | `0x9F000` and down | Boot / shell (pid 0) stack |
@@ -18,3 +18,8 @@ Scratch layout inside `KSCRATCH`:
 | `0x200` | 512 | `blktest` output buffer |
 | `0x400` | 512 | `blktest` input buffer |
 | `0x600` | 512 | `systest` sector buffer |
+| `0x800` | 512 | SQFS superblock |
+| `0xA00` | 512 | SQFS sector buffer |
+| `0x1000` | 2048 | SQFS directory cache |
+| `0x1800` | 256 | `cat` buffer |
+| `0x2000` | 2048 | `fstest` pattern buffers |

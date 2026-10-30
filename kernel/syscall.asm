@@ -16,7 +16,14 @@ SYS_WAIT    equ 6           ; ebx = pid             -> exit code or -1
 SYS_GETPID  equ 7           ;                       -> pid
 SYS_BREAD   equ 8           ; ebx = LBA, ecx = buf, edx = drive -> 0 or -1
 SYS_BWRITE  equ 9           ; ebx = LBA, ecx = buf (data disk only) -> 0 or -1
-SYS_COUNT   equ 10
+SYS_OPEN    equ 10          ; ebx = name, ecx = O_* flags -> fd or -1
+SYS_READ    equ 11          ; ebx = fd, ecx = buf, edx = len -> bytes or -1
+SYS_WRITE   equ 12          ; ebx = fd, ecx = buf, edx = len -> bytes or -1
+SYS_CLOSE   equ 13          ; ebx = fd              -> 0 or -1
+SYS_CREATE  equ 14          ; ebx = name            -> 0 or -1
+SYS_DELETE  equ 15          ; ebx = name            -> 0 or -1
+SYS_RENAME  equ 16          ; ebx = old, ecx = new  -> 0 or -1
+SYS_COUNT   equ 17
 
 SYS_ENOSYS  equ -1
 SYSCALL_VEC equ 0x80
@@ -53,6 +60,13 @@ syscall_table:
     dd sys_getpid
     dd sys_bread
     dd sys_bwrite
+    dd sys_open
+    dd sys_read
+    dd sys_write
+    dd sys_close
+    dd sys_create
+    dd sys_delete
+    dd sys_rename
 
 ; ---------- handlers: args in ebx/ecx/edx, result in eax ----------
 sys_putc:
@@ -136,6 +150,37 @@ sys_cf_result:                  ; CF -> eax = -1, else 0
 .ok:
     ret
 
+; file system (0.2.2): thin register shuffles onto fs.asm
+sys_open:
+    mov esi, ebx
+    jmp fs_open
+
+sys_read:
+    mov edi, ecx
+    mov ecx, edx
+    jmp fs_read
+
+sys_write:
+    mov esi, ecx
+    mov ecx, edx
+    jmp fs_write
+
+sys_close:
+    jmp fs_close
+
+sys_create:
+    mov esi, ebx
+    jmp fs_create
+
+sys_delete:
+    mov esi, ebx
+    jmp fs_delete
+
+sys_rename:
+    mov esi, ebx
+    mov edi, ecx
+    jmp fs_rename
+
 ; ---------- shell commands exercising the gate ----------
 ; systest: calls each non-blocking syscall and checks results and
 ; register preservation. Prints PASS or FAIL.
@@ -189,6 +234,54 @@ cmd_systest_run:
     cmp eax, -1
     call st_check
 
+    cmp byte [fs_mounted], 0
+    je .nofs
+    mov eax, SYS_CREATE     ; file round trip through the syscalls
+    mov ebx, st_file
+    int SYSCALL_VEC
+    test eax, eax
+    call st_check
+    mov eax, SYS_OPEN
+    mov ebx, st_file
+    mov ecx, O_APPEND
+    int SYSCALL_VEC
+    mov ebx, eax
+    mov eax, SYS_WRITE
+    mov ecx, st_puts_msg
+    mov edx, 7
+    int SYSCALL_VEC
+    cmp eax, 7
+    call st_check
+    mov eax, SYS_CLOSE
+    int SYSCALL_VEC
+    mov eax, SYS_OPEN
+    mov ebx, st_file
+    xor ecx, ecx
+    int SYSCALL_VEC
+    mov ebx, eax
+    mov eax, SYS_READ
+    mov ecx, KSCRATCH+0x600
+    mov edx, 100
+    int SYSCALL_VEC
+    cmp eax, 7
+    call st_check
+    cmp dword [KSCRATCH+0x600], 'sysc'
+    call st_check
+    mov eax, SYS_CLOSE
+    int SYSCALL_VEC
+    mov eax, SYS_DELETE
+    mov ebx, st_file
+    int SYSCALL_VEC
+    test eax, eax
+    call st_check
+    mov eax, SYS_OPEN       ; gone now, and no O_CREATE -> -1
+    mov ebx, st_file
+    xor ecx, ecx
+    int SYSCALL_VEC
+    cmp eax, -1
+    call st_check
+.nofs:
+
     mov eax, SYS_COUNT      ; first unused number
     int SYSCALL_VEC
     cmp eax, SYS_ENOSYS
@@ -235,6 +328,7 @@ cmd_keys_run:
 
 st_puts_msg db 'syscall puts: ok', 10, 0
 st_puts_len equ $ - st_puts_msg - 1
+st_file db 'systest.tmp', 0
 st_pass db 'systest: PASS', 10, 0
 st_failmsg db 'systest: FAIL', 10, 0
 st_fail dd 0
