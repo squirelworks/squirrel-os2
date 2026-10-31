@@ -165,6 +165,7 @@ check_all ed-undo   $'ab\n~|Undone.'          'run edit' '<ret>' abc '<ctrl-z>'
 check_all ed-undo-once $'ab\n~|Nothing to undo.' 'run edit' '<ret>' abc '<ctrl-z>' '<ctrl-z>'
 check_all ed-undo-bs $'abc\n~|Undone.'        'run edit' '<ret>' abc '<backspace>' '<ctrl-z>'
 check_all ed-undo-tab 'L1 C3 off 2|Undone.' 'run vedit' '<ret>' ab '<tab>' '<ctrl-z>'
+check ed-undo-save  'Unsaved changes'       'run edit memo3' '<ret>' x '<ctrl-s>' '<ctrl-z>' '<esc>'
 check ed-undo-mem   '129912 KB free'        'run edit' '<ret>' x '<ctrl-z>' '<esc>' mem '<ret>'
 # 1.0.12: vedit Ctrl+T shows control characters; the buffer stays the same
 check_all ved-ctl   $'    1 ab$\n|5/16384|Control characters shown' 'run vedit' '<ret>' ab '<ret>' cd '<ctrl-t>'
