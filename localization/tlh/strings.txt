@@ -3,9 +3,9 @@ prompt=>
 files=tebwI':
 notfound=tu'lu'be'
 unknown=ra' tlhaQ
-calc=Calculator
-edit=ghItlh editor
-draw=naD program
+calc=mI' De'wI'
+edit=ghItlhwI'
+draw=mIllogh chenmoHwI'
 hello=nuqneH Squirrel-OS/2
 result=cha' + cha' = loS
 keys=leQmey yIbach, Enter yIbach rInmeH:

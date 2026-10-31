@@ -23,7 +23,7 @@ A language may not define keys English lacks. The generated file is checked in, 
 | `show_banner` | Localized product name, then the version and the (English) command help |
 | `lputs_nl` | Prints `esi` and a newline. Strings are stored without one, so they can be used inline. |
 
-Code prints a string with `mov esi, [lstr+LS_FILES*4]`. Strings used so far: the banner name, the prompt, the `ls` header, `Not found`, `Unknown command`, the `keys` prompt, the `systest` result, the `lang` messages, and (1.0.5) the shell's `Usage:` lines and every file-system error reason.
+Code prints a string with `mov esi, [lstr+LS_FILES*4]`. Strings used so far: the banner name, the prompt, the `ls` header, `Not found`, `Unknown command`, the `keys` prompt, the `systest` result, the `lang` messages, (1.0.5) the shell's `Usage:` lines and every file-system error reason, and (1.0.6) the titles of `calc`, `edit` and `draw`.
 
 File-system errors (1.0.5): `fs_errkey` maps each `FE_*` code to a key (`fe_exists`, `fe_nodir`, …; `FE_NOTFOUND` uses `notfound`), and `fs_errstr` returns the text in the current language. The shell (`fs_why`), the editors' and `draw`'s message lines, and `SYS_FSERROR` all go through it, so they say the same thing. Usage lines print the localized `usage` word, the command syntax (kept as typed, `put <file> <text>`), and for `put` and `run` a localized hint.
 
@@ -44,5 +44,5 @@ The choice lasts until reboot. A `lang la` line in `autoexec.bat` makes it stick
 
 ## Not yet
 
-- Many messages (the command help, app titles, `ok`, the editors' own messages) are still English-only literals. App titles are task 1.0-l10n-apps; the rest moves to keys under the policy in `localization/README.md`.
+- Many messages (the command help, `ok`, the editors' own messages, the apps' help text) are still English-only literals. They move to keys under the policy in `localization/README.md`.
 - No per-program language: loaded programs print their own text.
