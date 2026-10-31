@@ -52,11 +52,12 @@ Both editors are implemented in `kernel/editor.asm` as one full-screen engine ru
 
 - Line-number gutter on every line.
 - Status: `L<line> C<col> off <byte offset> '<char>' 0x<hex> (<dec>) INS|OVR MOD|--- <size>/<capacity> <name>`.
+- Ctrl+T (1.0.12) toggles the display of control characters. When it is on, a line end shows as a dim `$` after the last character, a tab as `>`, and any other control character as `^`. When it is off, line ends are invisible and control characters show as `.`, as before. The message line says which mode is on. Only the display changes: the buffer, its size and the cursor column stay the same. The display starts off each time `vedit` opens. In `edit`, Ctrl+T does nothing.
 - A message for every action: `Typed 'a' 0x61 (97)`, `Deleted '\n' 0x0A (10)`, `Moved.`, mode changes, load/save results.
 
 ### Not yet
 
-- Control-character display toggle, command history, an undo history deeper than one step.
+- Command history, an undo history deeper than one step, and a visible mark for spaces.
 - Files larger than 16 KB load truncated (with a warning).
 
 ## Commands

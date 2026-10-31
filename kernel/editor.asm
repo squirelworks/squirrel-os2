@@ -31,6 +31,7 @@ ed_main:
     mov dword [ed_want], -1
     mov byte [ed_mod], 0
     mov byte [ed_ins], 1
+    mov byte [ed_ctl], 0
     mov byte [kbd_ctrl], 0
     mov esi, run_arg
     mov edi, ed_name
@@ -90,6 +91,19 @@ ed_main:
     je .find
     cmp al, 0x2C                ; Ctrl+Z
     je .undo
+    cmp al, 0x14                ; Ctrl+T: control characters (vedit)
+    je .ctl
+    jmp .loop
+.ctl:
+    cmp byte [ed_verbose], 0
+    je .loop
+    xor byte [ed_ctl], 1
+    mov esi, ed_m_ctlon
+    cmp byte [ed_ctl], 0
+    jne .cm
+    mov esi, ed_m_ctloff
+.cm:
+    call ed_msg
     jmp .loop
 .undo:
     call ed_undo
@@ -608,6 +622,22 @@ ed_search:
     popad
     ret
 
+; al = a control character -> al = the cell drawn for it. Normally '.';
+; with vedit's Ctrl+T on, a tab is '>' and any other control is '^'
+; (1.0.12). Line ends are drawn by ed_draw. The buffer never changes.
+ed_ctlglyph:
+    cmp byte [ed_ctl], 0
+    je .dot
+    cmp al, 9
+    mov al, '>'
+    je .r
+    mov al, '^'
+    ret
+.dot:
+    mov al, '.'
+.r:
+    ret
+
 ; ---------- one-level undo (1.0.11) ----------
 ; Before each edit (a typed key, Enter, Backspace, Delete, Tab) the whole
 ; buffer is copied to ED_UNDO_PAGES pages from pg_alloc; Ctrl+Z copies it
@@ -859,7 +889,7 @@ ed_draw:
     jecxz .chars                ; clipped on the right
     cmp al, ' '
     jae .pr
-    mov al, '.'                 ; control characters
+    call ed_ctlglyph            ; control characters
 .pr:
     mov ah, ATTR_TEXT
     stosw
@@ -867,6 +897,12 @@ ed_draw:
     jmp .chars
 .eol:
     inc esi
+    cmp byte [ed_ctl], 0        ; vedit Ctrl+T: show the line end as '$'
+    je .pad
+    jecxz .pad
+    mov ax, (ATTR_DIM<<8)|'$'
+    stosw
+    dec ecx
     jmp .pad
 .eof:
     mov byte [ed_more], 0
@@ -1189,6 +1225,7 @@ ed_upages times ED_UNDO_PAGES dd 0   ; undo copy of the buffer
 ed_ulen dd 0
 ed_upos dd 0
 ed_umod db 0
+ed_ctl db 0                     ; 1: vedit shows control characters (Ctrl+T)
 ed_uok db 0                     ; 1: Ctrl+Z has something to undo
 ed_pany db 0                    ; 1: ed_prompt accepts spaces
 ed_s_noname db '(untitled)', 0
@@ -1214,6 +1251,8 @@ ed_m_saved db 'Saved.', 0
 ed_m_saveas db 'Save as (Esc cancels): ', 0
 ed_m_find db 'Find (Esc cancels): ', 0
 ed_m_undone db 'Undone.', 0
+ed_m_ctlon db 'Control characters shown: $ line end, > tab, ^ other.', 0
+ed_m_ctloff db 'Control characters hidden.', 0
 ed_m_nothing db 'Nothing to undo.', 0
 ed_m_noundo db 'Undo unavailable: no free memory.', 0
 ed_m_found db 'Found ', 0

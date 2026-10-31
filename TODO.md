@@ -101,7 +101,7 @@ Each item is its own patch release after 1.0.0 (its own release note). Independe
   Listed as not yet. One level, not a history stack.
   **Acceptance:** type a character, undo, and the character is gone. A second undo does not erase more. A regression check covers the first undo. The editors note says one-level undo is present.
 
-- [ ] **1.0-vedit-controls** — Show control characters in `vedit`.
+- [x] **1.0-vedit-controls** — Show control characters in `vedit`.
   Listed as not yet: a display toggle. The buffer contents do not change.
   **Acceptance:** a toggle shows a newline or tab as a visible token on screen, toggling again restores the normal glyph, and a regression check expects the token. The editors note describes the key.
 

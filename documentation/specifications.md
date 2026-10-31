@@ -129,7 +129,7 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 | Program size | 64 KB per program image, at `0x30000`. Heap through `SYS_SBRK`. |
 | File system | 64 entries in all, 15-character names, 63-character paths. No seek. Sequential reads and writes per descriptor. No cache, journal or fsck. Programs see a failed file call as −1 without its reason (task 1.0-errno). |
 | Boot disk | `hd0` is never written. Without a data disk the system runs with no files. |
-| Editors | Files over 16 KB load truncated, with a warning. No control-character display (task 1.0-vedit-controls). Search is in since 1.0.9, one-level undo since 1.0.11. |
+| Editors | Files over 16 KB load truncated, with a warning. Search is in since 1.0.9, one-level undo since 1.0.11, and the `vedit` control-character display since 1.0.12. |
 | Drawing | ASCII only, on a fixed 64 × 18 canvas. No pixel graphics (milestone 1.3 and 1.6-draw-pixels). |
 | Scaffolds | `graph` and `topo` print a scaffold message and return. The banner lists them as planned. `graph` waits for 1.3 and `topo` for 2.x. `diff` does derivatives (1.0.7), integrals (1.0.8) and ODEs by Euler's method (1.0.10). |
 | Localization | Most messages are still English literals. The boot-sector and CPU-check messages are English only by design, because they print before the string tables exist. |
@@ -184,6 +184,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 ## 1.0.11
 
 - `edit` and `vedit` undo the last edit with Ctrl+Z, one level (`apps/editors.md`; `ed-undo*`).
+
+## 1.0.12
+
+- `vedit` shows control characters with Ctrl+T: `$` for a line end, `>` for a tab and `^` for any other control character (`apps/editors.md`; `ved-ctl*`). This completes the 1.0.x list in `TODO.md`.
 
 ## Notes
 
