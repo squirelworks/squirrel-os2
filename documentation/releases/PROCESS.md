@@ -100,6 +100,6 @@ This avoids retargeting chains and confirmation steps.
 
 **1.0.x** — Patch releases for the holes the docs already name (seek, error reasons for programs, FPU save, zombies, localization, `diff`, editor search and undo), then **1.1** — preemptive scheduler and threads.
 
-1.0.0 is released (`1.0.0.md`). Its applications are checked together in one boot by `walk-1.0` in `tools/regress.sh`.
+1.0.0 is released (`1.0.0.md`). Milestone 1.1 (1.0.1 through 1.1.1) is summarized for its tag in `1.1.md`. Its applications are checked together in one boot by `walk-1.0` in `tools/regress.sh`.
 
 The forward plan and the PR-sized tasks are [`../../ROADMAP.md`](../../ROADMAP.md) and [`../../TODO.md`](../../TODO.md).
