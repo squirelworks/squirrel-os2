@@ -4,7 +4,8 @@
 ; Windows in graphics mode, drawn with the 1.3 primitives (gfx.asm). A
 ; window is a rectangle with a one-pixel frame, a title bar with its title,
 ; and a client area. wm_redraw paints the desktop and then every open
-; window, lowest slot first. Keyboard only. See documentation/kernel/windows.md.
+; window, bottom of the z-order first. The top window has the keyboard
+; focus. Keyboard only. See documentation/kernel/windows.md.
 
 WM_MAX          equ 4           ; open windows at most
 
@@ -15,7 +16,10 @@ WIN_Y           equ 8
 WIN_W           equ 12          ; outer size, frame included
 WIN_H           equ 16
 WIN_TITLE       equ 20          ; zero-terminated string
-WIN_SIZE        equ 24
+WIN_LEN         equ 24          ; characters typed into the window
+WIN_BUF         equ 28          ; WM_BUF characters and a zero
+WIN_SIZE        equ 56
+WM_BUF          equ 24
 
 WM_TITLE_H      equ GFX_CELL_H + 2  ; title bar: one text row and a margin
 WM_MIN_W        equ 16
@@ -24,13 +28,16 @@ WM_MIN_H        equ WM_TITLE_H + 4
 ; colours (the text mode's EGA palette, as graph uses it)
 WM_DESKTOP      equ 0x03        ; cyan
 WM_FRAME        equ 0x3F        ; white
-WM_BAR          equ 0x01        ; blue
+WM_BAR          equ 0x01        ; blue: the focused window
+WM_BAR_IDLE     equ 0x38        ; dark grey: the others
 WM_BAR_TEXT     equ 0x3F        ; white
 WM_CLIENT       equ 0x07        ; light grey
+WM_TEXT         equ 0x00        ; black, typed text in the client area
 
 ; eax = x, ebx = y, ecx = width, edx = height, esi = title
 ; -> eax = window id (0..WM_MAX-1), or -1 if the table is full or the
-; window is too small or not wholly on the screen. Does not draw.
+; window is too small or not wholly on the screen. The new window goes on
+; top of the z-order and gets the focus. Does not draw.
 wm_create:
     call wm_fits
     jc .bad
@@ -57,7 +64,12 @@ wm_create:
     mov [edi+WIN_W], ecx
     mov [edi+WIN_H], edx
     mov [edi+WIN_TITLE], esi
+    mov dword [edi+WIN_LEN], 0
+    mov byte [edi+WIN_BUF], 0
     mov eax, ebp
+    mov ebp, [wm_zn]            ; on top
+    mov [wm_z+ebp], al
+    inc dword [wm_zn]
     pop ebp
     pop edi
     ret
@@ -146,8 +158,90 @@ wm_close:
     call wm_record
     jc .r
     mov byte [edi+WIN_USED], 0
+    call wm_zremove
 .r:
     pop edi
+    ret
+
+; eax = an open window's id: takes it out of the z-order list.
+wm_zremove:
+    pushad
+    xor ecx, ecx
+.f:
+    cmp [wm_z+ecx], al
+    je .shift
+    inc ecx
+    cmp ecx, [wm_zn]
+    jb .f
+    jmp .out
+.shift:
+    dec dword [wm_zn]
+.s:
+    cmp ecx, [wm_zn]
+    jae .out
+    mov dl, [wm_z+ecx+1]
+    mov [wm_z+ecx], dl
+    inc ecx
+    jmp .s
+.out:
+    popad
+    ret
+
+; eax = window id: puts it on top of the z-order, which gives it the focus.
+; CF if the id is not open. The caller redraws.
+wm_raise:
+    push edi
+    call wm_record
+    jc .r
+    call wm_zremove
+    push ebp
+    mov ebp, [wm_zn]
+    mov [wm_z+ebp], al
+    inc dword [wm_zn]
+    pop ebp
+    clc
+.r:
+    pop edi
+    ret
+
+; The bottom window comes to the top (Tab): with two windows, the focus
+; goes back and forth. The caller redraws.
+wm_cycle:
+    cmp dword [wm_zn], 2
+    jb .r
+    push eax
+    movzx eax, byte [wm_z]
+    call wm_raise
+    pop eax
+.r:
+    ret
+
+; -> eax = the focused window's id (the top one), or -1 if none is open.
+wm_focus:
+    mov eax, -1
+    cmp dword [wm_zn], 0
+    je .r
+    mov eax, [wm_zn]
+    movzx eax, byte [wm_z+eax-1]
+.r:
+    ret
+
+; al = character: appended to the focused window's text, if there is a
+; focused window and room. The caller redraws.
+wm_putc:
+    pushad
+    mov bl, al
+    call wm_focus
+    call wm_record
+    jc .out
+    mov ecx, [edi+WIN_LEN]
+    cmp ecx, WM_BUF
+    jae .out
+    mov [edi+WIN_BUF+ecx], bl
+    mov byte [edi+WIN_BUF+ecx+1], 0
+    inc dword [edi+WIN_LEN]
+.out:
+    popad
     ret
 
 ; Paints the desktop, then each open window.
@@ -159,16 +253,22 @@ wm_redraw:
     mov edx, GFX_H
     mov byte [gfx_colour], WM_DESKTOP
     call gfx_fillrect
-    mov edi, wm_table
-    mov ebp, WM_MAX
+    xor ebp, ebp
 .w:
-    cmp byte [edi+WIN_USED], 0
-    je .n
+    cmp ebp, [wm_zn]
+    jae .done
+    movzx eax, byte [wm_z+ebp]
+    imul edi, eax, WIN_SIZE
+    add edi, wm_table
+    inc ebp
+    mov byte [wm_drawbar], WM_BAR_IDLE
+    cmp ebp, [wm_zn]
+    jne .draw
+    mov byte [wm_drawbar], WM_BAR   ; the top window has the focus
+.draw:
     call wm_draw
-.n:
-    add edi, WIN_SIZE
-    dec ebp
-    jnz .w
+    jmp .w
+.done:
     popad
     ret
 
@@ -184,8 +284,9 @@ wm_draw:
     inc eax                     ; title bar, inside the frame
     inc ebx
     sub ecx, 2
+    mov dl, [wm_drawbar]
+    mov [gfx_colour], dl
     mov edx, WM_TITLE_H
-    mov byte [gfx_colour], WM_BAR
     call gfx_fillrect
     push eax
     push ebx
@@ -194,7 +295,8 @@ wm_draw:
     inc ebx
     sub ecx, 4
     mov byte [gfx_colour], WM_BAR_TEXT
-    mov byte [gfx_bg], WM_BAR
+    mov dl, [wm_drawbar]
+    mov [gfx_bg], dl
     mov esi, [edi+WIN_TITLE]
     call wm_drawtitle
     pop ecx
@@ -205,6 +307,13 @@ wm_draw:
     sub edx, WM_TITLE_H + 2
     mov byte [gfx_colour], WM_CLIENT
     call gfx_fillrect
+    add eax, 2                  ; the typed text, 2 pixels in
+    add ebx, 2
+    sub ecx, 4
+    mov byte [gfx_colour], WM_TEXT
+    mov byte [gfx_bg], WM_CLIENT
+    lea esi, [edi+WIN_BUF]
+    call wm_drawtitle
     popad
     ret
 
@@ -397,6 +506,128 @@ wtm_sized:
     db WM_DESKTOP               ; just right of the new right edge
     dd -1
 
+; winfocus: two overlapping windows, One and Two (Two on top). Keys:
+; Tab brings the other window to the top and gives it the focus, other
+; characters go to the focused window, Enter or Esc ends. Then a pixel
+; where Two's left edge crosses One's client area tells which window is
+; drawn on top, and each window's text is printed.
+WF1_X equ 40
+WF1_Y equ 30
+WF2_X equ 100
+WF2_Y equ 70
+WF_W equ 160
+WF_H equ 100
+
+cmd_winfocus_run:
+    call gfx_mode13
+    jnc .ok
+    mov esi, wf_nomem
+    jmp puts
+.ok:
+    mov dword [wf_end], wf_tail
+    mov byte [wf_tail], 0
+    mov eax, WF1_X
+    mov ebx, WF1_Y
+    mov ecx, WF_W
+    mov edx, WF_H
+    mov esi, wf_one
+    call wm_create
+    mov [wf_ids], eax
+    mov eax, WF2_X
+    mov ebx, WF2_Y
+    mov esi, wf_two
+    call wm_create
+    mov [wf_ids+4], eax
+.draw:
+    call wm_redraw
+.key:
+    call kbd_getscan
+    call kbd_shift_track
+    je .key
+    cmp al, 0x80
+    jae .key                    ; releases
+    cmp al, 0x0F
+    je .tab
+    cmp al, 0x1C
+    je .end
+    cmp al, 0x01
+    je .end
+    call kbd_ascii
+    cmp al, ' '
+    jb .key
+    call wm_putc
+    jmp .draw
+.tab:
+    call wm_cycle
+    jmp .draw
+.end:
+    mov eax, WF2_X              ; Two's left edge, inside One's client area
+    mov ebx, WF2_Y + 30
+    call gfx_getpixel
+    mov esi, wf_two
+    cmp cl, WM_FRAME
+    je .top
+    mov esi, wf_one             ; One covers it
+.top:
+    mov [wf_top], esi
+    mov ebx, wf_one             ; the text typed into each window
+    mov eax, [wf_ids]
+    call .take
+    mov ebx, wf_two
+    mov eax, [wf_ids+4]
+    call .take
+    mov esi, wf_topis
+    call .cat
+    mov esi, [wf_top]
+    call .cat
+    mov esi, wf_nl
+    call .cat
+    call gfx_text
+    mov esi, wf_out
+    jmp puts
+.take:                          ; eax = id, ebx = name: line into wf_out
+    push eax
+    call wm_record
+    pop eax
+    jc .gone
+    call wm_close
+    mov esi, ebx
+    call .cat
+    mov esi, wf_got
+    call .cat
+    lea esi, [edi+WIN_BUF]
+    call .cat
+    mov esi, wf_endq
+.cat:                           ; esi appended at [wf_end]
+    push edi
+    mov edi, [wf_end]
+.c:
+    lodsb
+    test al, al
+    jz .z
+    stosb
+    jmp .c
+.z:
+    mov byte [edi], 0
+    mov [wf_end], edi
+    pop edi
+.gone:
+    ret
+
+wf_one db 'One', 0
+wf_two db 'Two', 0
+wf_got db ' got "', 0
+wf_endq db '"', 10, 0
+wf_nomem db 'winfocus: no memory for graphics', 10, 0
+align 4
+wf_ids dd 0, 0
+wf_top dd 0
+wf_end dd 0
+wf_topis db 'top: ', 0
+wf_nl db 10, 0
+wf_out db 'winfocus:', 10           ; then a line for each window and 'top: '
+wf_tail times 2 * (WM_BUF + 16) + 16 db 0
+
 wtm_pass db 'winmove: PASS', 10, 0
 wtm_fail db 'winmove: FAIL', 10, 0
 wt_title db 'Test window', 0
@@ -405,3 +636,6 @@ wt_fail db 'win: FAIL', 10, 0
 align 4
 wt_id dd 0
 wm_table times WM_MAX * WIN_SIZE db 0
+wm_z times WM_MAX db 0          ; open window ids, bottom first
+wm_zn dd 0                      ; how many
+wm_drawbar db WM_BAR            ; title bar colour for wm_draw

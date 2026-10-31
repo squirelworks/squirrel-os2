@@ -228,6 +228,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - Windows can be moved and resized; a move or size that would leave the screen or go below the minimum is refused and changes nothing (`kernel/windows.md`; `winmove`, `winmove-text`).
 
+## 1.4.2
+
+- Windows have a z-order: the top window has the keyboard focus and a blue title bar, the others a grey one. Tab brings the bottom window to the top; typed characters go to the focused window's text (`kernel/windows.md`; `winfocus`, `winfocus-none`, `winfocus-text`). This completes milestone 1.4.
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.
