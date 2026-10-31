@@ -25,7 +25,13 @@ SYS_DELETE  equ 15          ; ebx = name            -> 0 or -1
 SYS_RENAME  equ 16          ; ebx = old, ecx = new  -> 0 or -1
 SYS_EXEC    equ 17          ; ebx = file name, ecx = argument -> pid or LD_E* (< 0)
 SYS_READDIR equ 18          ; ebx = cursor (0 first), ecx = 20-byte buf -> next cursor, 0 at end, -1 no disk
-SYS_COUNT   equ 19
+SYS_PALLOC  equ 19          ;                       -> zeroed 4 KB page or 0
+SYS_PFREE   equ 20          ; ebx = page            -> 0 or -1
+SYS_SBRK    equ 21          ; ebx = bytes (signed)   -> old break or -1
+SYS_DEVFIND equ 22          ; ebx = name             -> handle or -1
+SYS_DEVREAD equ 23          ; ebx = handle, ecx = buf, edx = count/sector -> bytes or -1
+SYS_DEVWRITE equ 24         ; as SYS_DEVREAD
+SYS_COUNT   equ 25
 
 SYS_ENOSYS  equ -1
 SYSCALL_VEC equ 0x80
@@ -71,6 +77,12 @@ syscall_table:
     dd sys_rename
     dd sys_exec
     dd sys_readdir
+    dd sys_palloc
+    dd sys_pfree
+    dd sys_sbrk
+    dd sys_devfind
+    dd sys_devread
+    dd sys_devwrite
 
 ; ---------- handlers: args in ebx/ecx/edx, result in eax ----------
 sys_putc:
@@ -79,39 +91,25 @@ sys_putc:
     xor eax, eax
     ret
 
-sys_puts:
+sys_puts:                   ; through the console device (0.7.1)
     mov esi, ebx
-    call puts
-    mov eax, esi
-    sub eax, ebx
-    dec eax                 ; puts leaves esi one past the terminator
-    ret
+    call strlen
+    mov ecx, eax
+    mov ebx, dev_con
+    jmp dev_write
 
 ; Waits for a key press and returns its ASCII code.
 ; Enter -> 10, Backspace -> 8, Esc -> 27; releases and unmapped keys are skipped.
 sys_getc:
     cmp byte [in_on], 0
     jne in_getc                 ; input redirected (shell.asm): -1 at the end
-.key:
-    call kbd_getscan
-    call kbd_shift_track
-    je sys_getc
-    cmp al, 0x80
-    jae sys_getc
-    cmp al, 0x01
-    je .esc
-    cmp al, 0x0E
-    je .bs
-    call kbd_ascii
+    push eax                    ; one byte from the keyboard device (0.7.1)
+    mov edi, esp
+    mov ecx, 1
+    mov ebx, dev_kbd
+    call dev_read
+    pop eax
     movzx eax, al
-    test eax, eax
-    jz sys_getc
-    ret
-.esc:
-    mov eax, 27
-    ret
-.bs:
-    mov eax, 8
     ret
 
 ; Lets the next READY process run; if there is none, sleeps until the
@@ -137,18 +135,23 @@ sys_getpid:
 
 ; Raw sector access. Writes are limited to the data disk (drive 1) so a
 ; program cannot overwrite the boot image.
+; Both go through the hd0/hd1 block devices (0.7.2).
 sys_bread:
     mov edi, ecx
     mov ecx, ebx
-    mov ebx, edx
-    call ata_read
+    xor ebx, ebx                ; drive numbers other than 0/1: no device
+    cmp edx, 1
+    ja .dev
+    mov ebx, [ata_devs+edx*4]
+.dev:
+    call dev_bread
     jmp sys_cf_result
 
 sys_bwrite:
     mov esi, ecx
     mov ecx, ebx
-    mov ebx, 1
-    call ata_write
+    mov ebx, dev_hd1
+    call dev_bwrite
     ; fall through
 sys_cf_result:                  ; CF -> eax = -1, else 0
     mov eax, 0
@@ -189,8 +192,9 @@ sys_rename:
     jmp fs_rename
 
 ; Directory listing, one entry per call: copies the 16-byte name and the
-; size (dword) of the first used entry at or after the cursor into the
-; buffer and returns the cursor for the next call.
+; size (dword) of the next entry of the current directory at or after
+; the cursor into the buffer and returns the cursor for the next call.
+; A subdirectory's size reads as -1 (0.8.0).
 sys_readdir:
     mov eax, -1
     cmp byte [fs_mounted], 0
@@ -205,8 +209,15 @@ sys_readdir:
     inc ebx
     cmp byte [esi], 0
     je .l
+    mov dl, [fs_cwd]
+    cmp [esi+DE_PARENT], dl
+    jne .l
     mov edi, ecx
     mov edx, [esi+DE_SIZE]
+    cmp byte [esi+DE_KIND], DK_DIR
+    jne .copy
+    mov edx, -1
+.copy:
     push ecx
     mov ecx, FS_NAMELEN/4
     rep movsd
@@ -327,13 +338,12 @@ cmd_systest_run:
     cmp edi, 0xA5A54321
     call st_check
 
-    mov esi, st_pass
+    mov esi, [lstr+LS_SYSTEST_PASS*4]
     cmp dword [st_fail], 0
     je .out
-    mov esi, st_failmsg
+    mov esi, [lstr+LS_SYSTEST_FAIL*4]
 .out:
-    call puts
-    ret
+    jmp lputs_nl
 
 st_check:                   ; counts a failure unless ZF is set
     je .ok
@@ -344,7 +354,10 @@ st_check:                   ; counts a failure unless ZF is set
 ; keys: echoes typed characters through getc/putc until Enter.
 cmd_keys_run:
     mov eax, SYS_PUTS
-    mov ebx, keys_msg
+    mov ebx, [lstr+LS_KEYS*4]
+    int SYSCALL_VEC
+    mov eax, SYS_PUTC
+    mov ebx, 10
     int SYSCALL_VEC
 .loop:
     mov eax, SYS_GETC
@@ -364,7 +377,4 @@ cmd_keys_run:
 st_puts_msg db 'syscall puts: ok', 10, 0
 st_puts_len equ $ - st_puts_msg - 1
 st_file db 'systest.tmp', 0
-st_pass db 'systest: PASS', 10, 0
-st_failmsg db 'systest: FAIL', 10, 0
 st_fail dd 0
-keys_msg db 'Type keys, Enter to finish:', 10, 0

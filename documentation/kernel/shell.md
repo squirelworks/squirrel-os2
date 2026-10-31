@@ -1,6 +1,29 @@
-# Shell Command Line (0.5.0)
+# Shell Command Line (0.5.0–0.5.2)
 
 Location: `../../kernel/shell.asm` (pipeline driver), `../../kernel/pm.asm` (`run_simple`, the built-in commands)
+
+## Line editing and history (0.5.1)
+
+Location: `../../kernel/lineedit.asm`
+
+| Key | Action |
+|-----|--------|
+| Left / Right | Move the cursor |
+| Home / End | Start / end of the line |
+| Backspace / Delete | Erase before / at the cursor |
+| typing | Inserts at the cursor |
+| Up / Down | Older / newer command from the history; Down past the newest returns to the line being typed |
+| Esc | Clears the line |
+| Enter | Runs the line wherever the cursor is |
+
+Lines up to 120 characters may wrap onto the next screen row. The editor redraws from where
+the line started and follows the screen when it scrolls.
+
+The last 16 commands are kept in memory (`KSCRATCH+0x2800`). Blank lines and an immediate
+repeat are not stored. With a data disk, each command is also appended to `shell.hist`.
+At boot the newest 16 lines of that file are loaded, so history survives a reboot. The file is
+rewritten from memory (compacted to 16 lines) at boot when it holds 64 lines or more, and
+after every 64 new commands. It is an ordinary file: `cat shell.hist`, `rm shell.hist`.
 
 ## Redirection and pipes
 
@@ -36,7 +59,30 @@ What reads redirected input: programs using `SYS_GETC` (`cat` and `wc` without a
 
 There is no separate error stream yet. Error messages of a stage are captured with its output.
 
+## Batch files (0.5.2)
+
+Location: `../../kernel/batch.asm`
+
+```
+batch <file>        run a script
+run <name>.bat      the same, for files ending in .bat
+```
+
+A batch file is plain text, one command line per line, and each line may use pipes and redirection.
+
+- Lines starting with `#` are comments. Blank lines are skipped.
+- Each line is echoed as `> line` before it runs. A leading `@` hides the echo (`@echo hi` prints just `hi`).
+- Pressing Esc stops the script before its next line (`Batch stopped`).
+- A script that starts another one (`batch other` or `run other.bat`) hands over to it, as DOS did. The rest of the first script is not run.
+- `autoexec.bat` on the data disk runs at boot, before the first prompt.
+
+How it works: `batch` only queues the script (up to 4 KB, read into `KSCRATCH+0x3000`). After the
+current command line finishes, `do_command` runs the queued lines one by one through the same
+pipeline driver as typed lines. Because of this, a script never runs inside another command's
+pipeline, and redirecting the `batch` command itself (`batch x > out`) captures nothing. Put the
+redirections on the lines inside the script instead.
+
 ## Built-in commands
 
-`ls`, `cat <f>`, `echo <text>`, `put <f> <text>`, `mk <f>`, `rm <f>`, `mv <f> <new>`, `format`, `ps`, `disk`,
+`ls`, `cat <f>`, `echo <text>`, `batch <file>`, `put <f> <text>`, `mk <f>`, `rm <f>`, `mv <f> <new>`, `format`, `ps`, `disk`,
 `run <app|file> [args]`, and the tests `systest`, `proctest`, `blktest`, `fstest`, `keys`.

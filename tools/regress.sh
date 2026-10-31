@@ -5,20 +5,27 @@ set -e
 root=$(cd "$(dirname "$0")/.." && pwd)
 out=${TMPDIR:-/tmp}/squirrel-os2-build
 mkdir -p "$out"
+python3 "$root/tools/mkstrings.py" --check || exit 1
 (cd "$root/kernel" && nasm -f bin boot.asm -o "$out/boot.bin" \
     && nasm -f bin pm.asm -o "$out/pm.bin" 2>/dev/null)
 cat "$out/boot.bin" "$out/pm.bin" > "$out/os.img"
-for prog in hello wc elfhello ls cat; do
+for prog in hello wc elfhello ls cat nest crash heap devtest; do
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
 done
 python3 "$root/tools/sqfs.py" "$out/progs.img" format 1024
-for prog in hello wc elfhello ls cat; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
+for prog in hello wc elfhello ls cat nest crash heap devtest; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
 printf 'one two\nthree\n' > "$out/notes"
 python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/notes"
 printf '2 + 3\n6 * 7\n' > "$out/exprs"
 python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/exprs"
 head -c 70000 /dev/zero | tr '\0' 'x' > "$out/huge"
 python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/huge"
+printf '# demo\necho start\n@echo quiet line\necho a b c | run wc > cnt\nrun cat cnt\nrun demo2.bat\necho never\n' > "$out/demo.bat"
+printf 'echo in demo2\n' > "$out/demo2.bat"
+for f in demo.bat demo2.bat; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$f"; done
+python3 "$root/tools/sqfs.py" "$out/auto.img" format 1024
+printf 'echo autoexec ran\nlang la\n' > "$out/autoexec.bat"
+python3 "$root/tools/sqfs.py" "$out/auto.img" put "$out/autoexec.bat"
 rm -f "$out/data.img"
 dd if=/dev/zero of="$out/data.img" bs=1024 count=1024 2>/dev/null
 
@@ -26,11 +33,11 @@ fail=0
 disk=$out/data.img              # data disk attached as primary slave
 check() {   # check NAME EXPECTED KEYS...
     name=$1; want=$2; shift 2
-    if python3 "$root/tools/qemu_screen.py" ${disk:+--disk "$disk"} "$out/os.img" "$@" | grep -qF -- "$want"; then
-        echo "ok   $name"
-    else
-        echo "FAIL $name (expected: $want)"; fail=1
-    fi
+    screen=$(python3 "$root/tools/qemu_screen.py" ${disk:+--disk "$disk"} "$out/os.img" "$@")
+    case $screen in
+        *"$want"*) echo "ok   $name" ;;
+        *) echo "FAIL $name (expected: $want)"; fail=1 ;;
+    esac
 }
 
 check fs-format     'formatted SQFS'        ls '<ret>'   # must run first: blank disk
@@ -56,10 +63,20 @@ check calc-syntax   'syntax at column 5'    'run calc' '<ret>' '2 + * 3' '<ret>'
 check calc-hist     '6 * 7 = 42'            'run calc' '<ret>' '6 * 7' '<ret>' hist '<ret>'
 check calc-1prompt  'calc> 1'               'run calc' '<ret>' '1'
 check cmd-bs        'systest: PASS'         systesx '<backspace>' t '<ret>'
+check line-edit     'hello world'           'echo hllo' '<left>' '<left>' '<left>' e '<end>' ' world' '<ret>'
+check line-delete   'systest: PASS'         'xsystest' '<home>' '<delete>' '<ret>'
+check line-esc      'systest: PASS'         'junk' '<esc>' systest '<ret>'
+check hist-up       'abZ'                   'echo abc' '<ret>' '<up>' '<backspace>' Z '<ret>'
+check hist-draft    '> half'                'echo abc' '<ret>' half '<up>' '<down>'
 check scroll        'systest: PASS'         ls '<ret>' ls '<ret>' ls '<ret>' systest '<ret>'
-check exception     'CPU exception 6'       trap '<ret>'
+check exception     'CPU exception 6 (invalid opcode) in pid 0 (shell)'  trap '<ret>'
+check crash-restart 'systest: PASS'         trap '<ret>' '<ret>' systest '<ret>'
+check ps-name       '0        running  shell'  ps '<ret>'
 check ps            '0        running'      ps '<ret>'
 check proctest      'reaped pid 3 exit code 30'  proctest '<ret>'
+check mem           'KB free'               mem '<ret>'
+check mem-e820      'usable'                mem '<ret>'
+check memtest       'memtest: PASS'         memtest '<ret>' memtest '<ret>'
 check interleave    'worker 3 step 1'       proctest '<ret>'
 check app-process   '= 42'            'run calc' '<ret>' '6 * 7' '<ret>' '<esc>' 'run calc' '<ret>' '6 * 7' '<ret>'
 check slot-reuse    'exit code 30'          'run topo' '<ret>' 'run topo' '<ret>' 'run topo' '<ret>' 'run topo' '<ret>' \
@@ -86,6 +103,8 @@ check fs-ls         'help'                  ls '<ret>'
 check fstest        'fstest: PASS'          fstest '<ret>'
 check fs-put        'ok'                    'put persist Saved across reboot!' '<ret>'
 check fs-persist    'Saved across reboot!'  'cat persist' '<ret>'
+check hist-file     'put persist Saved'     'cat shell.hist' '<ret>'
+check hist-reboot   '> cat shell.hist'      '<up>'
 check fs-mv         'renamed'               'mv persist renamed' '<ret>' ls '<ret>'
 check fs-rm         'Not found'             'rm renamed' '<ret>' 'cat renamed' '<ret>'
 check fs-dup        'error'                 'mk calc' '<ret>'
@@ -123,8 +142,23 @@ check ld-missing    'Unknown command or program'    'run nothere' '<ret>'
 check ld-again      'Argument: 2'           'run hello 1' '<ret>' 'run hello 2' '<ret>'
 check ld-browser    'Hello from a loaded'   'run files' '<ret>' '<home>' '<ret>'
 check ld-host-ls    'elfhello'              ls '<ret>'
-check up-ls         '8 file(s)'             'run ls' '<ret>'
-check up-ls-filter  '2 file(s)'             'run ls he' '<ret>'
+check vm-nest       'own memory intact'     'run nest' '<ret>'
+check vm-nest-child 'Argument: from nest'   'run nest' '<ret>'
+check vm-crash      'Program ended: pid'    'run crash' '<ret>'
+check vm-crash-addr 'address=C0000000 (read, page not present)'  'run crash' '<ret>'
+check crash-name    'in pid 1 (crash)'      'run crash' '<ret>'
+check crash-regs    'EAX=00000022'          'run crash' '<ret>'
+check vm-after      'systest: PASS'         'run crash' '<ret>' systest '<ret>'
+check vm-no-leak    '129912 KB free'        'run nest' '<ret>' 'run crash' '<ret>' 'run hello' '<ret>' mem '<ret>'
+check vm-ps         'kernel'                ps '<ret>'
+check heap          'heap: PASS (1024 KB)'  'run heap' '<ret>'
+check heap-limit-after 'Program ended: pid'  'run heap after' '<ret>'
+check heap-keep-leak '129912 KB free'       'run heap keep' '<ret>' 'run heap after' '<ret>' mem '<ret>'
+check devices       'hd1     block   ready 2048 sectors'  devices '<ret>'
+check devices-ro    '(read-only for programs)'  devices '<ret>'
+check devtest       'devtest: PASS'         'run devtest' '<ret>'
+check up-ls         '15 file(s)'             'run ls' '<ret>'
+check up-ls-filter  '4 file(s)'             'run ls he' '<ret>'
 check up-cat        'three'                 'run cat notes' '<ret>'
 check up-cat-missing 'not found: zip'       'run cat zip notes' '<ret>'
 check sh-redirect   'hi there'              'echo hi there > greet' '<ret>' 'cat greet' '<ret>'
@@ -136,7 +170,34 @@ check sh-ls-pipe    'elfhello'              'ls | run cat' '<ret>'
 check sh-badpipe    'command on both sides' 'ls |' '<ret>'
 check sh-noname     'needs a file name'     'cat >' '<ret>'
 check sh-nofile     'Cannot read nofile'    'run wc < nofile' '<ret>'
+check bat-run       'in demo2'              'batch demo.bat' '<ret>'
+check bat-quiet     'quiet line'            'batch demo.bat' '<ret>'
+check bat-pipe      '1 3 6'                 'batch demo.bat' '<ret>'
+check bat-chain     '> echo in demo2'       'run demo.bat' '<ret>'
+check bat-missing   'Cannot read nope'      'batch nope' '<ret>'
+check dir-pwd       '/d1'                   'mkdir d1' '<ret>' 'cd d1' '<ret>' pwd '<ret>'
+check dir-prompt    '/d1>'                  'cd d1' '<ret>'
+check dir-path      '1 1 6 d2/n'            'mkdir d2' '<ret>' 'put d2/n nutty' '<ret>' 'run wc d2/n' '<ret>'
+check dir-dotdot    '1 1 6 ../n'            'cd d2' '<ret>' 'mkdir s' '<ret>' 'cd s' '<ret>' 'run wc ../n' '<ret>'
+check dir-run-root  'Hello from a loaded'   'cd d1' '<ret>' 'run hello' '<ret>'
+check dir-hist-root '0 file(s)'             'mkdir d3' '<ret>' 'cd d3' '<ret>' 'run ls' '<ret>'
+check dir-ls-prog   '<dir>'                 'run ls d1' '<ret>'
+check dir-rm-full   'error'                 'rm d2' '<ret>'
+check dir-mv-cycle  'error'                 'mkdir d5' '<ret>' 'mkdir d5/e' '<ret>' 'mv d5 d5/e/f' '<ret>'
+check dir-mv-into   'g                 6'   'put g nutty' '<ret>' 'mv g d5/g' '<ret>' 'ls d5' '<ret>'
+check dir-cd-bad    'No such directory'     'cd nowhere' '<ret>'
+check dir-rm-empty  '0 file(s)'             'rm d1' '<ret>' 'run ls d1' '<ret>'
+check lang-show     'Language: en (en la tlh)'  lang '<ret>'
+check lang-la       'Tabulae:'              'lang la' '<ret>' ls '<ret>'
+check lang-tlh      "ra' tlhaQ"             'lang tlh' '<ret>' xyz '<ret>'
+check lang-bad      'Unknown language (en la tlh)'  'lang fr' '<ret>'
+check lang-banner   'Sciurus-OS/2 0.2.3'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
+check lang-systest  'systest: PROBATUM'     'lang la' '<ret>' systest '<ret>'
+disk=$out/auto.img
+check bat-autoexec  'autoexec ran'
+check lang-autoexec 'Tabulae:'              ls '<ret>'
 disk=
 check no-disk       'no data disk'          blktest '<ret>'
+check devices-nodisk 'hd1     block   absent'  devices '<ret>'
 check rom-fallback  'Hello from Squirrel'   'cat edit' '<ret>'
 exit $fail

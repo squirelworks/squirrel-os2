@@ -12,7 +12,7 @@ Location: `../../kernel/proc.asm` (included from `kernel/pm.asm`)
   (`0x72000` … `0x7E000`).
 - Pids increase from 1 and are not reused.
 
-## PCB (32 bytes)
+## PCB (64 bytes since 0.6.1; 32 before)
 
 | Offset | Field | Meaning |
 |--------|-------|---------|
@@ -24,6 +24,8 @@ Location: `../../kernel/proc.asm` (included from `kernel/pm.asm`)
 | 20 | `code` | Exit code (valid when zombie) |
 | 24 | `waitpid` | Pid this process is waiting on |
 | 28 | `parent` | Pid of the creator |
+| 32 | `as` | Address space record, 0 = the kernel's (0.6.1, `memory.md`); loaded into CR3 on every switch |
+| 40 | `name` | 16 bytes: `shell`, the app or program name (0.8.2), shown by `ps` and in crash reports |
 
 ## Lifecycle
 

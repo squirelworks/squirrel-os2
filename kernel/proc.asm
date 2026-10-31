@@ -16,7 +16,7 @@ P_RUNNING       equ 2
 P_WAITING       equ 3           ; blocked in wait()
 P_ZOMBIE        equ 4           ; exited, not yet reaped
 
-; PCB layout (32 bytes)
+; PCB layout (64 bytes)
 PCB_PID         equ 0
 PCB_STATE       equ 4
 PCB_ESP         equ 8
@@ -25,7 +25,10 @@ PCB_ARG         equ 16
 PCB_CODE        equ 20          ; exit code
 PCB_WAITPID     equ 24          ; pid this process waits on
 PCB_PARENT      equ 28
-PCB_SIZE        equ 32
+PCB_AS          equ 32          ; address space record, 0 = the kernel's
+PCB_NAME        equ 40          ; 16 bytes: program or app name (0.8.2)
+PROC_NAMELEN    equ 16
+PCB_SIZE        equ 64
 
 proc_init:
     mov edi, proc_table
@@ -33,6 +36,9 @@ proc_init:
     xor eax, eax
     rep stosd
     mov dword [proc_table+PCB_STATE], P_RUNNING     ; pid 0 = shell
+    mov esi, proc_shell_name
+    mov edi, proc_table
+    call proc_set_name
     mov dword [proc_cur], proc_table
     mov dword [proc_next_pid], 1
     ret
@@ -64,7 +70,13 @@ proc_spawn:
     mov [edi+PCB_ARG], ecx
     mov dword [edi+PCB_CODE], 0
     mov dword [edi+PCB_WAITPID], 0
+    mov byte [edi+PCB_NAME], 0
     mov ebx, [proc_cur]
+    push eax
+    mov eax, [ebx+PCB_AS]       ; runs in its parent's address space
+    mov [edi+PCB_AS], eax
+    call as_retain
+    pop eax
     mov ebx, [ebx+PCB_PID]
     mov [edi+PCB_PARENT], ebx
     ; initial stack: popad frame (zeros), eflags (IF set), return address
@@ -139,6 +151,9 @@ proc_wait:
     call proc_switch
     jmp .again
 .reap:
+    mov eax, [edi+PCB_AS]
+    mov dword [edi+PCB_AS], 0
+    call as_release
     mov eax, [edi+PCB_CODE]
     mov dword [edi+PCB_STATE], P_FREE
     jmp .out
@@ -147,6 +162,28 @@ proc_wait:
 .out:
     pop edi
     pop esi
+    ret
+
+; esi = name, edi = PCB: names the process (cut to 15 characters)
+proc_set_name:
+    push eax
+    push ecx
+    push esi
+    push edi
+    add edi, PCB_NAME
+    mov ecx, PROC_NAMELEN-1
+.c:
+    lodsb
+    test al, al
+    jz .z
+    stosb
+    loop .c
+.z:
+    mov byte [edi], 0
+    pop edi
+    pop esi
+    pop ecx
+    pop eax
     ret
 
 ; ebx = pid -> edi = PCB or 0
@@ -205,6 +242,7 @@ proc_switch:
     mov [esi+PCB_ESP], esp
     mov dword [edi+PCB_STATE], P_RUNNING
     mov [proc_cur], edi
+    call vm_load
     mov esp, [edi+PCB_ESP]
     popad
     popfd
@@ -249,12 +287,38 @@ cmd_ps_run:
     mov eax, [ebx+PCB_STATE]
     mov esi, [state_names+eax*4]
     call puts
+    mov al, 18
+    call puts_pad
+    lea esi, [ebx+PCB_NAME]
+    cmp byte [esi], 0
+    jne .named
+    mov esi, ps_none
+.named:
+    call puts
+    mov al, 36
+    call puts_pad
+    mov eax, [ebx+PCB_AS]
+    test eax, eax
+    jz .kernel
+    mov eax, [eax+AS_PAGES]
+    shl eax, 2
+    call itoa
+    mov esi, num_buf
+    call puts
+    mov esi, ps_kb
+    call puts
+    jmp .eol
+.kernel:
+    mov esi, ps_kernel
+    call puts
+.eol:
     mov al, 10
     call putc
     pop ecx
 .skip:
     add ebx, PCB_SIZE
-    loop .row
+    dec ecx
+    jnz .row
     ret
 
 ; prints spaces until the cursor column is >= al
@@ -374,7 +438,11 @@ st_ready db 'ready', 0
 st_running db 'running', 0
 st_waiting db 'waiting', 0
 st_zombie db 'zombie', 0
-ps_header db 'PID      STATE', 10, 0
+ps_header db 'PID      STATE    NAME              MEMORY', 10, 0
+ps_none db '-', 0
+proc_shell_name db 'shell', 0
+ps_kb db ' KB', 0
+ps_kernel db 'kernel', 0
 pt_msg db 'worker ', 0
 pt_step db ' step ', 0
 pt_reaped db 'reaped pid ', 0

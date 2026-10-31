@@ -34,4 +34,13 @@ Documentation is active.
 - 0.4.0–0.4.2 program loader and user programs (`kernel/loader.md`, `releases/0.4.0.md`, `releases/0.4.2.md`)
 - 0.3.4 scientific and matrix calculators (`apps/calculators.md`, `releases/0.3.4.md`)
 - 0.5.0 pipes and redirection (`kernel/shell.md`, `releases/0.5.0.md`)
-- Next: 0.5.1 command history, then the rest of 0.5.x–0.8.x
+- 0.5.1 line editing and command history (`kernel/shell.md`, `releases/0.5.1.md`)
+- 0.5.2 batch files (`kernel/shell.md`, `releases/0.5.2.md`)
+- 0.6.0 page allocator (`kernel/memory.md`, `releases/0.6.0.md`)
+- 0.6.1 paging and per-process address spaces (`kernel/memory.md`, `releases/0.6.1.md`)
+- 0.6.2 program heaps with `SYS_SBRK` (`kernel/memory.md`, `releases/0.6.2.md`)
+- 0.7.0–0.7.2 device model: registry, console, keyboard, disks (`kernel/drivers.md`, `releases/0.7.0.md`)
+- 0.8.0 SQFS directories (`kernel/filesystem.md`, `releases/0.8.0.md`)
+- 0.8.1 localization runtime (`kernel/localization.md`, `releases/0.8.1.md`)
+- 0.8.2 crash reports and shell restart (`kernel/crash-reports.md`, `releases/0.8.2.md`)
+- Next: the 0.9 polish pass toward 1.0

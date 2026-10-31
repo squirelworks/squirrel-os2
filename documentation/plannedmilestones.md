@@ -96,23 +96,23 @@ This is a natural end-of-day point. Next session can resume at either:
 
 ### 0.5.x — Shell & command environment
 - **0.5.0** — Pipes and redirection (done — `|`, `>`, `>>`, `<`, `echo`; `kernel/shell.md`)
-- **0.5.1** — Command history and line editing, history persisted to a file
-- **0.5.2** — Batch files run line by line
+- **0.5.1** — Command history and line editing (done — arrows, Home/End, Delete, Esc, 16-line history in `shell.hist`; kernel image grows to 64 KB)
+- **0.5.2** — Batch files run line by line (done — `batch <file>`, `run x.bat`, `#` comments, `@` quiet lines, Esc stops, `autoexec.bat` at boot)
 
 ### 0.6.x — Memory management
-- **0.6.0** — Physical page allocator with free lists
-- **0.6.1** — Per-process address spaces (page directory bookkeeping)
-- **0.6.2** — Stack/heap growth
+- **0.6.0** — Physical page allocator with free lists (done — E820 map, free list + bitmap, `mem`/`memtest`, `kernel/memory.md`)
+- **0.6.1** — Per-process address spaces (done — paging on, own page directory per program, several programs at once, faulting programs are ended)
+- **0.6.2** — Stack/heap growth (done — per-program heap at `0x40000000` grown and shrunk by `SYS_SBRK`; stacks stay fixed at 8 KB)
 
 ### 0.7.x — Device model
-- **0.7.0** — Driver registration table (name, probe, ops)
-- **0.7.1** — Console and keyboard as devices
-- **0.7.2** — ATA block device registered as a driver
+- **0.7.0** — Driver registration table (name, probe, ops) (done — `dev.asm`, `devices`, `SYS_DEVFIND`/`DEVREAD`/`DEVWRITE`)
+- **0.7.1** — Console and keyboard as devices (done — `con` and `kbd`; `SYS_PUTS`/`SYS_GETC` go through them)
+- **0.7.2** — ATA block device registered as a driver (done — `hd0`/`hd1`; SQFS and the block syscalls use them)
 
 ### 0.8.x — Integration foundations
-- **0.8.0** — Hierarchical directories or long names in SQFS
-- **0.8.1** — Localization runtime (select `localization/` strings at run time)
-- **0.8.2** — Better exception / crash reporting
+- **0.8.0** — Hierarchical directories or long names in SQFS (done — directories via a parent id per entry, paths, `mkdir`/`cd`/`pwd`, `mv` between directories)
+- **0.8.1** — Localization runtime (done — `strings.inc` generated from `localization/`, `lang` switches at runtime with English fallback)
+- **0.8.2** — Better exception / crash reporting (done — names, registers, page-fault decoding, stack, process names; any non-shell process is ended; the shell can be restarted)
 
 ### 0.9.x — Integration
 - **0.9.0** — File browser launches the applications (calc, edit, vedit, draw)

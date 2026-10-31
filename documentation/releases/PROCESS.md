@@ -49,6 +49,17 @@ Squirrel-OS/2 uses a simple `major.minor.patch` scheme for early development:
 | 0.3.4   | 2026-10-30 | Scientific and matrix calculators    |
 | 0.4.2   | 2026-10-30 | User programs: ls, cat (+ readdir)   |
 | 0.5.0   | 2026-10-30 | Pipes and redirection                |
+| 0.5.1   | 2026-10-30 | Line editing and command history     |
+| 0.5.2   | 2026-10-30 | Batch files and autoexec.bat         |
+| 0.6.0   | 2026-10-30 | Physical page allocator              |
+| 0.6.1   | 2026-10-30 | Paging and per-process address spaces |
+| 0.6.2   | 2026-10-30 | Program heaps (`SYS_SBRK`)           |
+| 0.7.0   | 2026-10-30 | Driver registration table            |
+| 0.7.1   | 2026-10-30 | Console and keyboard as devices      |
+| 0.7.2   | 2026-10-30 | ATA disks as block devices           |
+| 0.8.0   | 2026-10-30 | SQFS directories                     |
+| 0.8.1   | 2026-10-30 | Localization runtime                 |
+| 0.8.2   | 2026-10-30 | Crash reports and shell restart      |
 
 ## Next planned release
 

@@ -15,9 +15,16 @@ SH_BUF1     equ 0x68000
 SH_BUFMAX   equ 0x8000
 SH_LINE     equ 128
 
-; Runs the command line in cmdline, then shows the prompt again.
+; Runs the command line in cmdline and any batch file it started, then
+; shows the prompt again.
 do_command:
     mov esi, cmdline
+    call sh_run_line
+    call bat_run_pending
+    jmp sh_prompt
+
+; esi = command line (pipes and redirections allowed): runs it.
+sh_run_line:
     mov edi, sh_line
     mov ecx, SH_LINE-1
 .copy:
@@ -133,10 +140,6 @@ do_command:
 .done:
     mov byte [cap_on], 0
     mov byte [in_on], 0
-    mov esi, prompt
-    call puts
-    mov byte [cmdline], 0
-    mov dword [cmdpos], 0
     ret
 
 ; esi = stage text: removes "< name", "> name" and ">> name", copying
@@ -361,10 +364,7 @@ app_home:
     cmp byte [cap_on], 0
     jne .r
     call cls
-    push esi
-    mov esi, banner
-    call puts
-    pop esi
+    call show_banner
 .r:
     ret
 

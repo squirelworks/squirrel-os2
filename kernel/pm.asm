@@ -10,11 +10,47 @@ ORG 0x8000
 KSCRATCH equ 0x20000            ; 64 KB kernel scratch (driver/FS buffers)
 stage2:
     cli
+    ; A20 on (fast gate, port 0x92) so memory above 1 MB is reachable
+    in al, 0x92
+    or al, 2
+    and al, 0xFE
+    out 0x92, al
+    ; BIOS memory map (int 0x15, E820) into E820_BUF for mm_init
+    xor ebx, ebx
+    mov di, E820_BUF
+.e820:
+    mov eax, 0xE820
+    mov edx, 0x534D4150         ; 'SMAP'
+    mov ecx, 24
+    mov dword [di+20], 1
+    int 0x15
+    jc .e820done
+    cmp eax, 0x534D4150
+    jne .e820done
+    add di, 24
+    inc word [e820_count]
+    test ebx, ebx
+    jz .e820done
+    cmp word [e820_count], E820_MAX
+    jb .e820
+.e820done:
+    cli
     lgdt [gdt_desc]
     mov eax, cr0
     or eax, 1
     mov cr0, eax
     jmp 0x08:pm
+
+; The GDT stays in the first 32 KB: real mode reaches it with a 16-bit offset.
+align 8
+gdt:
+    dq 0
+    dw 0xFFFF,0,0x9A00,0x00CF
+    dw 0xFFFF,0,0x9200,0x00CF
+gdt_desc:
+    dw $-gdt-1
+    dd gdt
+e820_count dw 0                 ; written in real mode, so also below 32 KB
 
 BITS 32
 pm:
@@ -22,7 +58,7 @@ pm:
     mov ds, ax
     mov es, ax
     mov ss, ax
-    mov esp, 0x9F000
+    mov esp, SHELL_STACK
 
     ; IDT (timer + keyboard)
     mov edi, idt
@@ -52,7 +88,10 @@ pm:
     lidt [idt_desc]
     call fpu_init
     call proc_init
+    call mm_init
+    call vm_init
     call ata_init
+    call dev_init
 
     ; PIC + PIT
     mov al, 0x11
@@ -80,12 +119,21 @@ pm:
     mov al, ah
     out 0x40, al
 
+    xor eax, eax                ; English until "lang" says otherwise
+    call lang_select
     call cls
-    mov esi, banner
+    call show_banner
+    cmp dword [0x8000+KERNEL_SIZE-4], KERNEL_SIG
+    je .whole
+    mov esi, msg_partial
     call puts
+.whole:
     call fs_mount_boot
-    mov esi, prompt
-    call puts
+    call hist_load
+    mov byte [shell_up], 1      ; from here a crash can restart the shell
+    sti                         ; autoexec.bat may run apps that need keys
+    call bat_autoexec
+    call sh_prompt
     sti
 
 .cmdloop:
@@ -107,8 +155,8 @@ pm:
 ; Built-in (ROM) files, used when no data disk is mounted and to seed
 ; a freshly formatted one.
 rom_list:
-    mov esi, fs_header
-    call puts
+    mov esi, [lstr+LS_FILES*4]
+    call lputs_nl
     mov ecx, [file_count]
     mov ebx, file_table
 .l:
@@ -128,9 +176,8 @@ rom_cat:                      ; esi = name
     call puts
     ret
 .nf:
-    mov esi, notfound
-    call puts
-    ret
+    mov esi, [lstr+LS_NOTFOUND*4]
+    jmp lputs_nl
 
 rom_find:                     ; esi = name, returns eax = entry or 0
     push ecx
@@ -246,6 +293,15 @@ run_simple:
     mov edi, cmd_ls
     call streq
     je .ls
+    mov edi, cmd_cd
+    call streq
+    je .cd
+    mov edi, cmd_pwd
+    call streq
+    je .pwd
+    mov edi, cmd_lang
+    call streq
+    je .lang
     ; cat
     mov edi, cmd_cat
     call streq_prefix
@@ -280,6 +336,15 @@ run_simple:
     mov edi, cmd_ps
     call streq
     je .ps
+    mov edi, cmd_mem
+    call streq
+    je .mem
+    mov edi, cmd_memtest
+    call streq
+    je .memtest
+    mov edi, cmd_devices
+    call streq
+    je .devices
     ; proctest
     mov edi, cmd_proctest
     call streq
@@ -311,8 +376,8 @@ run_simple:
     call [ebx+4]
     jmp .empty
 .unknown:
-    mov esi, unknown
-    call puts
+    mov esi, [lstr+LS_UNKNOWN*4]
+    call lputs_nl
     jmp .empty
 .format:
     call cmd_format_run
@@ -322,6 +387,17 @@ run_simple:
     jmp .empty
 .ls:
     call fs_list
+    jmp .empty
+.cd:
+    add esi, 2                  ; "cd" alone: back to the root
+    call cmd_cd_run
+    jmp .empty
+.pwd:
+    call cmd_pwd_run
+    jmp .empty
+.lang:
+    add esi, 4
+    call cmd_lang_run
     jmp .empty
 .systest:
     call cmd_systest_run
@@ -349,7 +425,16 @@ run_simple:
     add ebx, 8
     jmp .rfind
 .rnone:
-    ; not built in: load it from the data disk (0.3.0 program loader)
+    ; a .bat file is queued as a batch script (0.5.2)
+    call strlen
+    cmp eax, 4
+    jbe .notbat
+    cmp dword [esi+eax-4], '.bat'
+    jne .notbat
+    call bat_start
+    jmp .empty
+.notbat:
+    ; not built in: load it from the data disk (0.4.0 program loader)
     mov ebx, esi
     mov ecx, [run_rest]
     mov eax, SYS_EXEC
@@ -361,11 +446,17 @@ run_simple:
 .rgo:
     ; the app runs as its own process; the shell waits for it
     mov ecx, [ebx+4]
+    mov esi, [ebx]              ; its name, for ps and crash reports
     mov ebx, app_host
     mov eax, SYS_SPAWN
     int SYSCALL_VEC
     cmp eax, -1
     je .rfull
+    push eax
+    mov ebx, eax
+    call proc_find
+    call proc_set_name
+    pop eax
 .rwait:
     mov ebx, eax
     mov eax, SYS_WAIT
@@ -377,6 +468,15 @@ run_simple:
     jmp .empty
 .ps:
     call cmd_ps_run
+    jmp .empty
+.mem:
+    call cmd_mem_run
+    jmp .empty
+.devices:
+    call cmd_devices_run
+    jmp .empty
+.memtest:
+    call cmd_memtest_run
     jmp .empty
 .disk:
     call cmd_disk_run
@@ -510,6 +610,7 @@ putc:                         ; al = char; preserves all registers
 
 ; Moves the text screen up one row and blanks the last row.
 scroll_up:
+    inc dword [scroll_count]
     push ecx
     push esi
     push edi
@@ -640,61 +741,28 @@ kbd_ascii:
 
 ; Handles one scancode (al) for the shell or the active app.
 kbd_dispatch:
-    push eax
-    push ebx
+    pushad
     call kbd_shift_track
     je .e
     cmp al, 0x80
     jae .e
-    ; command mode
-    cmp al, 0x1C             ; Enter
-    je .enter
-    cmp al, 0x0E             ; Backspace
-    je .cmd_bs
-    call kbd_ascii
-    or al, al
-    jz .e
-    mov ebx, [cmdpos]
-    cmp ebx, SH_LINE-8
-    jae .e
-    mov [cmdline+ebx], al
-    mov byte [cmdline+ebx+1], 0
-    inc dword [cmdpos]
-    call putc
-    jmp .e
-.enter:
-    mov al, 10
-    call putc
-    call do_command
-    jmp .e
-.cmd_bs:
-    mov ebx, [cmdpos]
-    test ebx, ebx
-    jz .e
-    dec ebx
-    mov [cmdpos], ebx
-    mov byte [cmdline+ebx], 0
-    mov al, 8
-    call putc
-    jmp .e
+    call sh_key                 ; line editing and history (lineedit.asm)
 .e:
-    pop ebx
-    pop eax
+    popad
     ret
 
 default_isr:
     iretd
 
 ; ---------- data ----------
-banner db 'Squirrel-OS/2 0.2.3', 10
+banner db 'Squirrel-OS/2'          ; (the "help" file: the English banner)
+banner_rest db ' 0.2.3', 10
        db 'Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>', 10
-       db '          mv <f> <new> | format | ps | disk', 10
-       db 'Tests: systest | proctest | blktest | fstest | keys', 10
+       db '          mv <f> <new> | mkdir <d> | cd <d> | pwd | echo | batch <f> | format', 10
+       db '          ps | disk | mem | devices | lang <en|la|tlh>', 10
+       db 'Tests: systest | proctest | blktest | fstest | memtest | keys', 10
        db 'Apps: files, calc, sci, graph, matrix, diff, topo, edit, vedit, draw', 10, 0
-prompt db '> ', 0
-fs_header db 'Files:', 10, 0
-notfound db 'Not found', 10, 0
-unknown db 'Unknown command', 10, 0
+msg_partial db 'Warning: kernel image only partly loaded', 10, 0
 cmd_ls db 'ls', 0
 cmd_cat db 'cat ', 0
 cmd_run db 'run ', 0
@@ -706,19 +774,35 @@ cmd_trap db 'trap', 0
 run_arg times 16 db 0           ; FS_NAMELEN
 run_rest dd 0                   ; whole argument text, for loaded programs
 cmd_ps db 'ps', 0
+cmd_mem db 'mem', 0
+cmd_memtest db 'memtest', 0
+cmd_devices db 'devices', 0
 cmd_format db 'format', 0
 cmd_fstest db 'fstest', 0
 cmd_put db 'put ', 0
 cmd_mk db 'mk ', 0
 cmd_rm db 'rm ', 0
 cmd_mv db 'mv ', 0
+cmd_ls_arg db 'ls ', 0
+cmd_cd_arg db 'cd ', 0
+cmd_mkdir db 'mkdir ', 0
+cmd_cd db 'cd', 0
+cmd_pwd db 'pwd', 0
+cmd_lang db 'lang', 0
+cmd_lang_arg db 'lang ', 0
 cmd_echo db 'echo ', 0
+cmd_batch db 'batch ', 0
 arg_cmds:
     dd cmd_put, cmd_put_run
     dd cmd_mk, cmd_mk_run
     dd cmd_rm, cmd_rm_run
     dd cmd_mv, cmd_mv_run
+    dd cmd_ls_arg, cmd_ls_run
+    dd cmd_cd_arg, cmd_cd_run
+    dd cmd_mkdir, cmd_mkdir_run
+    dd cmd_lang_arg, cmd_lang_run
     dd cmd_echo, cmd_echo_run
+    dd cmd_batch, cmd_batch_run
     dd 0, 0
 cmd_disk db 'disk', 0
 cmd_blktest db 'blktest', 0
@@ -802,7 +886,8 @@ kbd_ring times KBD_RING_SIZE db 0
 kbd_head dd 0
 kbd_tail dd 0
 cmdline times 128 db 0         ; SH_LINE (shell.asm)
-cmdpos dd 0
+cmdpos dd 0                     ; cursor position in cmdline
+scroll_count dd 0               ; rows scrolled so far (line editor)
 cur dd 0
 ticks dd 0
 num_buf times 16 db 0
@@ -830,9 +915,8 @@ scancode_map_shift:
     times 128-($-scancode_map_shift) db 0
 
 ; ---------- CPU exceptions ----------
-; One fixed-size stub per vector pushes its number; the report prints
-; it with the faulting EIP and halts. (Vectors with an error code push
-; it first, so EIP is read from the right slot for those.)
+; One fixed-size stub per vector pushes its number and jumps to the
+; report in crash.asm (0.8.2).
 EXC_STUB_SIZE equ 8
 exc_stubs:
 %assign v 0
@@ -842,33 +926,6 @@ exc_stubs:
     times exc_stubs+(v+1)*EXC_STUB_SIZE-$ nop
 %assign v v+1
 %endrep
-
-exc_report:
-    cli
-    mov ebx, [esp]            ; vector
-    mov eax, 1
-    mov ecx, ebx
-    shl eax, cl
-    test eax, EXC_ERRCODE_MASK
-    mov edx, [esp+4]          ; eip without error code
-    jz .noerr
-    mov edx, [esp+8]
-.noerr:
-    mov esi, exc_msg
-    call puts
-    mov eax, ebx
-    call itoa
-    mov esi, num_buf
-    call puts
-    mov esi, exc_at
-    call puts
-    mov eax, edx
-    call puthex
-    mov al, 10
-    call putc
-.halt:
-    hlt
-    jmp .halt
 
 ; eax -> 8 hex digits on the console
 puthex:
@@ -891,16 +948,20 @@ puthex:
     pop ecx
     ret
 
-; #DF #TS #NP #SS #GP #PF #AC push an error code
-EXC_ERRCODE_MASK equ (1<<8)|(1<<10)|(1<<11)|(1<<12)|(1<<13)|(1<<14)|(1<<17)
-exc_msg db 10, '*** CPU exception ', 0
-exc_at db ' at EIP 0x', 0
 
 %include "syscall.asm"
 %include "proc.asm"
 %include "ata.asm"
 %include "fs.asm"
 %include "shell.asm"
+%include "lineedit.asm"
+%include "batch.asm"
+%include "mm.asm"
+%include "vm.asm"
+%include "dev.asm"
+%include "chardev.asm"
+%include "lang.asm"
+%include "crash.asm"
 %include "browser.asm"
 %include "calc.asm"
 %include "editor.asm"
@@ -910,16 +971,14 @@ exc_at db ' at EIP 0x', 0
 %include "matrix.asm"
 
 align 8
-gdt:
-    dq 0
-    dw 0xFFFF,0,0x9A00,0x00CF
-    dw 0xFFFF,0,0x9200,0x00CF
-gdt_desc:
-    dw $-gdt-1
-    dd gdt
-align 8
 idt: times 256 dq 0
 idt_desc:
     dw 256*8-1
     dd idt
-times 32768-($-$$) db 0
+KERNEL_SIZE equ 65536           ; boot.asm loads 128 sectors
+KERNEL_SIG equ 0x4B4F3253       ; 'S2OK'
+%if $-$$ > KERNEL_SIZE-4
+%error kernel image is larger than KERNEL_SIZE
+%endif
+times KERNEL_SIZE-4-($-$$) db 0
+dd KERNEL_SIG                   ; checked at boot: the whole image arrived
