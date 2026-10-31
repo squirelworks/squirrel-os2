@@ -204,6 +204,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - `SYS_KEYEVENTS` (29) lets one process also receive each key press as a `MSG_KEY` message, the same character `SYS_GETC` returns (`kernel/messages.md`; `keyev*`). 30 system calls (0–29). This completes milestone 1.2.
 
+## 1.3.0
+
+- The kernel can switch to 320 × 200 × 256 graphics (VGA mode 13h) and back to text mode, and write and read a pixel (`kernel/graphics.md`; `gfxtest`, `gfx-text`). Lines, rectangles, text and `graph` follow in later 1.3 tasks.
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.
