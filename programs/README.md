@@ -19,6 +19,7 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `zombie.asm` | SQX | Starts 12 threads it never waits for, then one it does; spawning must keep working (`run zombie`, 1.0.4) |
 | `stress.asm` | SQX | Stress test of processes, threads, messages, preemption, the FPU, the heap and exec; every part checks its result (`run stress`, `run stress ring`; used by `tools/soak.py`) |
 | `waitcycle.asm` | SQX | Waits for the shell, and closes a cycle of waits with a thread; the wait that closes a cycle must return −1, not hang the kernel (`run waitcycle`, KB-16) |
+| `stackover.asm` | SQX | Starts a thread that overflows its stack; the kernel must end only that thread, and the program's own memory and stack must be intact (`run stackover`, KB-17) |
 | `devtest.asm` | SQX | Uses devices by name: writes through `con`, reads `hd1`, checks `hd0` refuses writes (0.7.x) |
 | `sqx.inc` | — | SQX header macro and syscall numbers |
 

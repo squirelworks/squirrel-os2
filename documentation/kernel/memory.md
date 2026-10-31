@@ -116,4 +116,4 @@ How it works:
 - **Exit:** when the process is reaped, `as_teardown` frees whatever heap is left, along with its table (`run heap keep`, then `mem`).
 - **Memory count:** heap pages count in `AS_PAGES`, so `ps` includes them.
 
-Stacks are not grown. A program keeps its process slot's 8 KB stack, and all code still runs in ring 0, where a fault while pushing on an unmapped stack page could not be reported. Growing stacks waits for user mode (2.x).
+Stacks are not grown. A program keeps its process slot's 8 KB stack. Since KB-17 an unmapped guard page sits under every stack, and the double fault that running into it causes is reported on a stack of its own and ends only that process (`crash-reports.md`). Growing stacks waits for user mode (2.x).

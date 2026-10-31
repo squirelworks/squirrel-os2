@@ -9,8 +9,10 @@ Location: `../../kernel/proc.asm` (included from `kernel/pm.asm`)
   preempts it (since 1.1, see "Preemption" below).
 - Up to `PROC_MAX` = 8 slots. Slot 0 is the kernel shell, **pid 0**, which runs on the
   boot stack (`0x9F000`) and never exits.
-- Slots 1–7 each own an 8 KB stack: slot *i* has its top at `0x70000 + i * 0x2000`
-  (`0x72000` … `0x7E000`).
+- Slots 1–7 each own an 8 KB stack: slot *i* has its top at `0x7C000 + i * 0x3000`
+  (`0x7F000` … `0x91000`). Under each stack is an unmapped guard page, and one more sits
+  under the shell's stack, so a stack overflow is reported and ends only that process
+  (KB-17, `crash-reports.md`).
 - Pids increase from 1 and are not reused.
 
 ## PCB (64 bytes since 0.6.1; 32 before)

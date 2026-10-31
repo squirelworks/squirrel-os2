@@ -15,8 +15,9 @@ every address below is both virtual and physical. Only the program area differs 
 | `0x50000–0x57BFF` | `matrix` variables (27 × 304 bytes from `0x50000`) and temporaries (64 × 304 bytes from `0x53000`) |
 | `0x58000–0x59FFF` | Page allocator bitmap (0.6.0, `memory.md`) |
 | `0x60000–0x6FFFF` | Shell pipe/redirect buffers, 2 × 32 KB (0.5.0, `shell.md`) |
-| `0x70000–0x7FFFF` | Process stacks, 8 KB per slot (slot *i* top = `0x70000 + i*0x2000`) |
-| `0x9F000` and down | Boot / shell (pid 0) stack |
+| `0x7B000–0x7BFFF` | Double-fault task stack (KB-17, `crash-reports.md`) |
+| `0x7C000–0x91FFF` | Process stacks, 12 KB per slot: an unmapped guard page, then 8 KB of stack (slot *i* top = `0x7C000 + i*0x3000`, guard pages at `0x7C000 + k*0x3000`, k = 0–7; KB-17) |
+| `0x92000–0x9EFFF` | Boot / shell (pid 0) stack, down from `0x9F000` to the guard page at `0x91000` |
 | `0xB8000–0xB8F9F` | VGA text buffer |
 | `0x100000` and up | Pages handed out by the page allocator (usable RAM up to 256 MB), including page directories and tables |
 | `0x10000000` and up | Not mapped: any access faults (0.6.1) |

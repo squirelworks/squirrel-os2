@@ -62,7 +62,8 @@ checking the VGA text screen. Needs Python 3 as well. `tools/qemu_screen.py IMAG
 does a single session and prints the screen, which is handy when adding a check.
 Uppercase letters and `+ * % ! ? : _` are sent with Shift.
 
-The hidden shell command `trap` executes `ud2` to show the CPU exception report.
+The hidden shell command `trap` executes `ud2` to show the CPU exception report, and
+`overflow` makes the shell run off its own stack to show the stack-overflow report (KB-17).
 
 ## Stress run
 

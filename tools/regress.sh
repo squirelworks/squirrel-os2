@@ -12,11 +12,11 @@ python3 "$root/tools/mkfont.py" --check || exit 1
 cat "$out/boot.bin" "$out/pm.bin" > "$out/os.img"
 dd if=/dev/zero of="$out/floppy.img" bs=1024 count=1440 2>/dev/null
 dd if="$out/os.img" of="$out/floppy.img" conv=notrunc 2>/dev/null
-for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle; do
+for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover; do
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
 done
 python3 "$root/tools/sqfs.py" "$out/progs.img" format 1024
-for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
+for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
 printf 'one two\nthree\n' > "$out/notes"
 python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/notes"
 printf '2 + 3\n6 * 7\n' > "$out/exprs"
@@ -86,6 +86,8 @@ check hist-draft    '> half'                'echo abc' '<ret>' half '<up>' '<dow
 check scroll        'systest: PASS'         ls '<ret>' ls '<ret>' ls '<ret>' systest '<ret>'
 check exception     'CPU exception 6 (invalid opcode) in pid 0 (shell)'  trap '<ret>'
 check crash-restart 'systest: PASS'         trap '<ret>' '<ret>' systest '<ret>'
+# KB-17: a stack overflow is reported and ends only that process; the shell's own restarts
+check_all stack-shell '*** stack overflow in pid 0 (shell)|systest: PASS'  overflow '<ret>' '<ret>' systest '<ret>'
 check ps-name       '0        running  shell'  ps '<ret>'
 check ps            '0        running'      ps '<ret>'
 check proctest      'reaped pid 3 exit code 30'  proctest '<ret>'
@@ -289,7 +291,7 @@ check seek          'seek: PASS'            'run seek' '<ret>' '<pause>'
 check devices       'hd1     block   ready 2048 sectors'  devices '<ret>'
 check devices-ro    '(read-only for programs)'  devices '<ret>'
 check devtest       'devtest: PASS'         'run devtest' '<ret>'
-check up-ls         '24 file(s)'             'run ls' '<ret>'
+check up-ls         '25 file(s)'             'run ls' '<ret>'
 # 1.2.1: a key arrives as a queue event as well as through SYS_GETC
 check_all keyev     'keyev: queue q getc q|keyev: PASS'  'run keyev' '<ret>' '<pause>' q '<pause>'
 check_all keyev-shift 'keyev: queue Q getc Q|keyev: PASS'  'run keyev' '<ret>' '<pause>' Q '<pause>'
@@ -299,6 +301,7 @@ check_all msg       'msg: queue full (-2)|msg: child got ping|msg: PASS'  'run m
 check thread        'thread: PASS'          'run thread' '<ret>'
 # KB-16: a wait that closes a cycle of waits returns -1 instead of a kernel panic
 check waitcycle     'waitcycle: PASS'       'run waitcycle' '<ret>'
+check_all stackover '*** stack overflow in pid|Program ended|stackover: PASS'  'run stackover' '<ret>'
 # 1.1.0: the timer preempts a program that spins without a system call
 check_all sched-preempt 'spin: second process ran|preempt: PASS' 'run spin' '<ret>' '<pause>'
 check up-ls-filter  '4 file(s)'             'run ls he' '<ret>'
