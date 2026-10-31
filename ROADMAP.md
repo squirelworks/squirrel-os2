@@ -92,6 +92,12 @@ From `documentation/plannedmilestones.md`, still the plan, and not started until
 - **1.8** — Objects stored in the file system and loaded back.
 - **1.9** — Pick up, move, and drop an object on the desktop. The keyboard does this. A mouse is not part of the plan.
 
+### Installer (I.1–I.6) — unscheduled
+
+Today the release images are the install: write `os.img` to a USB stick or `floppy.img` to a floppy, byte for byte, and boot it. A real installer boots from that media and copies the system onto the computer's own disk, so the stick can be removed. The boxes are in `TODO.md`. None of them starts while a 1.5 or 1.6 box is open, and none of them is a 2.0.0 requirement.
+
+Assumptions the installer keeps: BIOS boot (Legacy/CSM), an IDE/ATA target disk reached through the existing polled driver, and SQFS as the installed file system. UEFI, AHCI/NVMe, and USB mass storage stay in 2.x.
+
 ### 2.0.0 — Warp-style system
 
 Preemptive threads, the windowing system, the object desktop, the hierarchical file system with a graphical browser, the 1.0 applications as desktop objects, a native shell, and basic networking. Original code. No classic OS/2 ABI.

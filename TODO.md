@@ -210,6 +210,23 @@ Do not start these while any box above is open. When 1.6 is on `main`, split the
 - [ ] **1.9-dnd** — Pick up, move focus, and drop a desktop object from the keyboard. A regression check expects the object's new parent. No mouse.
 - [ ] **2.0-net** — Only once 1.9 is on `main`: split basic networking into its own tasks in this file, then implement the first of them (a loopback that a test program can send on and read back).
 
+## Installer (unscheduled)
+
+Not before the 1.5 and 1.6 boxes above are closed. Each box is one PR. Design notes go in `documentation/guides/install.md` with the first box. The target is an IDE/ATA disk in BIOS mode; the regression run uses a blank QEMU disk as the target.
+
+- [ ] **I.1-target** — Find the target disk, show its size, and refuse to touch the boot disk. Write an MBR partition table with one Squirrel-OS/2 partition.
+  **Acceptance:** a regression check reads the table back from the blank disk.
+- [ ] **I.2-format** — Format SQFS inside that partition (SQFS learns a starting LBA).
+  **Acceptance:** after a reboot, `ls` on the new partition shows an empty root.
+- [ ] **I.3-copy** — Copy the kernel and the sample programs from the boot media onto the target.
+  **Acceptance:** a check compares the copied files with the originals.
+- [ ] **I.4-bootable** — Write the boot sector to the target so the PC boots from it with the stick removed.
+  **Acceptance:** QEMU boots from the target disk alone and reaches the shell prompt.
+- [ ] **I.5-ui** — A text-mode `install` program that walks through I.1–I.4 with a confirm step before anything is written. Localized like the other programs.
+  **Acceptance:** the batch-driven run installs to the blank disk; Esc at the confirm step leaves it blank.
+- [ ] **I.6-cd** — Optional: a bootable CD image (El Torito floppy emulation around `floppy.img`) made by `tools/build.sh`.
+  **Acceptance:** QEMU boots the `.iso` to the shell.
+
 ## Do not schedule
 
 Kept here so they are not added as tasks by accident. Reasons are in `ROADMAP.md`.
