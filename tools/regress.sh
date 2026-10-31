@@ -228,9 +228,24 @@ check_all install-list 'disk 0: 129 sectors (0 MiB)  boot disk, not touched|disk
                     install '<ret>'
 check install-esc   'Nothing was written.'  'install part' '<ret>' '<esc>'
 mbr   install-esc-blank 'blank'
+check install-fmt-nopart 'Type install part first.'  'install format' '<ret>'
 check install-part  'Partition 1: type 7F, start 2048, 30720 sectors (15 MiB)'  'install part' '<ret>' y
 mbr   install-mbr   '7F 2048 30720'
 check install-again 'has a Squirrel-OS/2 partition'  install '<ret>'
+# installer I.2: SQFS with an empty root inside partition 1
+part() {    # part NAME 'blank' | 'SQFS[LISTING]': partition 1's first sector and its sqfs.py listing, on the host
+    dd if="$target" of="$out/part.img" bs=512 skip=2048 2>/dev/null
+    if [ -z "$(head -c 512 "$out/part.img" | tr -d '\0')" ]; then got=blank
+    else got="$(head -c 4 "$out/part.img")[$(python3 "$root/tools/sqfs.py" "$out/part.img" ls 2>&1 || true)]"; fi
+    if [ "$got" = "$2" ]; then echo "ok   $1"; else echo "FAIL $1 (expected: $2, got: $got)"; fail=1; fi
+}
+check install-ls-nofs 'Partition 1 has no SQFS.'  'install ls' '<ret>'
+check install-fmt-esc 'Nothing was written.'  'install format' '<ret>' '<esc>'
+part  install-fmt-esc-blank 'blank'
+check install-format 'Formatted SQFS with an empty root.'  'install format' '<ret>' y
+part  install-sqfs  'SQFS[]'
+check install-ls    '0 entries in the root of partition 1.'  'install ls' '<ret>'   # a new boot: it is on the disk
+check_all install-back 'help|memo1'        'install ls' '<ret>' ls '<ret>'   # the data disk is the file system again
 target=
 check install-none  'No target disk.'       'install part' '<ret>'
 # 1.3.0: graphics mode, one pixel written and read back, then text mode again

@@ -355,13 +355,19 @@ run_simple:
     mov edi, cmd_disk
     call streq
     je .disk
-    ; install, install part (installer step I.1)
+    ; install, install part / format / ls (installer I.1, I.2)
     mov edi, cmd_install
     call streq
     je .install
     mov edi, cmd_install_part
     call streq
     je .install_part
+    mov edi, cmd_install_format
+    call streq
+    je .install_format
+    mov edi, cmd_install_ls
+    call streq
+    je .install_ls
     ; blktest
     mov edi, cmd_blktest
     call streq
@@ -570,6 +576,12 @@ run_simple:
     jmp .empty
 .install_part:
     call cmd_install_part_run
+    jmp .empty
+.install_format:
+    call cmd_install_format_run
+    jmp .empty
+.install_ls:
+    call cmd_install_ls_run
     jmp .empty
 .blktest:
     call cmd_blktest_run
@@ -1189,8 +1201,8 @@ puthex:
 %include "msg.asm"
 %include "gfx.asm"
 %include "ata.asm"
-%include "install.asm"
 %include "fs.asm"
+%include "install.asm"
 %include "shell.asm"
 %include "lineedit.asm"
 %include "batch.asm"

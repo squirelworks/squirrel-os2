@@ -8,6 +8,8 @@
 ; See documentation/kernel/filesystem.md for the format.
 
 FS_DEV        equ dev_hd1     ; the data disk (0.7.2: through the device table)
+; fs_dev is the device the file system uses: FS_DEV, except while the
+; installer (install.asm) points it at the target partition (I.2).
 FS_MAGIC      equ 0x53465153    ; 'SQFS'
 FS_VERSION    equ 1
 FS_DIR_LBA    equ 1
@@ -58,9 +60,10 @@ FS_DIR        equ KSCRATCH+0x1000   ; 2 KB directory cache (write-through)
 fs_mount_boot:
     pushad
     mov byte [fs_mounted], 0
-    cmp dword [FS_DEV+DEV_SIZE], FS_DATA_LBA+2
+    mov ebx, [fs_dev]
+    cmp dword [ebx+DEV_SIZE], FS_DATA_LBA+2
     jb .out                     ; no (usable) data disk
-    mov ebx, FS_DEV
+    mov ebx, [fs_dev]
     xor ecx, ecx
     mov edi, FS_SB
     call dev_bread
@@ -92,7 +95,7 @@ fs_mount_boot:
 ; Superblock in FS_SB -> loads the directory and marks mounted. CF on error.
 fs_load:
     pushad
-    mov ebx, FS_DEV
+    mov ebx, [fs_dev]
     mov ecx, FS_DIR_LBA
     mov edi, FS_DIR
 .r:
@@ -116,6 +119,16 @@ fs_load:
 ; Writes a fresh superblock and empty directory, then seeds the built-in
 ; files. CF on error.
 fs_format:
+    call fs_format_empty
+    jc .r
+    pushad
+    call fs_seed
+    popad
+.r:
+    ret
+
+; The same without the built-in files: an empty root (installer I.2).
+fs_format_empty:
     pushad
     mov byte [fs_mounted], 0
     mov edi, FS_SB
@@ -124,7 +137,8 @@ fs_format:
     rep stosd
     mov dword [FS_SB+SB_MAGIC], FS_MAGIC
     mov dword [FS_SB+SB_VERSION], FS_VERSION
-    mov eax, [FS_DEV+DEV_SIZE]
+    mov eax, [fs_dev]
+    mov eax, [eax+DEV_SIZE]
     dec eax                     ; last sector is kept for blktest
     mov [FS_SB+SB_TOTAL], eax
     mov dword [FS_SB+SB_DIRLBA], FS_DIR_LBA
@@ -138,7 +152,7 @@ fs_format:
     mov [fs_total], eax
     call fs_flush_dir
     jc .fail
-    mov ebx, FS_DEV
+    mov ebx, [fs_dev]
     xor ecx, ecx
     mov esi, FS_SB
     call dev_bwrite
@@ -150,7 +164,6 @@ fs_format:
     mov ecx, FS_MAXFD*4
     xor eax, eax
     rep stosd
-    call fs_seed
     popad
     clc
     ret
@@ -190,7 +203,7 @@ fs_seed:
 
 fs_flush_dir:
     pushad
-    mov ebx, FS_DEV
+    mov ebx, [fs_dev]
     mov ecx, FS_DIR_LBA
     mov esi, FS_DIR
 .w:
@@ -541,7 +554,7 @@ fs_ensure_cap:
     jae .moved
     push ecx
     push edi
-    mov ebx, FS_DEV
+    mov ebx, [fs_dev]
     mov ecx, [edi+DE_START]
     add ecx, esi
     mov edi, FS_SEC
@@ -551,7 +564,7 @@ fs_ensure_cap:
     jc .fail
     push ecx
     push esi
-    mov ebx, FS_DEV
+    mov ebx, [fs_dev]
     lea ecx, [ebp+esi]
     mov esi, FS_SEC
     call dev_bwrite
@@ -909,7 +922,7 @@ fs_read:
     mov eax, [edx+FD_POS]
     push ecx
     push edx
-    mov ebx, FS_DEV
+    mov ebx, [fs_dev]
     mov ecx, eax
     shr ecx, 9
     add ecx, [esi+DE_START]
@@ -982,7 +995,7 @@ fs_write:
     mov eax, [edx+FD_POS]
     push ecx
     push edx
-    mov ebx, FS_DEV
+    mov ebx, [fs_dev]
     mov ecx, eax
     shr ecx, 9
     add ecx, [esi+DE_START]
@@ -1011,7 +1024,7 @@ fs_write:
     push ebx
     push ecx
     push esi
-    mov ebx, FS_DEV
+    mov ebx, [fs_dev]
     mov ecx, [fs_xfer_lba]
     mov esi, FS_SEC
     call dev_bwrite
@@ -1485,6 +1498,7 @@ fs_cwd db 0                     ; current directory id, 0 = root (0.8.0)
 fs_lk_dir db 0
 align 4
 fs_base dd 0
+fs_dev dd FS_DEV
 fs_pathbuf times FS_PATHMAX db 0
 fs_newname times FS_NAMELEN db 0
 fs_m_dir db '<dir>', 0

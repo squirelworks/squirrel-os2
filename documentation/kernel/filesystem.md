@@ -4,6 +4,14 @@ Location: `../../kernel/fs.asm` (included from `kernel/pm.asm`)
 
 SQFS lives on the **data disk** (ATA drive 1, primary slave). The boot disk is never written.
 
+Since installer step I.2 the file system reaches its disk through `fs_dev` instead of the fixed
+`FS_DEV`. It is the data disk at all times, except while `install format` or `install ls` runs:
+then it points at partition 1 of the installer's target (`dev_inst` in `kernel/install.asm`,
+a block device whose sector 0 is the partition's first sector), and the data disk is loaded
+again afterwards. Sector numbers inside SQFS stay relative to the start of its device, so a
+partition holds the same layout as a whole data disk. `fs_format_empty` formats without
+seeding the built-in files.
+
 ## Disk layout
 
 | LBA | Contents |

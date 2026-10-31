@@ -228,8 +228,8 @@ The author lifted the old gate ("not before the 1.5 and 1.6 boxes above are clos
 
 - [x] **I.1-target** — Find the target disk, show its size, and refuse to touch the boot disk. Write an MBR partition table with one Squirrel-OS/2 partition.
   **Acceptance:** a regression check reads the table back from the blank disk. Shell commands `install` and `install part` (`kernel/install.asm`); checks `install-list`, `install-esc`, `install-esc-blank`, `install-part`, `install-mbr`, `install-again`, `install-none`.
-- [ ] **I.2-format** — Format SQFS inside that partition (SQFS learns a starting LBA).
-  **Acceptance:** after a reboot, `ls` on the new partition shows an empty root.
+- [x] **I.2-format** — Format SQFS inside that partition (SQFS learns a starting LBA).
+  **Acceptance:** after a reboot, `ls` on the new partition shows an empty root. Shell commands `install format` and `install ls`; the file system reaches its disk through `fs_dev`. Checks `install-fmt-nopart`, `install-ls-nofs`, `install-fmt-esc`, `install-fmt-esc-blank`, `install-format`, `install-sqfs`, `install-ls`, `install-back`.
 - [ ] **I.3-copy** — Copy the kernel and the sample programs from the boot media onto the target.
   **Acceptance:** a check compares the copied files with the originals.
 - [ ] **I.4-bootable** — Write the boot sector to the target so the PC boots from it with the stick removed.
