@@ -72,6 +72,8 @@ This avoids retargeting chains and confirmation steps.
 | 0.8.0   | 2026-10-30 | SQFS directories                     |
 | 0.8.1   | 2026-10-30 | Localization runtime                 |
 | 0.8.2   | 2026-10-30 | Crash reports and shell restart      |
+| 0.9.0   | 2026-10-31 | Browser launches the 1.0 apps        |
+| 0.9.1   | 2026-10-31 | Files persist across reboots         |
 
 ## Next planned release
 

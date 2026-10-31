@@ -115,8 +115,8 @@ This is a natural end-of-day point. Next session can resume at either:
 - **0.8.2** — Better exception / crash reporting (done — names, registers, page-fault decoding, stack, process names; any non-shell process is ended; the shell can be restarted)
 
 ### 0.9.x — Integration
-- **0.9.0** — File browser launches the applications (calc, edit, vedit, draw)
-- **0.9.1** — Files persist across reboot
+- **0.9.0** — File browser launches the applications (calc, edit, vedit, draw) (done — verified; regression checks `fb-run-*`)
+- **0.9.1** — Files persist across reboot (done — verified; regression checks `persist-*`, `fs-persist`, `hist-reboot`)
 - **0.9.2** — Stability and polish pass
 
 ### 1.0.0 — Functional OS
