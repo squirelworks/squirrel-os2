@@ -272,6 +272,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - Kernel objects: classes (name, parent, method table of selector names) and objects in a table of 32; `obj_send` runs the first method for the selector in the object's class or its parents, with the object as self, and returns CF set for an unknown selector (`kernel/objects.md`; `objtest`, `objtest-text`). Up to 32 classes and 32 objects.
 
+## 1.7.1
+
+- Instance fields: a class names its own fields, laid out after its parent's; an object holds up to 7 dword fields. `obj_field` finds an index by name, `obj_get` / `obj_set` work by index and refuse one the class does not have (`kernel/objects.md`; `objfields`).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.

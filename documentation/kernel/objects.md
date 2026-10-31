@@ -4,21 +4,35 @@ Since 1.7.0 the kernel has a small object model: classes with a parent and a met
 
 ## Classes
 
-A class is a 12-byte record in kernel data:
+A class is a 16-byte record in kernel data:
 
 | Offset | Field | Meaning |
 |--------|-------|---------|
 | 0 | `CLS_NAME` | ASCIIZ class name |
 | 4 | `CLS_PARENT` | the parent class, or 0 |
 | 8 | `CLS_METHODS` | the method table |
+| 12 | `CLS_FIELDS` | this class's own field names: a list of pointers to ASCIIZ names ending with 0, or 0 for none (1.7.1) |
 
 The method table is a list of (selector, handler) dword pairs that ends with a selector of 0. A selector is an ASCIIZ name such as `area`. A subclass lists only the methods it adds or overrides.
 
-`obj_class` records a class in the class table (32 entries) so later tools can list it (`1.7-objs` in `../../TODO.md`). Recording the same class again does nothing.
+`obj_class` records a class in the class table (32 entries) so later tools can list it (`1.7-objs` in `../../TODO.md`). Recording the same class again does nothing. It refuses (eax = 0) a class whose fields, its parents' included, do not fit in an object.
 
 ## Objects
 
-An object is a 32-byte slot in a table of 32. Its first dword (`OBJ_CLASS`) points at its class; a free slot has 0 there. `obj_new` takes the first free slot and clears it. Fields in the other 28 bytes come with `1.7-fields`, and freeing with `obj_free` with `1.7-objs`.
+An object is a 32-byte slot in a table of 32. Its first dword (`OBJ_CLASS`) points at its class; a free slot has 0 there. `obj_new` takes the first free slot and clears it. The other 28 bytes hold up to 7 dword fields (below). Freeing comes with `obj_free` in `1.7-objs`.
+
+## Fields (1.7.1)
+
+A class names only its own fields. Its fields come after all of its parent's, so field *n* of a class is field *n* of every subclass too, and a parent's method that works on its fields works on a subclass's object unchanged. Field *i* of an object is the dword at offset 4 + 4*i*.
+
+`obj_field` finds a name in the object's class, then its parents, and returns the index: the number of fields the class's parents have, plus the name's position in the class's own list. `obj_get` and `obj_set` take the index and return CF set if the object's class does not have that many fields. `obj_nfields` gives the count for a class.
+
+| Routine | In | Out |
+|---------|----|-----|
+| `obj_nfields` | eax = class | eax = number of fields, the parents' included |
+| `obj_field` | eax = object, esi = field name | eax = index, CF clear; or eax = −1, CF set |
+| `obj_get` | eax = object, ebx = index | eax = value, CF clear; or eax = −1, CF set |
+| `obj_set` | eax = object, ebx = index, ecx = value | CF set if no such field |
 
 ## Sending a message
 
@@ -39,4 +53,12 @@ An object is a 32-byte slot in a table of 32. Its first dword (`OBJ_CLASS`) poin
 - `describe` sent to the square gives 109: Shape's method runs and its `area` message reaches Square's override.
 - `colour`, which no class has, returns with CF set.
 
-It then gives both slots back and prints `obj: PASS`, or `obj: FAIL` (checks `objtest`, `objtest-text`). With Square's `area` taken out of its table, it prints FAIL.
+It prints `obj: PASS`, or `obj: FAIL` (checks `objtest`, `objtest-text`). With Square's `area` taken out of its table, it prints FAIL.
+
+Since 1.7.1 `Shape` has a field `size` and a method `resize` (ebx), which finds `size` by name and sets it; `Square` adds a field `colour` and a method `perimeter`, which reads field 0 and returns 4 times it. `objtest` then checks:
+
+- `resize` 5 sent to the square, then `perimeter`, gives 20: set through the parent's method, read through the subclass's.
+- `colour` is field 1 of the square; a shape has no `colour`, and setting its field 1 fails.
+- The shape's own `size` is still 0.
+
+It gives both slots back and prints `obj fields: PASS`, or FAIL (check `objfields`). With `perimeter` returning twice the size instead, it prints FAIL.
