@@ -96,6 +96,7 @@ This avoids retargeting chains and confirmation steps.
 | 1.2.0   | 2026-10-31 | Message queues between processes     |
 | 1.2.1   | 2026-10-31 | Key events in the message queue      |
 | 1.3.0   | 2026-10-31 | Graphics mode and a pixel            |
+| 1.3.1   | 2026-10-31 | Lines and filled rectangles          |
 
 ## Next planned release
 

@@ -134,7 +134,7 @@ Each command returns to text mode before it prints `PASS`, so the existing scree
 - [x] **1.3-pixel** — Enter a graphics mode, write a pixel, read it back, restore text mode.
   **Acceptance:** a `gfxtest` command prints `gfxtest: PASS` only if the byte read from the framebuffer is the byte written. A regression check expects that, then a later `systest` still passes (text mode is back).
 
-- [ ] **1.3-line-fill** — Line and filled rectangle.
+- [x] **1.3-line-fill** — Line and filled rectangle.
   Start after **1.3-pixel** is on `main`.
   **Acceptance:** the self-check reads back a pixel on the line and a pixel inside the rectangle, misses a pixel outside it, and prints `gfxprim: PASS`. A regression check expects that.
 

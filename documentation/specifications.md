@@ -208,6 +208,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - The kernel can switch to 320 × 200 × 256 graphics (VGA mode 13h) and back to text mode, and write and read a pixel (`kernel/graphics.md`; `gfxtest`, `gfx-text`). Lines, rectangles, text and `graph` follow in later 1.3 tasks.
 
+## 1.3.1
+
+- Lines (Bresenham) and filled rectangles in graphics mode (`kernel/graphics.md`; `gfxprim`, `gfxprim-text`). Drawing above row 103 can still change the text screen and the font.
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.
