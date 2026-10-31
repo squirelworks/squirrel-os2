@@ -65,7 +65,7 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 **Processes and system calls** (`kernel/processes.md`, `kernel/syscalls.md`)
 
 - Up to 8 process slots, scheduled cooperatively and round-robin. A process runs until it yields, waits or exits. `ps` lists them (`proctest`).
-- 27 system calls through `int 0x80` (`systest`).
+- 25 system calls (0–24) through `int 0x80` (`systest`).
 - A fault in a program prints a crash report (exception name, registers, decoded page fault, stack, process name) and ends only that program. The shell can be restarted after its own fault (`kernel/crash-reports.md`).
 
 **Devices** (`kernel/drivers.md`, `kernel/block-device.md`)
