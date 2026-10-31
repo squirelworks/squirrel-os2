@@ -438,7 +438,7 @@ wg_draw:
 LT_X equ 60
 LT_Y equ 40
 LT_LX equ 4                     ; the label, in the client area
-LT_LY equ 4
+LT_LY equ 5                     ; level with the text inside a box at y = 2
 LT_PX equ LT_X + 1 + LT_LX      ; its first glyph's top left on the screen
 LT_PY equ LT_Y + 1 + WM_TITLE_H + LT_LY
 
@@ -628,7 +628,8 @@ bt_other dd 0
 ; widgets until Enter or Esc (which the field does not use). Then a pixel
 ; of the field's box is read back and the field's text is printed:
 ; field: PASS "text".
-FT_FX equ 40                    ; the field, in the client area
+FT_FX equ 44                    ; the field, in the client area, 10 pixels
+                                ; right of the 5-character label
 FT_FY equ 2
 FT_MAX equ 16
 
@@ -702,7 +703,8 @@ cmd_fieldtest_run:
 ; widgets until Enter or Esc; Down and Up move the selection. Then a pixel
 ; of the selected row under its text is read back (black: the bar) and the selected
 ; name is printed: list: <name>.
-LS_X equ 40                     ; the list, in the client area
+LS_X equ 44                     ; the list, in the client area, 10 pixels
+                                ; right of the 5-character label
 LS_Y equ 2
 
 cmd_listtest_run:
