@@ -83,6 +83,10 @@ gdt:
     dq 0
     dw 0xFFFF,0,0x9A00,0x00CF
     dw 0xFFFF,0,0x9200,0x00CF
+gdt_tss_main:                   ; 0x18: the TSS of everything that normally runs
+    dw TSS_SIZE-1,0,0x8900,0    ; (base filled in by tss_init, KB-17)
+gdt_tss_df:                     ; 0x20: the double-fault task
+    dw TSS_SIZE-1,0,0x8900,0
 gdt_desc:
     dw $-gdt-1
     dd gdt
@@ -127,6 +131,7 @@ pm:
     call proc_init
     call mm_init
     call vm_init
+    call tss_init               ; double faults get their own stack (KB-17)
     call ata_init
     call dev_init
 
@@ -339,6 +344,13 @@ run_simple:
     jne .notrap
     ud2
 .notrap:
+    ; overflow (diagnostic: the shell runs off its own stack, KB-17)
+    mov edi, cmd_overflow
+    call streq
+    jne .nooverflow
+.recurse:
+    call .recurse
+.nooverflow:
     ; disk
     mov edi, cmd_disk
     call streq
@@ -843,6 +855,7 @@ cmd_run db 'run ', 0
 cmd_systest db 'systest', 0
 cmd_keys db 'keys', 0
 cmd_trap db 'trap', 0
+cmd_overflow db 'overflow', 0
 
 ; argument for the next app started with run (e.g. run edit notes)
 run_arg times 64 db 0           ; FS_PATHMAX

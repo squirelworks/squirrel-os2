@@ -232,6 +232,172 @@ vm_reload_kernel:
     pop eax
     ret
 
+; ---------- double faults and stack overflows (KB-17) ----------
+; A kernel-mode fault is delivered on the stack that faulted. When a stack
+; runs into its guard page (proc.asm), the push of the page-fault frame
+; faults again: a double fault. Vector 8 is therefore a task gate. The CPU
+; switches to the double-fault task, which has a stack of its own and
+; saves everything that was running in tss_main. df_task reports it,
+; points the saved state at df_kill (or the shell's restart prompt) on a
+; fresh stack, and returns there with iretd, the way back from a task.
+
+TSS_SIZE    equ 104
+TSS_CR3     equ 28
+TSS_EIP     equ 32
+TSS_EFLAGS  equ 36
+TSS_ESP     equ 56
+TSS_ES      equ 72
+TSS_CS      equ 76
+TSS_SS      equ 80
+TSS_DS      equ 84
+TSS_FS      equ 88
+TSS_GS      equ 92
+TSS_IOMAP   equ 102
+SEL_TSS_MAIN equ 0x18
+SEL_TSS_DF  equ 0x20
+DF_STACK    equ PROC_STACK_BASE     ; 4 KB below the first guard page
+
+; edi = GDT entry, eax = base: sets a descriptor's base address
+tss_base:
+    mov [edi+2], ax
+    shr eax, 16
+    mov [edi+4], al
+    mov [edi+7], ah
+    ret
+
+; After vm_init: both TSS descriptors, the double-fault task's state,
+; the task gate for vector 8, and TR.
+tss_init:
+    pushad
+    mov edi, gdt_tss_main
+    mov eax, tss_main
+    call tss_base
+    mov edi, gdt_tss_df
+    mov eax, tss_df
+    call tss_base
+    mov word [tss_main+TSS_IOMAP], TSS_SIZE
+    mov edi, tss_df
+    mov word [edi+TSS_IOMAP], TSS_SIZE
+    mov eax, [kernel_pd]
+    mov [edi+TSS_CR3], eax
+    mov dword [edi+TSS_EIP], df_task
+    mov dword [edi+TSS_EFLAGS], 0x2     ; interrupts off
+    mov dword [edi+TSS_ESP], DF_STACK
+    mov dword [edi+TSS_CS], 0x08
+    mov eax, 0x10
+    mov [edi+TSS_ES], eax
+    mov [edi+TSS_SS], eax
+    mov [edi+TSS_DS], eax
+    mov [edi+TSS_FS], eax
+    mov [edi+TSS_GS], eax
+    mov edi, idt+8*8                    ; vector 8: task gate
+    mov dword [edi], SEL_TSS_DF << 16
+    mov dword [edi+4], 0x8500
+    mov ax, SEL_TSS_MAIN
+    ltr ax
+    popad
+    ret
+
+; The double-fault task. Each entry runs from here; iretd leaves it, and
+; the next double fault resumes after the iretd.
+df_task:
+    add esp, 4                  ; the error code (always 0)
+    call df_report
+    iretd
+    jmp df_task
+
+; Reports the double fault and decides where the interrupted task goes.
+df_report:
+    mov eax, [kernel_pd]
+    mov cr3, eax
+    mov eax, cr2
+    mov [exc_err], eax
+    ; a fault address in a guard page means a stack ran out
+    sub eax, PROC_STACK_BASE
+    cmp eax, PROC_GUARDS*PROC_STACK_SIZE
+    jae .df
+    xor edx, edx
+    mov ecx, PROC_STACK_SIZE
+    div ecx
+    cmp edx, PAGE_SIZE
+    jae .df
+    mov esi, df_m_overflow
+    jmp .head
+.df:
+    mov esi, df_m_double
+.head:
+    call puts
+    call exc_who
+    mov esi, exc_m_eip
+    call puts
+    mov eax, [tss_main+TSS_EIP]
+    call puthex
+    mov esi, df_m_esp
+    call puts
+    mov eax, [tss_main+TSS_ESP]
+    call puthex
+    mov esi, exc_m_addr
+    call puts
+    mov eax, [exc_err]
+    call puthex
+    mov al, 10
+    call putc
+    ; where the interrupted task goes now. CR3 is not saved on a task
+    ; switch, only loaded, so give the way back the kernel's directory
+    ; (every stack is mapped there).
+    mov eax, [kernel_pd]
+    mov [tss_main+TSS_CR3], eax
+    mov dword [tss_main+TSS_EFLAGS], 0x2
+    cmp byte [shell_up], 0
+    je .halt
+    mov esi, [proc_cur]
+    cmp dword [esi+PCB_PID], 0
+    je .shell
+    sub esi, proc_table         ; the dying process's own stack, from its top
+    shr esi, 6
+    imul esi, PROC_STACK_SIZE
+    add esi, PROC_STACK_BASE
+    mov [tss_main+TSS_ESP], esi
+    mov dword [tss_main+TSS_EIP], df_kill
+    ret
+.shell:
+    mov dword [tss_main+TSS_ESP], SHELL_STACK
+    mov dword [tss_main+TSS_EIP], df_shell
+    ret
+.halt:
+    mov dword [tss_main+TSS_ESP], SHELL_STACK
+    mov dword [tss_main+TSS_EIP], exc_report.halt
+    ret
+
+; Back in the normal task, on a fresh stack. A task switch sets CR0.TS,
+; so clear it before anything touches the FPU.
+df_kill:
+    clts
+    mov esi, exc_m_killed
+    call puts
+    mov esi, [proc_cur]
+    mov eax, [esi+PCB_PID]
+    call itoa
+    mov esi, num_buf
+    call puts
+    mov al, 10
+    call putc
+    mov ebx, -1
+    jmp proc_exit
+
+df_shell:
+    clts
+    call vm_reload_kernel
+    jmp exc_shell
+
+df_m_overflow db '*** stack overflow', 0
+df_m_double db '*** CPU exception 8 (double fault)', 0
+df_m_esp db ' ESP=', 0
+
+align 4
+tss_main times TSS_SIZE db 0
+tss_df times TSS_SIZE db 0
+
 ; #DF #TS #NP #SS #GP #PF #AC push an error code
 EXC_ERRCODE_MASK equ (1<<8)|(1<<10)|(1<<11)|(1<<12)|(1<<13)|(1<<14)|(1<<17)
 

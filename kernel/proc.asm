@@ -9,8 +9,13 @@
 ; stack and start in proc_trampoline. See documentation/kernel/processes.md.
 
 PROC_MAX        equ 8
-PROC_STACK_BASE equ 0x70000     ; slot i stack top = base + i * size
-PROC_STACK_SIZE equ 0x2000
+; Each slot is 12 KB: an unmapped guard page, then an 8 KB stack (KB-17).
+; Slot i's stack top is base + i * size, so the guard pages sit at
+; base + k * size for k = 0..7; the eighth (k = 7) guards the shell's
+; boot stack, which runs from SHELL_STACK down to it.
+PROC_STACK_BASE equ 0x7C000     ; slot i stack top = base + i * size
+PROC_STACK_SIZE equ 0x3000
+PROC_GUARDS     equ PROC_MAX    ; guard pages, one under every stack
 SLICE_TICKS     equ 5           ; 50 ms at 100 Hz (1.1)
 
 ; states
@@ -92,7 +97,7 @@ proc_spawn:
     mov ebx, [ebx+PCB_PID]
     mov [edi+PCB_PARENT], ebx
     ; initial stack: popad frame (zeros), eflags (IF set), return address
-    shl edx, 13               ; * PROC_STACK_SIZE
+    imul edx, PROC_STACK_SIZE
     add edx, PROC_STACK_BASE
     sub edx, 4
     mov dword [edx], proc_trampoline

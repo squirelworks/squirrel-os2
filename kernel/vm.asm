@@ -45,6 +45,16 @@ vm_init:
     stosd
     add eax, PAGE_SIZE
     loop .pt
+    ; stack guard pages (KB-17): not present, so running off the bottom
+    ; of a stack faults instead of writing the memory below it. Program
+    ; address spaces copy this table, so they have the holes too.
+    mov edi, [kernel_pt]
+    add edi, (PROC_STACK_BASE >> 12) * 4
+    mov ecx, PROC_GUARDS
+.guard:
+    mov dword [edi], 0
+    add edi, (PROC_STACK_SIZE >> 12) * 4
+    loop .guard
     call pg_alloc
     test eax, eax
     jz .nomem
