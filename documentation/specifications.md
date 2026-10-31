@@ -304,6 +304,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - `obj_save` and `obj_load` write an object to a file and read it back; text fields (marked in the class's `CLS_TEXT`) are saved as text, up to 31 characters, in files of up to 256 bytes; a file whose class is not recorded is refused (`kernel/objects.md`; `objstore`).
 
+## 1.8.1
+
+- Installer step I.6: `tools/build.sh` writes `build/cd.iso`, an El Torito floppy-emulation CD around `floppy.img`. Booting from it works; installing from it needs an ATAPI driver (2.x).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.
