@@ -31,7 +31,8 @@ SYS_SBRK    equ 21          ; ebx = bytes (signed)   -> old break or -1
 SYS_DEVFIND equ 22          ; ebx = name             -> handle or -1
 SYS_DEVREAD equ 23          ; ebx = handle, ecx = buf, edx = count/sector -> bytes or -1
 SYS_DEVWRITE equ 24         ; as SYS_DEVREAD
-SYS_COUNT   equ 25
+SYS_SEEK    equ 25          ; ebx = fd, ecx = offset, edx = 0 set / 1 cur / 2 end -> position or -1 (1.0.2)
+SYS_COUNT   equ 26
 
 SYS_ENOSYS  equ -1
 SYSCALL_VEC equ 0x80
@@ -83,6 +84,7 @@ syscall_table:
     dd sys_devfind
     dd sys_devread
     dd sys_devwrite
+    dd fs_seek
 
 ; ---------- handlers: args in ebx/ecx/edx, result in eax ----------
 sys_putc:

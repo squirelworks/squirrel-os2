@@ -57,7 +57,7 @@ Do these first. The release task is last, and only after the others are on `main
 
 Each item is its own patch release after 1.0.0 (its own release note). Independent of each other. Stay below the 1.0.0 section: do not start these while a 1.0.0 box is open. They may proceed before 1.1, and 1.1 does not start until **1.0-fpu** is on `main`.
 
-- [ ] **1.0-seek** — Add a seek operation on an open file.
+- [x] **1.0-seek** — Add a seek operation on an open file.
   `documentation/kernel/filesystem.md` lists "no seek" as a limit. Reads and writes stay sequential apart from this call.
   **Acceptance:** a program writes `abcd`, seeks to the second byte, reads `bcd`, and prints `seek: PASS`. A `tools/regress.sh` check expects that string. The filesystem note describes the call and drops the "no seek" limit.
 
