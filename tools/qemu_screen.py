@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Boot the Squirrel-OS/2 image in headless QEMU, type keys, print the screen.
 
-Usage: qemu_screen.py [--disk DATA_IMAGE] [--target DISK] [--floppy] IMAGE [KEYS...]
+Usage: qemu_screen.py [--disk DATA_IMAGE] [--target DISK] [--floppy|--cdrom] IMAGE [KEYS...]
 Each KEYS argument is typed as text; a token like "<ret>", "<esc>",
 "<backspace>" or "<up>" is sent as that single QEMU key name, and
 "<pause>" waits a second before the next key, and "<gfx>" reads the text
@@ -12,6 +12,7 @@ after the text screen.
 --target attaches DISK as the secondary master (the installer's target;
 always a scratch image, never a real disk).
 --floppy boots IMAGE from the floppy drive instead of the first hard disk.
+--cdrom boots IMAGE as a CD in the secondary master position (installer I.6).
 QEMU_EXTRA in the environment adds QEMU options (e.g. QEMU_EXTRA='-cpu 486,-pse'). The 80x25 VGA text buffer is printed at the end.
 """
 import os, socket, subprocess, sys, tempfile, time
@@ -101,6 +102,10 @@ def main():
     if args[:1] == ['--floppy']:            # boot IMAGE as a floppy (0.9.3)
         boot = ['-boot', 'a']
         args = args[1:]
+    cdrom = args[:1] == ['--cdrom']         # boot IMAGE as a CD (I.6)
+    if cdrom:
+        boot = ['-boot', 'd']
+        args = args[1:]
     image, keys = args[0], args[1:]
     extra = os.environ.get('QEMU_EXTRA', '').split()   # e.g. "-cpu 486,-pse"
     tmp = tempfile.mkdtemp()
@@ -108,7 +113,8 @@ def main():
     dump = os.path.join(tmp, 'vga.bin')
     gfx = []                            # text read from graphics mode
     qemu = subprocess.Popen(['qemu-system-i386', '-display', 'none',
-                             '-drive', (f'format=raw,file={image},if=floppy' if boot
+                             '-drive', (f'format=raw,file={image},index=2,media=cdrom' if cdrom
+                                        else f'format=raw,file={image},if=floppy' if boot
                                         else f'format=raw,file={image},index=0,media=disk'),
                              *boot, *drives, *extra,
                              '-monitor', f'unix:{path},server,nowait'])
