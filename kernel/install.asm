@@ -1,5 +1,6 @@
-; Squirrel-OS/2 — installer steps I.1 and I.2: the target disk, its
-; partition table and its file system
+; Squirrel-OS/2 — installer steps I.1 to I.4: the target disk, its
+; partition table, its file system, the system copied onto it, and the
+; boot code
 ; Included from pm.asm. Original code.
 ;
 ;   install         list the disks and pick the target
@@ -8,6 +9,8 @@
 ;   install format  format SQFS with an empty root in that partition,
 ;                   after a y/n question (I.2)
 ;   install ls      list the root of that file system (I.2)
+;   install copy    copy the kernel and the data disk's root files (I.3)
+;   install boot    write the boot code and mark the partition active (I.4)
 ;
 ; The target is the first disk that is present, is not the data disk
 ; (drive 1, which the file system mounts) and is not the disk the kernel
@@ -20,6 +23,7 @@
 INS_PART_LBA  equ 2048          ; the partition starts at 1 MiB
 INS_MIN       equ INS_PART_LBA+2048 ; smallest target: 2 MiB
 INS_PTYPE     equ 0x7F          ; MBR type for alternative-OS development
+INS_DPSTART   equ DEV_DESC-4    ; dev_inst/dev_sys: the partition's first sector
 INS_SIG       equ 440           ; disk signature in sector 0
 INS_ENTRY     equ 446           ; first partition entry in sector 0
 INS_HEADS     equ 255           ; CHS geometry for the table's CHS fields
@@ -239,17 +243,8 @@ cmd_install_copy_run:
     call ins_fs_back
     cmp byte [fs_mounted], 0
     je .nodata
-    ; the boot disk: the drive whose sector 1 is the running kernel
-    xor ebx, ebx
-.b:
-    cmp dword [ata_sectors+ebx*4], INS_KSECTS+1
-    jb .bn
-    call ins_is_boot
+    call ins_find_boot          ; where the kernel is read from
     jnc .bfound
-.bn:
-    inc ebx
-    cmp ebx, ATA_NDRIVES
-    jb .b
     mov esi, ins_msg_noboot
     jmp puts
 .bfound:
@@ -406,6 +401,133 @@ ins_copy_file:
     stc
     ret
 
+; install boot (I.4): the boot code from the boot disk's sector 0 into
+; the target's, keeping its signature and table, and partition 1 active
+cmd_install_boot_run:
+    call ins_target
+    jc ins_say_notarget
+    mov [ins_tgt], ebx
+    call ins_open_part
+    jc ins_say_nopart
+    ; the kernel must be there (I.3): its sector 1 is the running kernel's
+    mov edi, INS_IN
+    mov ecx, 1
+    call ata_read
+    jc .nokernel
+    mov esi, stage2
+    mov edi, INS_IN
+    mov ecx, INS_BOOTCMP
+    repe cmpsb
+    jne .nokernel
+    call ins_find_boot
+    jc .noboot
+    mov [ins_src], ebx
+    mov ebx, [ins_tgt]
+    mov esi, ins_ask_boot
+    call puts
+    mov eax, ebx
+    call itoa
+    mov esi, num_buf
+    call puts
+    mov esi, ins_ask_boot2
+    call ins_ask
+    jc .r
+    mov ebx, [ins_tgt]
+    mov edi, INS_OUT
+    xor ecx, ecx
+    call ata_read
+    jc .fail
+    mov ebx, [ins_src]
+    mov edi, INS_IN
+    call ata_read
+    jc .fail
+    mov esi, INS_IN
+    mov edi, INS_OUT
+    mov ecx, INS_SIG
+    rep movsb
+    mov byte [INS_OUT+INS_ENTRY], 0x80  ; active: the BIOS boots it
+    mov ebx, [ins_tgt]
+    mov esi, INS_OUT
+    xor ecx, ecx
+    call ata_write
+    jc .fail
+    mov edi, INS_IN
+    call ata_read
+    jc .fail
+    mov esi, INS_OUT
+    mov edi, INS_IN
+    mov ecx, SECTOR_SIZE
+    repe cmpsb
+    jne .fail
+    mov esi, ins_msg_booted
+    jmp puts
+.nokernel:
+    mov esi, ins_msg_nokernel
+    jmp puts
+.noboot:
+    mov esi, ins_msg_noboot
+    jmp puts
+.fail:
+    mov esi, ins_msg_bfail
+    jmp puts
+.r:
+    ret
+
+; -> ebx = the boot disk (an IDE disk that holds the running kernel), or CF
+ins_find_boot:
+    xor ebx, ebx
+.b:
+    cmp dword [ata_sectors+ebx*4], INS_KSECTS+1
+    jb .n
+    call ins_is_boot
+    jnc .r
+.n:
+    inc ebx
+    cmp ebx, ATA_NDRIVES
+    jb .b
+    stc
+.r:
+    ret
+
+; At boot, after fs_mount_boot: with no data disk at all, a boot disk with
+; a Squirrel-OS/2 partition holding SQFS (an installed system, I.4) gives
+; the file system, through dev_sys.
+ins_mount_system:
+    pushad
+    cmp byte [fs_mounted], 0
+    jne .r
+    cmp dword [FS_DEV+DEV_SIZE], 0
+    jne .r                      ; a data disk is attached: it decides
+    call ins_find_boot
+    jc .r
+    push ebx
+    call ins_open_part          ; fills dev_inst; copy it to dev_sys
+    pop ebx
+    jc .r
+    mov esi, dev_inst
+    mov edi, dev_sys+DEV_TYPE
+    add esi, DEV_TYPE
+    mov ecx, (DEV_DESC-DEV_TYPE)/4
+    rep movsd
+    mov ebx, dev_sys
+    xor ecx, ecx
+    mov edi, FS_SB
+    call dev_bread
+    jc .r
+    cmp dword [FS_SB+SB_MAGIC], FS_MAGIC
+    jne .r
+    mov dword [fs_dev], dev_sys
+    call fs_load
+    jnc .ok
+    mov dword [fs_dev], FS_DEV
+    jmp .r
+.ok:
+    mov esi, ins_msg_sysfs
+    call puts
+.r:
+    popad
+    ret
+
 ; Points the file system at the target partition and loads it, at its
 ; root. CF (and the data disk again) when the partition has no SQFS.
 ins_mount_target:
@@ -461,7 +583,7 @@ ins_open_part:
     jc .no
     cmp ecx, [ata_sectors+ebx*4]
     ja .no
-    mov [ins_pstart], eax
+    mov [dev_inst+INS_DPSTART], eax
     mov [dev_inst+DEV_SIZE], edx
     mov [dev_inst+DEV_UNIT], ebx
     popad
@@ -483,19 +605,22 @@ ins_fs_target:
     mov edi, ins_was_fds
     mov ecx, FS_MAXFD
     rep movsd
+    mov eax, [fs_dev]
+    mov [ins_was_dev], eax
     mov dword [fs_dev], dev_inst
     mov byte [fs_mounted], 0
     popad
     ret
 
-; Points the file system back at the data disk and loads it again.
+; Points the file system back at the device it had (the data disk, or
+; dev_sys on an installed system) and loads it again.
 ins_fs_back:
     pushad
-    mov dword [fs_dev], FS_DEV
+    mov ebx, [ins_was_dev]
+    mov [fs_dev], ebx
     mov byte [fs_mounted], 0
     cmp byte [ins_was_mounted], 0
     je .r
-    mov ebx, FS_DEV
     xor ecx, ecx
     mov edi, FS_SB
     call dev_bread
@@ -519,7 +644,7 @@ ins_inst_read:
     jae .bad
     push ebx
     push ecx
-    add ecx, [ins_pstart]
+    add ecx, [ebx+INS_DPSTART]
     mov ebx, [ebx+DEV_UNIT]
     call ata_read
     pop ecx
@@ -534,7 +659,7 @@ ins_inst_write:
     jae .bad
     push ebx
     push ecx
-    add ecx, [ins_pstart]
+    add ecx, [ebx+INS_DPSTART]
     mov ebx, [ebx+DEV_UNIT]
     call ata_write
     pop ecx
@@ -749,7 +874,12 @@ align 4
 dev_inst:
     db 'inst', 0, 0, 0, 0
     dd DEV_BLOCK, dev_probe_yes, ins_inst_read, ins_inst_write, 0, DEVF_UP, 0, 0
-ins_pstart dd 0
+; the same for partition 1 of the boot disk, when the system runs from an
+; installed disk (I.4): the file system there, for good
+dev_sys:
+    db 'sys', 0, 0, 0, 0, 0
+    dd DEV_BLOCK, dev_probe_yes, ins_inst_read, ins_inst_write, 0, DEVF_UP, 0, 0
+ins_was_dev dd FS_DEV
 ins_tgt dd 0
 ins_src dd 0
 ins_nfiles dd 0
@@ -766,6 +896,7 @@ cmd_install_part db 'install part', 0
 cmd_install_format db 'install format', 0
 cmd_install_ls db 'install ls', 0
 cmd_install_copy db 'install copy', 0
+cmd_install_boot db 'install boot', 0
 ins_title db 'Installer: the target disk', 10, 0
 ins_mib db ' MiB)  ', 0
 ins_k_boot db 'boot disk, not touched', 10, 0
@@ -775,7 +906,7 @@ ins_k_used db 'not blank', 10, 0
 ins_k_ours db 'has a Squirrel-OS/2 partition', 10, 0
 ins_k_unread db 'cannot be read', 10, 0
 ins_msg_target db 'Target: disk ', 0
-ins_msg_next db '. Steps: install part, install format, install copy.', 10, 0
+ins_msg_next db '. Steps: install part, install format, install copy, install boot.', 10, 0
 ins_msg_notarget db 'No target disk. Attach one as secondary master or slave.', 10, 0
 ins_msg_small db 'The target disk is smaller than 2 MiB.', 10, 0
 ins_ask1 db 'Write a new partition table to disk ', 0
@@ -798,5 +929,11 @@ ins_msg_fok db ' copied', 10, 0
 ins_msg_ffail db ' failed', 10, 0
 ins_msg_fbig db ' skipped: larger than 64 KB', 10, 0
 ins_msg_copied db ' files copied.', 10, 0
+ins_ask_boot db 'Write the boot code to disk ', 0
+ins_ask_boot2 db ' and mark partition 1 active?', 10, 'The PC can then boot from that disk. Write it? (y/n) ', 0
+ins_msg_booted db 'Boot code written and read back; partition 1 is active.', 10, 'The disk now boots on its own.', 10, 0
+ins_msg_nokernel db 'The target has no kernel yet. Type install copy first.', 10, 0
+ins_msg_bfail db 'Writing the boot code failed.', 10, 0
+ins_msg_sysfs db 'File system: partition 1 of the boot disk (an installed system).', 10, 0
 ins_msg_inroot db ' entries in the root of partition 1.', 10, 0
 ins_msg_psize db ', ', 0

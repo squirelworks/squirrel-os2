@@ -10,7 +10,8 @@ then it points at partition 1 of the installer's target (`dev_inst` in `kernel/i
 a block device whose sector 0 is the partition's first sector), and the data disk is loaded
 again afterwards. Sector numbers inside SQFS stay relative to the start of its device, so a
 partition holds the same layout as a whole data disk. `fs_format_empty` formats without
-seeding the built-in files.
+seeding the built-in files. On an installed system with no data disk (I.4), `fs_dev` is `dev_sys`,
+partition 1 of the boot disk, from boot on.
 
 ## Disk layout
 
