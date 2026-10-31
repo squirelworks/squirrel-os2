@@ -100,7 +100,7 @@ This is a natural end-of-day point. Next session can resume at either:
 - **0.5.2** — Batch files run line by line (done — `batch <file>`, `run x.bat`, `#` comments, `@` quiet lines, Esc stops, `autoexec.bat` at boot)
 
 ### 0.6.x — Memory management
-- **0.6.0** — Physical page allocator with free lists
+- **0.6.0** — Physical page allocator with free lists (done — E820 map, free list + bitmap, `mem`/`memtest`, `kernel/memory.md`)
 - **0.6.1** — Per-process address spaces (page directory bookkeeping)
 - **0.6.2** — Stack/heap growth
 

@@ -10,6 +10,31 @@ ORG 0x8000
 KSCRATCH equ 0x20000            ; 64 KB kernel scratch (driver/FS buffers)
 stage2:
     cli
+    ; A20 on (fast gate, port 0x92) so memory above 1 MB is reachable
+    in al, 0x92
+    or al, 2
+    and al, 0xFE
+    out 0x92, al
+    ; BIOS memory map (int 0x15, E820) into E820_BUF for mm_init
+    xor ebx, ebx
+    mov di, E820_BUF
+.e820:
+    mov eax, 0xE820
+    mov edx, 0x534D4150         ; 'SMAP'
+    mov ecx, 24
+    mov dword [di+20], 1
+    int 0x15
+    jc .e820done
+    cmp eax, 0x534D4150
+    jne .e820done
+    add di, 24
+    inc word [e820_count]
+    test ebx, ebx
+    jz .e820done
+    cmp word [e820_count], E820_MAX
+    jb .e820
+.e820done:
+    cli
     lgdt [gdt_desc]
     mov eax, cr0
     or eax, 1
@@ -25,6 +50,7 @@ gdt:
 gdt_desc:
     dw $-gdt-1
     dd gdt
+e820_count dw 0                 ; written in real mode, so also below 32 KB
 
 BITS 32
 pm:
@@ -62,6 +88,7 @@ pm:
     lidt [idt_desc]
     call fpu_init
     call proc_init
+    call mm_init
     call ata_init
 
     ; PIC + PIT
@@ -297,6 +324,12 @@ run_simple:
     mov edi, cmd_ps
     call streq
     je .ps
+    mov edi, cmd_mem
+    call streq
+    je .mem
+    mov edi, cmd_memtest
+    call streq
+    je .memtest
     ; proctest
     mov edi, cmd_proctest
     call streq
@@ -403,6 +436,12 @@ run_simple:
     jmp .empty
 .ps:
     call cmd_ps_run
+    jmp .empty
+.mem:
+    call cmd_mem_run
+    jmp .empty
+.memtest:
+    call cmd_memtest_run
     jmp .empty
 .disk:
     call cmd_disk_run
@@ -683,8 +722,8 @@ default_isr:
 ; ---------- data ----------
 banner db 'Squirrel-OS/2 0.2.3', 10
        db 'Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>', 10
-       db '          mv <f> <new> | format | ps | disk', 10
-       db 'Tests: systest | proctest | blktest | fstest | keys', 10
+       db '          mv <f> <new> | echo | batch <f> | format | ps | disk | mem', 10
+       db 'Tests: systest | proctest | blktest | fstest | memtest | keys', 10
        db 'Apps: files, calc, sci, graph, matrix, diff, topo, edit, vedit, draw', 10, 0
 prompt db '> ', 0
 msg_partial db 'Warning: kernel image only partly loaded', 10, 0
@@ -702,6 +741,8 @@ cmd_trap db 'trap', 0
 run_arg times 16 db 0           ; FS_NAMELEN
 run_rest dd 0                   ; whole argument text, for loaded programs
 cmd_ps db 'ps', 0
+cmd_mem db 'mem', 0
+cmd_memtest db 'memtest', 0
 cmd_format db 'format', 0
 cmd_fstest db 'fstest', 0
 cmd_put db 'put ', 0
@@ -902,6 +943,7 @@ exc_at db ' at EIP 0x', 0
 %include "shell.asm"
 %include "lineedit.asm"
 %include "batch.asm"
+%include "mm.asm"
 %include "browser.asm"
 %include "calc.asm"
 %include "editor.asm"

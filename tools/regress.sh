@@ -71,6 +71,9 @@ check scroll        'systest: PASS'         ls '<ret>' ls '<ret>' ls '<ret>' sys
 check exception     'CPU exception 6'       trap '<ret>'
 check ps            '0        running'      ps '<ret>'
 check proctest      'reaped pid 3 exit code 30'  proctest '<ret>'
+check mem           'KB free'               mem '<ret>'
+check mem-e820      'usable'                mem '<ret>'
+check memtest       'memtest: PASS'         memtest '<ret>' memtest '<ret>'
 check interleave    'worker 3 step 1'       proctest '<ret>'
 check app-process   '= 42'            'run calc' '<ret>' '6 * 7' '<ret>' '<esc>' 'run calc' '<ret>' '6 * 7' '<ret>'
 check slot-reuse    'exit code 30'          'run topo' '<ret>' 'run topo' '<ret>' 'run topo' '<ret>' 'run topo' '<ret>' \
