@@ -7,7 +7,7 @@ out=${TMPDIR:-/tmp}/squirrel-os2-build
 mkdir -p "$out"
 python3 "$root/tools/mkstrings.py" --check || exit 1
 (cd "$root/kernel" && nasm -f bin boot.asm -o "$out/boot.bin" \
-    && nasm -f bin pm.asm -o "$out/pm.bin" 2>/dev/null)
+    && nasm -f bin -DDEFAULT_LANG_EN pm.asm -o "$out/pm.bin" 2>/dev/null)
 cat "$out/boot.bin" "$out/pm.bin" > "$out/os.img"
 dd if=/dev/zero of="$out/floppy.img" bs=1024 count=1440 2>/dev/null
 dd if="$out/os.img" of="$out/floppy.img" conv=notrunc 2>/dev/null
@@ -263,7 +263,8 @@ check dir-cd-bad    'No such directory'     'cd nowhere' '<ret>'
 check dir-rm-empty  '0 file(s)'             'rm d1' '<ret>' 'run ls d1' '<ret>'
 check lang-show     'Language: en (en la tlh)'  lang '<ret>'
 check lang-la       'Tabulae:'              'mkdir la1' '<ret>' 'cd la1' '<ret>' 'lang la' '<ret>' ls '<ret>'   # an empty directory: the root listing no longer fits on one screen
-check lang-tlh      "ra' tlhaQ"             'lang tlh' '<ret>' xyz '<ret>'
+# klingon-font branch: tlh is one glyph, 0x83, which reads as cp437 'â'
+check lang-tlh      "ra' âaQ"               'lang tlh' '<ret>' xyz '<ret>'
 # 1.0.5: usage lines and file-system errors follow lang
 check l10n-usage-la 'Usus: mkdir <dir>'     'lang la' '<ret>' mkdir '<ret>'
 check l10n-hint-la  '(lineam tabulae addit)'  'lang la' '<ret>' put '<ret>'

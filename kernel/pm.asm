@@ -156,8 +156,13 @@ pm:
     mov al, ah
     out 0x40, al
 
-    xor eax, eax                ; English until "lang" says otherwise
-    call lang_select
+    call klingon_font_load
+    xor eax, eax                ; English as the base, then Klingon
+    call lang_select            ; unless built with -DDEFAULT_LANG_EN
+%ifndef DEFAULT_LANG_EN
+    mov esi, klingon_lang
+    call lang_set_code
+%endif
     call cls
     call show_banner
     cmp dword [0x8000+KERNEL_SIZE-4], KERNEL_SIG
@@ -1067,6 +1072,7 @@ puthex:
 %include "dev.asm"
 %include "chardev.asm"
 %include "lang.asm"
+%include "klingon.asm"
 %include "crash.asm"
 %include "browser.asm"
 %include "calc.asm"

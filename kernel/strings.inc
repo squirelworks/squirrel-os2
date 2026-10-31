@@ -209,31 +209,31 @@ ls_tlh_banner db 'Squirrel-OS/2', 0
 ls_tlh_prompt db '> ', 0
 ls_tlh_files db "tebwI':", 0
 ls_tlh_notfound db "tu'lu'be'", 0
-ls_tlh_unknown db "ra' tlhaQ", 0
+ls_tlh_unknown db 114, 97, 39, 32, 131, 97, 81, 0
 ls_tlh_calc db 'Calculator', 0
-ls_tlh_edit db 'ghItlh editor', 0
+ls_tlh_edit db 129, 73, 131, 32, 101, 100, 105, 116, 111, 114, 0
 ls_tlh_draw db 'naD program', 0
 ls_tlh_hello db 'nuqneH Squirrel-OS/2', 0
-ls_tlh_result db "cha' + cha' = loS", 0
-ls_tlh_keys db 'leQmey yIbach, Enter yIbach rInmeH:', 0
+ls_tlh_result db 128, 97, 39, 32, 43, 32, 128, 97, 39, 32, 61, 32, 108, 111, 83, 0
+ls_tlh_keys db 108, 101, 81, 109, 101, 121, 32, 121, 73, 98, 97, 128, 44, 32, 69, 110, 116, 101, 114, 32, 121, 73, 98, 97, 128, 32, 114, 73, 110, 109, 101, 72, 58, 0
 ls_tlh_systest_pass db "systest: Qapla'", 0
 ls_tlh_systest_fail db 'systest: luj', 0
 ls_tlh_lang_now db 'Hol:', 0
 ls_tlh_lang_bad db "Hol Sovbe'lu'", 0
 ls_tlh_usage db "lo'meH:", 0
-ls_tlh_usage_put db "(teywI'Daq tlhegh chel)", 0
-ls_tlh_usage_run db '(ghunmey: tetlh Dung yIlegh, pagh ls)', 0
-ls_tlh_fe_error db 'Qagh', 0
+ls_tlh_usage_put db 40, 116, 101, 121, 119, 73, 39, 68, 97, 113, 32, 131, 101, 129, 32, 128, 101, 108, 41, 0
+ls_tlh_usage_run db 40, 129, 117, 110, 109, 101, 121, 58, 32, 116, 101, 131, 32, 68, 117, 130, 32, 121, 73, 108, 101, 129, 44, 32, 112, 97, 129, 32, 108, 115, 41, 0
+ls_tlh_fe_error db 81, 97, 129, 0
 ls_tlh_fe_nofs db "teywI' pat tu'lu'be' (De' Hew yIrar).", 0
-ls_tlh_fe_name db "pong QIH: 1 vo' 15 ngutlh, . pagh .. ghobe'", 0
+ls_tlh_fe_name db 112, 111, 130, 32, 81, 73, 72, 58, 32, 49, 32, 118, 111, 39, 32, 49, 53, 32, 130, 117, 131, 44, 32, 46, 32, 112, 97, 129, 32, 46, 46, 32, 129, 111, 98, 101, 39, 0
 ls_tlh_fe_exists db "tu'lu'pu'", 0
-ls_tlh_fe_nodir db "ghItlh pa' tu'lu'be'", 0
-ls_tlh_fe_table db "ghItlh pa' tetlh teb (64)", 0
+ls_tlh_fe_nodir db 129, 73, 131, 32, 112, 97, 39, 32, 116, 117, 39, 108, 117, 39, 98, 101, 39, 0
+ls_tlh_fe_table db 129, 73, 131, 32, 112, 97, 39, 32, 116, 101, 131, 32, 116, 101, 98, 32, 40, 54, 52, 41, 0
 ls_tlh_fe_busy db "teywI' poSmoHlu'", 0
-ls_tlh_fe_notempty db "ghItlh pa' chImbe'", 0
-ls_tlh_fe_cwd db "DaH ghItlh pa' 'oH", 0
-ls_tlh_fe_loop db "ghItlh pa' 'oH'e' ghItlh pa' Daq vIHlaHbe'", 0
-ls_tlh_fe_io db 'Hew Qagh', 0
+ls_tlh_fe_notempty db 129, 73, 131, 32, 112, 97, 39, 32, 128, 73, 109, 98, 101, 39, 0
+ls_tlh_fe_cwd db 68, 97, 72, 32, 129, 73, 131, 32, 112, 97, 39, 32, 39, 111, 72, 0
+ls_tlh_fe_loop db 129, 73, 131, 32, 112, 97, 39, 32, 39, 111, 72, 39, 101, 39, 32, 129, 73, 131, 32, 112, 97, 39, 32, 68, 97, 113, 32, 118, 73, 72, 108, 97, 72, 98, 101, 39, 0
+ls_tlh_fe_io db 72, 101, 119, 32, 81, 97, 129, 0
 ls_tlh_fe_full db 'Hew teb', 0
-ls_tlh_fe_isdir db "ghItlh pa' 'oH", 0
-ls_tlh_fe_nofd db "teywI'mey poSmoHlu'bogh law'qu'", 0
+ls_tlh_fe_isdir db 129, 73, 131, 32, 112, 97, 39, 32, 39, 111, 72, 0
+ls_tlh_fe_nofd db 116, 101, 121, 119, 73, 39, 109, 101, 121, 32, 112, 111, 83, 109, 111, 72, 108, 117, 39, 98, 111, 129, 32, 108, 97, 119, 39, 113, 117, 39, 0

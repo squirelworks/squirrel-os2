@@ -30,10 +30,34 @@ def read(lang):
     return table
 
 
-def asm_string(text):
+# Klingon branch: these letters get one pIqaD glyph each (0x80-0x83 in
+# the font the kernel loads, see tools/klingon-font.py). Longest first.
+KLINGON_DIGRAPHS = [('tlh', 0x83), ('ch', 0x80), ('gh', 0x81), ('ng', 0x82)]
+
+
+def klingon_bytes(text):
+    out = bytearray()
+    i = 0
+    while i < len(text):
+        for spelling, code in KLINGON_DIGRAPHS:
+            if text.startswith(spelling, i):
+                out.append(code)
+                i += len(spelling)
+                break
+        else:
+            out += text[i].encode('latin-1')
+            i += 1
+    return bytes(out)
+
+
+def asm_string(text, lang='en'):
     data = text.encode('latin-1')    # the VGA font is code page 437; keep to ASCII
     if any(b < 32 or b > 126 for b in data):
         sys.exit('non-ASCII text: %r' % text)
+    if lang == 'tlh':
+        data = klingon_bytes(text)
+        if data != text.encode('latin-1'):
+            return ', '.join(str(b) for b in data) + ', 0'
     if not text:
         return '0'
     for q in "'\"":
@@ -71,7 +95,7 @@ def generate():
     for l in langs:
         for k in keys:
             if k in tables[l]:
-                out.append('ls_%s_%s db %s' % (l, k, asm_string(tables[l][k])))
+                out.append('ls_%s_%s db %s' % (l, k, asm_string(tables[l][k], l)))
     return '\n'.join(out) + '\n'
 
 
