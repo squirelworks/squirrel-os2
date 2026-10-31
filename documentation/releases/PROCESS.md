@@ -104,6 +104,7 @@ This avoids retargeting chains and confirmation steps.
 | 1.4.2   | 2026-10-31 | Windows: z-order and focus           |
 | 1.5.0   | 2026-10-31 | Widgets: label                       |
 | 1.5.1   | 2026-10-31 | Widgets: button                      |
+| 1.5.2   | 2026-10-31 | Widgets: edit field                  |
 
 ## Next planned release
 

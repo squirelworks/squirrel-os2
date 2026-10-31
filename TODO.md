@@ -174,7 +174,7 @@ Start after **1.4-focus** and **1.2-key-event** are on `main`. One widget per PR
 - [x] **1.5-button** — A button that activates from the keyboard.
   **Acceptance:** the activation key posts an event and the test prints `button: PASS`. A regression check expects it.
 
-- [ ] **1.5-field** — A one-line edit field.
+- [x] **1.5-field** — A one-line edit field.
   **Acceptance:** typed characters appear in the field's buffer and the test prints them back as `field: PASS`. A regression check expects that line.
 
 - [ ] **1.5-list** — A list that moves a selection with the arrow keys.

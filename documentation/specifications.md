@@ -240,6 +240,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - A button widget: Enter or Space, while its window has the focus, posts `MSG_BUTTON` with the button's code to the process that added it, through the 1.2 message queue (`kernel/widgets.md`; `buttontest`, `buttontest-2`, `buttontest-none`, `buttontest-text`).
 
+## 1.5.2
+
+- A one-line edit field: typed printable characters go into a caller's buffer, up to a set length, and Backspace deletes (`kernel/widgets.md`; `fieldtest`, `fieldtest-full`, `fieldtest-text`).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.

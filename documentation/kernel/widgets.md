@@ -9,11 +9,11 @@ The kernel keeps a table of up to 16 widgets (`WG_MAX`), shared by all windows. 
 | Field | Meaning |
 |-------|---------|
 | `WG_USED` | 1 while the widget exists |
-| `WG_KIND` | what it is: `WGK_LABEL` or `WGK_BUTTON` |
+| `WG_KIND` | what it is: `WGK_LABEL`, `WGK_BUTTON` or `WGK_FIELD` |
 | `WG_WIN` | the window it belongs to |
 | `WG_X`, `WG_Y` | its place in the client area, in pixels |
 | `WG_TEXT` | address of a zero-terminated string |
-| `WG_PID`, `WG_CODE` | button: the process its events go to, and its code |
+| `WG_PID`, `WG_CODE` | button: the process its events go to, and its code; field: `WG_CODE` is the most characters |
 
 A widget is cut to its window's client area. A label whose text row does not fit below is not drawn; a label that runs past the right edge loses the characters that do not fit.
 
@@ -37,7 +37,24 @@ A button is its text in a white box with a black border, 2 pixels of padding aro
 | `wg_button` | eax = window id, ebx = x, ecx = y, esi = text, edx = code | eax = widget id, or −1 |
 | `wg_key` | al = ASCII of a key | CF clear if a widget used the key, CF set if not |
 
-`wg_button` records the calling process (`proc_cur`) as the button's owner. `wg_key` takes Enter (10 or 13) and Space. If the focused window (`wm_focus`) has a button, its first button posts `MSG_BUTTON | code` to the owner's queue (`messages.md`). `MSG_BUTTON` is `0x42000000` (`'B'` in the top byte), and the code is the low 24 bits. The post is the same `msg_put` that `SYS_SEND` uses, with interrupts off; a full queue drops the event. Other keys come back with CF set for the caller to use. A window with several buttons, and moving between widgets, come with the later widgets.
+`wg_button` records the calling process (`proc_cur`) as the button's owner. A button posts `MSG_BUTTON | code` to its owner's queue (`messages.md`). `MSG_BUTTON` is `0x42000000` (`'B'` in the top byte), and the code is the low 24 bits. The post is the same `msg_put` that `SYS_SEND` uses, with interrupts off; a full queue drops the event.
+
+## Edit field
+
+A field is a box as wide as its most characters, showing the text of a buffer the caller owns and an underline cursor after it. Editing changes the buffer in place, so the caller reads the text from it at any time.
+
+| Routine | In | Out |
+|---------|----|-----|
+| `wg_field` | eax = window id, ebx = x, ecx = y, esi = buffer (zero-terminated, room for edx characters and the zero), edx = most characters | eax = widget id, or −1 |
+
+## Keys
+
+`wg_key` (al = ASCII, 8 for Backspace) gives a key to the first widget of the focused window (`wm_focus`) that takes keys, a button or a field. It returns CF clear if the widget used the key, CF set if not, so the caller can use it.
+
+- Button: Enter (10 or 13) or Space posts its event.
+- Field: a printable character (0x20 to 0x7E) is appended if there is room; when the field is full the key is used and dropped. Backspace deletes the last character. Enter and Esc are not used.
+
+Moving between widgets comes with the list (1.5-list) or later.
 
 ## Tests
 
@@ -45,6 +62,8 @@ A button is its text in a white box with a black border, 2 pixels of padding aro
 
 `buttontest` (1.5.1) empties the shell's queue (the shell is pid 0), then opens a window with the label `Press Enter:` and an `OK` button with code `0xB7`. It reads back the box's top left pixel, which must be black. Keys go to `wg_key` until Esc. Then it reads the shell's queue. Every message must be `MSG_BUTTON | 0xB7`, and there must be one per press. It prints `button: PASS (n)` for n events, `button: no event`, or `button: FAIL`. Checks: `buttontest` (Enter: 1 event), `buttontest-2` (Space, `x`, Space: 2 events, so `x` posts nothing), `buttontest-none` (`x` only), and `buttontest-text`.
 
+`fieldtest` (1.5.2) opens a window with the label `Name:` and a 16-character field over an empty buffer. Keys go to `wg_key`, with the Backspace scancode passed as 8, until Enter or Esc. It then reads the field box's top left pixel, which must be black, and prints `field: PASS "<text>"` with the buffer's text, or `field: FAIL`. Checks: `fieldtest` (`Hi there`, two Backspaces: `"Hi the"`), `fieldtest-full` (20 letters: the first 16 stay), and `fieldtest-text`. Without the store in `wg_key`, `fieldtest` prints `field: PASS ""`, and the check fails.
+
 ## Later in 1.5
 
-A one-line edit field and a list (`../../TODO.md`). Those widgets take keys and talk to the 1.2 message queue.
+A list that moves a selection with the arrow keys (`../../TODO.md`).
