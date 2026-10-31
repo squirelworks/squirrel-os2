@@ -41,10 +41,11 @@ Both editors are implemented in `kernel/editor.asm` as one full-screen engine ru
 - Without a data disk the editors still work in memory and say that saving is unavailable.
 - A failed save shows why (`Disk full`, `Bad name: ...`, `Is a directory`, ...). When the name itself was the problem, the buffer becomes untitled so the next save asks for another one (0.9.2). `draw` does the same.
 - From the file browser, `e` opens the selected file in `edit`.
+- Search (1.0.9): Ctrl+F asks `Find (Esc cancels):` on the message line. The text may contain spaces. The search starts just after the cursor, wraps to the start of the buffer, and is case-sensitive. The cursor lands on the first character of the match, and the message line says `Found zebra at line 1, column 9`, or `Not found: zebra`. F3 finds the same text again. Before any Ctrl+F, F3 says `Nothing to find again: Ctrl+F first`.
 
 ### `edit` status line
 
-`name [modified]` and the key reminder. Messages only for load/save/errors.
+`Text Editor: name [modified]` and the key reminder `Ctrl+F find  Ctrl+S save  Esc quit`. Messages only for load/save/errors.
 
 ### `vedit` additions
 
@@ -54,7 +55,7 @@ Both editors are implemented in `kernel/editor.asm` as one full-screen engine ru
 
 ### Not yet
 
-- Control-character display toggle, command history, search, undo.
+- Control-character display toggle, command history, undo.
 - Files larger than 16 KB load truncated (with a warning).
 
 ## Commands

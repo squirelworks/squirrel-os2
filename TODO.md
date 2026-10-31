@@ -93,7 +93,7 @@ Each item is its own patch release after 1.0.0 (its own release note). Independe
   Start after **1.0-diff-integ** is on `main`. Euler is enough. Runge–Kutta can be a later task if Euler is in.
   **Acceptance:** one step of `y' = y` from `y(0) = 1` prints a value the check can match exactly for a stated step size. A regression check expects it. The note describes the method.
 
-- [ ] **1.0-edit-search** — Search in `edit` and `vedit`.
+- [x] **1.0-edit-search** — Search in `edit` and `vedit`.
   `documentation/apps/editors.md` lists search under "Not yet".
   **Acceptance:** a file containing `zebra` can be searched, the cursor lands on it, and the message line says so. A regression check expects that message. The "Not yet" line drops search.
 
