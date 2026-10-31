@@ -225,11 +225,21 @@ Split from `documentation/plannedmilestones.md` once 1.7 was on `main`. Work top
 - [x] **1.8-desktop** — The desktop keeps its entries as object files in `/desktop` on the data disk: it loads them when it starts, and writes the defaults there the first time.
   **Acceptance:** after the first `desktop`, `ls /desktop` lists one file per entry; with one of them removed, the next desktop's list does not show that entry.
 
-## 1.9 and after
+## 1.9 — Moving objects on the desktop
 
-Do not start these while any box above is open. When 1.8 is on `main`, split the next milestone into PR-sized boxes in this file before writing code. The shapes, from `documentation/plannedmilestones.md`:
+Split from `ROADMAP.md` once 1.8 was on `main`. Keyboard only: a mouse is not part of the plan. Each box is one PR; work top to bottom.
 
-- [ ] **1.9-dnd** — Pick up, move focus, and drop a desktop object from the keyboard. A regression check expects the object's new parent. No mouse.
+- [ ] **1.9-folder** — A `Folder` class under `DesktopObject`, and a text field `in` on `DesktopObject`: the name of the folder that holds the object, empty for the desktop itself. The desktop lists only the objects whose `in` is the folder being shown; Enter on a folder shows its contents, Backspace goes back up, and the window title names the folder. The first time, `/desktop` also gets an empty folder `Tools`. Files from 1.8 (one field fewer) are refused, so the desktop writes the defaults again when none of its files load.
+  **Acceptance:** the first desktop lists `Tools` with the five programs; Enter on it shows an empty list titled `Tools`, and Backspace shows the five programs again. `objcat /desktop/calc.obj` shows an empty `in`.
+- [ ] **1.9-move** — Pick up, move and drop. `m` picks up the selected object (the help row says what is held); moving into and out of folders keeps it held; `p` drops it into the folder being shown, which sets its `in` field and saves its file; Esc while holding puts it back where it was.
+  **Acceptance:** pick up `calc`, open `Tools`, drop: the top level no longer lists `calc`, `Tools` does, and after a reboot `objcat /desktop/calc.obj` shows `in: Tools` (the object's new parent). Esc while holding changes nothing on disk.
+- [ ] **1.9-actions** — Two object actions from the keyboard: `r` renames the selected object (a field widget in the window; the new name is saved and listed) and Delete removes it after a confirm step (its file goes; a folder must be empty).
+  **Acceptance:** a check renames `edit` to `notes` and reads the new name off the desktop and in `objcat`; another deletes it and `ls /desktop` no longer lists its file; deleting a non-empty folder is refused.
+
+## 2.0 and after
+
+Do not start this while any 1.9 box is open.
+
 - [ ] **2.0-net** — Only once 1.9 is on `main`: split basic networking into its own tasks in this file, then implement the first of them (a loopback that a test program can send on and read back).
 
 ## Installer (unscheduled)
