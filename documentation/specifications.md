@@ -121,7 +121,6 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 |------|-------------|
 | Hardware | Pentium-class CPU or later with CPUID, an FPU and 4 MB pages. BIOS boot only. A PS/2 keyboard (or BIOS emulation of one), VGA text mode, and ATA disks on the primary channel. Tested in QEMU and Bochs. VirtualBox, VMware and real hardware are untested. |
 | Memory | Pages above 256 MB are not used. Tested from 4 MB to 128 MB. |
-| Cooperative scheduling | A process that never yields starves the others. Preemption is milestone 1.1. |
 | Ring 0 | Programs run in ring 0. Paging keeps program areas apart, but a program can write over kernel memory. User mode is 2.x. |
 | Stacks | 8 KB per process slot, not grown. A stack overflow resets the machine (`kernel/crash-reports.md`). |
 | No FPU save | The x87 state is not saved on a process switch, so only one process should use floating point at a time (`sci` or `matrix`). Task 1.0-fpu. |
@@ -188,6 +187,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 ## 1.0.12
 
 - `vedit` shows control characters with Ctrl+T: `$` for a line end, `>` for a tab and `^` for any other control character (`apps/editors.md`; `ved-ctl*`). This completes the 1.0.x list in `TODO.md`.
+
+## 1.1.0
+
+- The timer preempts a loaded program after a 50 ms slice, so a program that spins without a system call no longer starves the others. Kernel code still switches only cooperatively (`kernel/processes.md`; `sched-preempt`). The "Cooperative scheduling" limitation of 0.9.3 is gone.
 
 ## Notes
 

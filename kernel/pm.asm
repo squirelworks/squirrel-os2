@@ -685,6 +685,19 @@ timer_isr:
     inc dword [ticks]
     mov al, 0x20
     out 0x20, al
+    ; preemption (1.1): once the slice is used up, the first tick that
+    ; lands in a loaded program's code switches to the next READY
+    ; process. Kernel code is never interrupted this way (it is not
+    ; reentrant), so the check waits for the next tick instead.
+    dec dword [sched_left]
+    jg .out
+    mov eax, [esp+4]            ; interrupted EIP
+    cmp eax, PROG_BASE
+    jb .out
+    cmp eax, PROG_BASE+PROG_MAX
+    jae .out
+    call proc_preempt
+.out:
     pop eax
     iretd
 
@@ -788,7 +801,7 @@ default_isr:
 
 ; ---------- data ----------
 banner db 'Squirrel-OS/2'          ; (the "help" file: the English banner)
-banner_rest db ' 1.0.12', 10   ; OS version: here only (see releases/PROCESS.md)
+banner_rest db ' 1.1.0', 10   ; OS version: here only (see releases/PROCESS.md)
        db 'Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>', 10
        db '          mv <f> <new> | mkdir <d> | cd <d> | pwd | echo | batch <f> | format', 10
        db '          ps | disk | mem | devices | lang <en|la|tlh>', 10

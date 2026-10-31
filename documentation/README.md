@@ -60,4 +60,5 @@ Documentation is active.
 - 1.0.10 Euler ODE stepper in `diff` (`releases/1.0.10.md`, `apps/calculators.md`)
 - 1.0.11 one-level undo in `edit` and `vedit` (`releases/1.0.11.md`, `apps/editors.md`)
 - 1.0.12 `vedit` control-character display (`releases/1.0.12.md`, `apps/editors.md`)
-- Next: 1.0.x patch releases, then 1.1 preemption (`../ROADMAP.md`, tasks in `../TODO.md`)
+- 1.1.0 the timer preempts a spinning program (`releases/1.1.0.md`, `kernel/processes.md`)
+- Next: 1.1 threads, then 1.2 messages (`../ROADMAP.md`, tasks in `../TODO.md`)
