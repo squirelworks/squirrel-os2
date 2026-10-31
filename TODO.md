@@ -244,8 +244,8 @@ The author lifted the old gate ("not before the 1.5 and 1.6 boxes above are clos
   **Acceptance:** a check compares the copied files with the originals. Shell command `install copy`: the kernel to sectors 1 to 192, the data disk's root files into the partition. Checks `install-copy-esc`, `install-copy-esc-blank`, `install-copy`, `install-copied`, `install-after-copy`.
 - [x] **I.4-bootable** — Write the boot sector to the target so the PC boots from it with the stick removed.
   **Acceptance:** QEMU boots from the target disk alone and reaches the shell prompt. Shell command `install boot`; with no data disk, the boot disk's partition is the file system (`dev_sys`). Checks `install-boot-nokernel`, `install-boot-esc`, `install-boot-esc-blank`, `install-boot`, `install-bootsec`, `install-alone`, `install-alone-boot`.
-- [ ] **I.5-ui** — A text-mode `install` program that walks through I.1–I.4 with a confirm step before anything is written. Localized like the other programs.
-  **Acceptance:** the batch-driven run installs to the blank disk; Esc at the confirm step leaves it blank.
+- [x] **I.5-ui** — A text-mode `install` program that walks through I.1–I.4 with a confirm step before anything is written. Localized like the other programs.
+  **Acceptance:** the batch-driven run installs to the blank disk; Esc at the confirm step leaves it blank. `run install`, strings `inst_*` in en, la and tlh. Checks `inst-esc`, `inst-esc-blank`, `inst-la`, `inst-tlh`, `inst-run`, `inst-boots`.
 - [ ] **I.6-cd** — Optional: a bootable CD image (El Torito floppy emulation around `floppy.img`) made by `tools/build.sh`.
   **Acceptance:** QEMU boots the `.iso` to the shell.
 

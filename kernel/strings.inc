@@ -33,7 +33,23 @@ LS_FE_IO equ 28
 LS_FE_FULL equ 29
 LS_FE_ISDIR equ 30
 LS_FE_NOFD equ 31
-LS_COUNT equ 32
+LS_INST_TITLE equ 32
+LS_INST_TARGET equ 33
+LS_INST_NOTARGET equ 34
+LS_INST_NOBOOT equ 35
+LS_INST_ERASE equ 36
+LS_INST_CONFIRM equ 37
+LS_INST_CANCEL equ 38
+LS_INST_PART equ 39
+LS_INST_FORMAT equ 40
+LS_INST_COPY equ 41
+LS_INST_BOOT equ 42
+LS_INST_OK equ 43
+LS_INST_FAIL equ 44
+LS_INST_DONE equ 45
+LS_INST_FAILED equ 46
+LS_INST_ANYKEY equ 47
+LS_COUNT equ 48
 LANG_COUNT equ 3
 
 align 4
@@ -75,6 +91,22 @@ ls_en:
     dd ls_en_fe_full
     dd ls_en_fe_isdir
     dd ls_en_fe_nofd
+    dd ls_en_inst_title
+    dd ls_en_inst_target
+    dd ls_en_inst_notarget
+    dd ls_en_inst_noboot
+    dd ls_en_inst_erase
+    dd ls_en_inst_confirm
+    dd ls_en_inst_cancel
+    dd ls_en_inst_part
+    dd ls_en_inst_format
+    dd ls_en_inst_copy
+    dd ls_en_inst_boot
+    dd ls_en_inst_ok
+    dd ls_en_inst_fail
+    dd ls_en_inst_done
+    dd ls_en_inst_failed
+    dd ls_en_inst_anykey
 ls_la:
     dd ls_la_banner
     dd ls_la_prompt
@@ -108,6 +140,22 @@ ls_la:
     dd ls_la_fe_full
     dd ls_la_fe_isdir
     dd ls_la_fe_nofd
+    dd ls_la_inst_title
+    dd ls_la_inst_target
+    dd ls_la_inst_notarget
+    dd ls_la_inst_noboot
+    dd ls_la_inst_erase
+    dd ls_la_inst_confirm
+    dd ls_la_inst_cancel
+    dd ls_la_inst_part
+    dd ls_la_inst_format
+    dd ls_la_inst_copy
+    dd ls_la_inst_boot
+    dd ls_la_inst_ok
+    dd ls_la_inst_fail
+    dd ls_la_inst_done
+    dd ls_la_inst_failed
+    dd ls_la_inst_anykey
 ls_tlh:
     dd ls_tlh_banner
     dd ls_tlh_prompt
@@ -141,6 +189,22 @@ ls_tlh:
     dd ls_tlh_fe_full
     dd ls_tlh_fe_isdir
     dd ls_tlh_fe_nofd
+    dd ls_tlh_inst_title
+    dd ls_tlh_inst_target
+    dd ls_tlh_inst_notarget
+    dd ls_tlh_inst_noboot
+    dd ls_tlh_inst_erase
+    dd ls_tlh_inst_confirm
+    dd ls_tlh_inst_cancel
+    dd ls_tlh_inst_part
+    dd ls_tlh_inst_format
+    dd ls_tlh_inst_copy
+    dd ls_tlh_inst_boot
+    dd ls_tlh_inst_ok
+    dd ls_tlh_inst_fail
+    dd ls_tlh_inst_done
+    dd ls_tlh_inst_failed
+    dd ls_tlh_inst_anykey
 ls_en_banner db 'Squirrel-OS/2', 0
 ls_en_prompt db '> ', 0
 ls_en_files db 'Files:', 0
@@ -173,6 +237,22 @@ ls_en_fe_io db 'Disk error', 0
 ls_en_fe_full db 'Disk full', 0
 ls_en_fe_isdir db 'Is a directory', 0
 ls_en_fe_nofd db 'Too many open files', 0
+ls_en_inst_title db 'Squirrel-OS/2 Installer', 0
+ls_en_inst_target db 'Target disk:', 0
+ls_en_inst_notarget db 'No disk to install to. Attach a blank disk as secondary master or slave.', 0
+ls_en_inst_noboot db 'The boot disk is not an IDE disk, so the system cannot be copied from it.', 0
+ls_en_inst_erase db 'Everything on the target disk will be erased.', 0
+ls_en_inst_confirm db 'Enter: install    Esc: cancel', 0
+ls_en_inst_cancel db 'Cancelled. Nothing was written.', 0
+ls_en_inst_part db 'Partition table', 0
+ls_en_inst_format db 'File system', 0
+ls_en_inst_copy db 'Copying the system', 0
+ls_en_inst_boot db 'Boot code', 0
+ls_en_inst_ok db 'done', 0
+ls_en_inst_fail db 'failed', 0
+ls_en_inst_done db 'Installed. Remove the release disk and restart the computer.', 0
+ls_en_inst_failed db 'The installation stopped. The target disk may be incomplete.', 0
+ls_en_inst_anykey db 'Press any key.', 0
 ls_la_banner db 'Sciurus-OS/2', 0
 ls_la_prompt db '> ', 0
 ls_la_files db 'Tabulae:', 0
@@ -205,6 +285,22 @@ ls_la_fe_io db 'Error disci', 0
 ls_la_fe_full db 'Discus plenus', 0
 ls_la_fe_isdir db 'Directorium est', 0
 ls_la_fe_nofd db 'Nimis multae tabulae apertae', 0
+ls_la_inst_title db 'Sciurus-OS/2: Installatio', 0
+ls_la_inst_target db 'Discus destinatus:', 0
+ls_la_inst_notarget db 'Nullus discus ad installandum. Adde discum vacuum in canali secundario.', 0
+ls_la_inst_noboot db 'Discus initialis non est discus IDE; systema inde exscribi non potest.', 0
+ls_la_inst_erase db 'Omnia in disco destinato delebuntur.', 0
+ls_la_inst_confirm db 'Enter: installa    Esc: abi', 0
+ls_la_inst_cancel db 'Abrogatum. Nihil scriptum est.', 0
+ls_la_inst_part db 'Tabula partitionum', 0
+ls_la_inst_format db 'Systema tabularum', 0
+ls_la_inst_copy db 'Systema exscribitur', 0
+ls_la_inst_boot db 'Codex initialis', 0
+ls_la_inst_ok db 'factum', 0
+ls_la_inst_fail db 'defecit', 0
+ls_la_inst_done db 'Installatum. Discum emissionis remove et computatrum iterum incipe.', 0
+ls_la_inst_failed db 'Installatio constitit. Discus destinatus fortasse imperfectus est.', 0
+ls_la_inst_anykey db 'Preme clavem quamlibet.', 0
 ls_tlh_banner db 'Squirrel-OS/2', 0
 ls_tlh_prompt db '> ', 0
 ls_tlh_files db "tebwI':", 0
@@ -237,3 +333,19 @@ ls_tlh_fe_io db 'Hew Qagh', 0
 ls_tlh_fe_full db 'Hew teb', 0
 ls_tlh_fe_isdir db "ghItlh pa' 'oH", 0
 ls_tlh_fe_nofd db "teywI'mey poSmoHlu'bogh law'qu'", 0
+ls_tlh_inst_title db "Squirrel-OS/2 jomwI'", 0
+ls_tlh_inst_target db "Hap ngaSwI':", 0
+ls_tlh_inst_notarget db "jommeH Hap tu'lu'be'. Hap chIm yIchel.", 0
+ls_tlh_inst_noboot db "IDE Hap ghaHbe' tagh Hap. pat ghoSlaHbe'.", 0
+ls_tlh_inst_erase db "Hap ngaSwI' Hoch Qaw'lu'.", 0
+ls_tlh_inst_confirm db 'Enter: yIjom    Esc: yImev', 0
+ls_tlh_inst_cancel db "mevpu'. pagh ghItlhlu'pu'.", 0
+ls_tlh_inst_part db 'Hap tetlh', 0
+ls_tlh_inst_format db "De' pat", 0
+ls_tlh_inst_copy db 'pat lughoSmoH', 0
+ls_tlh_inst_boot db 'tagh ngoq', 0
+ls_tlh_inst_ok db "Qapla'", 0
+ls_tlh_inst_fail db 'luj', 0
+ls_tlh_inst_done db "jompu'. Hap yIteq, De'wI' yItaghqa'.", 0
+ls_tlh_inst_failed db "jom mevpu'. Hap naQbe' net Sov.", 0
+ls_tlh_inst_anykey db 'leQ yIbach.', 0
