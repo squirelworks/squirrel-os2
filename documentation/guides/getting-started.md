@@ -64,6 +64,21 @@ Uppercase letters and `+ * % ! ? : _` are sent with Shift.
 
 The hidden shell command `trap` executes `ud2` to show the CPU exception report.
 
+## Stress run
+
+`tools/soak.py` keeps one QEMU boot busy for a long time and checks that nothing
+leaks or breaks: it runs `run stress` five times (threads filling the process table
+under preemption, a message ring, a message flood, preempted FPU work, the whole
+4 MB heap, thread churn and three programs exec'd at once; see `programs/stress.asm`),
+then the three graphics tests ten times while a background thread keeps printing,
+then fills `edit` to its 16 KB limit and saves. At the end only the shell may be
+left in `ps`, `mem` must report as much free memory as at the start, and `systest`
+must pass. `--rounds N` and `--gfx N` make it longer. It prints `soak: PASS` or
+`soak: FAIL`. It is not part of `tools/regress.sh`.
+
+`run stress <part>` runs one part on its own: `threads`, `ring`, `flood`, `fpu`,
+`heap`, `churn` or `exec`.
+
 ## Adding documentation
 
 - Place design notes in `architecture/`.
