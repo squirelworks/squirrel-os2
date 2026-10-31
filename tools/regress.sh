@@ -287,6 +287,19 @@ saved_disk=$disk; boot=$target; disk=; target=
 check_all install-alone 'File system: partition 1 of the boot disk|copied-ok' 'cat instfile' '<ret>'
 check install-alone-boot 'boot disk, not touched'  install '<ret>'
 boot=; disk=$saved_disk; target=$out/target.img
+# installer I.5: run install does I.1 to I.4 after one question, on a second blank scratch image
+target=$out/target2.img
+rm -f "$target"
+dd if=/dev/zero of="$target" bs=1024 count=16384 2>/dev/null
+check_all inst-esc  'Target disk: 2 (16 MiB)|Cancelled. Nothing was written.'  'run install' '<ret>' '<pause>' '<esc>'
+mbr   inst-esc-blank 'blank'
+check inst-la       'Sciurus-OS/2: Installatio'  'lang la' '<ret>' 'run install' '<ret>' '<pause>' '<esc>'
+check inst-tlh      "Squirrel-OS/2 jomwI'"  'lang tlh' '<ret>' 'run install' '<ret>' '<pause>' '<esc>'
+check_all inst-run  'Partition table ... done|File system ... done|Copying the system ... done|Boot code ... done|Installed.' \
+                    'put inst.bat run install' '<ret>' 'run inst.bat' '<ret>' '<pause>' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>'
+saved_disk=$disk; boot=$target; disk=; target=
+check_all inst-boots 'File system: partition 1 of the boot disk|run install'  'cat inst.bat' '<ret>'
+boot=; disk=$saved_disk; target=$out/target.img
 target=
 check install-none  'No target disk.'       'install part' '<ret>'
 # 1.3.0: graphics mode, one pixel written and read back, then text mode again

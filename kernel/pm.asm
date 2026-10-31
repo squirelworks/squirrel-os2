@@ -1086,6 +1086,7 @@ run_table:
     dd name_vedit, run_vedit
     dd name_draw, run_draw
     dd name_files, fb_main
+    dd name_install, run_install    ; installer I.5
     dd 0, 0
 name_calc db 'calc', 0
 name_edit db 'edit', 0
@@ -1098,6 +1099,7 @@ name_graph db 'graph', 0
 name_matrix db 'matrix', 0
 name_diff db 'diff', 0
 name_topo db 'topo', 0
+name_install db 'install', 0
 
 topo_banner db 'Topology Calculator', 10, 0
 topo_stub db 'Scaffolded. Simplicial homology sketches (long-term).', 10, 'See documentation/apps/calculators.md', 10, 0

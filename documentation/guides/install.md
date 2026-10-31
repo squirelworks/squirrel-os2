@@ -1,6 +1,6 @@
 # Installing Squirrel-OS/2 onto a disk
 
-Status: **in progress**. Steps I.1 to I.4 are done: a target disk can be made that boots on its own. I.5 and I.6 are open in `TODO.md`.
+Status: **in progress**. Steps I.1 to I.5 are done: `run install` makes a target disk that boots on its own. I.6 (a CD image) is open in `TODO.md`.
 
 ## Today
 
@@ -19,7 +19,7 @@ the medium can be removed afterwards. Each step is one pull request:
 | I.2-format | Format SQFS inside that partition (SQFS learns a starting LBA) | done |
 | I.3-copy | Copy the kernel and the sample programs onto the target | done |
 | I.4-bootable | Write the boot code into the target's MBR so the PC boots from it alone | done |
-| I.5-ui | A text-mode `install` program that walks through I.1 to I.4, with a confirm step, localized | open |
+| I.5-ui | A text-mode `install` program that walks through I.1 to I.4, with a confirm step, localized | done |
 | I.6-cd | Optional: a bootable CD image around `floppy.img` | open |
 
 Each step ships in the next OS version, like any other release: I.1 and I.2 are in 1.7.2.
@@ -78,8 +78,8 @@ at least 2 MiB.
 Programs cannot reach drives 2 and 3: they have no entry in the device table, so
 `SYS_BREAD`/`SYS_BWRITE` refuse them.
 
-These installer messages are English only, like `disk` and `blktest`. The `install` program of I.5
-is the localized one.
+These shell-command messages are English only, like `disk` and `blktest`. The `run install`
+program of I.5 is the localized one.
 
 ## Step I.2: the file system
 
@@ -139,6 +139,37 @@ install boot      (y)
 
 Then power off, remove the release disk, and boot the target.
 
+## Step I.5: the install program
+
+`run install` (also from a batch file: a line `run install`) is the installer for people. It
+clears the screen and shows, in the current language (`lang`):
+
+```
+Squirrel-OS/2 Installer
+
+Target disk: 2 (16 MiB)
+Everything on the target disk will be erased.
+Enter: install    Esc: cancel
+```
+
+Esc writes nothing (`Cancelled. Nothing was written.`). Enter runs the four steps without
+asking again, one line each:
+
+```
+Partition table ... done
+File system ... done
+Copying the system ... done
+Boot code ... done
+Installed. Remove the release disk and restart the computer.
+```
+
+A step that fails stops the run (`The installation stopped. The target disk may be
+incomplete.`). With no target, no IDE boot disk, or no data disk it says so and writes
+nothing. The texts are the `inst_*` keys in `localization/*/strings.txt` (English, Latin,
+Klingon). The step-by-step shell commands of I.1 to I.4 stay, in English, for testing and for
+finer control; both share the same routines (`ins_do_part`, `ins_do_format`,
+`ins_do_kernel`, `ins_do_files`, `ins_do_boot`).
+
 ## Trying it in QEMU
 
 Always use a scratch image as the target, never a real disk:
@@ -151,7 +182,8 @@ qemu-system-i386 -drive format=raw,file=build/os.img,index=0,media=disk \
                  -drive format=raw,file=build/target.img,index=2,media=disk
 ```
 
-Then type `install`, `install part`, `install format`, `install copy` and `install boot`.
+Then type `run install` and press Enter (or go step by step with `install`, `install part`,
+`install format`, `install copy` and `install boot`).
 To boot the result alone: `qemu-system-i386 -drive format=raw,file=build/target.img,index=0,media=disk`. On the host, `fdisk -l build/target.img` shows the
 new partition. `tools/regress.sh` does the same with a fresh 16 MiB image each run
 (`tools/qemu_screen.py --target`) and reads the table back on the host.
