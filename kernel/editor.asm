@@ -462,6 +462,7 @@ ed_save:
     cmp edx, [ed_len]
     jne .err
     mov byte [ed_mod], 0
+    mov byte [ed_umod], 1       ; the file now has the edit: undoing it is a change
     mov esi, ed_m_saved
     call ed_msg
     popad
