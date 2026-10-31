@@ -1177,10 +1177,11 @@ sb_row:
     pushad
     mov edi, ebx
     imul edi, 160
-    add edi, 0xB8000
+    add edi, [txt_base]         ; the screen, or a desktop window's (1.6.3)
     mov esi, ed_sb
     mov ecx, 80
     call vga_text
+    mov byte [txt_dirty], 1
     popad
     ret
 

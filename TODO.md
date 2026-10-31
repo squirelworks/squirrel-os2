@@ -193,7 +193,7 @@ Start after **1.4-focus** and **1.2-key-event** are on `main`. One widget per PR
   Start after **1.6-desktop** is on `main`.
   **Acceptance:** the saved character is visible to `cat` after the window closes. A regression check expects it.
 
-- [ ] **1.6-draw** — Open the ASCII `draw` in a window, plot one cell, save, close.
+- [x] **1.6-draw** — Open the ASCII `draw` in a window, plot one cell, save, close.
   Start after **1.6-desktop** is on `main`.
   **Acceptance:** the saved drawing contains that cell and a regression check expects it. Pixel drawing is the next task, not this one.
 

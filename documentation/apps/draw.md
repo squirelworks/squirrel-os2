@@ -53,7 +53,7 @@ A drawing is a plain text file: one line per canvas row, trailing spaces trimmed
 
 ## Later (after GUI exists)
 
-Pixel drawing, freehand, filled shapes and save-as-bitmap wait for the graphics primitives and window manager (milestones 1.3–1.4 and beyond). Integration as a desktop object follows once the window manager exists (1.4+).
+Pixel drawing, freehand, filled shapes and save-as-bitmap wait for the graphics primitives and window manager (milestones 1.3–1.4 and beyond). Since 1.6.3 the ASCII drawer also runs in a window on the desktop (`desktop.md`).
 
 ## Related
 

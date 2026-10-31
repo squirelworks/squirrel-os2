@@ -116,6 +116,7 @@ run_draw:
 .brush:
     mov dword [ed_msgp], dr_m_brush
     call dr_draw
+    call dr_askrow
     call fb_waitkey
     call kbd_ascii
     cmp al, ' '
@@ -170,6 +171,7 @@ run_draw:
     je .bye
     mov dword [ed_msgp], ed_m_unsaved
     call dr_draw
+    call dr_askrow
     call fb_waitkey
     cmp al, 0x1F
     je .savequit
@@ -455,6 +457,7 @@ dr_save:
     je .nodisk
     cmp byte [dr_name], 0
     jne .named
+    call dr_askrow
     mov esi, ed_m_saveas
     mov edi, dr_name
     call ed_prompt
@@ -533,6 +536,16 @@ dr_save:
 
 ; ---------- screen ----------
 
+; Before a question on the message row: in a desktop window (1.6.3), which
+; shows the rows that end at the cursor's, moves the cursor there so the
+; question can be seen. On the text screen the cursor stays on the canvas.
+dr_askrow:
+    cmp dword [txt_base], 0xB8000
+    je .r
+    mov dword [cur], 24*80
+.r:
+    ret
+
 ; static parts: title, border, key help
 dr_frame:
     pushad
@@ -556,7 +569,8 @@ dr_frame:
 .side:
     mov edi, ecx
     imul edi, 160
-    add edi, 0xB8000+(DR_X0-1)*2
+    add edi, [txt_base]
+    add edi, (DR_X0-1)*2
     mov word [edi], (ATTR_DIM<<8)|'|'
     mov word [edi+(DR_W+1)*2], (ATTR_DIM<<8)|'|'
     inc ecx
@@ -574,12 +588,14 @@ dr_frame:
     mov ebx, 23
     mov ah, ATTR_TEXT
     call sb_row
+    mov byte [txt_dirty], 1     ; a desktop window shows it (1.6.3)
     popad
     ret
 .hline:
     mov edi, ebx
     imul edi, 160
-    add edi, 0xB8000+(DR_X0-1)*2
+    add edi, [txt_base]
+    add edi, (DR_X0-1)*2
     mov ax, (ATTR_DIM<<8)|'+'
     stosw
     mov ecx, DR_W
@@ -596,7 +612,8 @@ dr_draw:
     mov edi, ecx
     add edi, DR_Y0
     imul edi, 160
-    add edi, 0xB8000+DR_X0*2
+    add edi, [txt_base]
+    add edi, DR_X0*2
     mov esi, ecx
     imul esi, DR_W
     add esi, DR_CANVAS
@@ -679,6 +696,7 @@ dr_draw:
     add eax, DR_X0
     mov [cur], eax
     call cursor_sync
+    mov byte [txt_dirty], 1     ; a desktop window shows it (1.6.3)
     popad
     ret
 
