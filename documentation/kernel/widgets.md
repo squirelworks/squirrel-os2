@@ -9,7 +9,7 @@ The kernel keeps a table of up to 16 widgets (`WG_MAX`), shared by all windows. 
 | Field | Meaning |
 |-------|---------|
 | `WG_USED` | 1 while the widget exists |
-| `WG_KIND` | what it is: `WGK_LABEL`, `WGK_BUTTON`, `WGK_FIELD` or `WGK_LIST` |
+| `WG_KIND` | what it is: `WGK_LABEL`, `WGK_BUTTON`, `WGK_FIELD`, `WGK_LIST` or `WGK_CONSOLE` |
 | `WG_WIN` | the window it belongs to |
 | `WG_X`, `WG_Y` | its place in the client area, in pixels |
 | `WG_TEXT` | address of a zero-terminated string |
@@ -56,6 +56,14 @@ A list is a box as wide as its longest item, with one row per item. The selected
 |---------|----|-----|
 | `wg_list` | eax = window id, ebx = x, ecx = y, esi = items (an array of edx addresses of zero-terminated strings), edx = how many, at least 1 | eax = widget id, or −1; the first item is selected |
 | `wg_selected` | eax = a list's widget id | eax = its selected item, from 0 |
+
+## Console
+
+A console shows part of an 80 × 25 text buffer laid out as at `0xB8000` (character and attribute words). The characters are drawn in black on the client colour. As many columns as fit are shown. The rows shown are the first `edx`, or the `edx` rows that end at the cursor row (`cur`) once the cursor is further down. If those rows do not fit in the client area, the console is not drawn. It takes no keys. The desktop uses it to run text programs in windows (`../apps/desktop.md`).
+
+| Routine | In | Out |
+|---------|----|-----|
+| `wg_console` | eax = window id, ebx = x, ecx = y, esi = buffer, edx = rows shown | eax = widget id, or −1 |
 
 ## Keys
 

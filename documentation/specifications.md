@@ -252,6 +252,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - The `desktop` command: graphics mode with a window listing `files`, `calc`, `edit`, `vedit` and `draw`; Up and Down choose, Esc returns to the shell (`apps/desktop.md`; `desktop`, `desktop-quit`). The shell prompt is still what the system boots to; an `autoexec.bat` line `desktop` boots into the desktop. `tools/qemu_screen.py` can read text off the graphics screen (`<gfx>`; `gfx-read-list`; `desktop-boot`, `desktop-boot-quit`).
 
+## 1.6.1
+
+- On the desktop, Enter on `calc` runs the calculator in a window: a 52 × 20 view of a text screen in a page of its own; Esc in `calc` closes the window and the desktop is back (`apps/desktop.md`; `desktop-calc`, `desktop-calc-back`, `desktop-calc-mem`, `desktop-calc-text`). `putc`, `cls` and `scroll_up` write through `txt_base`.
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.

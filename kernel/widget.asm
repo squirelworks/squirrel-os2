@@ -26,6 +26,7 @@ WGK_LABEL       equ 1           ; a line of text
 WGK_BUTTON      equ 2           ; text in a box; Enter or Space posts an event
 WGK_FIELD       equ 3           ; a one-line edit field over a caller's buffer
 WGK_LIST        equ 4           ; items in a column, one selected
+WGK_CONSOLE     equ 5           ; an 80 x 25 text screen buffer, shown in part
 
 WK_UP           equ 0x18        ; wg_key codes for the arrow keys (the
 WK_DOWN         equ 0x19        ; ASCII control codes CAN and EM)
@@ -109,6 +110,28 @@ wg_list:
     add edi, wg_table
     mov [edi+WG_CODE], edx
     mov dword [edi+WG_SEL], 0
+.out:
+    pop edx
+    pop edi
+    ret
+
+; eax = window id, ebx = x, ecx = y, esi = an 80 x 25 text buffer (char,
+; attribute words, as at 0xB8000), edx = rows shown -> eax = widget id or
+; -1. Shows as many columns as fit, and edx rows: the first ones, or the
+; ones that end at the cursor row ([cur]) once it is further down. Takes no
+; keys. The caller redraws.
+wg_console:
+    push edi
+    push edx
+    push edx
+    mov dl, WGK_CONSOLE
+    call wg_new
+    pop edx
+    cmp eax, -1
+    je .out
+    imul edi, eax, WG_SIZE
+    add edi, wg_table
+    mov [edi+WG_CODE], edx
 .out:
     pop edx
     pop edi
@@ -307,12 +330,58 @@ wg_draw:
     je .field
     cmp byte [edi+WG_KIND], WGK_LIST
     je .list
+    cmp byte [edi+WG_KIND], WGK_CONSOLE
+    je .console
     mov byte [gfx_colour], WM_TEXT
     mov byte [gfx_bg], WM_CLIENT
     call wm_drawtitle           ; as many characters as fit
 .out:
     popad
     ret
+.console:                       ; rows of the buffer, cut to the client area
+    mov edx, [edi+WG_CODE]
+    imul edx, GFX_CELL_H
+    add edx, [edi+WG_Y]
+    cmp edx, [wg_ch]
+    jg .out                     ; not all rows fit: not drawn
+    push eax
+    mov eax, [cur]              ; the first row shown
+    xor edx, edx
+    mov ebp, 80
+    div ebp
+    sub eax, [edi+WG_CODE]
+    inc eax                     ; so that the cursor row is the last one
+    jns .first
+    xor eax, eax
+.first:
+    imul eax, 160
+    add esi, eax
+    pop eax
+    mov byte [gfx_colour], WM_TEXT
+    mov byte [gfx_bg], WM_CLIENT
+    mov ebp, [edi+WG_CODE]
+.crow:
+    push eax
+    push ecx
+    push esi
+.cch:
+    cmp ecx, GFX_CELL_W
+    jl .crd                     ; no room for another column
+    mov dl, [esi]
+    call gfx_drawchar
+    add eax, GFX_CELL_W
+    sub ecx, GFX_CELL_W
+    add esi, 2
+    jmp .cch
+.crd:
+    pop esi
+    pop ecx
+    pop eax
+    add esi, 160
+    add ebx, GFX_CELL_H
+    dec ebp
+    jnz .crow
+    jmp .out
 .list:                          ; a box as wide as the longest item, one
     push eax                    ; row per item, the selected one inverted
     xor edx, edx

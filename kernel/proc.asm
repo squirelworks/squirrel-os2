@@ -579,6 +579,10 @@ kbd_getscan:
     call kbd_dequeue
     jnc .got
     sti
+    cmp dword [kbd_wait_hook], 0
+    je .idle
+    call [kbd_wait_hook]        ; before waiting: e.g. redraw a text window
+.idle:
     call proc_idle
     jmp kbd_getscan
 .got:
@@ -588,6 +592,7 @@ kbd_getscan:
 proc_table times PROC_MAX*PCB_SIZE db 0
 proc_fpu times PROC_MAX*FPU_SAVE db 0     ; fnsave areas, one per slot (1.0.1)
 proc_cur dd 0
+kbd_wait_hook dd 0              ; called (if set) while kbd_getscan waits
 sched_left dd SLICE_TICKS        ; ticks left in the running process's slice (1.1)
 sched_preempts dd 0             ; switches made by the timer
 proc_next_pid dd 0
