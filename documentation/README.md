@@ -84,4 +84,5 @@ Documentation is active.
 - 1.7.1 objects: instance fields (`releases/1.7.1.md`, `kernel/objects.md`)
 - 1.7.2 installer steps I.1 and I.2: the target disk, its partition table and SQFS (`releases/1.7.2.md`, `guides/install.md`)
 - 1.7.3 objects: the `objs` listing and `obj_free` (`releases/1.7.3.md`, `kernel/objects.md`)
-- Next: 1.7 desktop entries as objects (`1.7-desktop` in `../TODO.md`, `../ROADMAP.md`)
+- 1.7.4 the desktop's entries are objects, and `files` opens in a window (`releases/1.7.4.md`, `apps/desktop.md`)
+- Next: 1.8, split into tasks in `../TODO.md` first (`../ROADMAP.md`)

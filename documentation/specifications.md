@@ -284,6 +284,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - `objs` lists the recorded classes with their parents and the live objects with their classes and a count; `obj_free` gives a slot back and refuses anything that is not a live object (`kernel/objects.md`; `objs-empty`, `objs-tree`, `objtest-mem`).
 
+## 1.7.4
+
+- The desktop's entries are `Program` objects (under `DesktopObject`), made when the desktop starts and freed when it closes; the list shows what each answers to `name`, and Enter sends `open`, which runs the program in a window. `files` opens in a window too (`apps/desktop.md`; `desktop-files`, `desktop-files-back`, `desktop-objs`).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.

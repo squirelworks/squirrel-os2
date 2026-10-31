@@ -339,6 +339,12 @@ check_all objs-empty 'Classes:|Objects:|0 live' objs '<ret>'
 check_all objs-tree  'Square < Shape|0 live'    objtest '<ret>' objs '<ret>'
 check objtest-mem   '129912 KB free'        objtest '<ret>' mem '<ret>'
 check objtest-text  'systest: PASS'         objtest '<ret>' objtest '<ret>' systest '<ret>'
+# 1.7.4: the desktop's entries are Program objects; Enter sends open (files too)
+check desktop-files 'gfx: Arrows PgUp/PgDn Home/End' \
+                   desktop '<ret>' '<pause>' '<ret>' '<pause>' '<gfx>'
+check desktop-files-back 'gfx: Squirrel-OS/2 Desktop' \
+                   desktop '<ret>' '<pause>' '<ret>' '<pause>' '<esc>' '<pause>' '<gfx>'
+check_all desktop-objs 'Program < DesktopObject|0 live' desktop '<ret>' '<pause>' '<esc>' objs '<ret>'
 check gfx-read-list 'gfx: Dogwood'         listtest '<ret>' '<pause>' '<gfx>'
 check topo-stub     'Scaffolded. Simplicial homology'  'run topo' '<ret>'
 # program loader: a disk prepared on the host with tools/sqfs.py
@@ -359,7 +365,7 @@ check ed-path-r     'deep'                  'cat e1/long-name.txt' '<ret>'
 check fb-dir        'in /e1'                'cd e1' '<ret>' 'run files' '<ret>'
 check fb-dir-up     '[app]'                 'cd e1' '<ret>' 'run files' '<ret>' '<ret>'
 # 0.9.3: release readiness
-check ver-banner    'Squirrel-OS/2 1.7.3'   systest '<ret>'
+check ver-banner    'Squirrel-OS/2 1.7.4'   systest '<ret>'
 check ver-planned   '(planned: topo)'  systest '<ret>'
 check calc-hist-root '1 + 1 = 2'            'mkdir c1' '<ret>' 'cd c1' '<ret>' 'run calc' '<ret>' '1 + 1' '<ret>' '<esc>' 'cat /calc.hist' '<ret>'
 boot="--floppy $out/floppy.img"
@@ -460,7 +466,7 @@ check l10n-hint-la  '(lineam tabulae addit)'  'lang la' '<ret>' put '<ret>'
 check l10n-fe-tlh   "tu'lu'pu'"             'lang tlh' '<ret>' 'mkdir t1' '<ret>' 'mkdir t1' '<ret>'
 check l10n-rm-tlh   "tu'lu'be'"             'lang tlh' '<ret>' 'rm nosuch' '<ret>'
 check lang-bad      'Unknown language (en la tlh)'  'lang fr' '<ret>'
-check lang-banner   'Sciurus-OS/2 1.7.3'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
+check lang-banner   'Sciurus-OS/2 1.7.4'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
 # 1.0.6: calc, edit and draw titles follow lang
 check l10n-calc-tlh "mI' De'wI' (Esc to exit)" 'lang tlh' '<ret>' 'run calc' '<ret>'
 check l10n-edit-tlh "ghItlhwI': (untitled)" 'lang tlh' '<ret>' 'run edit' '<ret>'
