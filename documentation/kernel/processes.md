@@ -39,6 +39,9 @@ Location: `../../kernel/proc.asm` (included from `kernel/pm.asm`)
 4. **wait(pid)** returns at once if the target is already a zombie; otherwise the caller
    becomes `waiting` and switches. When woken it reaps the zombie (slot becomes `free`)
    and returns the exit code. `wait` on an unknown pid or on itself returns -1.
+   So does a wait that would close a cycle: if the target is already waiting,
+   directly or through others, for the caller, nobody could ever wake either
+   of them (KB-16, `proc_wait_cycle`; check `waitcycle`).
 
 ## Context switch
 
