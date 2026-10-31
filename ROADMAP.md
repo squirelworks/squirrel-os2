@@ -86,7 +86,7 @@ A shell that hosts `files`, `calc`, `edit`, `vedit`, and `draw` as windows and r
 
 ### 1.7–1.9 — Object desktop
 
-From `documentation/plannedmilestones.md`. 1.7 is on `main` (classes and messages, instance fields, an `objs` listing, the desktop entries as objects), and 1.8 is split into boxes in `TODO.md` (an object file format, objects that outlive a reboot, the desktop's entries kept on disk):
+From `documentation/plannedmilestones.md`. 1.7 and 1.8 are on `main` (classes and messages, instance fields, an `objs` listing, the desktop entries as objects; an object file format, `objcat` after a reboot, the desktop's entries kept in `/desktop`), and 1.9 is split into boxes in `TODO.md` (folders, pick up and drop, rename and delete):
 
 - **1.7** — A small object model (class, method, inheritance) sufficient for a desktop.
 - **1.8** — Objects stored in the file system and loaded back.
