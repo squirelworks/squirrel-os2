@@ -2,7 +2,33 @@
 
 ## Building and running
 
-Requirements: NASM, QEMU (or any emulator that accepts a raw boot image).
+Requirements: NASM and Python 3 to build; QEMU (or another PC emulator) to run.
+The machine needs a Pentium-class CPU (CPUID, FPU, 4 MB pages) and at least 4 MB of memory.
+
+The quick way (0.9.3):
+
+```bash
+tools/build.sh          # build/os.img, build/floppy.img, and build/data.img with the sample programs
+tools/run.sh            # QEMU: boot os.img with data.img as the data disk
+tools/run.sh --floppy   # the same, booting from the floppy image
+```
+
+`build/data.img` is only made when it is missing, so what you save survives a rebuild;
+`tools/build.sh --fresh` starts a new one. In the OS, type `ls`, `run files`, `run edit notes`,
+`run draw pic`, `run calc`, or `run hello world` (a program from the data disk).
+
+Other emulators:
+
+- **Bochs:** `tools/bochs_smoke.sh` boots the image in Bochs (with Bochs's own BIOS),
+  runs a scripted session through `autoexec.bat`, reboots and checks the files are still there.
+  Its `bochsrc` is a working starting point for an interactive Bochs setup.
+- **VirtualBox / VMware:** convert the images first, e.g.
+  `VBoxManage convertfromraw build/os.img os.vdi` (and `data.img`), and attach them to an IDE
+  controller as primary master and primary slave. Untested so far.
+- **Real hardware:** untested. `build/floppy.img` written to a floppy, or `build/os.img` written
+  to a disk that the BIOS boots as a hard disk, should work on a PC with a legacy BIOS (not UEFI-only).
+
+The manual way:
 
 ```bash
 cd kernel

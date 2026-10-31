@@ -15,17 +15,27 @@ summaries are in [ROADMAP.md](ROADMAP.md). History is in
 
 ## Known bugs
 
-`documentation/knownbugs.md` has **no open defects**. KB-1 through KB-10 are resolved (KB-7 in 0.3.2 / 0.3.3, KB-8 through KB-10 in 0.9.2). Leave those entries in place.
+`documentation/knownbugs.md` has **no open defects**. KB-1 through KB-15 are resolved (KB-7 in 0.3.2 / 0.3.3, KB-8 through KB-10 in 0.9.2, KB-11 through KB-15 in 0.9.3). Leave those entries in place.
 
 A new defect that contradicts `documentation/specifications.md` or a milestone gets an entry there and a checkbox in this file, in the same PR that records it. Do not file a bug for an item this list already calls an accepted limit.
+
+## 0.9.3 — Release readiness (done)
+
+Added after the roadmap was written, from the question "has it been run in a VM?". Release note: `documentation/releases/0.9.3.md`.
+
+- [x] **0.9.3-floppy** — Boot from a 1.44 MB floppy image (CHS fallback in the boot sector; KB-11, KB-12). Checks `floppy-boot`, `floppy-data`, `floppy-e820`.
+- [x] **0.9.3-cpu** — Say "needs a Pentium-class CPU" and halt instead of crashing (KB-13). Checks `cpu-nopse`, `cpu-nofpu`.
+- [x] **0.9.3-calc-hist** — `calc` history at `/calc.hist` (KB-15). Check `calc-hist-root`.
+- [x] **0.9.3-planned** — Banner lists `graph`, `diff`, `topo` as planned. Check `ver-planned`.
+- [x] **0.9.3-build** — `tools/build.sh`, `tools/run.sh`, `tools/bochs_smoke.sh`, and `documentation/guides/getting-started.md` (QEMU, Bochs, VirtualBox).
 
 ## 1.0.0 — Ship the minimal system
 
 Do these first. The release task is last, and only after the others are on `main`.
 
-- [ ] **1.0-banner** — Make the boot banner report 0.9.2.
-  `banner_rest` in `kernel/pm.asm` still says `0.2.3`.
-  **Acceptance:** after boot, the VGA screen contains `0.9.2`. A new `tools/regress.sh` check fails if it does not. The 1.0.0 release task is what changes the string to `1.0.0`.
+- [x] **1.0-banner** — Make the boot banner report the current version. Done in 0.9.3: the banner says `0.9.3`, and the `ver-banner` check fails if it does not.
+  `banner_rest` in `kernel/pm.asm` said `0.2.3`.
+  **Acceptance:** after boot, the VGA screen contains the current version. A new `tools/regress.sh` check fails if it does not. The 1.0.0 release task is what changes the string to `1.0.0`.
 
 - [ ] **1.0-spec** — Write the current specification.
   `documentation/specifications.md` stops at 0.0.3 while claiming it is updated with each release.

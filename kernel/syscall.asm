@@ -263,6 +263,8 @@ cmd_systest_run:
     test eax, eax
     call st_check
 
+    test dword [dev_hd0+DEV_FLAGS], DEVF_UP
+    jz .nohd0               ; booted from a floppy: no hard disk 0 (0.9.3)
     mov eax, SYS_BREAD      ; boot sector of drive 0 ends in 0xAA55
     xor ebx, ebx
     mov ecx, KSCRATCH+0x600
@@ -272,6 +274,7 @@ cmd_systest_run:
     call st_check
     cmp word [KSCRATCH+0x600+510], 0xAA55
     call st_check
+.nohd0:
 
     mov eax, SYS_BWRITE     ; past the end of any disk -> -1
     mov ebx, 0x0FFFFFFF

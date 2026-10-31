@@ -47,7 +47,7 @@ Still scaffolds or stated limits, on purpose:
 - The x87 state is not saved on a switch. Only one of `sci` or `matrix` should run at a time.
 - There is no seek. Programs see file failures only as −1; the shell maps `fs_errno` to text.
 - User code runs in ring 0. User mode and growing stacks are 2.x (`documentation/kernel/memory.md`).
-- The boot banner still says `0.2.3` (`banner_rest` in `kernel/pm.asm`).
+- Since then, 0.9.3 fixed the banner (it said `0.2.3`), floppy boot, and the CPU check, and added build/run scripts and a Bochs smoke test (`documentation/releases/0.9.3.md`).
 - `documentation/knownbugs.md` has no open defects (KB-1 through KB-10 are resolved).
 
 ## Milestones

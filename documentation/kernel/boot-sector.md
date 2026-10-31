@@ -1,12 +1,20 @@
 # Kernel Notes
 
-## boot.asm (current — 0.5.1)
+## boot.asm (current — 0.9.3)
 
-- Loads 128 sectors (LBA 1–128, the 64 KB `pm.asm` image) to `0x8000` with the BIOS
-  extended read (int 0x13, AH=0x42, disk address packet), in two reads of 64 sectors
-  (`0x0000:0x8000` and `0x1000:0x0000`), since some firmware caps one read at 127 sectors.
-  The firmware's boot drive (`dl`) is saved for the second read.
-- Jumps to `0000:8000`; halts if a read fails.
+- Loads 128 sectors (LBA 1–128, the 64 KB `pm.asm` image) to `0x8000` and jumps to `0000:8000`.
+- From a hard disk it uses the BIOS extended read (int 0x13, AH=0x42, disk address packet),
+  in two reads of 64 sectors (`0x0000:0x8000` and `0x1000:0x0000`), since some firmware caps
+  one read at 127 sectors. The firmware's boot drive (`dl`) is saved for the second read.
+- From a floppy (`dl` < 0x80), or when the extended read fails, it reads one sector at a time
+  with AH=0x02. The geometry comes from AH=0x08, each LBA is converted to cylinder/head/sector,
+  and every read gets up to three tries with a drive reset in between (0.9.3; before, a floppy
+  boot hung).
+- If the kernel cannot be read it prints `Squirrel-OS/2: cannot read the kernel from the boot disk`
+  and halts.
+- The kernel's real-mode entry clears DS/ES first (the floppy path leaves ES past the image,
+  which broke the E820 memory map), then checks the CPU: without CPUID, an FPU or 4 MB pages
+  (PSE) it prints `Squirrel-OS/2 needs a Pentium-class CPU (CPUID, FPU, 4 MB pages).` and halts.
 - The kernel's last dword is the signature `S2OK`; at boot the kernel checks it and prints
   `Warning: kernel image only partly loaded` if it is missing.
 - The GDT sits right after the real-mode entry code, inside the first 32 KB, because `lgdt` in

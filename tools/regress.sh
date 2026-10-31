@@ -9,6 +9,8 @@ python3 "$root/tools/mkstrings.py" --check || exit 1
 (cd "$root/kernel" && nasm -f bin boot.asm -o "$out/boot.bin" \
     && nasm -f bin pm.asm -o "$out/pm.bin" 2>/dev/null)
 cat "$out/boot.bin" "$out/pm.bin" > "$out/os.img"
+dd if=/dev/zero of="$out/floppy.img" bs=1024 count=1440 2>/dev/null
+dd if="$out/os.img" of="$out/floppy.img" conv=notrunc 2>/dev/null
 for prog in hello wc elfhello ls cat nest crash heap devtest; do
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
 done
@@ -33,7 +35,7 @@ fail=0
 disk=$out/data.img              # data disk attached as primary slave
 check() {   # check NAME EXPECTED KEYS...
     name=$1; want=$2; shift 2
-    screen=$(python3 "$root/tools/qemu_screen.py" ${disk:+--disk "$disk"} "$out/os.img" "$@")
+    screen=$(python3 "$root/tools/qemu_screen.py" ${disk:+--disk "$disk"} ${boot:-"$out/os.img"} "$@")
     case $screen in
         *"$want"*) echo "ok   $name" ;;
         *) echo "FAIL $name (expected: $want)"; fail=1 ;;
@@ -159,6 +161,20 @@ check ed-path-w     'Saved'                 'run edit e1/long-name.txt' '<ret>' 
 check ed-path-r     'deep'                  'cat e1/long-name.txt' '<ret>'
 check fb-dir        'in /e1'                'cd e1' '<ret>' 'run files' '<ret>'
 check fb-dir-up     '[app]'                 'cd e1' '<ret>' 'run files' '<ret>' '<ret>'
+# 0.9.3: release readiness
+check ver-banner    'Squirrel-OS/2 0.9.3'   systest '<ret>'
+check ver-planned   '(planned: graph, diff, topo)'  systest '<ret>'
+check calc-hist-root '1 + 1 = 2'            'mkdir c1' '<ret>' 'cd c1' '<ret>' 'run calc' '<ret>' '1 + 1' '<ret>' '<esc>' 'cat /calc.hist' '<ret>'
+boot="--floppy $out/floppy.img"
+check floppy-boot   'systest: PASS'         '<pause>' '<pause>' systest '<ret>'
+check floppy-data   'kept'                  '<pause>' '<pause>' 'cat keep/note' '<ret>'
+check floppy-e820   'usable'                '<pause>' '<pause>' mem '<ret>'
+boot=
+export QEMU_EXTRA='-cpu 486,-pse'
+check cpu-nopse     'needs a Pentium-class CPU'
+export QEMU_EXTRA='-cpu pentium,-fpu'
+check cpu-nofpu     'needs a Pentium-class CPU'
+unset QEMU_EXTRA
 disk=$out/progs.img
 check ld-sqx        'Hello from a loaded program!'  'run hello' '<ret>'
 check ld-arg        'Argument: world'       'run hello world' '<ret>'
@@ -219,7 +235,7 @@ check lang-show     'Language: en (en la tlh)'  lang '<ret>'
 check lang-la       'Tabulae:'              'lang la' '<ret>' ls '<ret>'
 check lang-tlh      "ra' tlhaQ"             'lang tlh' '<ret>' xyz '<ret>'
 check lang-bad      'Unknown language (en la tlh)'  'lang fr' '<ret>'
-check lang-banner   'Sciurus-OS/2 0.2.3'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
+check lang-banner   'Sciurus-OS/2 0.9.3'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
 check lang-systest  'systest: PROBATUM'     'lang la' '<ret>' systest '<ret>'
 disk=$out/auto.img
 check bat-autoexec  'autoexec ran'

@@ -10,6 +10,42 @@ ORG 0x8000
 KSCRATCH equ 0x20000            ; 64 KB kernel scratch (driver/FS buffers)
 stage2:
     cli
+    xor ax, ax                  ; the boot sector may leave ES elsewhere
+    mov ds, ax
+    mov es, ax
+    ; the CPU must have CPUID, an FPU and 4 MB pages (PSE): a Pentium or
+    ; later (0.9.3). Say so instead of crashing later.
+    pushfd
+    pop eax
+    mov ecx, eax
+    xor eax, 1 << 21            ; ID flag: can it be changed?
+    push eax
+    popfd
+    pushfd
+    pop eax
+    push ecx
+    popfd
+    xor eax, ecx
+    jz .oldcpu
+    mov eax, 1
+    cpuid
+    and edx, (1 << 0)|(1 << 3)  ; FPU, PSE
+    cmp edx, (1 << 0)|(1 << 3)
+    je .cpuok
+.oldcpu:
+    mov si, msg_oldcpu
+.say:
+    lodsb
+    test al, al
+    jz .stop
+    mov ah, 0x0E
+    xor bx, bx
+    int 0x10
+    jmp .say
+.stop:
+    hlt
+    jmp .stop
+.cpuok:
     ; A20 on (fast gate, port 0x92) so memory above 1 MB is reachable
     in al, 0x92
     or al, 2
@@ -51,6 +87,7 @@ gdt_desc:
     dw $-gdt-1
     dd gdt
 e820_count dw 0                 ; written in real mode, so also below 32 KB
+msg_oldcpu db 'Squirrel-OS/2 needs a Pentium-class CPU (CPUID, FPU, 4 MB pages).', 13, 10, 0
 
 BITS 32
 pm:
@@ -758,12 +795,12 @@ default_isr:
 
 ; ---------- data ----------
 banner db 'Squirrel-OS/2'          ; (the "help" file: the English banner)
-banner_rest db ' 0.2.3', 10
+banner_rest db ' 0.9.3', 10   ; OS version: here only (see releases/PROCESS.md)
        db 'Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>', 10
        db '          mv <f> <new> | mkdir <d> | cd <d> | pwd | echo | batch <f> | format', 10
        db '          ps | disk | mem | devices | lang <en|la|tlh>', 10
        db 'Tests: systest | proctest | blktest | fstest | memtest | keys', 10
-       db 'Apps: files, calc, sci, graph, matrix, diff, topo, edit, vedit, draw', 10, 0
+       db 'Apps: files, calc, sci, matrix, edit, vedit, draw   (planned: graph, diff, topo)', 10, 0
 msg_partial db 'Warning: kernel image only partly loaded', 10, 0
 cmd_ls db 'ls', 0
 cmd_cat db 'cat ', 0
