@@ -182,7 +182,7 @@ Start after **1.4-focus** and **1.2-key-event** are on `main`. One widget per PR
 
 ## 1.6 — Desktop shell
 
-- [ ] **1.6-desktop** — Boot to a desktop that lists `files`, `calc`, `edit`, `vedit`, and `draw`.
+- [x] **1.6-desktop** — Boot to a desktop that lists `files`, `calc`, `edit`, `vedit`, and `draw`.
   **Acceptance:** the screen shows those names, and a regression check expects them. Quitting the desktop reaches the existing shell (`systest: PASS`).
 
 - [ ] **1.6-calc** — Open `calc` in a window, evaluate `2 + 2`, close it.

@@ -29,6 +29,9 @@ for f in demo.bat demo2.bat; do python3 "$root/tools/sqfs.py" "$out/progs.img" p
 python3 "$root/tools/sqfs.py" "$out/auto.img" format 1024
 printf 'echo autoexec ran\nlang la\n' > "$out/autoexec.bat"
 python3 "$root/tools/sqfs.py" "$out/auto.img" put "$out/autoexec.bat"
+python3 "$root/tools/sqfs.py" "$out/dkauto.img" format 1024    # 1.6.0: boot into the desktop
+mkdir -p "$out/dk" && printf 'desktop\n' > "$out/dk/autoexec.bat"
+python3 "$root/tools/sqfs.py" "$out/dkauto.img" put "$out/dk/autoexec.bat"
 rm -f "$out/data.img"
 dd if=/dev/zero of="$out/data.img" bs=1024 count=1024 2>/dev/null
 
@@ -252,6 +255,11 @@ check listtest     'list: Beech'           listtest '<ret>' '<pause>' '<down>' '
 check listtest-end 'list: Dogwood'         listtest '<ret>' '<pause>' '<down>' '<down>' '<down>' '<down>' '<down>' '<esc>'
 check listtest-up  'list: Acorn'           listtest '<ret>' '<pause>' '<down>' '<up>' '<up>' '<ret>'
 check listtest-text 'systest: PASS'        listtest '<ret>' '<pause>' '<esc>' systest '<ret>'
+# 1.6.0: the desktop lists the programs (read off the graphics screen); Esc: the shell
+check_all desktop  'gfx: Squirrel-OS/2 Desktop|gfx: files|gfx: calc|gfx: edit|gfx: vedit|gfx: draw' \
+                   desktop '<ret>' '<pause>' '<gfx>'
+check desktop-quit 'systest: PASS'         desktop '<ret>' '<pause>' '<down>' '<esc>' systest '<ret>'
+check gfx-read-list 'gfx: Dogwood'         listtest '<ret>' '<pause>' '<gfx>'
 check topo-stub     'Scaffolded. Simplicial homology'  'run topo' '<ret>'
 # program loader: a disk prepared on the host with tools/sqfs.py
 # 0.9.2: usage hints, file-system error reasons, mv into a directory,
@@ -271,7 +279,7 @@ check ed-path-r     'deep'                  'cat e1/long-name.txt' '<ret>'
 check fb-dir        'in /e1'                'cd e1' '<ret>' 'run files' '<ret>'
 check fb-dir-up     '[app]'                 'cd e1' '<ret>' 'run files' '<ret>' '<ret>'
 # 0.9.3: release readiness
-check ver-banner    'Squirrel-OS/2 1.5.3'   systest '<ret>'
+check ver-banner    'Squirrel-OS/2 1.6.0'   systest '<ret>'
 check ver-planned   '(planned: topo)'  systest '<ret>'
 check calc-hist-root '1 + 1 = 2'            'mkdir c1' '<ret>' 'cd c1' '<ret>' 'run calc' '<ret>' '1 + 1' '<ret>' '<esc>' 'cat /calc.hist' '<ret>'
 boot="--floppy $out/floppy.img"
@@ -372,7 +380,7 @@ check l10n-hint-la  '(lineam tabulae addit)'  'lang la' '<ret>' put '<ret>'
 check l10n-fe-tlh   "tu'lu'pu'"             'lang tlh' '<ret>' 'mkdir t1' '<ret>' 'mkdir t1' '<ret>'
 check l10n-rm-tlh   "tu'lu'be'"             'lang tlh' '<ret>' 'rm nosuch' '<ret>'
 check lang-bad      'Unknown language (en la tlh)'  'lang fr' '<ret>'
-check lang-banner   'Sciurus-OS/2 1.5.3'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
+check lang-banner   'Sciurus-OS/2 1.6.0'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
 # 1.0.6: calc, edit and draw titles follow lang
 check l10n-calc-tlh "mI' De'wI' (Esc to exit)" 'lang tlh' '<ret>' 'run calc' '<ret>'
 check l10n-edit-tlh "ghItlhwI': (untitled)" 'lang tlh' '<ret>' 'run edit' '<ret>'
@@ -382,6 +390,9 @@ check lang-systest  'systest: PROBATUM'     'lang la' '<ret>' systest '<ret>'
 disk=$out/auto.img
 check bat-autoexec  'autoexec ran'
 check lang-autoexec 'Tabulae:'              ls '<ret>'
+disk=$out/dkauto.img
+check_all desktop-boot 'gfx: Squirrel-OS/2 Desktop|gfx: draw' '<pause>' '<gfx>'
+check desktop-boot-quit 'systest: PASS'    '<pause>' '<esc>' systest '<ret>'
 disk=
 check no-disk       'no data disk'          blktest '<ret>'
 check devices-nodisk 'hd1     block   absent'  devices '<ret>'

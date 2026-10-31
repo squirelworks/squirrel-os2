@@ -248,6 +248,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - A list widget: items in a column with one selected; Down and Up move the selection and stop at the ends (`kernel/widgets.md`; `listtest`, `listtest-end`, `listtest-up`, `listtest-text`). This completes milestone 1.5.
 
+## 1.6.0
+
+- The `desktop` command: graphics mode with a window listing `files`, `calc`, `edit`, `vedit` and `draw`; Up and Down choose, Esc returns to the shell (`apps/desktop.md`; `desktop`, `desktop-quit`). The shell prompt is still what the system boots to; an `autoexec.bat` line `desktop` boots into the desktop. `tools/qemu_screen.py` can read text off the graphics screen (`<gfx>`; `gfx-read-list`; `desktop-boot`, `desktop-boot-quit`).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.
