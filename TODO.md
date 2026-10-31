@@ -197,7 +197,7 @@ Start after **1.4-focus** and **1.2-key-event** are on `main`. One widget per PR
   Start after **1.6-desktop** is on `main`.
   **Acceptance:** the saved drawing contains that cell and a regression check expects it. Pixel drawing is the next task, not this one.
 
-- [ ] **1.6-draw-pixels** — Pixel drawing in `draw`.
+- [x] **1.6-draw-pixels** — Pixel drawing in `draw`.
   Start after **1.6-draw** and **1.3-line-fill** are on `main`. This is the "Later" section of `documentation/apps/draw.md`.
   **Acceptance:** a stroke sets a pixel the self-check reads back, save/load keeps it, and a regression check expects `drawpx: PASS`.
 

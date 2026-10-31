@@ -67,6 +67,12 @@ run_draw:
     je .fill
     cmp al, 'c'
     je .clear
+    cmp al, 'g'
+    je .pixels
+    jmp .loop
+.pixels:                        ; the pixel canvas (1.6.5, drawpx.asm)
+    call dp_run
+    call dr_frame
     jmp .loop
 .ctrl:
     cmp al, 0x1F
@@ -717,7 +723,7 @@ dr_mode db 0                    ; 0 none, 1 line, 2 rectangle (corner marked)
 dr_mod db 0
 dr_name times FS_PATHMAX db 0
 dr_title db ' - ASCII canvas 64x18', 0
-dr_keys1 db 'Arrows move  Space plot  x/Bksp erase  p pen up/down  b brush  c clear', 0
+dr_keys1 db 'Arrows move  Space plot  x/Bksp erase  p pen  b brush  c clear  g pixels', 0
 dr_keys2 db 'l line, r rectangle (press at both corners)  f fill  Ctrl+S/F2 save  Esc quit', 0
 dr_s_pos db 'Pos ', 0
 dr_s_brush db "  Brush '", 0
