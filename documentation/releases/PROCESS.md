@@ -114,6 +114,7 @@ This avoids retargeting chains and confirmation steps.
 | 1.7.0   | 2026-10-31 | Objects: classes and messages        |
 | 1.7.1   | 2026-10-31 | Objects: instance fields             |
 | 1.7.2   | 2026-10-31 | Installer: target disk and SQFS      |
+| 1.7.3   | 2026-10-31 | Objects: objs listing and obj_free   |
 
 ## Next planned release
 

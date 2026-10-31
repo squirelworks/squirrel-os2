@@ -19,7 +19,11 @@ The method table is a list of (selector, handler) dword pairs that ends with a s
 
 ## Objects
 
-An object is a 32-byte slot in a table of 32. Its first dword (`OBJ_CLASS`) points at its class; a free slot has 0 there. `obj_new` takes the first free slot and clears it. The other 28 bytes hold up to 7 dword fields (below). Freeing comes with `obj_free` in `1.7-objs`.
+An object is a 32-byte slot in a table of 32. Its first dword (`OBJ_CLASS`) points at its class; a free slot has 0 there. `obj_new` takes the first free slot and clears it. The other 28 bytes hold up to 7 dword fields (below). `obj_free` (1.7.3) gives the slot back: it clears the class pointer, and refuses (CF set) an address that is not a slot of the table or a slot that is already free.
+
+## objs (1.7.3)
+
+The shell command `objs` prints `Classes:` and one line per recorded class, with ` < ` and the parent's name if it has one; then `Objects:` and one line per live object, `slot: class`; then the number of live objects and ` live`. After boot both lists are empty; after `objtest` the classes are `Shape` and `Square < Shape` and no object is live, since `objtest` frees its two (checks `objs-empty`, `objs-tree`). The object table is in kernel data, so `mem` is the same before and after (`objtest-mem`).
 
 ## Fields (1.7.1)
 
@@ -61,4 +65,4 @@ Since 1.7.1 `Shape` has a field `size` and a method `resize` (ebx), which finds 
 - `colour` is field 1 of the square; a shape has no `colour`, and setting its field 1 fails.
 - The shape's own `size` is still 0.
 
-It gives both slots back and prints `obj fields: PASS`, or FAIL (check `objfields`). With `perimeter` returning twice the size instead, it prints FAIL.
+It gives both slots back with `obj_free`, checks that freeing the shape again is refused (1.7.3), and prints `obj fields: PASS`, or FAIL (check `objfields`). With `perimeter` returning twice the size instead, it prints FAIL.

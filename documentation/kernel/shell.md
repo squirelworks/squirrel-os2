@@ -85,7 +85,7 @@ redirections on the lines inside the script instead.
 ## Built-in commands
 
 `ls`, `cat <f>`, `echo <text>`, `batch <file>`, `put <f> <text>`, `mk <f>`, `rm <f>`, `mv <f> <new>`, `format`, `ps`, `disk`,
-`run <app|file> [args]`, `desktop` (1.6, `../apps/desktop.md`), and the tests `systest`, `proctest`, `blktest`, `fstest`, `memtest`, `gfxtest`, `gfxprim` and `gfxtext` (1.3, `graphics.md`), `wintest`, `winmove` and `winfocus` (1.4, `windows.md`), `labeltest`, `buttontest`, `fieldtest` and `listtest` (1.5, `widgets.md`), `drawpx` (1.6.5, `../apps/draw.md`), `objtest` (1.7.0, `objects.md`), `keys`.
+`run <app|file> [args]`, `desktop` (1.6, `../apps/desktop.md`), `objs` (1.7.3, `objects.md`), and the tests `systest`, `proctest`, `blktest`, `fstest`, `memtest`, `gfxtest`, `gfxprim` and `gfxtext` (1.3, `graphics.md`), `wintest`, `winmove` and `winfocus` (1.4, `windows.md`), `labeltest`, `buttontest`, `fieldtest` and `listtest` (1.5, `widgets.md`), `drawpx` (1.6.5, `../apps/draw.md`), `objtest` (1.7.0, `objects.md`), `keys`.
 
 A command that needs arguments, typed alone (`put`, `mk`, `rm`, `mv`, `mkdir`, `cat`, `run`, `batch`),
 prints a `Usage:` line instead of `Unknown command`; `echo` alone prints an empty line (0.9.2,

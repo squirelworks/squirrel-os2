@@ -209,7 +209,7 @@ Split from `documentation/plannedmilestones.md` once 1.6 was on `main`. Work top
   **Acceptance:** a test command `objtest` defines `Shape` with `name` and `area`, and `Square` under it overriding only `area`; sending `name` to a square runs the inherited method, `area` runs the override, and an unknown selector returns an error instead of crashing. It prints `obj: PASS` and a regression check expects it.
 - [x] **1.7-fields** — Instance fields: a class lists its fields by name after its parent's, so a subclass keeps the parent's layout. `obj_get` / `obj_set` by field index, and a lookup by name.
   **Acceptance:** `objtest` sets a field through the parent's method and reads it through the subclass's; it prints `obj fields: PASS` and a regression check expects it.
-- [ ] **1.7-objs** — A shell command `objs` that lists the classes with their parents and the live objects with their classes. Objects are freed with `obj_free`, and the count goes back down.
+- [x] **1.7-objs** — A shell command `objs` that lists the classes with their parents and the live objects with their classes. Objects are freed with `obj_free`, and the count goes back down.
   **Acceptance:** a check reads the class tree off the screen, and `mem` shows the same free memory before and after `objtest`.
 - [ ] **1.7-desktop** — The desktop's entries become objects: a `Program` class (under a `DesktopObject` class with `name` and `open`) for calc, edit, vedit, draw, and `files`. Enter sends `open` to the selected object instead of reading the `dk_run` table.
   **Acceptance:** every `desktop-*` check still passes, and a new check opens a program through `open` and reads its window.
