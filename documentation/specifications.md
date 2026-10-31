@@ -256,6 +256,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - On the desktop, Enter on `calc` runs the calculator in a window: a 52 × 20 view of a text screen in a page of its own; Esc in `calc` closes the window and the desktop is back (`apps/desktop.md`; `desktop-calc`, `desktop-calc-back`, `desktop-calc-mem`, `desktop-calc-text`). `putc`, `cls` and `scroll_up` write through `txt_base`.
 
+## 1.6.3
+
+- On the desktop, Enter on `draw` runs the ASCII drawing program in the same kind of window as `calc`. `draw` and the shared status-row routine `sb_row` write the text screen through `txt_base` and set `txt_dirty`. The window shows the rows that end at the cursor, so the canvas while drawing and the message row while `draw` asks a question (save as, unsaved changes, brush) (`apps/desktop.md`, `apps/draw.md`; `desktop-draw`, `desktop-draw-save`, `desktop-draw-back`, `desktop-draw-mem`, `desktop-draw-text`).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.

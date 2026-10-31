@@ -3,7 +3,7 @@
 ;
 ; The desktop command: graphics mode, a window listing the programs, keys
 ; to the window's widgets. Enter opens the chosen program in a window
-; (calc since 1.6.1); Esc returns to the text shell.
+; (calc since 1.6.1, draw since 1.6.3); Esc returns to the text shell.
 ; See documentation/apps/desktop.md.
 
 DK_X equ 40                     ; the desktop's window
@@ -179,7 +179,7 @@ dk_bye db 'Desktop closed.', 10, 0
 dk_nomem db 'desktop: no memory for graphics', 10, 0
 align 4
 dk_apps dd dk_a0, dk_a1, dk_a2, dk_a3, dk_a4
-dk_run dd 0, run_calc, 0, 0, 0  ; what Enter runs in a window (0: not yet)
+dk_run dd 0, run_calc, 0, 0, run_draw  ; what Enter runs in a window (0: not yet)
 dk_win dd 0
 dk_list dd 0
 dk_twin dd 0
