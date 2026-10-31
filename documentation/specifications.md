@@ -264,6 +264,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - On the desktop, Enter on `edit` or `vedit` opens the editor in a 52 × 20 window with an empty buffer; it saves as usual (Ctrl+S or F2 asks for a name) and Esc closes the window (`apps/desktop.md`; `desktop-edit`, `desktop-edit-save`, `desktop-vedit-save`, `desktop-edit-mem`). The editor writes through `txt_base` and fits its rows and columns to `txt_rows` and `txt_cols`.
 
+## 1.6.5
+
+- `g` in `draw` opens an 80 × 50 pixel canvas, three times larger in graphics mode (over the desktop when `draw` runs in a window). Space plots, `p` draws strokes, F2 saves `<drawing>.px` (4006 bytes: `SQPX`, width, height, one colour byte per pixel), and it is loaded again when the canvas opens. `drawpx` checks a stroke on the screen and through save and load (`apps/draw.md`; `drawpx`, `drawpx-text`, `drawpx-mem`, `draw-pixels`, `desktop-draw-pixels`, `desktop-draw-pixels-back`).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.

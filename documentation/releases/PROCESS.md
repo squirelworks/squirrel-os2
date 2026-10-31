@@ -110,6 +110,7 @@ This avoids retargeting chains and confirmation steps.
 | 1.6.1   | 2026-10-31 | Desktop: calc in a window            |
 | 1.6.3   | 2026-10-31 | Desktop: draw in a window            |
 | 1.6.4   | 2026-10-31 | Desktop: edit and vedit in windows   |
+| 1.6.5   | 2026-10-31 | Pixel drawing in draw                |
 
 ## Next planned release
 

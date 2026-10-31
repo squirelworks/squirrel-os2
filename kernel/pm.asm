@@ -382,6 +382,9 @@ run_simple:
     mov edi, cmd_listtest
     call streq
     je .listtest
+    mov edi, cmd_drawpx         ; 1.6.5
+    call streq
+    je .drawpx
     mov edi, cmd_fieldtest
     call streq
     je .fieldtest
@@ -579,6 +582,9 @@ run_simple:
     jmp .empty
 .desktop:
     call cmd_desktop_run
+    jmp .empty
+.drawpx:
+    call cmd_drawpx_run
     jmp .empty
 .listtest:
     call cmd_listtest_run
@@ -894,13 +900,13 @@ default_isr:
 
 ; ---------- data ----------
 banner db 'Squirrel-OS/2'          ; (the "help" file: the English banner)
-banner_rest db ' 1.6.4', 10   ; OS version: here only (see releases/PROCESS.md)
+banner_rest db ' 1.6.5', 10   ; OS version: here only (see releases/PROCESS.md)
        db 'Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>', 10
        db '          mv <f> <new> | mkdir <d> | cd <d> | pwd | echo | batch <f> | format', 10
        db '          ps | disk | mem | devices | lang <en|la|tlh> | desktop | install', 10
        db 'Tests: systest | proctest | blktest | fstest | memtest | keys', 10
        db '       gfxtest | gfxprim | gfxtext | wintest | winmove | winfocus', 10
-       db '       labeltest | buttontest | fieldtest | listtest', 10
+       db '       labeltest | buttontest | fieldtest | listtest | drawpx', 10
        db 'Apps: files, calc, sci, graph, matrix, diff, edit, vedit, draw   (planned: topo)', 10, 0
 msg_partial db 'Warning: kernel image only partly loaded', 10, 0
 cmd_ls db 'ls', 0
@@ -1024,6 +1030,7 @@ cmd_labeltest db 'labeltest', 0
 cmd_buttontest db 'buttontest', 0
 cmd_fieldtest db 'fieldtest', 0
 cmd_listtest db 'listtest', 0
+cmd_drawpx db 'drawpx', 0
 cmd_desktop db 'desktop', 0
 cmd_proctest db 'proctest', 0
 proc_full db 'Too many processes', 10, 0
@@ -1190,6 +1197,7 @@ puthex:
 %include "calc.asm"
 %include "editor.asm"
 %include "draw.asm"
+%include "drawpx.asm"
 %include "loader.asm"
 %include "sci.asm"
 %include "matrix.asm"
