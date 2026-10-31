@@ -24,7 +24,7 @@ sh_prompt:
     call fs_print_path
     pop edx
 .plain:
-    mov esi, prompt
+    mov esi, [lstr+LS_PROMPT*4]
     call puts
     pop esi
     mov eax, [cur]

@@ -364,10 +364,7 @@ app_home:
     cmp byte [cap_on], 0
     jne .r
     call cls
-    push esi
-    mov esi, banner
-    call puts
-    pop esi
+    call show_banner
 .r:
     ret
 

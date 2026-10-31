@@ -119,9 +119,10 @@ pm:
     mov al, ah
     out 0x40, al
 
+    xor eax, eax                ; English until "lang" says otherwise
+    call lang_select
     call cls
-    mov esi, banner
-    call puts
+    call show_banner
     cmp dword [0x8000+KERNEL_SIZE-4], KERNEL_SIG
     je .whole
     mov esi, msg_partial
@@ -153,8 +154,8 @@ pm:
 ; Built-in (ROM) files, used when no data disk is mounted and to seed
 ; a freshly formatted one.
 rom_list:
-    mov esi, fs_header
-    call puts
+    mov esi, [lstr+LS_FILES*4]
+    call lputs_nl
     mov ecx, [file_count]
     mov ebx, file_table
 .l:
@@ -174,9 +175,8 @@ rom_cat:                      ; esi = name
     call puts
     ret
 .nf:
-    mov esi, notfound
-    call puts
-    ret
+    mov esi, [lstr+LS_NOTFOUND*4]
+    jmp lputs_nl
 
 rom_find:                     ; esi = name, returns eax = entry or 0
     push ecx
@@ -298,6 +298,9 @@ run_simple:
     mov edi, cmd_pwd
     call streq
     je .pwd
+    mov edi, cmd_lang
+    call streq
+    je .lang
     ; cat
     mov edi, cmd_cat
     call streq_prefix
@@ -372,8 +375,8 @@ run_simple:
     call [ebx+4]
     jmp .empty
 .unknown:
-    mov esi, unknown
-    call puts
+    mov esi, [lstr+LS_UNKNOWN*4]
+    call lputs_nl
     jmp .empty
 .format:
     call cmd_format_run
@@ -390,6 +393,10 @@ run_simple:
     jmp .empty
 .pwd:
     call cmd_pwd_run
+    jmp .empty
+.lang:
+    add esi, 4
+    call cmd_lang_run
     jmp .empty
 .systest:
     call cmd_systest_run
@@ -741,17 +748,14 @@ default_isr:
     iretd
 
 ; ---------- data ----------
-banner db 'Squirrel-OS/2 0.2.3', 10
+banner db 'Squirrel-OS/2'          ; (the "help" file: the English banner)
+banner_rest db ' 0.2.3', 10
        db 'Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>', 10
        db '          mv <f> <new> | mkdir <d> | cd <d> | pwd | echo | batch <f> | format', 10
-       db '          ps | disk | mem | devices', 10
+       db '          ps | disk | mem | devices | lang <en|la|tlh>', 10
        db 'Tests: systest | proctest | blktest | fstest | memtest | keys', 10
        db 'Apps: files, calc, sci, graph, matrix, diff, topo, edit, vedit, draw', 10, 0
-prompt db '> ', 0
 msg_partial db 'Warning: kernel image only partly loaded', 10, 0
-fs_header db 'Files:', 10, 0
-notfound db 'Not found', 10, 0
-unknown db 'Unknown command', 10, 0
 cmd_ls db 'ls', 0
 cmd_cat db 'cat ', 0
 cmd_run db 'run ', 0
@@ -777,6 +781,8 @@ cmd_cd_arg db 'cd ', 0
 cmd_mkdir db 'mkdir ', 0
 cmd_cd db 'cd', 0
 cmd_pwd db 'pwd', 0
+cmd_lang db 'lang', 0
+cmd_lang_arg db 'lang ', 0
 cmd_echo db 'echo ', 0
 cmd_batch db 'batch ', 0
 arg_cmds:
@@ -787,6 +793,7 @@ arg_cmds:
     dd cmd_ls_arg, cmd_ls_run
     dd cmd_cd_arg, cmd_cd_run
     dd cmd_mkdir, cmd_mkdir_run
+    dd cmd_lang_arg, cmd_lang_run
     dd cmd_echo, cmd_echo_run
     dd cmd_batch, cmd_batch_run
     dd 0, 0
@@ -1003,6 +1010,7 @@ exc_killed db 'Program ended: pid ', 0
 %include "vm.asm"
 %include "dev.asm"
 %include "chardev.asm"
+%include "lang.asm"
 %include "browser.asm"
 %include "calc.asm"
 %include "editor.asm"
