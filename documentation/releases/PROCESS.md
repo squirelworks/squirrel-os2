@@ -113,6 +113,7 @@ This avoids retargeting chains and confirmation steps.
 | 1.6.5   | 2026-10-31 | Pixel drawing in draw                |
 | 1.7.0   | 2026-10-31 | Objects: classes and messages        |
 | 1.7.1   | 2026-10-31 | Objects: instance fields             |
+| 1.7.2   | 2026-10-31 | Installer: target disk and SQFS      |
 
 ## Next planned release
 

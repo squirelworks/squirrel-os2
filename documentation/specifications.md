@@ -276,6 +276,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - Instance fields: a class names its own fields, laid out after its parent's; an object holds up to 7 dword fields. `obj_field` finds an index by name, `obj_get` / `obj_set` work by index and refuse one the class does not have (`kernel/objects.md`; `objfields`).
 
+## 1.7.2
+
+- Installer steps I.1 and I.2 (`guides/install.md`): the ATA driver probes the secondary channel too (drives 2 and 3, not in the device table). `install` picks a target that is neither the boot disk nor the data disk; `install part` writes an MBR with one type-7F partition from LBA 2048; `install format` formats SQFS with an empty root in it; `install ls` lists that root. Each write asks y/n first. BIOS and IDE only (`install-*` checks).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.

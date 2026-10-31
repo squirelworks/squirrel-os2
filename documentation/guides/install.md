@@ -22,7 +22,7 @@ the medium can be removed afterwards. Each step is one pull request:
 | I.5-ui | A text-mode `install` program that walks through I.1 to I.4, with a confirm step, localized | open |
 | I.6-cd | Optional: a bootable CD image around `floppy.img` | open |
 
-The steps do not move the OS version. They are named by their box.
+Each step ships in the next OS version, like any other release: I.1 and I.2 are in 1.7.2.
 
 Assumptions: BIOS boot (Legacy/CSM), an IDE/ATA target disk reached through the polled
 driver, SQFS as the installed file system. UEFI, AHCI/NVMe and USB mass storage stay in 2.x.
