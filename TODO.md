@@ -120,7 +120,7 @@ Start only after **1.0-fpu** is on `main`. `yield` and `proctest` keep their cur
 
 ## 1.2 — Messages
 
-- [ ] **1.2-queue** — Send and receive a short message between two processes.
+- [x] **1.2-queue** — Send and receive a short message between two processes.
   **Acceptance:** a parent sends four bytes, the child prints them, and a regression check expects that text. A full queue returns a documented failure the check also covers. `SYS_GETC` is unchanged.
 
 - [ ] **1.2-key-event** — Post a key event as well as delivering `SYS_GETC`.

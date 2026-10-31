@@ -82,6 +82,7 @@ proc_spawn:
     mov dword [edi+PCB_WAITPID], 0
     mov byte [edi+PCB_NAME], 0
     mov dword [edi+PCB_FPU], 0  ; starts with a freshly reset FPU
+    call msg_reset              ; and an empty message queue (1.2)
     mov ebx, [proc_cur]
     push eax
     mov eax, [ebx+PCB_AS]       ; runs in its parent's address space

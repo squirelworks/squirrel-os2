@@ -196,6 +196,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - A `spawn` whose entry is in the program's own image is a thread: it shares the program's memory, with its own stack and pid (`kernel/processes.md`; `thread`). This completes milestone 1.1.
 
+## 1.2.0
+
+- `SYS_SEND` (27) and `SYS_RECV` (28) pass four-byte messages through a queue of 8 per process; a full queue returns −2 (`kernel/messages.md`; `msg`). 29 system calls (0–28).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.

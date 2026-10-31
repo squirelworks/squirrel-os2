@@ -33,7 +33,9 @@ SYS_DEVREAD equ 23          ; ebx = handle, ecx = buf, edx = count/sector -> byt
 SYS_DEVWRITE equ 24         ; as SYS_DEVREAD
 SYS_SEEK    equ 25          ; ebx = fd, ecx = offset, edx = 0 set / 1 cur / 2 end -> position or -1 (1.0.2)
 SYS_FSERROR equ 26          ; ebx = buf, ecx = size -> why the last file call failed (FE_*), text in buf (1.0.3)
-SYS_COUNT   equ 27
+SYS_SEND    equ 27          ; ebx = pid, ecx = message dword -> 0, -1 no such process, -2 queue full (1.2)
+SYS_RECV    equ 28          ; -> the oldest message in the caller's queue; waits while it is empty (1.2)
+SYS_COUNT   equ 29
 
 SYS_ENOSYS  equ -1
 SYSCALL_VEC equ 0x80
@@ -87,6 +89,8 @@ syscall_table:
     dd sys_devwrite
     dd fs_seek
     dd fs_error_text
+    dd sys_send
+    dd sys_recv
 
 ; ---------- handlers: args in ebx/ecx/edx, result in eax ----------
 sys_putc:
