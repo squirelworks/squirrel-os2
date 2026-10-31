@@ -2,6 +2,8 @@
 ; Included from pm.asm. Original code.
 ;
 ; Primary channel only, LBA28, one 512-byte sector per call, polled.
+; Since 0.7.2 the drives are registered as block devices hd0 and hd1
+; (dev.asm); the file system and the block syscalls use those.
 ; Drive 0 = primary master (boot disk), drive 1 = primary slave (data disk).
 ; See documentation/kernel/block-device.md.
 
@@ -336,6 +338,44 @@ cmd_blktest_run:
     ret
 
 ata_sectors dd 0, 0
+
+; ---------- the driver's devices (0.7.2) ----------
+; hd0 = primary master (boot disk, read-only for programs),
+; hd1 = primary slave (data disk). ata_init has already identified them.
+align 4
+dev_hd0:
+    db 'hd0', 0, 0, 0, 0, 0
+    dd DEV_BLOCK, ata_dev_probe, ata_dev_read, ata_dev_write, 0, DEVF_RO, 0, 0
+dev_hd1:
+    db 'hd1', 0, 0, 0, 0, 0
+    dd DEV_BLOCK, ata_dev_probe, ata_dev_read, ata_dev_write, 1, 0, 0, 0
+ata_devs dd dev_hd0, dev_hd1
+
+; ebx = descriptor -> DEV_SIZE = sectors; CF if there is no disk
+ata_dev_probe:
+    push eax
+    mov eax, [ebx+DEV_UNIT]
+    mov eax, [ata_sectors+eax*4]
+    mov [ebx+DEV_SIZE], eax
+    cmp eax, 1                  ; CF when 0
+    pop eax
+    ret
+
+; ebx = descriptor, ecx = sector, edi = buffer -> CF on error
+ata_dev_read:
+    push ebx
+    mov ebx, [ebx+DEV_UNIT]
+    call ata_read
+    pop ebx
+    ret
+
+; ebx = descriptor, ecx = sector, esi = buffer -> CF on error
+ata_dev_write:
+    push ebx
+    mov ebx, [ebx+DEV_UNIT]
+    call ata_write
+    pop ebx
+    ret
 disk_label db 'disk ', 0
 disk_sep db ': ', 0
 disk_none db 'none', 10, 0

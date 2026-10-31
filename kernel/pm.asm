@@ -91,6 +91,7 @@ pm:
     call mm_init
     call vm_init
     call ata_init
+    call dev_init
 
     ; PIC + PIT
     mov al, 0x11
@@ -331,6 +332,9 @@ run_simple:
     mov edi, cmd_memtest
     call streq
     je .memtest
+    mov edi, cmd_devices
+    call streq
+    je .devices
     ; proctest
     mov edi, cmd_proctest
     call streq
@@ -440,6 +444,9 @@ run_simple:
     jmp .empty
 .mem:
     call cmd_mem_run
+    jmp .empty
+.devices:
+    call cmd_devices_run
     jmp .empty
 .memtest:
     call cmd_memtest_run
@@ -723,7 +730,7 @@ default_isr:
 ; ---------- data ----------
 banner db 'Squirrel-OS/2 0.2.3', 10
        db 'Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>', 10
-       db '          mv <f> <new> | echo | batch <f> | format | ps | disk | mem', 10
+       db '          mv <f> <new> | echo | batch <f> | format | ps | disk | mem | devices', 10
        db 'Tests: systest | proctest | blktest | fstest | memtest | keys', 10
        db 'Apps: files, calc, sci, graph, matrix, diff, topo, edit, vedit, draw', 10, 0
 prompt db '> ', 0
@@ -744,6 +751,7 @@ run_rest dd 0                   ; whole argument text, for loaded programs
 cmd_ps db 'ps', 0
 cmd_mem db 'mem', 0
 cmd_memtest db 'memtest', 0
+cmd_devices db 'devices', 0
 cmd_format db 'format', 0
 cmd_fstest db 'fstest', 0
 cmd_put db 'put ', 0
@@ -971,6 +979,8 @@ exc_killed db 'Program ended: pid ', 0
 %include "batch.asm"
 %include "mm.asm"
 %include "vm.asm"
+%include "dev.asm"
+%include "chardev.asm"
 %include "browser.asm"
 %include "calc.asm"
 %include "editor.asm"

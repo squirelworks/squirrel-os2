@@ -39,4 +39,5 @@ Documentation is active.
 - 0.6.0 page allocator (`kernel/memory.md`, `releases/0.6.0.md`)
 - 0.6.1 paging and per-process address spaces (`kernel/memory.md`, `releases/0.6.1.md`)
 - 0.6.2 program heaps with `SYS_SBRK` (`kernel/memory.md`, `releases/0.6.2.md`)
-- Next: 0.7.x driver model, then 0.8.x
+- 0.7.0–0.7.2 device model: registry, console, keyboard, disks (`kernel/drivers.md`, `releases/0.7.0.md`)
+- Next: 0.8.x (directories, localization, crash reports)

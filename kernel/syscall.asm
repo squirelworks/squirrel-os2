@@ -28,7 +28,10 @@ SYS_READDIR equ 18          ; ebx = cursor (0 first), ecx = 20-byte buf -> next 
 SYS_PALLOC  equ 19          ;                       -> zeroed 4 KB page or 0
 SYS_PFREE   equ 20          ; ebx = page            -> 0 or -1
 SYS_SBRK    equ 21          ; ebx = bytes (signed)   -> old break or -1
-SYS_COUNT   equ 22
+SYS_DEVFIND equ 22          ; ebx = name             -> handle or -1
+SYS_DEVREAD equ 23          ; ebx = handle, ecx = buf, edx = count/sector -> bytes or -1
+SYS_DEVWRITE equ 24         ; as SYS_DEVREAD
+SYS_COUNT   equ 25
 
 SYS_ENOSYS  equ -1
 SYSCALL_VEC equ 0x80
@@ -77,6 +80,9 @@ syscall_table:
     dd sys_palloc
     dd sys_pfree
     dd sys_sbrk
+    dd sys_devfind
+    dd sys_devread
+    dd sys_devwrite
 
 ; ---------- handlers: args in ebx/ecx/edx, result in eax ----------
 sys_putc:
@@ -85,39 +91,25 @@ sys_putc:
     xor eax, eax
     ret
 
-sys_puts:
+sys_puts:                   ; through the console device (0.7.1)
     mov esi, ebx
-    call puts
-    mov eax, esi
-    sub eax, ebx
-    dec eax                 ; puts leaves esi one past the terminator
-    ret
+    call strlen
+    mov ecx, eax
+    mov ebx, dev_con
+    jmp dev_write
 
 ; Waits for a key press and returns its ASCII code.
 ; Enter -> 10, Backspace -> 8, Esc -> 27; releases and unmapped keys are skipped.
 sys_getc:
     cmp byte [in_on], 0
     jne in_getc                 ; input redirected (shell.asm): -1 at the end
-.key:
-    call kbd_getscan
-    call kbd_shift_track
-    je sys_getc
-    cmp al, 0x80
-    jae sys_getc
-    cmp al, 0x01
-    je .esc
-    cmp al, 0x0E
-    je .bs
-    call kbd_ascii
+    push eax                    ; one byte from the keyboard device (0.7.1)
+    mov edi, esp
+    mov ecx, 1
+    mov ebx, dev_kbd
+    call dev_read
+    pop eax
     movzx eax, al
-    test eax, eax
-    jz sys_getc
-    ret
-.esc:
-    mov eax, 27
-    ret
-.bs:
-    mov eax, 8
     ret
 
 ; Lets the next READY process run; if there is none, sleeps until the
@@ -143,18 +135,23 @@ sys_getpid:
 
 ; Raw sector access. Writes are limited to the data disk (drive 1) so a
 ; program cannot overwrite the boot image.
+; Both go through the hd0/hd1 block devices (0.7.2).
 sys_bread:
     mov edi, ecx
     mov ecx, ebx
-    mov ebx, edx
-    call ata_read
+    xor ebx, ebx                ; drive numbers other than 0/1: no device
+    cmp edx, 1
+    ja .dev
+    mov ebx, [ata_devs+edx*4]
+.dev:
+    call dev_bread
     jmp sys_cf_result
 
 sys_bwrite:
     mov esi, ecx
     mov ecx, ebx
-    mov ebx, 1
-    call ata_write
+    mov ebx, dev_hd1
+    call dev_bwrite
     ; fall through
 sys_cf_result:                  ; CF -> eax = -1, else 0
     mov eax, 0

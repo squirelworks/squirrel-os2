@@ -13,6 +13,7 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `nest.asm` | SQX | Runs `hello` from inside itself, waits, then checks its own memory survived (0.6.1) |
 | `crash.asm` | SQX | Reads unmapped memory: the fault ends only this program (0.6.1) |
 | `heap.asm` | SQX | Grows its heap by 1 MB with `SYS_SBRK`, checks it, gives it back (`run heap`, `run heap after`, `run heap keep`) (0.6.2) |
+| `devtest.asm` | SQX | Uses devices by name: writes through `con`, reads `hd1`, checks `hd0` refuses writes (0.7.x) |
 | `sqx.inc` | — | SQX header macro and syscall numbers |
 
 Build and install:

@@ -8,11 +8,11 @@ mkdir -p "$out"
 (cd "$root/kernel" && nasm -f bin boot.asm -o "$out/boot.bin" \
     && nasm -f bin pm.asm -o "$out/pm.bin" 2>/dev/null)
 cat "$out/boot.bin" "$out/pm.bin" > "$out/os.img"
-for prog in hello wc elfhello ls cat nest crash heap; do
+for prog in hello wc elfhello ls cat nest crash heap devtest; do
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
 done
 python3 "$root/tools/sqfs.py" "$out/progs.img" format 1024
-for prog in hello wc elfhello ls cat nest crash heap; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
+for prog in hello wc elfhello ls cat nest crash heap devtest; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
 printf 'one two\nthree\n' > "$out/notes"
 python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/notes"
 printf '2 + 3\n6 * 7\n' > "$out/exprs"
@@ -149,7 +149,10 @@ check vm-ps         'kernel'                ps '<ret>'
 check heap          'heap: PASS (1024 KB)'  'run heap' '<ret>'
 check heap-limit-after 'Program ended: pid'  'run heap after' '<ret>'
 check heap-keep-leak '129912 KB free'       'run heap keep' '<ret>' 'run heap after' '<ret>' mem '<ret>'
-check up-ls         '14 file(s)'             'run ls' '<ret>'
+check devices       'hd1     block   ready 2048 sectors'  devices '<ret>'
+check devices-ro    '(read-only for programs)'  devices '<ret>'
+check devtest       'devtest: PASS'         'run devtest' '<ret>'
+check up-ls         '15 file(s)'             'run ls' '<ret>'
 check up-ls-filter  '4 file(s)'             'run ls he' '<ret>'
 check up-cat        'three'                 'run cat notes' '<ret>'
 check up-cat-missing 'not found: zip'       'run cat zip notes' '<ret>'
@@ -171,5 +174,6 @@ disk=$out/auto.img
 check bat-autoexec  'autoexec ran'
 disk=
 check no-disk       'no data disk'          blktest '<ret>'
+check devices-nodisk 'hd1     block   absent'  devices '<ret>'
 check rom-fallback  'Hello from Squirrel'   'cat edit' '<ret>'
 exit $fail
