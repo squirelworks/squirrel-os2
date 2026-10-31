@@ -369,6 +369,9 @@ run_simple:
     mov edi, cmd_gfxtext
     call streq
     je .gfxtext
+    mov edi, cmd_labeltest
+    call streq
+    je .labeltest
     mov edi, cmd_winfocus
     call streq
     je .winfocus
@@ -548,6 +551,9 @@ run_simple:
     jmp .empty
 .gfxtext:
     call cmd_gfxtext_run
+    jmp .empty
+.labeltest:
+    call cmd_labeltest_run
     jmp .empty
 .winfocus:
     call cmd_winfocus_run
@@ -847,12 +853,12 @@ default_isr:
 
 ; ---------- data ----------
 banner db 'Squirrel-OS/2'          ; (the "help" file: the English banner)
-banner_rest db ' 1.4.2', 10   ; OS version: here only (see releases/PROCESS.md)
+banner_rest db ' 1.5.0', 10   ; OS version: here only (see releases/PROCESS.md)
        db 'Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>', 10
        db '          mv <f> <new> | mkdir <d> | cd <d> | pwd | echo | batch <f> | format', 10
        db '          ps | disk | mem | devices | lang <en|la|tlh>', 10
        db 'Tests: systest | proctest | blktest | fstest | memtest | keys', 10
-       db '       gfxtest | gfxprim | gfxtext | wintest | winmove | winfocus', 10
+       db '       gfxtest | gfxprim | gfxtext | wintest | winmove | winfocus | labeltest', 10
        db 'Apps: files, calc, sci, graph, matrix, diff, edit, vedit, draw   (planned: topo)', 10, 0
 msg_partial db 'Warning: kernel image only partly loaded', 10, 0
 cmd_ls db 'ls', 0
@@ -972,6 +978,7 @@ cmd_gfxtext db 'gfxtext', 0
 cmd_wintest db 'wintest', 0
 cmd_winmove db 'winmove', 0
 cmd_winfocus db 'winfocus', 0
+cmd_labeltest db 'labeltest', 0
 cmd_proctest db 'proctest', 0
 proc_full db 'Too many processes', 10, 0
 
@@ -1136,6 +1143,7 @@ puthex:
 %include "diff.asm"
 %include "graph.asm"
 %include "wm.asm"
+%include "widget.asm"
 
 align 8
 idt: times 256 dq 0

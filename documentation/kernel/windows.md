@@ -55,6 +55,6 @@ top: One
 
 after `ab`, Tab, `cd`, Enter. Checks `winfocus` (that sequence), `winfocus-none` (no Tab: Two keeps the focus) and `winfocus-text`.
 
-## Next
+## Widgets
 
-Widgets inside windows: labels, buttons, edit fields and lists (1.5, `../../TODO.md`).
+Since 1.5.0, `wm_draw` draws a window's widgets after its client area, and `wm_close` drops them (`widgets.md`).

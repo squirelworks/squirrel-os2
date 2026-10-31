@@ -102,6 +102,7 @@ This avoids retargeting chains and confirmation steps.
 | 1.4.0   | 2026-10-31 | Windows: create and close            |
 | 1.4.1   | 2026-10-31 | Windows: move and resize             |
 | 1.4.2   | 2026-10-31 | Windows: z-order and focus           |
+| 1.5.0   | 2026-10-31 | Widgets: label                       |
 
 ## Next planned release
 

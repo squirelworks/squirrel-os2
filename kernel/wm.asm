@@ -159,6 +159,7 @@ wm_close:
     jc .r
     mov byte [edi+WIN_USED], 0
     call wm_zremove
+    call wg_drop                ; and its widgets
 .r:
     pop edi
     ret
@@ -307,6 +308,7 @@ wm_draw:
     sub edx, WM_TITLE_H + 2
     mov byte [gfx_colour], WM_CLIENT
     call gfx_fillrect
+    call wg_drawall             ; the window's widgets (widget.asm)
     add eax, 2                  ; the typed text, 2 pixels in
     add ebx, 2
     sub ecx, 4
