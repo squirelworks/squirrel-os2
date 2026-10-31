@@ -19,7 +19,7 @@
 | Key | Action |
 |-----|--------|
 | Up, Down | choose a program in the list |
-| Enter | open the chosen program in a window (`calc` since 1.6.1, `draw` since 1.6.3; the others do nothing yet) |
+| Enter | send `open` to the chosen entry, which runs the program in a window (`calc` since 1.6.1, `draw` 1.6.3, `edit` and `vedit` 1.6.4, `files` 1.7.6) |
 | Esc | close the desktop, return to text mode and the shell prompt (`Desktop closed.`) |
 
 ## Programs in windows
@@ -46,7 +46,18 @@ Enter on `draw` runs the ASCII drawing program the same way, in a window titled 
 
 Enter on `edit` or `vedit` opens the editor with an empty buffer. Ctrl+S or F2 asks for a file name and saves; Esc closes the window (after asking, if there are unsaved changes). The editor fits its screen to `txt_cols` × `txt_rows`, so the window shows 18 text rows of 52 columns, the status row (inverted) and the message row. The key reminder on `edit`'s status row is left out when it does not fit.
 
-`files` is not scheduled for a window yet.
+### files (1.7.6)
+
+Enter on `files` runs the file browser in a window the same way. It writes through `putc`, `puts` and `cls`, so nothing in it changed. The window shows the 20 rows that end at the cursor, which the browser keeps on its bottom row: the key help, the entry count and the 18 entries above them; its title row and the first entries are above the window. Esc closes it. Opening a program from inside it runs that program in the same window.
+
+## Entries as objects (1.7.6)
+
+The entries are objects (`../kernel/objects.md`). The desktop records two classes:
+
+- `DesktopObject`: field `name`; methods `name` (returns it) and `open` (opens nothing, returns −1).
+- `Program` under it: field `entry`, the program's routine; `open` passes the entry and the name to `dk_textwin`.
+
+When the desktop starts it makes one `Program` per entry (files, calc, edit, vedit, draw) and sets both fields; the list shows what each one answers to `name`. Enter sends `open` to the selected one. When the desktop closes it frees them, so afterwards `objs` lists the two classes and no live objects (check `desktop-objs`).
 
 ## Booting into the desktop
 

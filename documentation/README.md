@@ -86,4 +86,5 @@ Documentation is active.
 - 1.7.3 objects: the `objs` listing and `obj_free` (`releases/1.7.3.md`, `kernel/objects.md`)
 - 1.7.4 installer step I.3: `install copy` puts the kernel and the data disk's files on the target (`releases/1.7.4.md`, `guides/install.md`)
 - 1.7.5 installer step I.4: `install boot`; an installed disk boots and uses its own partition (`releases/1.7.5.md`, `guides/install.md`)
-- Next: 1.7 desktop entries as objects (`1.7-desktop` in `../TODO.md`, `../ROADMAP.md`)
+- 1.7.6 the desktop's entries are objects, and `files` opens in a window (`releases/1.7.6.md`, `apps/desktop.md`)
+- Next: 1.8, split into tasks in `../TODO.md` first (`../ROADMAP.md`)
