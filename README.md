@@ -18,6 +18,8 @@ Third-party and contemporary sources remain outside this directory.
 ```
 squirrel-os2/
 ├── README.md
+├── ROADMAP.md              ← goals, principles, milestones from 0.9.2
+├── TODO.md                 ← PR-sized tasks and acceptance checks
 ├── documentation/          ← ongoing project documentation
 │   ├── architecture/
 │   ├── kernel/
@@ -33,7 +35,12 @@ squirrel-os2/
 
 See `documentation/README.md` for the living documentation set.
 
-## Current milestone
+- Forward plan: [ROADMAP.md](ROADMAP.md)
+- Task list: [TODO.md](TODO.md)
+- Milestone history and the 2.0 / 3.0 vision: `documentation/plannedmilestones.md`
 
-Current: in-memory FS, interactive basic calculator, dual editors, interactive drawing canvas. See documentation.  
-Details in `documentation/releases/0.0.1.md`.
+## Current release
+
+**0.9.2** — stability and polish (file system, browser, `edit`, `vedit`, `draw`, `calc`, `sci`, `matrix`).  
+The 0.0.1–0.9.2 ladder is done. Next is **1.0.0**, the packaging of that minimal system.  
+Notes: `documentation/releases/0.9.2.md`. What to do next: [TODO.md](TODO.md).
