@@ -224,7 +224,7 @@ elif d[510:] != b"\x55\xaa": print("no signature")
 else: print("%02X %d %d" % ((d[450],) + struct.unpack("<II", d[454:462])))' "$target")
     if [ "$got" = "$2" ]; then echo "ok   $1"; else echo "FAIL $1 (expected: $2, got: $got)"; fail=1; fi
 }
-check_all install-list 'disk 0: 129 sectors (0 MiB)  boot disk, not touched|disk 1: 2048 sectors (1 MiB)  data disk, not touched|disk 2: 32768 sectors (16 MiB)  blank|Target: disk 2.' \
+check_all install-list 'disk 0: 193 sectors (0 MiB)  boot disk, not touched|disk 1: 2048 sectors (1 MiB)  data disk, not touched|disk 2: 32768 sectors (16 MiB)  blank|Target: disk 2.' \
                     install '<ret>'
 check install-esc   'Nothing was written.'  'install part' '<ret>' '<esc>'
 mbr   install-esc-blank 'blank'

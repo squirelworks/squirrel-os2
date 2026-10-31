@@ -32,8 +32,8 @@ driver, SQFS as the installed file system. UEFI, AHCI/NVMe and USB mass storage 
 | Sectors | Contents | Written by |
 |---------|----------|------------|
 | 0 | MBR: boot code (from I.4; zero until then), disk signature at 440, partition table at 446, `55 AA` at 510 | I.1 (table), I.4 (code) |
-| 1 to 128 | The 64 KB kernel image, where the boot sector loads it from | I.4 |
-| 129 to 2047 | Unused | — |
+| 1 to 192 | The 96 KB kernel image, where the boot sector loads it from | I.4 |
+| 193 to 2047 | Unused | — |
 | 2048 to the end | Partition 1, type `7F`, SQFS | I.1 (entry), I.2 (file system) |
 
 Partition 1 starts at 1 MiB, the usual alignment, and runs to the last sector of the disk.
