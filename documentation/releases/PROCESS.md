@@ -26,6 +26,18 @@ Squirrel-OS/2 uses a simple `major.minor.patch` scheme for early development:
 4. Adjust `documentation/README.md` status line if the focus shifted.
 5. Tag the milestone in the project log (this file or a future CHANGELOG).
 
+## Pull request workflow
+
+To keep review and merging simple:
+
+- Base every PR on `main` (not on another feature branch).
+- One logical milestone or coherent change per PR.
+- Do not stack feature branches on other feature branches.
+- After pushing, confirm the PR targets `main` and shows as mergeable with no conflicts.
+- Prefer merging bottom-up only when the base is already `main`.
+
+This avoids retargeting chains and confirmation steps.
+
 ## Current releases
 
 | Version | Date       | Summary                          |
