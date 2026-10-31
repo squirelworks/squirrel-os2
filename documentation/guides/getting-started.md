@@ -60,7 +60,10 @@ python3 tools/sqfs.py data.img put hello      # then in the OS: run hello world
 `tools/regress.sh` builds the image and types scripted commands into headless QEMU,
 checking the VGA text screen. Needs Python 3 as well. `tools/qemu_screen.py IMAGE KEYS...`
 does a single session and prints the screen, which is handy when adding a check.
-Uppercase letters and `+ * % ! ? : _` are sent with Shift.
+Uppercase letters and `+ * % ! ? : _` are sent with Shift. In graphics mode the key
+`<gfx>` reads the text drawn with the kernel's font off a screen dump (any pixel
+offset, any colours) and prints each run of it as a `gfx: ...` line after the text
+screen, so a check can look for words in windows (1.6.0).
 
 The hidden shell command `trap` executes `ud2` to show the CPU exception report, and
 `overflow` makes the shell run off its own stack to show the stack-overflow report (KB-17).

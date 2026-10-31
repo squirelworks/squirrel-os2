@@ -4,12 +4,17 @@
 Usage: qemu_screen.py [--disk DATA_IMAGE] [--floppy] IMAGE [KEYS...]
 Each KEYS argument is typed as text; a token like "<ret>", "<esc>",
 "<backspace>" or "<up>" is sent as that single QEMU key name, and
-"<pause>" waits a second before the next key.
+"<pause>" waits a second before the next key, and "<gfx>" reads the text
+drawn in graphics mode (the 5 x 7 font of tools/font5x7.txt, in 6 x 8
+cells at any pixel offset) and prints each line found as "gfx: <text>"
+after the text screen.
 --disk attaches DATA_IMAGE as the primary slave (the kernel's data disk).
 --floppy boots IMAGE from the floppy drive instead of the first hard disk.
 QEMU_EXTRA in the environment adds QEMU options (e.g. QEMU_EXTRA='-cpu 486,-pse'). The 80x25 VGA text buffer is printed at the end.
 """
 import os, socket, subprocess, sys, tempfile, time
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 KEYMAP = {' ': 'spc', '\n': 'ret', '-': 'minus', '=': 'equal', '/': 'slash',
           '.': 'dot', ',': 'comma', ';': 'semicolon',
@@ -31,6 +36,56 @@ def monitor(sock, cmd):
     sock.setblocking(True)
 
 
+def read_ppm(path):
+    """-> (width, height, bytes of RGB) of a binary PPM (QEMU screendump)."""
+    data = open(path, 'rb').read()
+    fields, pos = [], 0
+    while len(fields) < 4:              # P6, width, height, maxval
+        while data[pos:pos + 1].isspace():
+            pos += 1
+        if data[pos:pos + 1] == b'#':
+            pos = data.index(b'\n', pos) + 1
+            continue
+        end = pos
+        while not data[end:end + 1].isspace():
+            end += 1
+        fields.append(data[pos:end])
+        pos = end
+    return int(fields[1]), int(fields[2]), data[pos + 1:]
+
+
+def gfx_text(path):
+    """Lines of text drawn with the kernel's font on a 320 x 200 screen
+    (QEMU may dump it doubled to 640 x 400). A cell is read only when its
+    spacing column and bottom row are all one colour (the background); its
+    other pixels are ink where they differ from that colour."""
+    import mkfont
+    font = {tuple(rows): chr(c) for c, rows in mkfont.read().items() if c != 0x20}
+    w, h, rgb = read_ppm(path)
+    sx, sy = w // 320, h // 200
+    px = [[rgb[((y * sy) * w + x * sx) * 3:((y * sy) * w + x * sx) * 3 + 3]
+           for x in range(320)] for y in range(200)]
+    lines = []
+    for oy in range(8):
+        for ox in range(6):
+            for top in range(oy, 200 - 7, 8):
+                text = ''
+                for left in range(ox, 320 - 5, 6):
+                    bg = px[top + 7][left + 5]
+                    ch = ' '
+                    if all(px[top + 7][left + i] == bg for i in range(6)) and \
+                            all(px[top + r][left + 5] == bg for r in range(7)):
+                        rows = tuple(sum((px[top + r][left + c] != bg) << (4 - c) for c in range(5))
+                                     for r in range(7))
+                        ch = font.get(rows, ' ')
+                    text += ch
+                for word in text.split('  '):   # runs of text, two spaces apart
+                    word = word.strip()
+                    if len(word) >= 2 and word not in lines:
+                        lines.append(word)
+    return lines
+
+
 def main():
     args = sys.argv[1:]
     drives = []
@@ -46,6 +101,7 @@ def main():
     tmp = tempfile.mkdtemp()
     path = os.path.join(tmp, 'mon')
     dump = os.path.join(tmp, 'vga.bin')
+    gfx = []                            # text read from graphics mode
     qemu = subprocess.Popen(['qemu-system-i386', '-display', 'none',
                              '-drive', (f'format=raw,file={image},if=floppy' if boot
                                         else f'format=raw,file={image},index=0,media=disk'),
@@ -62,6 +118,16 @@ def main():
         for chunk in keys:
             if chunk == '<pause>':      # let the guest run for a second
                 time.sleep(1)
+                continue
+            if chunk == '<gfx>':        # read the text off the graphics screen
+                shot = os.path.join(tmp, f'gfx{len(gfx)}.ppm')
+                monitor(sock, f'screendump "{shot}"')
+                for _ in range(50):
+                    if os.path.exists(shot) and os.path.getsize(shot) > 0:
+                        break
+                    time.sleep(0.1)
+                time.sleep(0.2)
+                gfx += gfx_text(shot)
                 continue
             if chunk.startswith('<') and chunk.endswith('>') and len(chunk) > 2:
                 monitor(sock, 'sendkey ' + chunk[1:-1])
@@ -81,6 +147,8 @@ def main():
         for row in range(25):
             line = data[row * 160:(row + 1) * 160:2].decode('cp437')
             print(line.rstrip())
+        for line in gfx:
+            print('gfx: ' + line)
     finally:
         qemu.kill()
 

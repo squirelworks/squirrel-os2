@@ -369,6 +369,9 @@ run_simple:
     mov edi, cmd_gfxtext
     call streq
     je .gfxtext
+    mov edi, cmd_desktop
+    call streq
+    je .desktop
     mov edi, cmd_listtest
     call streq
     je .listtest
@@ -560,6 +563,9 @@ run_simple:
     jmp .empty
 .gfxtext:
     call cmd_gfxtext_run
+    jmp .empty
+.desktop:
+    call cmd_desktop_run
     jmp .empty
 .listtest:
     call cmd_listtest_run
@@ -871,10 +877,10 @@ default_isr:
 
 ; ---------- data ----------
 banner db 'Squirrel-OS/2'          ; (the "help" file: the English banner)
-banner_rest db ' 1.5.3', 10   ; OS version: here only (see releases/PROCESS.md)
+banner_rest db ' 1.6.0', 10   ; OS version: here only (see releases/PROCESS.md)
        db 'Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>', 10
        db '          mv <f> <new> | mkdir <d> | cd <d> | pwd | echo | batch <f> | format', 10
-       db '          ps | disk | mem | devices | lang <en|la|tlh>', 10
+       db '          ps | disk | mem | devices | lang <en|la|tlh> | desktop', 10
        db 'Tests: systest | proctest | blktest | fstest | memtest | keys', 10
        db '       gfxtest | gfxprim | gfxtext | wintest | winmove | winfocus', 10
        db '       labeltest | buttontest | fieldtest | listtest', 10
@@ -1001,6 +1007,7 @@ cmd_labeltest db 'labeltest', 0
 cmd_buttontest db 'buttontest', 0
 cmd_fieldtest db 'fieldtest', 0
 cmd_listtest db 'listtest', 0
+cmd_desktop db 'desktop', 0
 cmd_proctest db 'proctest', 0
 proc_full db 'Too many processes', 10, 0
 
@@ -1166,6 +1173,7 @@ puthex:
 %include "graph.asm"
 %include "wm.asm"
 %include "widget.asm"
+%include "desktop.asm"
 
 align 8
 idt: times 256 dq 0
