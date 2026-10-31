@@ -32,6 +32,17 @@ Open:
 
 - **KB-7** `draw`, `edit` and `vedit` redraw by appending a fresh copy below the old one rather than in place, so the screen scrolls on every key. (Resolved: `edit`/`vedit` in 0.3.2, `draw` in 0.3.3.)
 
+## 0.9.3
+
+Found while checking release readiness (booting in other configurations and in Bochs), all resolved in 0.9.3:
+
+- **KB-11** Booting from a floppy image hung: the boot sector only used extended disk reads, which floppies do not support. Resolved with a CHS fallback.
+- **KB-12** After a floppy boot the BIOS memory map was missing (`no BIOS map: assumed 32 MB`): ES still pointed past the kernel when E820 ran. Resolved: the kernel clears DS/ES first.
+- **KB-13** On a CPU without an FPU or 4 MB pages the kernel crashed silently. Resolved: it now says it needs a Pentium-class CPU and halts.
+- **KB-14** The boot banner said 0.2.3. Resolved: `banner_rest` carries the current version.
+- **KB-15** `calc` wrote `calc.hist` into the current directory, so each directory got its own history. Resolved: it is kept at `/calc.hist`.
+- Also: `graph`, `diff` and `topo` were listed as apps but are scaffolds; the banner now lists them as planned.
+
 ## Notes
 
 - Add an entry only when behavior contradicts `specifications.md` or a stated milestone goal.

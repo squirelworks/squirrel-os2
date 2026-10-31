@@ -83,7 +83,7 @@ For visualization of functions.
 - Multiple functions
 - Points and asymptotes indicated
 
-Scaffolded. Depends on graphics primitives (milestone 1.3) and a function evaluator.
+Scaffolded (listed as "planned" in the banner since 0.9.3). Depends on graphics primitives (milestone 1.3) and a function evaluator.
 
 ## Matrix Calculator (`matrix`)
 

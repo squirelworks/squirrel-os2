@@ -518,4 +518,4 @@ calc_kw_quit db 'quit', 0
 calc_kw_q db 'q', 0
 calc_kw_clear db 'clear', 0
 calc_kw_hist db 'hist', 0
-calc_histname db 'calc.hist', 0
+calc_histname db '/calc.hist', 0   ; in the root, wherever calc runs (0.9.3)

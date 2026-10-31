@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """Boot the Squirrel-OS/2 image in headless QEMU, type keys, print the screen.
 
-Usage: qemu_screen.py [--disk DATA_IMAGE] IMAGE [KEYS...]
+Usage: qemu_screen.py [--disk DATA_IMAGE] [--floppy] IMAGE [KEYS...]
 Each KEYS argument is typed as text; a token like "<ret>", "<esc>",
-"<backspace>" or "<up>" is sent as that single QEMU key name.
---disk attaches DATA_IMAGE as the primary slave (the kernel's data disk). The 80x25 VGA text buffer is printed at the end.
+"<backspace>" or "<up>" is sent as that single QEMU key name, and
+"<pause>" waits a second before the next key.
+--disk attaches DATA_IMAGE as the primary slave (the kernel's data disk).
+--floppy boots IMAGE from the floppy drive instead of the first hard disk.
+QEMU_EXTRA in the environment adds QEMU options (e.g. QEMU_EXTRA='-cpu 486,-pse'). The 80x25 VGA text buffer is printed at the end.
 """
 import os, socket, subprocess, sys, tempfile, time
 
@@ -34,13 +37,19 @@ def main():
     if args[:1] == ['--disk']:
         drives = ['-drive', f'format=raw,file={args[1]},index=1,media=disk']
         args = args[2:]
+    boot = []
+    if args[:1] == ['--floppy']:            # boot IMAGE as a floppy (0.9.3)
+        boot = ['-boot', 'a']
+        args = args[1:]
     image, keys = args[0], args[1:]
+    extra = os.environ.get('QEMU_EXTRA', '').split()   # e.g. "-cpu 486,-pse"
     tmp = tempfile.mkdtemp()
     path = os.path.join(tmp, 'mon')
     dump = os.path.join(tmp, 'vga.bin')
     qemu = subprocess.Popen(['qemu-system-i386', '-display', 'none',
-                             '-drive', f'format=raw,file={image},index=0,media=disk',
-                             *drives,
+                             '-drive', (f'format=raw,file={image},if=floppy' if boot
+                                        else f'format=raw,file={image},index=0,media=disk'),
+                             *boot, *drives, *extra,
                              '-monitor', f'unix:{path},server,nowait'])
     try:
         for _ in range(50):
@@ -51,6 +60,9 @@ def main():
         sock.connect(path)
         time.sleep(1.5)
         for chunk in keys:
+            if chunk == '<pause>':      # let the guest run for a second
+                time.sleep(1)
+                continue
             if chunk.startswith('<') and chunk.endswith('>') and len(chunk) > 2:
                 monitor(sock, 'sendkey ' + chunk[1:-1])
                 continue

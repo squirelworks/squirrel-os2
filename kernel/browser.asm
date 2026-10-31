@@ -1,4 +1,4 @@
-; Squirrel-OS/2 — file browser (0.2.3)
+; Squirrel-OS/2 — file browser (since 0.2.3)
 ; Included from pm.asm. Original code.
 ;
 ; run files: list the files, move with the arrows, Enter launches an app
