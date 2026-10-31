@@ -255,7 +255,7 @@ check dir-mv-into   'g                 6'   'put g nutty' '<ret>' 'mv g d5/g' '<
 check dir-cd-bad    'No such directory'     'cd nowhere' '<ret>'
 check dir-rm-empty  '0 file(s)'             'rm d1' '<ret>' 'run ls d1' '<ret>'
 check lang-show     'Language: en (en la tlh)'  lang '<ret>'
-check lang-la       'Tabulae:'              'lang la' '<ret>' ls '<ret>'
+check lang-la       'Tabulae:'              'mkdir la1' '<ret>' 'cd la1' '<ret>' 'lang la' '<ret>' ls '<ret>'   # an empty directory: the root listing no longer fits on one screen
 check lang-tlh      "ra' tlhaQ"             'lang tlh' '<ret>' xyz '<ret>'
 check lang-bad      'Unknown language (en la tlh)'  'lang fr' '<ret>'
 check lang-banner   'Sciurus-OS/2 1.0.2'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
