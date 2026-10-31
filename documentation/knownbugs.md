@@ -52,6 +52,12 @@ Found while checking release readiness (booting in other configurations and in B
 - **KB-15** `calc` wrote `calc.hist` into the current directory, so each directory got its own history. Resolved: it is kept at `/calc.hist`.
 - Also: `graph`, `diff` and `topo` were listed as apps but are scaffolds; the banner now lists them as planned.
 
+## 1.3.3
+
+Found by stress testing processes and threads:
+
+- **KB-16** A wait that closes a cycle of waits panicked the kernel (`*** kernel panic: no runnable process`): a program waiting for pid 0 while the shell waits for it, or a thread waiting for its program while the program waits for the thread. Resolved: `wait` returns −1 when the process it would wait for is already waiting, directly or through others, for the caller. Check `waitcycle`.
+
 ## Notes
 
 - Add an entry only when behavior contradicts `specifications.md` or a stated milestone goal.

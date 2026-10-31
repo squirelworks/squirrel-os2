@@ -157,6 +157,8 @@ proc_wait:
     je .bad
     cmp dword [edi+PCB_STATE], P_ZOMBIE
     je .reap
+    call proc_wait_cycle        ; would nobody ever wake us?
+    jc .bad
     mov esi, [proc_cur]
     mov [esi+PCB_WAITPID], ebx
     mov dword [esi+PCB_STATE], P_WAITING
@@ -171,6 +173,36 @@ proc_wait:
 .out:
     pop edi
     pop esi
+    ret
+
+; edi = PCB the caller is about to wait for. CF if that process is
+; itself waiting, directly or through others, for the caller: the wait
+; would never end, and with nobody left to run the kernel would panic.
+; Keeps every register.
+proc_wait_cycle:
+    push ebx
+    push ecx
+    push edi
+    mov ecx, PROC_MAX           ; a chain visits each slot at most once
+.link:
+    cmp dword [edi+PCB_STATE], P_WAITING
+    jne .no
+    mov ebx, [edi+PCB_WAITPID]
+    call proc_find
+    test edi, edi
+    jz .no
+    cmp edi, [proc_cur]
+    je .yes
+    loop .link
+.no:
+    clc
+    jmp .r
+.yes:
+    stc
+.r:
+    pop edi
+    pop ecx
+    pop ebx
     ret
 
 ; edi = zombie PCB: releases its address space and frees the slot
