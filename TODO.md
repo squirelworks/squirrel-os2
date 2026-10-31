@@ -220,7 +220,7 @@ Split from `documentation/plannedmilestones.md` once 1.7 was on `main`. Work top
 
 - [x] **1.8-format** — An object file: `obj_save` writes an object to a file (a header, its class name, its field count and its fields) and `obj_load` reads one back into a new object of the class with that name. A class marks which of its fields hold text; those are saved as the text, not as an address.
   **Acceptance:** `objtest` saves a square of size 5, frees it, loads the file, and `perimeter` gives 20 again; it prints `obj store: PASS` and a regression check expects it. A file whose class is not recorded is refused.
-- [ ] **1.8-store** — The saved object outlives a reboot. A shell command `objcat <file>` loads an object file and prints its class and fields.
+- [x] **1.8-store** — The saved object outlives a reboot. A shell command `objcat <file>` loads an object file and prints its class and fields.
   **Acceptance:** one check saves the object; a later check, in a new boot on the same data disk, runs `objcat` and reads the class and the field value.
 - [ ] **1.8-desktop** — The desktop keeps its entries as object files in `/desktop` on the data disk: it loads them when it starts, and writes the defaults there the first time.
   **Acceptance:** after the first `desktop`, `ls /desktop` lists one file per entry; with one of them removed, the next desktop's list does not show that entry.

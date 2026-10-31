@@ -134,6 +134,7 @@ pm:
     call tss_init               ; double faults get their own stack (KB-17)
     call ata_init
     call dev_init
+    call obj_init               ; the kernel's classes (1.8.1)
 
     ; PIC + PIT
     mov al, 0x11
@@ -335,6 +336,9 @@ run_simple:
     mov edi, cmd_cat
     call streq_prefix
     je .cat
+    mov edi, cmd_objcat         ; 1.8.1
+    call streq_prefix
+    je .objcat
     ; systest
     mov edi, cmd_systest
     call streq
@@ -622,6 +626,10 @@ run_simple:
     jmp .empty
 .objs:
     call cmd_objs_run
+    jmp .empty
+.objcat:
+    add esi, 7                  ; skip "objcat "
+    call cmd_objcat_run
     jmp .empty
 .listtest:
     call cmd_listtest_run
@@ -937,13 +945,13 @@ default_isr:
 
 ; ---------- data ----------
 banner db 'Squirrel-OS/2'          ; (the "help" file: the English banner)
-banner_rest db ' 1.8.0', 10   ; OS version: here only (see releases/PROCESS.md)
+banner_rest db ' 1.8.1', 10   ; OS version: here only (see releases/PROCESS.md)
        db 'Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>', 10
        db '          mv <f> <new> | mkdir <d> | cd <d> | pwd | echo | batch <f> | format', 10
        db '          ps | disk | mem | devices | lang <en|la|tlh> | desktop | install', 10
-       db 'Tests: systest | proctest | blktest | fstest | memtest | keys', 10
-       db '       gfxtest | gfxprim | gfxtext | wintest | winmove | winfocus', 10
-       db '       labeltest | buttontest | fieldtest | listtest | drawpx | objtest | objs', 10
+       db 'Tests: systest | proctest | blktest | fstest | memtest | objs | objcat <f>', 10
+       db '       gfxtest | gfxprim | gfxtext | wintest | winmove | winfocus | keys', 10
+       db '       labeltest | buttontest | fieldtest | listtest | drawpx | objtest', 10
        db 'Apps: files, calc, sci, graph, matrix, diff, edit, vedit, draw   (planned: topo)', 10, 0
 msg_partial db 'Warning: kernel image only partly loaded', 10, 0
 cmd_ls db 'ls', 0
@@ -1022,7 +1030,8 @@ sh_usage:
 usage_cmds:                     ; command, syntax, hint key or -1
     dd u_put, u_put_t, LS_USAGE_PUT, u_mk, u_mk_t, -1, u_rm, u_rm_t, -1
     dd u_mv, u_mv_t, -1, u_mkdir, u_mkdir_t, -1, u_cat, u_cat_t, -1
-    dd u_run, u_run_t, LS_USAGE_RUN, u_batch, u_batch_t, -1, u_echo, u_echo_t, -1, 0
+    dd u_run, u_run_t, LS_USAGE_RUN, u_batch, u_batch_t, -1, u_echo, u_echo_t, -1
+    dd u_objcat, u_objcat_t, -1, 0
 u_put db 'put', 0
 u_mk db 'mk', 0
 u_rm db 'rm', 0
@@ -1032,6 +1041,7 @@ u_cat db 'cat', 0
 u_run db 'run', 0
 u_batch db 'batch', 0
 u_echo db 'echo', 0
+u_objcat db 'objcat', 0
 u_put_t db 'put <file> <text>', 0
 u_mk_t db 'mk <file>', 0
 u_rm_t db 'rm <file|dir>', 0
@@ -1041,6 +1051,7 @@ u_cat_t db 'cat <file>', 0
 u_run_t db 'run <app|file> [text]', 0
 u_batch_t db 'batch <file>', 0
 u_echo_t db 0
+u_objcat_t db 'objcat <file>', 0
 u_gap db '   ', 0
 
 arg_cmds:
@@ -1070,6 +1081,7 @@ cmd_listtest db 'listtest', 0
 cmd_drawpx db 'drawpx', 0
 cmd_objtest db 'objtest', 0
 cmd_objs db 'objs', 0
+cmd_objcat db 'objcat ', 0
 cmd_desktop db 'desktop', 0
 cmd_proctest db 'proctest', 0
 proc_full db 'Too many processes', 10, 0

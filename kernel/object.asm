@@ -613,6 +613,103 @@ obj_intern:
     pop ecx
     ret
 
+; ---------- objcat (1.8.1) ----------
+; The kernel's own classes are recorded at boot, so a file saved before a
+; reboot can be loaded again before anything has used its class.
+obj_init:
+    pushad
+    mov esi, ot_shape
+    call obj_class
+    mov esi, ot_square
+    call obj_class
+    mov esi, dk_c_dobj
+    call obj_class
+    mov esi, dk_c_prog
+    call obj_class
+    popad
+    ret
+
+; eax = class, ebx = field index -> esi = the field's name, or 0
+obj_fieldname:
+    push eax
+    push ebx
+    push edi
+    mov edi, eax
+.c:
+    xor esi, esi
+    test edi, edi
+    jz .out
+    mov eax, [edi+CLS_PARENT]
+    call obj_nfields            ; the parents' fields come first
+    cmp ebx, eax
+    jb .up
+    sub ebx, eax
+    mov esi, [edi+CLS_FIELDS]
+    mov esi, [esi+ebx*4]
+    jmp .out
+.up:
+    mov edi, [edi+CLS_PARENT]
+    jmp .c
+.out:
+    pop edi
+    pop ebx
+    pop eax
+    ret
+
+; esi = path: load the object file, print its class and its fields, free it
+cmd_objcat_run:
+    call obj_load
+    jnc .ok
+    mov esi, oc_bad
+    jmp puts
+.ok:
+    mov [oc_obj], eax
+    mov edi, [eax+OBJ_CLASS]
+    mov esi, [edi+CLS_NAME]
+    call puts
+    mov al, 10
+    call putc
+    xor ebx, ebx
+.f:
+    mov eax, [oc_obj]
+    mov eax, [eax+OBJ_CLASS]
+    call obj_nfields
+    cmp ebx, eax
+    jae .done
+    mov esi, os_indent
+    call puts
+    mov eax, [oc_obj]
+    mov eax, [eax+OBJ_CLASS]
+    call obj_fieldname
+    call puts
+    mov esi, os_colon
+    call puts
+    mov eax, [oc_obj]
+    mov eax, [eax+OBJ_CLASS]
+    call obj_istext
+    mov eax, [oc_obj]
+    mov eax, [eax+OBJ_FIELD0+ebx*4]
+    jnc .num
+    mov esi, eax
+    test esi, esi
+    jnz .say
+    mov esi, oc_none
+    jmp .say
+.num:
+    push ebx
+    call itoa                   ; (uses edi)
+    pop ebx
+    mov esi, num_buf
+.say:
+    call puts
+    mov al, 10
+    call putc
+    inc ebx
+    jmp .f
+.done:
+    mov eax, [oc_obj]
+    jmp obj_free
+
 ; ---------- objtest ----------
 ; Shape: name -> "shape", area -> 0, describe -> 100 + (area sent to self).
 ; Square under Shape overrides area only: ebx * ebx.
@@ -918,6 +1015,8 @@ ot_gfile db 'ghost.obj', 0
 ot_blue db 'blue', 0
 ot_bfile db 'blue.obj', 0
 ot_spass db 'obj store: PASS', 10, 0
+oc_bad db 'objcat: not an object file of a known class', 10, 0
+oc_none db '(none)', 0
 ot_sfail db 'obj store: FAIL', 10, 0
 ot_n_square db 'Square', 0
 ot_s_name db 'name', 0
@@ -940,6 +1039,7 @@ ot_fpass db 'obj fields: PASS', 10, 0
 ot_ffail db 'obj fields: FAIL', 10, 0
 align 4
 ot_sq dd 0
+oc_obj dd 0
 ot_sh dd 0
 ot_ok db 0
 align 4

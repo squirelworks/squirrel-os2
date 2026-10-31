@@ -87,3 +87,16 @@ A field whose bit is set in its class's `CLS_TEXT` holds the address of an ASCII
 | `obj_load` | esi = path | eax = a new object, CF clear; or eax = −1, CF set |
 
 `objtest` then saves a square of size 5 whose `colour` is the text `red` to `objtest.obj`, frees it and loads it: `perimeter` gives 20 again, and `colour` is a copy of `red`, not the old address. It saves and loads a second square coloured `blue` and checks that the first still reads `red`. A `Ghost` object, whose class is not recorded, is saved and its file is refused. It prints `obj store: PASS`, or FAIL (check `objstore`). It needs the data disk. With `obj_load` taking an unknown class, with the integer fields not read, or with text fields pointing at the read buffer instead of the pool, it prints FAIL.
+
+## objcat (1.8.1)
+
+`objcat <file>` loads an object file, prints its class and then each field as `name: value`, a text field as its text and any other as a decimal number, and frees the object. A file that is missing, damaged, or of a class that is not recorded prints `objcat: not an object file of a known class`.
+
+So that a file saved before a reboot can be read after it, the kernel records its own classes at boot (`obj_init`): `Shape`, `Square`, `DesktopObject` and `Program`. `objs` lists them from the start; `obj_fieldname` gives the name of a field by its index.
+
+```
+> objcat objtest.obj
+Square
+  size: 5
+  colour: red
+```

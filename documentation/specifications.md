@@ -304,6 +304,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - `obj_save` and `obj_load` write an object to a file and read it back; text fields (marked in the class's `CLS_TEXT`) are saved as text, up to 31 characters, in files of up to 256 bytes; a file whose class is not recorded is refused (`kernel/objects.md`; `objstore`).
 
+## 1.8.1
+
+- `objcat <file>` prints an object file's class and fields; the kernel's classes (`Shape`, `Square`, `DesktopObject`, `Program`) are recorded at boot, so an object saved before a reboot loads after it (`kernel/objects.md`; `objcat`, `objcat-boot`, `objcat-bad`, `objcat-usage`).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.
