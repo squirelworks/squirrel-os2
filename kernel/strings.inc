@@ -16,7 +16,24 @@ LS_SYSTEST_PASS equ 11
 LS_SYSTEST_FAIL equ 12
 LS_LANG_NOW equ 13
 LS_LANG_BAD equ 14
-LS_COUNT equ 15
+LS_USAGE equ 15
+LS_USAGE_PUT equ 16
+LS_USAGE_RUN equ 17
+LS_FE_ERROR equ 18
+LS_FE_NOFS equ 19
+LS_FE_NAME equ 20
+LS_FE_EXISTS equ 21
+LS_FE_NODIR equ 22
+LS_FE_TABLE equ 23
+LS_FE_BUSY equ 24
+LS_FE_NOTEMPTY equ 25
+LS_FE_CWD equ 26
+LS_FE_LOOP equ 27
+LS_FE_IO equ 28
+LS_FE_FULL equ 29
+LS_FE_ISDIR equ 30
+LS_FE_NOFD equ 31
+LS_COUNT equ 32
 LANG_COUNT equ 3
 
 align 4
@@ -41,6 +58,23 @@ ls_en:
     dd ls_en_systest_fail
     dd ls_en_lang_now
     dd ls_en_lang_bad
+    dd ls_en_usage
+    dd ls_en_usage_put
+    dd ls_en_usage_run
+    dd ls_en_fe_error
+    dd ls_en_fe_nofs
+    dd ls_en_fe_name
+    dd ls_en_fe_exists
+    dd ls_en_fe_nodir
+    dd ls_en_fe_table
+    dd ls_en_fe_busy
+    dd ls_en_fe_notempty
+    dd ls_en_fe_cwd
+    dd ls_en_fe_loop
+    dd ls_en_fe_io
+    dd ls_en_fe_full
+    dd ls_en_fe_isdir
+    dd ls_en_fe_nofd
 ls_la:
     dd ls_la_banner
     dd ls_la_prompt
@@ -57,6 +91,23 @@ ls_la:
     dd ls_la_systest_fail
     dd ls_la_lang_now
     dd ls_la_lang_bad
+    dd ls_la_usage
+    dd ls_la_usage_put
+    dd ls_la_usage_run
+    dd ls_la_fe_error
+    dd ls_la_fe_nofs
+    dd ls_la_fe_name
+    dd ls_la_fe_exists
+    dd ls_la_fe_nodir
+    dd ls_la_fe_table
+    dd ls_la_fe_busy
+    dd ls_la_fe_notempty
+    dd ls_la_fe_cwd
+    dd ls_la_fe_loop
+    dd ls_la_fe_io
+    dd ls_la_fe_full
+    dd ls_la_fe_isdir
+    dd ls_la_fe_nofd
 ls_tlh:
     dd ls_tlh_banner
     dd ls_tlh_prompt
@@ -73,6 +124,23 @@ ls_tlh:
     dd ls_tlh_systest_fail
     dd ls_tlh_lang_now
     dd ls_tlh_lang_bad
+    dd ls_tlh_usage
+    dd ls_tlh_usage_put
+    dd ls_tlh_usage_run
+    dd ls_tlh_fe_error
+    dd ls_tlh_fe_nofs
+    dd ls_tlh_fe_name
+    dd ls_tlh_fe_exists
+    dd ls_tlh_fe_nodir
+    dd ls_tlh_fe_table
+    dd ls_tlh_fe_busy
+    dd ls_tlh_fe_notempty
+    dd ls_tlh_fe_cwd
+    dd ls_tlh_fe_loop
+    dd ls_tlh_fe_io
+    dd ls_tlh_fe_full
+    dd ls_tlh_fe_isdir
+    dd ls_tlh_fe_nofd
 ls_en_banner db 'Squirrel-OS/2', 0
 ls_en_prompt db '> ', 0
 ls_en_files db 'Files:', 0
@@ -88,6 +156,23 @@ ls_en_systest_pass db 'systest: PASS', 0
 ls_en_systest_fail db 'systest: FAIL', 0
 ls_en_lang_now db 'Language:', 0
 ls_en_lang_bad db 'Unknown language', 0
+ls_en_usage db 'Usage:', 0
+ls_en_usage_put db '(adds a line to the file)', 0
+ls_en_usage_run db '(apps: see the list above, or ls)', 0
+ls_en_fe_error db 'error', 0
+ls_en_fe_nofs db 'No file system mounted (attach a data disk).', 0
+ls_en_fe_name db 'Bad name: 1 to 15 characters, not . or ..', 0
+ls_en_fe_exists db 'Already exists', 0
+ls_en_fe_nodir db 'No such directory', 0
+ls_en_fe_table db 'Directory table full (64 entries)', 0
+ls_en_fe_busy db 'File is open', 0
+ls_en_fe_notempty db 'Directory not empty', 0
+ls_en_fe_cwd db 'That is the current directory', 0
+ls_en_fe_loop db 'A directory cannot move into itself', 0
+ls_en_fe_io db 'Disk error', 0
+ls_en_fe_full db 'Disk full', 0
+ls_en_fe_isdir db 'Is a directory', 0
+ls_en_fe_nofd db 'Too many open files', 0
 ls_la_banner db 'Sciurus-OS/2', 0
 ls_la_prompt db '> ', 0
 ls_la_files db 'Tabulae:', 0
@@ -103,6 +188,23 @@ ls_la_systest_pass db 'systest: PROBATUM', 0
 ls_la_systest_fail db 'systest: DEFECIT', 0
 ls_la_lang_now db 'Lingua:', 0
 ls_la_lang_bad db 'Lingua ignota', 0
+ls_la_usage db 'Usus:', 0
+ls_la_usage_put db '(lineam tabulae addit)', 0
+ls_la_usage_run db '(programmata: vide indicem supra, vel ls)', 0
+ls_la_fe_error db 'error', 0
+ls_la_fe_nofs db 'Nullum systema tabularum (disci datorum adiunge).', 0
+ls_la_fe_name db 'Nomen malum: I ad XV litterae, non . vel ..', 0
+ls_la_fe_exists db 'Iam exstat', 0
+ls_la_fe_nodir db 'Nullum tale directorium', 0
+ls_la_fe_table db 'Tabula directorii plena (LXIV)', 0
+ls_la_fe_busy db 'Tabula aperta est', 0
+ls_la_fe_notempty db 'Directorium non vacuum', 0
+ls_la_fe_cwd db 'Id est directorium praesens', 0
+ls_la_fe_loop db 'Directorium in se ipsum moveri non potest', 0
+ls_la_fe_io db 'Error disci', 0
+ls_la_fe_full db 'Discus plenus', 0
+ls_la_fe_isdir db 'Directorium est', 0
+ls_la_fe_nofd db 'Nimis multae tabulae apertae', 0
 ls_tlh_banner db 'Squirrel-OS/2', 0
 ls_tlh_prompt db '> ', 0
 ls_tlh_files db "tebwI':", 0
@@ -118,3 +220,20 @@ ls_tlh_systest_pass db "systest: Qapla'", 0
 ls_tlh_systest_fail db 'systest: luj', 0
 ls_tlh_lang_now db 'Hol:', 0
 ls_tlh_lang_bad db "Hol Sovbe'lu'", 0
+ls_tlh_usage db "lo'meH:", 0
+ls_tlh_usage_put db "(teywI'Daq tlhegh chel)", 0
+ls_tlh_usage_run db '(ghunmey: tetlh Dung yIlegh, pagh ls)', 0
+ls_tlh_fe_error db 'Qagh', 0
+ls_tlh_fe_nofs db "teywI' pat tu'lu'be' (De' Hew yIrar).", 0
+ls_tlh_fe_name db "pong QIH: 1 vo' 15 ngutlh, . pagh .. ghobe'", 0
+ls_tlh_fe_exists db "tu'lu'pu'", 0
+ls_tlh_fe_nodir db "ghItlh pa' tu'lu'be'", 0
+ls_tlh_fe_table db "ghItlh pa' tetlh teb (64)", 0
+ls_tlh_fe_busy db "teywI' poSmoHlu'", 0
+ls_tlh_fe_notempty db "ghItlh pa' chImbe'", 0
+ls_tlh_fe_cwd db "DaH ghItlh pa' 'oH", 0
+ls_tlh_fe_loop db "ghItlh pa' 'oH'e' ghItlh pa' Daq vIHlaHbe'", 0
+ls_tlh_fe_io db 'Hew Qagh', 0
+ls_tlh_fe_full db 'Hew teb', 0
+ls_tlh_fe_isdir db "ghItlh pa' 'oH", 0
+ls_tlh_fe_nofd db "teywI'mey poSmoHlu'bogh law'qu'", 0

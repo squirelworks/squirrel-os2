@@ -181,7 +181,7 @@ check ed-path-r     'deep'                  'cat e1/long-name.txt' '<ret>'
 check fb-dir        'in /e1'                'cd e1' '<ret>' 'run files' '<ret>'
 check fb-dir-up     '[app]'                 'cd e1' '<ret>' 'run files' '<ret>' '<ret>'
 # 0.9.3: release readiness
-check ver-banner    'Squirrel-OS/2 1.0.4'   systest '<ret>'
+check ver-banner    'Squirrel-OS/2 1.0.5'   systest '<ret>'
 check ver-planned   '(planned: graph, diff, topo)'  systest '<ret>'
 check calc-hist-root '1 + 1 = 2'            'mkdir c1' '<ret>' 'cd c1' '<ret>' 'run calc' '<ret>' '1 + 1' '<ret>' '<esc>' 'cat /calc.hist' '<ret>'
 boot="--floppy $out/floppy.img"
@@ -264,8 +264,13 @@ check dir-rm-empty  '0 file(s)'             'rm d1' '<ret>' 'run ls d1' '<ret>'
 check lang-show     'Language: en (en la tlh)'  lang '<ret>'
 check lang-la       'Tabulae:'              'mkdir la1' '<ret>' 'cd la1' '<ret>' 'lang la' '<ret>' ls '<ret>'   # an empty directory: the root listing no longer fits on one screen
 check lang-tlh      "ra' tlhaQ"             'lang tlh' '<ret>' xyz '<ret>'
+# 1.0.5: usage lines and file-system errors follow lang
+check l10n-usage-la 'Usus: mkdir <dir>'     'lang la' '<ret>' mkdir '<ret>'
+check l10n-hint-la  '(lineam tabulae addit)'  'lang la' '<ret>' put '<ret>'
+check l10n-fe-tlh   "tu'lu'pu'"             'lang tlh' '<ret>' 'mkdir t1' '<ret>' 'mkdir t1' '<ret>'
+check l10n-rm-tlh   "tu'lu'be'"             'lang tlh' '<ret>' 'rm nosuch' '<ret>'
 check lang-bad      'Unknown language (en la tlh)'  'lang fr' '<ret>'
-check lang-banner   'Sciurus-OS/2 1.0.4'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
+check lang-banner   'Sciurus-OS/2 1.0.5'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
 check lang-systest  'systest: PROBATUM'     'lang la' '<ret>' systest '<ret>'
 disk=$out/auto.img
 check bat-autoexec  'autoexec ran'

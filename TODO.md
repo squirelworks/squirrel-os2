@@ -73,7 +73,7 @@ Each item is its own patch release after 1.0.0 (its own release note). Independe
   `documentation/kernel/processes.md`: a zombie nobody waits for keeps its slot (`PROC_MAX` is 8). Pids stay unreused.
   **Acceptance:** a program exits children without waiting, more times than there are free slots, then a further spawn still works and `ps` does not fill with zombies. A regression check expects a `PASS` line. The limitation paragraph is updated.
 
-- [ ] **1.0-l10n-shell** — Localize the shell's usage lines and file-system errors.
+- [x] **1.0-l10n-shell** — Localize the shell's usage lines and file-system errors.
   `documentation/kernel/localization.md`: most messages are still English literals. Keys already exist for some of them.
   **Acceptance:** `lang la` then a bare `mkdir`, and `lang tlh` then a failed `rm` of a missing name, show the Latin and Klingon strings from `localization/`. A regression check expects one of those translated strings. English boot behaviour is unchanged. `strings.inc` is regenerated.
 

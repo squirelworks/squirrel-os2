@@ -52,4 +52,5 @@ Documentation is active.
 - 1.0.2 `SYS_SEEK` on open files (`releases/1.0.2.md`, `kernel/filesystem.md`)
 - 1.0.3 `SYS_FSERROR`: programs read why a file call failed (`releases/1.0.3.md`)
 - 1.0.4 zombies nobody waits for are freed (`releases/1.0.4.md`, `kernel/processes.md`)
+- 1.0.5 shell usage lines and file-system errors localized (`releases/1.0.5.md`, `kernel/localization.md`)
 - Next: 1.0.x patch releases, then 1.1 preemption (`../ROADMAP.md`, tasks in `../TODO.md`)

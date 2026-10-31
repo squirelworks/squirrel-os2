@@ -438,7 +438,7 @@ ed_save:
     mov byte [ed_name], 0       ; the next save asks for another name
 .err:
     movzx eax, byte [fs_errno]
-    mov esi, [fs_errmsg+eax*4]
+    call fs_errstr
 .m:
     call ed_msg
     popad
@@ -451,8 +451,10 @@ ed_open_why:
     cmp byte [fs_errno], FE_NOTFOUND
     stc
     je .r
-    movzx esi, byte [fs_errno]
-    mov esi, [fs_errmsg+esi*4]
+    push eax
+    movzx eax, byte [fs_errno]
+    call fs_errstr
+    pop eax
     clc
 .r:
     ret

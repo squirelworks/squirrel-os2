@@ -795,7 +795,7 @@ default_isr:
 
 ; ---------- data ----------
 banner db 'Squirrel-OS/2'          ; (the "help" file: the English banner)
-banner_rest db ' 1.0.4', 10   ; OS version: here only (see releases/PROCESS.md)
+banner_rest db ' 1.0.5', 10   ; OS version: here only (see releases/PROCESS.md)
        db 'Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>', 10
        db '          mv <f> <new> | mkdir <d> | cd <d> | pwd | echo | batch <f> | format', 10
        db '          ps | disk | mem | devices | lang <en|la|tlh>', 10
@@ -841,11 +841,31 @@ sh_usage:
     jz .no
     call streq
     je .hit
-    add ebx, 8
+    add ebx, 12
     jmp .l
 .hit:
     mov esi, [ebx+4]
+    cmp byte [esi], 0
+    je .nl                      ; echo: just an empty line
+    mov eax, [ebx+8]            ; a hint after the syntax, or -1
+    push eax
+    push esi
+    mov esi, [lstr+LS_USAGE*4]  ; "Usage:" in the current language (1.0.5)
     call puts
+    mov al, ' '
+    call putc
+    pop esi
+    call puts
+    pop eax
+    test eax, eax
+    js .nl
+    mov esi, [lstr+eax*4]
+    push esi
+    mov esi, u_gap
+    call puts
+    pop esi
+    call puts
+.nl:
     mov al, 10
     call putc
     clc
@@ -854,10 +874,10 @@ sh_usage:
     stc
     ret
 
-usage_cmds:
-    dd u_put, u_put_t, u_mk, u_mk_t, u_rm, u_rm_t, u_mv, u_mv_t
-    dd u_mkdir, u_mkdir_t, u_cat, u_cat_t, u_run, u_run_t
-    dd u_batch, u_batch_t, u_echo, u_echo_t, 0
+usage_cmds:                     ; command, syntax, hint key or -1
+    dd u_put, u_put_t, LS_USAGE_PUT, u_mk, u_mk_t, -1, u_rm, u_rm_t, -1
+    dd u_mv, u_mv_t, -1, u_mkdir, u_mkdir_t, -1, u_cat, u_cat_t, -1
+    dd u_run, u_run_t, LS_USAGE_RUN, u_batch, u_batch_t, -1, u_echo, u_echo_t, -1, 0
 u_put db 'put', 0
 u_mk db 'mk', 0
 u_rm db 'rm', 0
@@ -867,15 +887,16 @@ u_cat db 'cat', 0
 u_run db 'run', 0
 u_batch db 'batch', 0
 u_echo db 'echo', 0
-u_put_t db 'Usage: put <file> <text>   (adds a line to the file)', 0
-u_mk_t db 'Usage: mk <file>', 0
-u_rm_t db 'Usage: rm <file|dir>', 0
-u_mv_t db 'Usage: mv <old> <new|dir>', 0
-u_mkdir_t db 'Usage: mkdir <dir>', 0
-u_cat_t db 'Usage: cat <file>', 0
-u_run_t db 'Usage: run <app|file> [text]   (apps: see the list above, or ls)', 0
-u_batch_t db 'Usage: batch <file>', 0
+u_put_t db 'put <file> <text>', 0
+u_mk_t db 'mk <file>', 0
+u_rm_t db 'rm <file|dir>', 0
+u_mv_t db 'mv <old> <new|dir>', 0
+u_mkdir_t db 'mkdir <dir>', 0
+u_cat_t db 'cat <file>', 0
+u_run_t db 'run <app|file> [text]', 0
+u_batch_t db 'batch <file>', 0
 u_echo_t db 0
+u_gap db '   ', 0
 
 arg_cmds:
     dd cmd_put, cmd_put_run
