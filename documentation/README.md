@@ -23,7 +23,7 @@ Documentation is active.
 - Release process formalized (`releases/PROCESS.md`)
 - Milestone plan added (`plannedmilestones.md`) — 1.0.0 defined
 - Known bugs list added (`knownbugs.md`) — no open defects as of 0.9.3 (KB-11 to KB-15 found and resolved in 0.9.3)
-- Specifications added (`specifications.md`) — capabilities and intentional limitations (body still stops at 0.0.3; see [`../TODO.md`](../TODO.md))
+- Specifications added (`specifications.md`) — capabilities and intentional limitations, current to 0.9.3
 - Forward plan: [`../ROADMAP.md`](../ROADMAP.md). Task list: [`../TODO.md`](../TODO.md). Milestone history: `plannedmilestones.md`
 - 0.1.1 syscall interface implemented (`kernel/syscalls.md`, `releases/0.1.1.md`); regression script `tools/regress.sh`
 - 0.1.2 process model implemented (`kernel/processes.md`, `releases/0.1.2.md`)
