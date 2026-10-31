@@ -68,4 +68,5 @@ Documentation is active.
 - 1.3.1 lines and filled rectangles (`releases/1.3.1.md`, `kernel/graphics.md`)
 - 1.3.2 text in graphics mode, original 5 × 7 font (`releases/1.3.2.md`, `kernel/graphics.md`)
 - 1.3.3 `graph` plots y = f(x) (`releases/1.3.3.md`, `apps/calculators.md`)
-- Next: 1.4 window manager (`../ROADMAP.md`, tasks in `../TODO.md`)
+- 1.4.0 windows: create, draw and close (`releases/1.4.0.md`, `kernel/windows.md`)
+- Next: 1.4 move and resize (`../ROADMAP.md`, tasks in `../TODO.md`)

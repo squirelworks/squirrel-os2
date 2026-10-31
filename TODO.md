@@ -150,7 +150,7 @@ Each command returns to text mode before it prints `PASS`, so the existing scree
 
 Keyboard only.
 
-- [ ] **1.4-create** — Create a window, draw its frame and title, close it.
+- [x] **1.4-create** — Create a window, draw its frame and title, close it.
   **Acceptance:** a test command prints `win: PASS` after creating a window and reading back a frame pixel, and closing removes it (a second read misses that pixel). A regression check expects `win: PASS`. Text mode or the graphics console is left so the shell works.
 
 - [ ] **1.4-move-resize** — Move and resize a window.
