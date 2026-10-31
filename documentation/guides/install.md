@@ -1,6 +1,6 @@
 # Installing Squirrel-OS/2 onto a disk
 
-Status: **in progress**. Steps I.1 and I.2 are done; I.3 to I.6 are open in `TODO.md`.
+Status: **in progress**. Steps I.1 to I.3 are done; I.4 to I.6 are open in `TODO.md`.
 
 ## Today
 
@@ -17,7 +17,7 @@ the medium can be removed afterwards. Each step is one pull request:
 |------|--------------|-------|
 | I.1-target | Find the target disk, refuse the boot and data disks, write an MBR with one partition | done |
 | I.2-format | Format SQFS inside that partition (SQFS learns a starting LBA) | done |
-| I.3-copy | Copy the kernel and the sample programs onto the target | open |
+| I.3-copy | Copy the kernel and the sample programs onto the target | done |
 | I.4-bootable | Write the boot code into the target's MBR so the PC boots from it alone | open |
 | I.5-ui | A text-mode `install` program that walks through I.1 to I.4, with a confirm step, localized | open |
 | I.6-cd | Optional: a bootable CD image around `floppy.img` | open |
@@ -67,7 +67,10 @@ Two shell commands:
 
 The target is the first drive that is present, is not drive 1, and is not the boot disk.
 The boot disk is found by content, not by position: its sector 1 starts with the running
-kernel's first instructions (from `stage2` up to `gdt`, which nothing writes to). That also
+kernel's first instructions (from `stage2` up to `gdt`, which nothing writes to), and the end
+of its sector 0 (disk signature, partition table, `55 AA`) matches the boot sector that is still
+in memory at `0x7C00`. The second test (since I.3) tells the boot disk from a target that
+already holds a copy of the kernel: the target has its own signature and partition table. That also
 covers a boot from floppy, where drive 0 may be an empty disk that can be installed to.
 A drive that cannot be read is treated as the boot disk and never picked. The target must be
 at least 2 MiB.
@@ -92,6 +95,23 @@ directory and open files, so the shell history and everything else stay on the d
 The partition's SQFS has the same layout as a data disk, so on the host
 `dd if=target.img of=part.img bs=512 skip=2048` and `tools/sqfs.py part.img ls` read it.
 
+## Step I.3: copying the system
+
+`install copy` needs a target with an SQFS partition (I.2) and a mounted data disk, and finds
+the boot disk as above (else: `The boot disk is not an IDE disk, so the kernel cannot be read
+back.`). It asks y/n, then:
+
+1. **The kernel.** Sectors 1 to 192 of the boot disk, the 96 KB image the boot sector loads, go
+   to the same sectors of the target, each one read back and compared. They lie before the
+   partition, in the first MiB.
+2. **The files.** Every file in the root of the data disk is read into the loader's 64 KB
+   staging buffer (`LD_STAGE`) and written to the root of the target's file system, replacing
+   a file of the same name. These are the sample programs and anything else saved there;
+   subdirectories are not copied, and a file over 64 KB is skipped. One line per file says
+   `copied`, `failed` or `skipped`, then the count.
+
+The file system is switched to the target only for each write, as in I.2.
+
 ## Trying it in QEMU
 
 Always use a scratch image as the target, never a real disk:
@@ -104,7 +124,7 @@ qemu-system-i386 -drive format=raw,file=build/os.img,index=0,media=disk \
                  -drive format=raw,file=build/target.img,index=2,media=disk
 ```
 
-Then type `install`, `install part` and `install format`, and after a reboot `install ls`. On the host, `fdisk -l build/target.img` shows the
+Then type `install`, `install part`, `install format` and `install copy`, and after a reboot `install ls`. On the host, `fdisk -l build/target.img` shows the
 new partition. `tools/regress.sh` does the same with a fresh 16 MiB image each run
 (`tools/qemu_screen.py --target`) and reads the table back on the host.
 
@@ -114,6 +134,6 @@ new partition. `tools/regress.sh` does the same with a fresh 16 MiB image each r
 - While `install format` or `install ls` runs, the file system is the target's. A program
   running in the background at that moment would see it too.
 - LBA28 only: disks up to 128 GiB.
-- A USB stick, CD or floppy that the BIOS booted from is not an ATA disk, so the kernel cannot
-  read files back from it yet. I.3 decides where the copy comes from (the running kernel is
-  already in memory; the sample programs are on the data disk).
+- A USB stick, CD or floppy that the BIOS booted from is not an ATA disk, so `install copy`
+  cannot read the kernel back from it yet. The files come from the data disk, which is always
+  an IDE disk.

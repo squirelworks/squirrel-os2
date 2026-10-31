@@ -368,6 +368,9 @@ run_simple:
     mov edi, cmd_install_ls
     call streq
     je .install_ls
+    mov edi, cmd_install_copy
+    call streq
+    je .install_copy
     ; blktest
     mov edi, cmd_blktest
     call streq
@@ -585,6 +588,9 @@ run_simple:
     jmp .empty
 .install_ls:
     call cmd_install_ls_run
+    jmp .empty
+.install_copy:
+    call cmd_install_copy_run
     jmp .empty
 .blktest:
     call cmd_blktest_run
