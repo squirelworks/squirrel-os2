@@ -76,14 +76,15 @@ Errors: `syntax at column N`, `division by zero`, `overflow` (result beyond the 
 
 ## Graphing Calculator (`graph`)
 
-For visualization of functions.
+Plots one function in graphics mode. Implemented in `kernel/graph.asm` (1.3.3) with the graphics primitives (`../kernel/graphics.md`) and the `sci` evaluator, as `diff` uses it.
 
-- Plot y = f(x) over a range in text mode or later VGA graphics
-- Zoom and pan
-- Multiple functions
-- Points and asymptotes indicated
+- At the `graph>` prompt, type `y = <f(x)>`, or just `<f(x)>`. `f` is a `sci` expression in `x`; angles are radians.
+- The screen switches to 320 × 200 graphics and shows the axes, the curve in yellow, the function at the top left and the range at the bottom left. The window is fixed: x and y both run from −10 to 10, so one unit is 16 pixels across and 10 pixels up.
+- `f` is evaluated once per screen column (320 points). Neighbouring points are joined by a line. A point where `f` is undefined (`sqrt(x)` for x < 0, `1/x` at 0) or very far off the screen breaks the curve instead.
+- **Keys:** any key on the plot returns to the text screen, which is back as it was. The summary line then says how many of the 320 points were defined and how many of those were on screen, for example `Plotted y = x for x from -10 to 10: 320 points, 319 on screen`. At the prompt, `q`, `quit` or Esc return to the shell; Backspace edits the line.
+- A syntax error is reported before the screen changes: `Error: syntax at column N`. A domain error at x = 0 is not an error, since `1/x` and `ln(x)` are still worth plotting.
 
-Scaffolded (listed as "planned" in the banner since 0.9.3). Depends on graphics primitives (milestone 1.3) and a function evaluator.
+Not yet: zoom and pan, several functions at once, marked points or asymptotes.
 
 ## Matrix Calculator (`matrix`)
 
@@ -173,7 +174,7 @@ Scaffolded. Long-term; requires symbolic algebra primitives and careful memory m
 run calc      # basic: integer arithmetic and percentages
 run sci       # scientific: floating point and functions (x87)
 run matrix    # matrices up to 6 x 6
-run graph     # scaffold: prints a message (needs graphics, milestone 1.3)
+run graph     # plots y = f(x) in graphics mode (1.3.3)
 run diff      # scaffold: prints a message (TODO.md 1.0-diff-*)
 run topo      # scaffold: prints a message (2.x)
 ```

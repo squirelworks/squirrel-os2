@@ -130,7 +130,7 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 | Boot disk | `hd0` is never written. Without a data disk the system runs with no files. |
 | Editors | Files over 16 KB load truncated, with a warning. Search is in since 1.0.9, one-level undo since 1.0.11, and the `vedit` control-character display since 1.0.12. |
 | Drawing | ASCII only, on a fixed 64 × 18 canvas. No pixel graphics (milestone 1.3 and 1.6-draw-pixels). |
-| Scaffolds | `graph` and `topo` print a scaffold message and return. The banner lists them as planned. `graph` waits for 1.3 and `topo` for 2.x. `diff` does derivatives (1.0.7), integrals (1.0.8) and ODEs by Euler's method (1.0.10). |
+| Scaffolds | `topo` prints a scaffold message and returns; the banner lists it as planned. It waits for 2.x. `graph` plots since 1.3.3. `diff` does derivatives (1.0.7), integrals (1.0.8) and ODEs by Euler's method (1.0.10). |
 | Localization | Most messages are still English literals. The boot-sector and CPU-check messages are English only by design, because they print before the string tables exist. |
 | Pipes | Stages run one after another, not concurrently. Output beyond 32 KB per stage is cut. There is no quoting and no separate error stream. |
 | Drivers | Polled I/O only, with no interrupt-driven ATA. Devices are fixed at boot, with no `/dev` namespace and no loadable drivers. |
@@ -215,6 +215,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 ## 1.3.2
 
 - Strings in graphics mode with an original 5 × 7 font for printable ASCII (`kernel/graphics.md`; `gfxtext`, `gfxtext-text`).
+
+## 1.3.3
+
+- `graph` plots y = f(x) for x and y from −10 to 10 (`apps/calculators.md`; `graph`, `graph-domain`, `graph-syntax`, `graph-mem`). The banner lists `graph` as an app; only `topo` is planned. Graphics mode now saves and restores the text screen and the font (`kernel/graphics.md`). This completes milestone 1.3.
 
 ## Notes
 

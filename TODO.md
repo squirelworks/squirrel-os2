@@ -142,7 +142,7 @@ Each command returns to text mode before it prints `PASS`, so the existing scree
   Start after **1.3-pixel** is on `main`.
   **Acceptance:** the self-check reads back an ink pixel and a background pixel of a drawn glyph and prints `gfxtext: PASS`. A regression check expects that. The font is original.
 
-- [ ] **1.3-graph** — Make `graph` plot a function.
+- [x] **1.3-graph** — Make `graph` plot a function.
   Start after **1.3-line-fill** and **1.3-text** are on `main`. This is the milestone the `graph` stub names. A text-mode plot before that is not this task.
   **Acceptance:** `run graph` of `y = x` no longer prints `Scaffolded`. A regression check expects a success line from the command. `documentation/apps/calculators.md` describes the keys. `topo` stays a scaffold.
 
