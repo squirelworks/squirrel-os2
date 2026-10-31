@@ -32,6 +32,15 @@ Open:
 
 - **KB-7** `draw`, `edit` and `vedit` redraw by appending a fresh copy below the old one rather than in place, so the screen scrolls on every key. (Resolved: `edit`/`vedit` in 0.3.2, `draw` in 0.3.3.)
 
+## 0.9.2
+
+Found during the 0.9.2 polish pass, all resolved in 0.9.2:
+
+- **KB-8** `run edit <path>` and `run draw <path>` cut the name to 15 characters (the argument buffer was sized for a single file name), so a path into a directory opened the wrong file. Resolved: app arguments and the save-as prompts take paths of up to 63 characters.
+- **KB-9** Opening a directory in `edit`/`vedit`/`draw` claimed `New file (not on disk yet).`, and saving then failed with `Disk error.`. Resolved: the reason is shown and the buffer starts untitled.
+- **KB-10** The file browser did not list directories, so files in a subdirectory could not be reached from it, and a refused delete gave no feedback. Resolved: directories are listed and can be entered; refusals are explained.
+- Also: file commands answered every failure with `error`, and argument commands typed alone with `Unknown command`. Both now say what is wrong.
+
 ## 0.9.3
 
 Found while checking release readiness (booting in other configurations and in Bochs), all resolved in 0.9.3:

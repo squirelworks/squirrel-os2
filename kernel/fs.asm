@@ -354,10 +354,12 @@ fs_dir_id:
 fs_lookup:
     push edx
     push esi
+    mov byte [fs_errno], FE_NODIR
     call fs_walk
     jc .none
     mov [fs_lk_dir], dl
     mov esi, [fs_base]
+    mov byte [fs_errno], FE_NOTFOUND
     call fs_find_in
     jmp .out
 .none:
@@ -586,14 +588,18 @@ fs_mkdir:
 fs_make:
     pushad
     mov bl, al
+    mov byte [fs_errno], FE_NOFS
     cmp byte [fs_mounted], 0
     je .fail
     call fs_walk
+    mov byte [fs_errno], FE_NODIR
     jc .fail
     mov esi, [fs_base]
     call fs_check_name
+    mov byte [fs_errno], FE_NAME
     jc .fail
     call fs_find_in
+    mov byte [fs_errno], FE_EXISTS
     test edi, edi
     jnz .fail
     mov edi, FS_DIR
@@ -603,6 +609,7 @@ fs_make:
     je .slot
     add edi, FS_DIRENT
     loop .f
+    mov byte [fs_errno], FE_TABLE
     jmp .fail
 .slot:
     push edi
@@ -618,6 +625,7 @@ fs_make:
     rep movsb
     pop edi
     call fs_flush_dir
+    mov byte [fs_errno], FE_IO
     jc .fail
     popad
     xor eax, eax
@@ -631,24 +639,29 @@ fs_make:
 ; directory that is not empty or is the current one.
 fs_delete:
     pushad
+    mov byte [fs_errno], FE_NOFS
     cmp byte [fs_mounted], 0
     je .fail
-    call fs_lookup
+    call fs_lookup              ; (sets fs_errno)
     test edi, edi
     jz .fail
     call fs_is_open
+    mov byte [fs_errno], FE_BUSY
     jc .fail
     cmp byte [edi+DE_KIND], DK_DIR
     jne .gone
     call fs_dir_id
+    mov byte [fs_errno], FE_CWD
     cmp dl, [fs_cwd]
     je .fail
     call fs_dir_used
+    mov byte [fs_errno], FE_NOTEMPTY
     jc .fail
 .gone:
     mov byte [edi], 0
     mov dword [edi+DE_CAP], 0
     call fs_flush_dir
+    mov byte [fs_errno], FE_IO
     jc .fail
     popad
     xor eax, eax
@@ -659,19 +672,35 @@ fs_delete:
     ret
 
 ; esi = old path, edi = new path -> 0 or -1. The entry may move to
-; another directory, but a directory not into itself.
+; another directory, but a directory not into itself. A new path that
+; names a directory moves the entry into it under its old name (0.9.2).
 fs_rename:
     pushad
+    mov byte [fs_errno], FE_NOFS
     cmp byte [fs_mounted], 0
     je .fail
     mov ebp, esi                ; old path
     mov esi, edi
-    call fs_walk                ; dl = new directory, [fs_base] = new name
+    call fs_find_dir            ; "mv a dir" and "mv a ..": into it
+    jc .plain
+    mov bh, dl
+    mov esi, ebp
+    call fs_walk                ; [fs_base] = the old name
+    mov byte [fs_errno], FE_NOTFOUND
     jc .fail
+    mov dl, bh
+    jmp .named
+.plain:
+    call fs_walk                ; dl = new directory, [fs_base] = new name
+    mov byte [fs_errno], FE_NODIR
+    jc .fail
+.named:
     mov esi, [fs_base]
     call fs_check_name
+    mov byte [fs_errno], FE_NAME
     jc .fail
     call fs_find_in             ; must not exist yet
+    mov byte [fs_errno], FE_EXISTS
     test edi, edi
     jnz .fail
     mov edi, fs_newname         ; keep it: the path buffer is reused
@@ -679,13 +708,14 @@ fs_rename:
     rep movsb
     mov bh, dl
     mov esi, ebp
-    call fs_lookup
+    call fs_lookup              ; (sets fs_errno)
     test edi, edi
     jz .fail
     cmp byte [edi+DE_KIND], DK_DIR
     jne .move
     call fs_dir_id              ; dl = the directory being moved
     mov al, bh
+    mov byte [fs_errno], FE_LOOP
 .up:                            ; the new home must not lie inside it
     cmp al, dl
     je .fail
@@ -707,6 +737,7 @@ fs_rename:
     mov ecx, eax
     rep movsb
     call fs_flush_dir
+    mov byte [fs_errno], FE_IO
     jc .fail
     popad
     xor eax, eax
@@ -744,18 +775,20 @@ FD_POS        equ 4
 ; esi = name, ecx = flags (O_CREATE, O_TRUNC, O_APPEND) -> eax = fd or -1
 fs_open:
     pushad
+    mov byte [fs_errno], FE_NOFS
     cmp byte [fs_mounted], 0
     je .fail
     call fs_lookup
     test edi, edi
     jnz .found
-    test ecx, O_CREATE
+    test ecx, O_CREATE          ; (fs_lookup set fs_errno)
     jz .fail
-    call fs_create
+    call fs_create              ; (sets fs_errno)
     test eax, eax
     jnz .fail
     call fs_lookup
 .found:
+    mov byte [fs_errno], FE_ISDIR
     cmp byte [edi+DE_KIND], DK_DIR
     je .fail                    ; directories hold no data
     mov ebx, fs_fds
@@ -767,6 +800,7 @@ fs_open:
     inc edx
     cmp edx, FS_MAXFD
     jb .f
+    mov byte [fs_errno], FE_NOFD
     jmp .fail
 .slot:
     mov [ebx+FD_DIRENT], edi
@@ -886,6 +920,7 @@ fs_read:
 ; ebx = fd, esi = buffer, ecx = length -> eax = bytes written, or -1
 fs_write:
     pushad
+    mov byte [fs_errno], FE_IO
     mov ebp, esi                ; ebp = source
     call fs_fd
     jc .fail
@@ -903,7 +938,9 @@ fs_write:
     mov edi, esi
     call fs_ensure_cap
     pop ecx
+    mov byte [fs_errno], FE_FULL
     jc .fail
+    mov byte [fs_errno], FE_IO
 .chunk:
     test ecx, ecx
     jz .done
@@ -1043,8 +1080,7 @@ fs_cat:
 .nl:
     ret
 .nf:
-    mov esi, [lstr+LS_NOTFOUND*4]
-    jmp lputs_nl
+    jmp fs_why
 FS_CATBUF equ KSCRATCH+0x1800
 
 ; Splits the first word off esi: returns esi = word (zero-terminated in
@@ -1075,15 +1111,21 @@ next_word:
 .end:
     ret
 
-; Prints "ok" or "error" from eax (0 / -1)
+; Prints "ok" for eax = 0, otherwise why the last call failed
 fs_report:
     mov esi, fs_ok
     test eax, eax
-    jz .p
-    mov esi, fs_err
-.p:
-    call puts
-    ret
+    jz puts
+; prints the reason in fs_errno
+fs_why:
+    movzx eax, byte [fs_errno]
+    cmp eax, FE_NOTFOUND
+    je .nf
+    mov esi, [fs_errmsg+eax*4]
+    jmp puts
+.nf:
+    mov esi, [lstr+LS_NOTFOUND*4]
+    jmp lputs_nl
 
 ; Most commands need a mounted FS
 fs_need:
@@ -1239,8 +1281,15 @@ cmd_mv_run:
     call next_word
     mov edi, esi
     pop esi
+    cmp byte [edi], 0
+    je .usage
     call fs_rename
-    call fs_report
+    jmp fs_report
+.usage:
+    mov esi, u_mv_t
+    call puts
+    mov al, 10
+    jmp putc
 .r:
     ret
 
@@ -1379,7 +1428,40 @@ ft_b db 'fstest.b', 0
 ft_pass db 'fstest: PASS', 10, 0
 ft_failmsg db 'fstest: FAIL', 10, 0
 fs_ok db 'ok', 10, 0
+; why a call failed (0.9.2): fs_errno indexes fs_errmsg
+FE_ERR      equ 0
+FE_NOFS     equ 1
+FE_NAME     equ 2
+FE_EXISTS   equ 3
+FE_NODIR    equ 4
+FE_TABLE    equ 5
+FE_NOTFOUND equ 6
+FE_BUSY     equ 7
+FE_NOTEMPTY equ 8
+FE_CWD      equ 9
+FE_LOOP     equ 10
+FE_IO       equ 11
+FE_FULL     equ 12
+FE_ISDIR    equ 13
+FE_NOFD     equ 14
+fs_errno db 0
+align 4
+fs_errmsg:
+    dd fs_err, fs_msg_nofs, fs_e_name, fs_e_exists, fs_m_nodir, fs_e_table
+    dd fs_err, fs_e_busy, fs_e_notempty, fs_e_cwd, fs_e_loop, fs_e_io
+    dd fs_e_full, fs_e_isdir, fs_e_nofd
 fs_err db 'error', 10, 0
+fs_e_name db 'Bad name: 1 to 15 characters, not . or ..', 10, 0
+fs_e_exists db 'Already exists', 10, 0
+fs_e_table db 'Directory table full (64 entries)', 10, 0
+fs_e_busy db 'File is open', 10, 0
+fs_e_notempty db 'Directory not empty', 10, 0
+fs_e_cwd db 'That is the current directory', 10, 0
+fs_e_loop db 'A directory cannot move into itself', 10, 0
+fs_e_io db 'Disk error', 10, 0
+fs_e_full db 'Disk full', 10, 0
+fs_e_isdir db 'Is a directory', 10, 0
+fs_e_nofd db 'Too many open files', 10, 0
 fs_msg_formatted db 'Data disk was blank: formatted SQFS and added the built-in files.', 10, 0
 fs_msg_foreign db 'Data disk is not SQFS; type format to erase it.', 10, 0
 fs_msg_nofs db 'No file system mounted (attach a data disk).', 10, 0

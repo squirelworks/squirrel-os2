@@ -54,7 +54,7 @@ Kernels older than 0.8.0 show directories as empty files and every file at the t
 
 - **Opening:** a directory cannot be opened as a file.
 - **Deleting:** a directory can be removed only when it is empty and is not the current directory.
-- **Renaming:** `mv` can move an entry into another directory (`mv notes docs/notes`). It refuses to move a directory into itself or below itself.
+- **Renaming:** `mv` can move an entry into another directory (`mv notes docs/notes`). When the new path names an existing directory, the entry moves into it under its own name (`mv notes docs`, `mv notes ..`; 0.9.2). It refuses to move a directory into itself or below itself.
 - **Names:** `.` and `..` are refused as names.
 
 **Shell and programs:**
@@ -94,6 +94,13 @@ Without a data disk, `ls` and `cat` fall back to the built-in (ROM) table, as be
 | `fs_close` | `ebx` fd | 0 / −1 |
 | `fs_format` | — | CF on error |
 
+On −1, `fs_errno` says why (0.9.2): `FE_NOFS`, `FE_NAME` (empty, over 15 characters, `.` or `..`),
+`FE_EXISTS`, `FE_NODIR` (a directory on the path is missing), `FE_TABLE` (64 entries used),
+`FE_NOTFOUND`, `FE_BUSY` (open), `FE_NOTEMPTY`, `FE_CWD` (the current directory), `FE_LOOP`
+(a directory into itself), `FE_IO`, `FE_FULL` (no free run of sectors), `FE_ISDIR`, `FE_NOFD`
+(all eight descriptors in use). The shell prints the matching message (`fs_report`/`fs_why`), and
+the editors and `draw` show it on their message line. Syscalls still return only −1.
+
 Open flags: `O_CREATE` 1, `O_TRUNC` 2, `O_APPEND` 4. Each descriptor has its own position,
 starting at 0 (or at the end with `O_APPEND`). Eight descriptors are shared system-wide.
 
@@ -118,13 +125,17 @@ starting at 0 (or at the end with `O_APPEND`). Eight descriptors are shared syst
 | `put <f> <text>` | Append `text` and a newline (creates the file) |
 | `mk <f>` | Create an empty file |
 | `rm <f>` | Delete |
-| `mv <f> <new>` | Rename, or move to another directory (`mv a docs/a`) |
+| `mv <f> <new>` | Rename, or move to another directory (`mv a docs/a`, or `mv a docs` into it) |
 | `mkdir <d>` | Make a directory (0.8.0) |
 | `cd [d]` | Change the current directory; alone, back to the root (0.8.0) |
 | `pwd` | Print the current directory (0.8.0) |
 | `ls <d>` | List another directory (0.8.0) |
 | `format` | Erase the data disk and reseed the built-in files |
 | `fstest` | Create, write 1300 bytes in two pieces (forcing a move), reopen, read back and compare, check EOF, rename, delete |
+
+Typed without its arguments, a command prints how to use it (`mkdir` → `Usage: mkdir <dir>`; 0.9.2).
+Failures say why: `Already exists`, `Bad name: 1 to 15 characters, not . or ..`, `No such directory`,
+`Directory not empty`, `Is a directory`, `Disk full`, and so on.
 
 `run <app>` still starts the built-in applications; other names are loaded from files by the program loader (0.4.0, `loader.md`).
 

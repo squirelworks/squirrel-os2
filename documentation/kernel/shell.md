@@ -86,3 +86,7 @@ redirections on the lines inside the script instead.
 
 `ls`, `cat <f>`, `echo <text>`, `batch <file>`, `put <f> <text>`, `mk <f>`, `rm <f>`, `mv <f> <new>`, `format`, `ps`, `disk`,
 `run <app|file> [args]`, and the tests `systest`, `proctest`, `blktest`, `fstest`, `keys`.
+
+A command that needs arguments, typed alone (`put`, `mk`, `rm`, `mv`, `mkdir`, `cat`, `run`, `batch`),
+prints a `Usage:` line instead of `Unknown command`; `echo` alone prints an empty line (0.9.2,
+`sh_usage` in `pm.asm`). File commands that fail say why (see `filesystem.md`).

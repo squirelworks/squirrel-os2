@@ -299,14 +299,14 @@ itoa:                         ; signed
     pop ebx
     ret
 
-; edi = ASCIIZ -> run_arg (truncated to a file name)
+; edi = ASCIIZ -> run_arg (truncated to a path's length)
 set_run_arg:
     push ecx
     push esi
     push edi
     mov esi, edi
     mov edi, run_arg
-    mov ecx, FS_NAMELEN-1
+    mov ecx, FS_PATHMAX-1
 .c:
     lodsb
     test al, al
@@ -413,6 +413,8 @@ run_simple:
     call [ebx+4]
     jmp .empty
 .unknown:
+    call sh_usage               ; a command word without its arguments?
+    jnc .empty
     mov esi, [lstr+LS_UNKNOWN*4]
     call lputs_nl
     jmp .empty
@@ -808,7 +810,7 @@ cmd_keys db 'keys', 0
 cmd_trap db 'trap', 0
 
 ; argument for the next app started with run (e.g. run edit notes)
-run_arg times 16 db 0           ; FS_NAMELEN
+run_arg times 64 db 0           ; FS_PATHMAX
 run_rest dd 0                   ; whole argument text, for loaded programs
 cmd_ps db 'ps', 0
 cmd_mem db 'mem', 0
@@ -829,6 +831,52 @@ cmd_lang db 'lang', 0
 cmd_lang_arg db 'lang ', 0
 cmd_echo db 'echo ', 0
 cmd_batch db 'batch ', 0
+; esi = command line: a command that needs arguments typed alone
+; prints how to use it ("echo" alone prints an empty line) -> CF if not
+sh_usage:
+    mov ebx, usage_cmds
+.l:
+    mov edi, [ebx]
+    test edi, edi
+    jz .no
+    call streq
+    je .hit
+    add ebx, 8
+    jmp .l
+.hit:
+    mov esi, [ebx+4]
+    call puts
+    mov al, 10
+    call putc
+    clc
+    ret
+.no:
+    stc
+    ret
+
+usage_cmds:
+    dd u_put, u_put_t, u_mk, u_mk_t, u_rm, u_rm_t, u_mv, u_mv_t
+    dd u_mkdir, u_mkdir_t, u_cat, u_cat_t, u_run, u_run_t
+    dd u_batch, u_batch_t, u_echo, u_echo_t, 0
+u_put db 'put', 0
+u_mk db 'mk', 0
+u_rm db 'rm', 0
+u_mv db 'mv', 0
+u_mkdir db 'mkdir', 0
+u_cat db 'cat', 0
+u_run db 'run', 0
+u_batch db 'batch', 0
+u_echo db 'echo', 0
+u_put_t db 'Usage: put <file> <text>   (adds a line to the file)', 0
+u_mk_t db 'Usage: mk <file>', 0
+u_rm_t db 'Usage: rm <file|dir>', 0
+u_mv_t db 'Usage: mv <old> <new|dir>', 0
+u_mkdir_t db 'Usage: mkdir <dir>', 0
+u_cat_t db 'Usage: cat <file>', 0
+u_run_t db 'Usage: run <app|file> [text]   (apps: see the list above, or ls)', 0
+u_batch_t db 'Usage: batch <file>', 0
+u_echo_t db 0
+
 arg_cmds:
     dd cmd_put, cmd_put_run
     dd cmd_mk, cmd_mk_run

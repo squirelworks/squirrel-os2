@@ -2,11 +2,13 @@
 ; Included from pm.asm. Original code.
 ;
 ; run files: list the files, move with the arrows, Enter launches an app
-; (a file whose name is a built-in app) or views any other file.
+; (a file whose name is a built-in app) or views any other file. Since
+; 0.9.2 directories are listed too: Enter goes into one, and ".." back up.
 ; See documentation/apps/files.md.
 
 FB_ROWS       equ 18            ; list rows on screen
-FB_MAX        equ 64
+FB_MAX        equ 65            ; every entry, plus ".."
+FB_DIR        equ -1            ; the size recorded for a directory
 
 fb_main:
     mov dword [fb_sel], 0
@@ -84,6 +86,15 @@ fb_main:
 .open:
     call fb_current
     jc .key
+    cmp edx, FB_DIR
+    jne .file
+    call fs_find_dir            ; into the directory (".." goes up)
+    jc .key
+    mov [fs_cwd], dl
+    mov dword [fb_sel], 0
+    mov dword [fb_top], 0
+    jmp .reload
+.file:
     call fb_app_for             ; ebx = start routine or 0
     test ebx, ebx
     jz .prog
@@ -101,6 +112,8 @@ fb_main:
 .edit:
     call fb_current
     jc .key
+    cmp edx, FB_DIR
+    je .key
     mov edi, esi
     call set_run_arg
     mov ebx, run_edit
@@ -132,6 +145,8 @@ fb_main:
 .view:
     call fb_current
     jc .key
+    cmp edx, FB_DIR
+    je .key
     call cls
     call fs_cat
     mov esi, fb_anykey
@@ -141,6 +156,8 @@ fb_main:
 .delete:
     call fb_current
     jc .key
+    cmp esi, fb_up
+    je .key
     cmp byte [fs_mounted], 0
     je .key                     ; ROM files cannot be deleted
     push esi
@@ -151,6 +168,14 @@ fb_main:
     cmp al, 0x15                ; y
     jne .draw
     call fs_delete
+    test eax, eax
+    jz .reload
+    mov al, 10                  ; say why (open, not empty, ...)
+    call putc
+    call fs_why
+    mov esi, fb_anykey
+    call puts
+    call fb_waitkey
     jmp .reload
 .quit:
     call app_home
@@ -164,18 +189,27 @@ fb_scan:
     mov edi, fb_names
     cmp byte [fs_mounted], 0
     je .rom
+    mov dl, [fs_cwd]            ; the entries of the current directory
+    test dl, dl
+    jz .top
+    mov dword [edi], fb_up      ; ".." first, outside the root
+    mov dword [edi+FB_MAX*4], FB_DIR
+    add edi, 4
+    inc dword [fb_count]
+.top:
     mov esi, FS_DIR
     mov ecx, FS_MAXFILES
-    mov dl, [fs_cwd]            ; the files of the current directory
 .d:
     cmp byte [esi], 0
     je .dn
     cmp [esi+DE_PARENT], dl
     jne .dn
-    cmp byte [esi+DE_KIND], DK_DIR
-    je .dn
     mov [edi], esi
     mov eax, [esi+DE_SIZE]
+    cmp byte [esi+DE_KIND], DK_DIR
+    jne .sz
+    mov eax, FB_DIR
+.sz:
     mov [edi+FB_MAX*4], eax
     add edi, 4
     inc dword [fb_count]
@@ -234,6 +268,18 @@ fb_draw:
     mov esi, fb_src_rom
 .src:
     call puts
+    cmp byte [fs_mounted], 0
+    je .list
+    mov esi, fb_in              ; "in /docs"
+    call puts
+    push edx
+    mov dl, [fs_cwd]
+    call fs_print_path
+    pop edx
+.list:
+    mov al, 10
+    call putc
+    call putc
     mov ecx, [fb_top]
     mov edx, FB_ROWS
 .row:
@@ -249,6 +295,17 @@ fb_draw:
     call putc
     mov esi, [fb_names+ecx*4]
     call puts
+    mov eax, [fb_sizes+ecx*4]
+    cmp eax, FB_DIR
+    jne .size
+    mov al, '/'
+    call putc
+    mov al, 20
+    call puts_pad
+    mov esi, fs_m_dir
+    call puts
+    jmp .noapp
+.size:
     mov al, 20
     call puts_pad
     mov eax, [fb_sizes+ecx*4]
@@ -288,12 +345,14 @@ fb_status:
     call puts
     ret
 
-; -> esi = selected name, CF if the list is empty
+; -> esi = selected name, edx = its size (FB_DIR for a directory), CF
+; if the list is empty
 fb_current:
     mov eax, [fb_sel]
     cmp eax, [fb_count]
     jae .none
     mov esi, [fb_names+eax*4]
+    mov edx, [fb_sizes+eax*4]
     clc
     ret
 .none:
@@ -336,10 +395,12 @@ fb_count dd 0
 fb_names times FB_MAX dd 0
 fb_sizes times FB_MAX dd 0      ; must follow fb_names (indexed as +FB_MAX*4)
 fb_title db 'Files', 0
-fb_src_disk db ' (data disk)', 10, 10, 0
-fb_src_rom db ' (built-in, no data disk)', 10, 10, 0
+fb_src_disk db ' (data disk)', 0
+fb_src_rom db ' (built-in, no data disk)', 0
+fb_in db ' in ', 0
+fb_up db '..', 0
 fb_tag_app db '[app]', 0
 fb_help db 10, 'Arrows PgUp/PgDn Home/End  Enter: open  v: view  e: edit  d: delete  Esc', 10, 0
-fb_nfiles db ' files', 0
+fb_nfiles db ' entries', 0
 fb_anykey db 10, '-- press any key --', 0
-fb_confirm db 10, 'Delete this file? (y/n)', 0
+fb_confirm db 10, 'Delete this entry? (y/n)', 0

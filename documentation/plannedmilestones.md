@@ -117,7 +117,7 @@ This is a natural end-of-day point. Next session can resume at either:
 ### 0.9.x — Integration
 - **0.9.0** — File browser launches the applications (calc, edit, vedit, draw) (done — verified; regression checks `fb-run-*`)
 - **0.9.1** — Files persist across reboot (done — verified; regression checks `persist-*`, `fs-persist`, `hist-reboot`)
-- **0.9.2** — Stability and polish pass
+- **0.9.2** — Stability and polish pass (done — file-system error reasons, usage hints, `mv` into directories, directories in the browser, paths in the apps; KB-8 to KB-10)
 - **0.9.3** — Release readiness (done — floppy boot, CPU check, one version string, stub apps marked as planned, `tools/build.sh`/`run.sh`, Bochs smoke test)
 
 ### 1.0.0 — Functional OS
