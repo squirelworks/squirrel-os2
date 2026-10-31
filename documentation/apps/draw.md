@@ -10,7 +10,8 @@ While the GUI is unfinished, the drawing program is an ASCII drawer. It runs in 
 
 ```
 run draw            start with an empty, unnamed canvas
-run draw <file>     load <file> from the data disk (or start a new one with that name)
+run draw <file>     load <file> from the data disk (or start a new one with that name);
+                    <file> may be a path (0.9.2)
 ```
 
 The file browser (`run files`) launches `draw` like any other app.

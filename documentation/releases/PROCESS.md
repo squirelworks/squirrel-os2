@@ -74,7 +74,8 @@ This avoids retargeting chains and confirmation steps.
 | 0.8.2   | 2026-10-30 | Crash reports and shell restart      |
 | 0.9.0   | 2026-10-31 | Browser launches the 1.0 apps        |
 | 0.9.1   | 2026-10-31 | Files persist across reboots         |
+| 0.9.2   | 2026-10-31 | Stability and polish pass            |
 
 ## Next planned release
 
-**0.3.x** — Application polish and program loader.
+**1.0.0** — Release packaging: version bump, release note, the four apps + browser + persistent file system checked together.
