@@ -17,7 +17,7 @@ Location: `../../kernel/gfx.asm` (included from `kernel/pm.asm`)
 | `gfx_putpixel` | `eax` = x, `ebx` = y, `cl` = colour | — (off-screen pixels are ignored) |
 | `gfx_getpixel` | `eax` = x, `ebx` = y | `cl` = colour (0 off screen) |
 | `gfx_line` (1.3.1) | `eax`, `ebx` = one end, `ecx`, `edx` = the other, colour in `gfx_colour` | — (Bresenham, both ends included, any direction) |
-| `gfx_fillrect` (1.3.1) | `eax`, `ebx` = top left, `ecx` = width, `edx` = height, colour in `gfx_colour` | — (clipped to the screen) |
+| `gfx_fillrect` (1.3.1) | `eax`, `ebx` = top left, `ecx` = width, `edx` = height, colour in `gfx_colour` | — (clipped to the screen; x and y may be negative) |
 | `gfx_drawchar` (1.3.2) | `eax`, `ebx` = top left of the cell, `dl` = character, ink in `gfx_colour`, background in `gfx_bg` | — (a 6 × 8 cell) |
 | `gfx_drawstr` (1.3.2) | `esi` = zero-terminated string, `eax`, `ebx` = top left, colours as `gfx_drawchar` | — (6 pixels per character) |
 
@@ -37,6 +37,6 @@ Each character fills a 6 × 8 cell: the glyph, then one column and one row of ba
 
 `gfxtest` (a shell command) enters mode 13h, writes colour `0x2A` to pixel (160, 100) and reads it back, does the same with `0x15`, returns to text mode and prints `gfxtest: PASS` if both reads matched (check `gfxtest`). In text mode the window at `0xA0000` is not mapped, so a read there returns `0xFF` and the test fails: with the call to `gfx_mode13` taken out, it prints `gfxtest: FAIL`. Check `gfx-text` runs `systest` after `gfxtest` to show the text screen works again.
 
-`gfxprim` (1.3.1) clears rows 103–199, draws a line from (20, 120) to (300, 190) in colour `0x0C` and fills the rectangle x 200–259, y 105–124 in `0x0A`. It then reads back seven pixels: the line's two ends and its middle (160, 155), one inside the rectangle, and the three pixels just left of, right of and below the rectangle, which must still be 0. It prints `gfxprim: PASS` when all seven match (checks `gfxprim`, `gfxprim-text`). With the line left out, it prints FAIL.
+`gfxprim` (1.3.1) clears rows 103–199, draws a line from (20, 120) to (300, 190) in colour `0x0C` and fills the rectangle x 200–259, y 105–124 in `0x0A`. It also fills a rectangle 20 wide starting at x = -10, y 130–139, in `0x09`, of which x 0–9 is on the screen. It then reads back ten pixels: the line's two ends and its middle (160, 155), one inside the first rectangle, the three pixels just left of, right of and below it, which must still be 0, and (0, 135), (9, 135) and (10, 135) for the clipped one. It prints `gfxprim: PASS` when all ten match (checks `gfxprim`, `gfxprim-text`). With the line left out, it prints FAIL.
 
 `gfxtext` (1.3.2) clears rows 103–199 and draws `Squirrel-OS/2` at (40, 140), ink `0x0F` on background `0x01`. It reads back two ink pixels and the top-left background pixel of the `S`, the spacing column after it, and the pixel left of the string, which must still be 0, and prints `gfxtext: PASS` (checks `gfxtext`, `gfxtext-text`). Without the drawing, it prints FAIL.
