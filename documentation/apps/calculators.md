@@ -122,16 +122,21 @@ diff> d x^3 at 2
 = 12
 diff> d exp(x) at 1
 = 2.718281829
+diff> i sin(x) from 0 to pi
+= 2
+diff> i exp(x) from 0 to 1
+= 1.718281828
 ```
 
 - **Derivative** (1.0.7): `d <f(x)> at <x0>`. It uses the central difference (f(x0+h) − f(x0−h)) / 2h, with h = 10⁻⁵·max(1, |x0|). The method's error shrinks with h², and the FPU's 64-bit mantissa keeps rounding error far below the 10 digits that are printed. Polynomials up to degree 2 come out exact, and smooth functions are right to about 10 digits.
-- `x0` is a plain `sci` expression (`pi / 2`, `sqrt(2)`), but it may not use `x`.
+- **Integral** (1.0.8): `i <f(x)> from <a> to <b>`. It uses the composite Simpson rule on 1000 panels, (h/3)·(f₀ + 4f₁ + 2f₂ + … + 4f₉₉₉ + f₁₀₀₀) with h = (b − a)/1000. Each sample point is computed as a + i·h, not as a running sum. The error shrinks with h⁴, so polynomials up to degree 3 come out exact, and smooth functions are right to the 10 printed digits. If `b < a`, the result is negative. There is no special handling for improper integrals: `i ln(x) from 0 to 1` samples ln(0) and reports `outside the function domain`.
+- `x0`, `a` and `b` are plain `sci` expressions (`pi / 2`, `sqrt(2)`), but it may not use `x`.
 - Angles are always radians in `diff`, whatever mode `sci` was left in.
-- Errors are the same as in `sci`. A sample point outside the domain gives `outside the function domain` (`d ln(x) at 0` samples −10⁻⁵). A missing `at` gives `syntax at column N`.
+- Errors are the same as in `sci`. A sample point outside the domain gives `outside the function domain` (`d ln(x) at 0` samples −10⁻⁵). A missing `at`, `from` or `to` gives `syntax at column N`.
 - `x` is a syntax error in `sci` itself.
 - `q`, `quit` or Esc quits.
 
-Planned: numerical integrals (task 1.0-diff-integ, trapezoid or Simpson) and one ODE stepper (1.0-diff-ode, Euler).
+Planned: one ODE stepper (task 1.0-diff-ode, Euler).
 
 ## Topology Calculator (`topo`)
 

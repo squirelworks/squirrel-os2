@@ -85,7 +85,7 @@ Each item is its own patch release after 1.0.0 (its own release note). Independe
   `diff` is a scaffold that says the numerical work is pending. Use finite differences on the existing scientific evaluator. No second math library, and no symbolic rules.
   **Acceptance:** `run diff` on a derivative of `sin(x)` at 0 prints a value near 1 (the check can accept `1.000`). The scaffold sentence is gone for this operation. `documentation/apps/calculators.md` describes the input. A regression check covers it.
 
-- [ ] **1.0-diff-integ** — Numerical integral in `diff`.
+- [x] **1.0-diff-integ** — Numerical integral in `diff`.
   Start after **1.0-diff-deriv** is on `main`. Trapezoid or Simpson, original code, same evaluator.
   **Acceptance:** integrating a constant `1` from 0 to 2 prints a value near 2. A regression check expects that. The calculator note describes it.
 
