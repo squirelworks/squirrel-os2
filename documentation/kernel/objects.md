@@ -4,7 +4,7 @@ Since 1.7.0 the kernel has a small object model: classes with a parent and a met
 
 ## Classes
 
-A class is a 16-byte record in kernel data:
+A class is a 20-byte record in kernel data:
 
 | Offset | Field | Meaning |
 |--------|-------|---------|
@@ -12,6 +12,7 @@ A class is a 16-byte record in kernel data:
 | 4 | `CLS_PARENT` | the parent class, or 0 |
 | 8 | `CLS_METHODS` | the method table |
 | 12 | `CLS_FIELDS` | this class's own field names: a list of pointers to ASCIIZ names ending with 0, or 0 for none (1.7.1) |
+| 16 | `CLS_TEXT` | which of this class's own fields hold text: bit n for its n-th own field (1.8.0) |
 
 The method table is a list of (selector, handler) dword pairs that ends with a selector of 0. A selector is an ASCIIZ name such as `area`. A subclass lists only the methods it adds or overrides.
 
@@ -66,3 +67,23 @@ Since 1.7.1 `Shape` has a field `size` and a method `resize` (ebx), which finds 
 - The shape's own `size` is still 0.
 
 It gives both slots back with `obj_free`, checks that freeing the shape again is refused (1.7.3), and prints `obj fields: PASS`, or FAIL (check `objfields`). With `perimeter` returning twice the size instead, it prints FAIL.
+
+## Object files (1.8.0)
+
+`obj_save` writes an object to a file on the data disk and `obj_load` reads one back into a new object. The file is:
+
+| Bytes | Meaning |
+|-------|---------|
+| 4 | `SQOB` |
+| 16 | the class name, padded with zeros (at most 15 characters) |
+| 1 | the field count, the parents' fields included |
+| per field | `0` and a dword; or `1`, a length byte and that many characters of text |
+
+A field whose bit is set in its class's `CLS_TEXT` holds the address of an ASCIIZ string; it is saved as the text (at most 31 characters), not as the address. `obj_load` finds the class by name among the recorded classes (`obj_class`), checks that the field count matches, and puts each text into a 512-byte kernel pool that keeps one copy of each string; a loaded text field points into that pool. A file shorter than its header or its fields, an unknown class, a different field count or a full pool is refused, and no object is left behind.
+
+| Routine | In | Out |
+|---------|----|-----|
+| `obj_save` | eax = object, esi = path | CF set if it could not be written |
+| `obj_load` | esi = path | eax = a new object, CF clear; or eax = −1, CF set |
+
+`objtest` then saves a square of size 5 whose `colour` is the text `red` to `objtest.obj`, frees it and loads it: `perimeter` gives 20 again, and `colour` is a copy of `red`, not the old address. It saves and loads a second square coloured `blue` and checks that the first still reads `red`. A `Ghost` object, whose class is not recorded, is saved and its file is refused. It prints `obj store: PASS`, or FAIL (check `objstore`). It needs the data disk. With `obj_load` taking an unknown class, with the integer fields not read, or with text fields pointing at the read buffer instead of the pool, it prints FAIL.

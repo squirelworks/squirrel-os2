@@ -119,6 +119,7 @@ This avoids retargeting chains and confirmation steps.
 | 1.7.5   | 2026-10-31 | Installer: the target boots alone    |
 | 1.7.6   | 2026-10-31 | Desktop entries as objects           |
 | 1.7.7   | 2026-10-31 | Installer: run install               |
+| 1.8.0   | 2026-10-31 | Object files                         |
 
 ## Next planned release
 
