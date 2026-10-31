@@ -247,6 +247,11 @@ check buttontest-text 'systest: PASS'      buttontest '<ret>' '<pause>' '<esc>' 
 check fieldtest    'field: PASS "Hi the"'  fieldtest '<ret>' '<pause>' 'Hi there' '<backspace>' '<backspace>' '<ret>'
 check fieldtest-full 'field: PASS "abcdefghijklmnop"' fieldtest '<ret>' '<pause>' abcdefghijklmnopqrst '<esc>'
 check fieldtest-text 'systest: PASS'       fieldtest '<ret>' '<pause>' '<esc>' systest '<ret>'
+# 1.5.3: a list; Down and Up move the selection, the selected name is printed
+check listtest     'list: Beech'           listtest '<ret>' '<pause>' '<down>' '<ret>'
+check listtest-end 'list: Dogwood'         listtest '<ret>' '<pause>' '<down>' '<down>' '<down>' '<down>' '<down>' '<esc>'
+check listtest-up  'list: Acorn'           listtest '<ret>' '<pause>' '<down>' '<up>' '<up>' '<ret>'
+check listtest-text 'systest: PASS'        listtest '<ret>' '<pause>' '<esc>' systest '<ret>'
 check topo-stub     'Scaffolded. Simplicial homology'  'run topo' '<ret>'
 # program loader: a disk prepared on the host with tools/sqfs.py
 # 0.9.2: usage hints, file-system error reasons, mv into a directory,
@@ -266,7 +271,7 @@ check ed-path-r     'deep'                  'cat e1/long-name.txt' '<ret>'
 check fb-dir        'in /e1'                'cd e1' '<ret>' 'run files' '<ret>'
 check fb-dir-up     '[app]'                 'cd e1' '<ret>' 'run files' '<ret>' '<ret>'
 # 0.9.3: release readiness
-check ver-banner    'Squirrel-OS/2 1.5.2'   systest '<ret>'
+check ver-banner    'Squirrel-OS/2 1.5.3'   systest '<ret>'
 check ver-planned   '(planned: topo)'  systest '<ret>'
 check calc-hist-root '1 + 1 = 2'            'mkdir c1' '<ret>' 'cd c1' '<ret>' 'run calc' '<ret>' '1 + 1' '<ret>' '<esc>' 'cat /calc.hist' '<ret>'
 boot="--floppy $out/floppy.img"
@@ -367,7 +372,7 @@ check l10n-hint-la  '(lineam tabulae addit)'  'lang la' '<ret>' put '<ret>'
 check l10n-fe-tlh   "tu'lu'pu'"             'lang tlh' '<ret>' 'mkdir t1' '<ret>' 'mkdir t1' '<ret>'
 check l10n-rm-tlh   "tu'lu'be'"             'lang tlh' '<ret>' 'rm nosuch' '<ret>'
 check lang-bad      'Unknown language (en la tlh)'  'lang fr' '<ret>'
-check lang-banner   'Sciurus-OS/2 1.5.2'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
+check lang-banner   'Sciurus-OS/2 1.5.3'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
 # 1.0.6: calc, edit and draw titles follow lang
 check l10n-calc-tlh "mI' De'wI' (Esc to exit)" 'lang tlh' '<ret>' 'run calc' '<ret>'
 check l10n-edit-tlh "ghItlhwI': (untitled)" 'lang tlh' '<ret>' 'run edit' '<ret>'

@@ -105,6 +105,7 @@ This avoids retargeting chains and confirmation steps.
 | 1.5.0   | 2026-10-31 | Widgets: label                       |
 | 1.5.1   | 2026-10-31 | Widgets: button                      |
 | 1.5.2   | 2026-10-31 | Widgets: edit field                  |
+| 1.5.3   | 2026-10-31 | Widgets: list                        |
 
 ## Next planned release
 

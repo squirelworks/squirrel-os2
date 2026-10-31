@@ -244,6 +244,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - A one-line edit field: typed printable characters go into a caller's buffer, up to a set length, and Backspace deletes (`kernel/widgets.md`; `fieldtest`, `fieldtest-full`, `fieldtest-text`).
 
+## 1.5.3
+
+- A list widget: items in a column with one selected; Down and Up move the selection and stop at the ends (`kernel/widgets.md`; `listtest`, `listtest-end`, `listtest-up`, `listtest-text`). This completes milestone 1.5.
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.

@@ -177,7 +177,7 @@ Start after **1.4-focus** and **1.2-key-event** are on `main`. One widget per PR
 - [x] **1.5-field** — A one-line edit field.
   **Acceptance:** typed characters appear in the field's buffer and the test prints them back as `field: PASS`. A regression check expects that line.
 
-- [ ] **1.5-list** — A list that moves a selection with the arrow keys.
+- [x] **1.5-list** — A list that moves a selection with the arrow keys.
   **Acceptance:** Down moves the selection and the test prints the newly selected name. A regression check expects that name.
 
 ## 1.6 — Desktop shell
