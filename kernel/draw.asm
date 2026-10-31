@@ -538,6 +538,10 @@ dr_frame:
     pushad
     call cls
     call sb_reset
+    mov al, ' '
+    call sb_char
+    mov esi, [lstr+LS_DRAW*4]   ; title in the current language (1.0.6)
+    call sb_str
     mov esi, dr_title
     call sb_str
     xor ebx, ebx
@@ -694,7 +698,7 @@ dr_pen db 0
 dr_mode db 0                    ; 0 none, 1 line, 2 rectangle (corner marked)
 dr_mod db 0
 dr_name times FS_PATHMAX db 0
-dr_title db ' Draw - ASCII canvas 64x18', 0
+dr_title db ' - ASCII canvas 64x18', 0
 dr_keys1 db 'Arrows move  Space plot  x/Bksp erase  p pen up/down  b brush  c clear', 0
 dr_keys2 db 'l line, r rectangle (press at both corners)  f fill  Ctrl+S/F2 save  Esc quit', 0
 dr_s_pos db 'Pos ', 0

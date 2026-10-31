@@ -77,7 +77,7 @@ Each item is its own patch release after 1.0.0 (its own release note). Independe
   `documentation/kernel/localization.md`: most messages are still English literals. Keys already exist for some of them.
   **Acceptance:** `lang la` then a bare `mkdir`, and `lang tlh` then a failed `rm` of a missing name, show the Latin and Klingon strings from `localization/`. A regression check expects one of those translated strings. English boot behaviour is unchanged. `strings.inc` is regenerated.
 
-- [ ] **1.0-l10n-apps** — Use the existing `calc`, `edit`, and `draw` string keys.
+- [x] **1.0-l10n-apps** — Use the existing `calc`, `edit`, and `draw` string keys.
   `localization/README.md` marks those keys "(not yet)".
   **Acceptance:** `lang tlh` then `run calc` shows the Klingon title from the string table, and the same for `edit` and `draw`. A regression check expects one translated title. `strings.inc` is regenerated.
 

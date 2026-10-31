@@ -146,7 +146,7 @@ ls_en_prompt db '> ', 0
 ls_en_files db 'Files:', 0
 ls_en_notfound db 'Not found', 0
 ls_en_unknown db 'Unknown command', 0
-ls_en_calc db 'Calculator', 0
+ls_en_calc db 'Basic Calculator', 0
 ls_en_edit db 'Text Editor', 0
 ls_en_draw db 'Drawing Program', 0
 ls_en_hello db 'Hello from Squirrel-OS/2', 0
@@ -178,7 +178,7 @@ ls_la_prompt db '> ', 0
 ls_la_files db 'Tabulae:', 0
 ls_la_notfound db 'Non inventum', 0
 ls_la_unknown db 'Mandatum ignotum', 0
-ls_la_calc db 'Calculator', 0
+ls_la_calc db 'Calculator simplex', 0
 ls_la_edit db 'Editor textus', 0
 ls_la_draw db 'Programma pingendi', 0
 ls_la_hello db 'Salve ex Sciurus-OS/2', 0
@@ -210,9 +210,9 @@ ls_tlh_prompt db '> ', 0
 ls_tlh_files db "tebwI':", 0
 ls_tlh_notfound db "tu'lu'be'", 0
 ls_tlh_unknown db "ra' tlhaQ", 0
-ls_tlh_calc db 'Calculator', 0
-ls_tlh_edit db 'ghItlh editor', 0
-ls_tlh_draw db 'naD program', 0
+ls_tlh_calc db "mI' De'wI'", 0
+ls_tlh_edit db "ghItlhwI'", 0
+ls_tlh_draw db "mIllogh chenmoHwI'", 0
 ls_tlh_hello db 'nuqneH Squirrel-OS/2', 0
 ls_tlh_result db "cha' + cha' = loS", 0
 ls_tlh_keys db 'leQmey yIbach, Enter yIbach rInmeH:', 0

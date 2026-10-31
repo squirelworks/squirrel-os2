@@ -10,6 +10,8 @@ CALC_LINE     equ 60
 
 run_calc:
     call cls
+    mov esi, [lstr+LS_CALC*4]   ; title in the current language (1.0.6)
+    call puts
     mov esi, calc_banner
     call puts
     mov esi, calc_help
@@ -500,7 +502,7 @@ calc_pct db 0
 calc_errmsg dd 0
 calc_errpos dd 0
 calc_line times CALC_LINE+1 db 0
-calc_banner db 'Basic Calculator (Esc to exit)', 10, 0
+calc_banner db ' (Esc to exit)', 10, 0
 calc_help db 'Integers: + - * / ( )  percent: 100 + 15%  200 * 15%  200 % 15', 10
           db 'ans = last result; start with an operator to continue from it (* 2)', 10
           db 'Commands: clear  hist  q', 10, 0

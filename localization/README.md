@@ -30,9 +30,9 @@ localization/
 | files | Files: | Tabulae: | tebwI': | `ls` header |
 | notfound | Not found | Non inventum | tu'lu'be' | `cat` |
 | unknown | Unknown command | Mandatum ignotum | ra' tlhaQ | Shell |
-| calc | Calculator | Calculator | Calculator | (not yet) |
-| edit | Text Editor | Editor textus | ghItlh editor | (not yet) |
-| draw | Drawing Program | Programma pingendi | naD program | (not yet) |
+| calc | Basic Calculator | Calculator simplex | mI' De'wI' | `calc` title |
+| edit | Text Editor | Editor textus | ghItlhwI' | `edit` status line |
+| draw | Drawing Program | Programma pingendi | mIllogh chenmoHwI' | `draw` title |
 | hello | Hello from Squirrel-OS/2 | Salve ex Sciurus-OS/2 | nuqneH Squirrel-OS/2 | (not yet) |
 | result | 2 + 2 = 4 | II + II = IV | cha' + cha' = loS | (not yet) |
 | keys | Type keys, Enter to finish: | Claves preme, Enter ad finiendum: | leQmey yIbach, Enter yIbach rInmeH: | `keys` |

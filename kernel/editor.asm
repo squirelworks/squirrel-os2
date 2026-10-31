@@ -692,6 +692,10 @@ ed_status:
     call sb_char
     cmp byte [ed_verbose], 0
     jne .verbose
+    mov esi, [lstr+LS_EDIT*4]   ; title in the current language (1.0.6)
+    call sb_str
+    mov esi, ed_s_sep
+    call sb_str
     mov esi, ed_name
     cmp byte [esi], 0
     jne .n
@@ -965,6 +969,7 @@ ed_name times FS_PATHMAX db 0
 ed_sb times 82 db 0
 ed_msgbuf times 82 db 0
 ed_s_noname db '(untitled)', 0
+ed_s_sep db ': ', 0
 ed_s_mod db ' [modified]', 0
 ed_s_keys db 'Ctrl+S save  Esc quit', 0
 ed_s_line db 'L', 0

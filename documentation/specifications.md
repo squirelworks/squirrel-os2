@@ -161,6 +161,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - The shell's usage lines and every file-system error reason follow `lang` (`kernel/localization.md`; `l10n-*`). The same words reach the editors, `draw` and `SYS_FSERROR`.
 
+## 1.0.6
+
+- The `calc` title, the `edit` status line and the `draw` title use the `calc`, `edit` and `draw` keys in the current language (`kernel/localization.md`; `l10n-*-tlh`, `l10n-draw-la`). The rest of the apps' help text is still English.
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.
