@@ -25,6 +25,11 @@ Minimal original ELF parser and Linux personality entry stub.
 
 ## Integration
 
+The native loader that actually runs programs (SQX flat binaries and static ELF32) is
+`kernel/loader.asm`, added in 0.4.0 (`documentation/kernel/loader.md`). This stub stays the
+design sketch for the Linux personality (Linux ABI, syscall translation).
+
+
 Intended to be called once a native process model and memory allocator exist.
 Can be assembled independently or included from the main kernel when ready.
 

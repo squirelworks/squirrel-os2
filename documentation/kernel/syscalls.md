@@ -36,11 +36,13 @@ add its `SYS_*` constant, bump `SYS_COUNT`.
 |---|------|------|---------|-------|
 | 0 | `SYS_PUTC` | `ebx` = char | 0 | `10` = newline, `8` = backspace (erase previous cell) |
 | 1 | `SYS_PUTS` | `ebx` = ASCIIZ pointer | bytes written | No pointer validation yet |
-| 2 | `SYS_GETC` | — | ASCII code | Blocks. Enter → 10, Backspace → 8, Esc → 27. Key releases and unmapped keys are skipped |
+| 2 | `SYS_GETC` | — | ASCII code, or −1 | Blocks. Enter → 10, Backspace → 8, Esc → 27. Key releases and unmapped keys are skipped. With redirected input (0.5.0) it returns the next byte, and −1 at the end |
 | 3 | `SYS_YIELD` | — | 0 | Switches to the next ready process; if none, halts until the next interrupt |
 | 4–7 | `spawn`, `exit`, `wait`, `getpid` | | | Added in 0.1.2, see `processes.md` |
 | 8–9 | `bread`, `bwrite` | | | Added in 0.2.0, see `block-device.md` |
 | 10–16 | `open`, `read`, `write`, `close`, `create`, `delete`, `rename` | | | Added in 0.2.1, see `filesystem.md` |
+| 17 | `SYS_EXEC` | `ebx` = file name, `ecx` = argument or 0 | pid, or < 0 | Added in 0.4.0, see `loader.md` |
+| 18 | `SYS_READDIR` | `ebx` = cursor (0 to start), `ecx` = 20-byte buffer | next cursor; 0 at the end; −1 without a disk | Added in 0.4.2: fills the 16-byte name and the size (dword at +16) of the next file |
 
 Example:
 

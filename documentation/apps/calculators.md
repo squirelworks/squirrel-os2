@@ -49,15 +49,30 @@ It persists across reboots and can also be read with `cat calc.hist` or the file
 
 ## Scientific Calculator (`sci`)
 
-For engineering and scientific work.
+For engineering and scientific work. Implemented in `kernel/sci.asm` (0.3.4), running as its own process.
 
-- Floating-point arithmetic (when FPU support arrives)
-- Trigonometric functions (sin, cos, tan and inverses)
-- Logarithms and exponentials
-- Constants (π, e)
-- Degree / radian modes
+Arithmetic is double/extended precision on the x87 FPU, which the kernel enables at boot (`fpu_init`: CR0.MP and NE set, EM and TS clear, all FPU exceptions masked).
+Transcendentals use the FPU's own instructions (`fsin`, `fcos`, `fptan`, `fpatan`, `fyl2x`, `f2xm1`, `fscale`), composed by original code.
+The FPU state is not saved on a process switch, so only one process should use floating point at a time. Today that is `sci` or `matrix`.
 
-Scaffolded. Requires floating-point unit integration and transcendental approximations (Taylor series or minimax, original implementations).
+| Input | Meaning | Example → result |
+|-------|---------|------------------|
+| numbers | Decimal with optional fraction and exponent | `6.02e23 * 2` → 1.204e24 |
+| `+ - * /` | Usual precedence, left to right | `0.1 + 0.2` → 0.3 |
+| `^` | Power, right-associative, binds tighter than unary minus | `2 ^ 10` → 1024, `-2 ^ 2` → -4 |
+| `( )` | Grouping | `(-2) ^ 3` → -8 |
+| `pi`, `e`, `ans` | Constants and the previous result | `ans * 2` |
+| `sin cos tan` | Trigonometry, in the current angle mode | `sin(pi / 6)` → 0.5 |
+| `asin acos atan` | Inverses, result in the current angle mode | `atan(1)` → 45 in `deg` mode |
+| `sqrt ln log exp abs` | Root, natural and base-10 logarithm, e^x, absolute value | `log(1000)` → 3 |
+
+Input can come from a file or pipe (`run sci < sums`), one expression per line (0.5.0).
+
+Commands: `deg` / `rad` switch the angle mode (shown in the prompt, `rad` at first boot); `q`, `quit` or Esc return to the shell.
+
+Results show up to 10 significant digits, in plain notation for 1e-6 ≤ |x| < 1e15 and as `d.ddde±n` otherwise.
+
+Errors: `syntax at column N`, `division by zero`, `overflow` (result beyond the double range) and `outside the function domain` (`sqrt(-1)`, `ln(0)`, `asin(2)`, a negative base with a fractional power, `0 ^ 0`).
 
 ## Graphing Calculator (`graph`)
 
@@ -72,14 +87,28 @@ Scaffolded. Depends on graphics primitives (milestone 1.3) and a function evalua
 
 ## Matrix Calculator (`matrix`)
 
-For linear algebra.
+For linear algebra. Implemented in `kernel/matrix.asm` (0.3.4), using the same FPU setup and number formatting as `sci`.
 
-- Matrix entry and display
-- Addition, subtraction, multiplication
-- Determinant, inverse, transpose
-- Solve linear systems (Gaussian elimination, original)
+- Variables `A`–`Z` plus `ans`, each up to 6×6 doubles. Stored at `0x50000` and kept while the system runs.
+- `A = [1 2; 3 4]` defines a matrix. Rows are separated by `;` and entries by spaces or commas; negative and decimal entries are allowed.
+- A line without `NAME =` stores its result in `ans`. Every result is printed (a 1×1 result as a single number).
 
-Scaffolded. Requires dynamic allocation or fixed-size buffers and floating-point.
+| Input | Meaning |
+|-------|---------|
+| `A + B`, `A - B` | Element-wise, same size required |
+| `A * B` | Matrix product (columns of A = rows of B) |
+| `2 * A`, `A * 0.5` | A 1×1 operand (a plain number) scales the other side |
+| `-A` | Negation |
+| `det A` | Determinant (Gaussian elimination with partial pivoting) |
+| `trans A` | Transpose |
+| `inv A` | Inverse (Gauss–Jordan with partial pivoting) |
+| `( )`, literals inline | `det [2 0; 0 3]`, `inv (A * B)` |
+
+Commands: `list` shows the defined matrices and their sizes, `clear` forgets them all, and `q`, `quit` or Esc quits.
+
+Errors: `matrix sizes do not match`, `matrix is not square`, `matrix is singular` (a pivot below 1e-12), `rows have different lengths`, `larger than 6x6`, `undefined matrix`, `expression too complex` (more than 64 intermediate results) and `syntax at column N`.
+
+When a matrix is printed, rounding noise below 1e-10 shows as 0 (so `A * inv A` prints the identity). Columns are right-aligned to 13 characters.
 
 ## Differential Equations and Calculus Calculator (`diff`)
 

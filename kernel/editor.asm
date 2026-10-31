@@ -184,9 +184,7 @@ ed_main:
     cmp byte [ed_mod], 0
     jne .loop
 .bye:
-    call cls
-    mov esi, banner
-    call puts
+    call app_home
     xor eax, eax
     ret
 

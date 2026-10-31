@@ -20,6 +20,15 @@ qemu-system-i386 -drive format=raw,file=os.img,index=0,media=disk \
                  -drive format=raw,file=data.img,index=1,media=disk
 ```
 
+A blank disk is formatted at first boot. To put programs on it from the host (0.4.0+), use
+`tools/sqfs.py` (see `kernel/loader.md`):
+
+```bash
+nasm -f bin -i programs/ programs/hello.asm -o hello
+python3 tools/sqfs.py data.img format 1024
+python3 tools/sqfs.py data.img put hello      # then in the OS: run hello world
+```
+
 ## Regression run
 
 `tools/regress.sh` builds the image and types scripted commands into headless QEMU,

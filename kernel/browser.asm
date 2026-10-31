@@ -86,7 +86,7 @@ fb_main:
     jc .key
     call fb_app_for             ; ebx = start routine or 0
     test ebx, ebx
-    jz .view
+    jz .prog
 .launch:
     mov ecx, ebx                ; launch as a child process and wait
     mov ebx, app_host
@@ -105,6 +105,30 @@ fb_main:
     call set_run_arg
     mov ebx, run_edit
     jmp .launch
+.prog:
+    ; a program file (SQX/ELF) runs through the loader; anything else is viewed
+    push esi
+    call cls
+    pop esi
+    mov ebx, esi
+    xor ecx, ecx
+    mov eax, SYS_EXEC
+    int SYSCALL_VEC
+    cmp eax, LD_EFORMAT
+    je .view
+    test eax, eax
+    js .progerr
+    mov ebx, eax
+    mov eax, SYS_WAIT
+    int SYSCALL_VEC
+    jmp .progdone
+.progerr:
+    call ld_perror
+.progdone:
+    mov esi, fb_anykey
+    call puts
+    call fb_waitkey
+    jmp .reload
 .view:
     call fb_current
     jc .key
@@ -129,9 +153,7 @@ fb_main:
     call fs_delete
     jmp .reload
 .quit:
-    call cls
-    mov esi, banner
-    call puts
+    call app_home
     xor eax, eax
     ret
 

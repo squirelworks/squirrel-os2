@@ -77,15 +77,15 @@ run_calc:
     call fs_cat
     jmp .prompt
 .quit:
-    call cls
-    mov esi, banner
-    call puts
+    call app_home
     xor eax, eax
     ret
 
 ; Reads a line into calc_line with echo and Backspace. CF set on Esc.
 calc_readline:
     xor ecx, ecx
+    cmp byte [in_on], 0
+    jne .redir
 .k:
     mov byte [calc_line+ecx], 0
     call fb_waitkey
@@ -119,6 +119,25 @@ calc_readline:
 .esc:
     stc
     ret
+.redir:                         ; a line from redirected input, echoed
+    mov byte [calc_line+ecx], 0
+    call in_getc
+    cmp eax, -1
+    je .rend
+    cmp al, 13
+    je .redir
+    cmp al, 10
+    je .enter
+    cmp ecx, CALC_LINE
+    jae .redir
+    mov [calc_line+ecx], al
+    inc ecx
+    call putc
+    jmp .redir
+.rend:                          ; end of input: last line, then quit
+    test ecx, ecx
+    jz .esc
+    jmp .enter
 
 ; Evaluates calc_line -> eax, or CF with calc_errmsg / calc_errpos set.
 ; A line starting with + * / % (or "- ") continues from ans.

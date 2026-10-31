@@ -50,6 +50,7 @@ pm:
     call set_gate
     call syscall_init
     lidt [idt_desc]
+    call fpu_init
     call proc_init
     call ata_init
 
@@ -152,24 +153,10 @@ rom_find:                     ; esi = name, returns eax = entry or 0
     ret
 
 ; ---------- apps ----------
-run_sci:
-    mov esi, sci_banner
-    call puts
-    mov esi, sci_stub
-    call puts
-    ret
-
 run_graph:
     mov esi, graph_banner
     call puts
     mov esi, graph_stub
-    call puts
-    ret
-
-run_matrix:
-    mov esi, matrix_banner
-    call puts
-    mov esi, matrix_stub
     call puts
     ret
 
@@ -249,9 +236,10 @@ set_run_arg:
     pop ecx
     ret
 
-; ---------- command processor (called from keyboard on Enter) ----------
-do_command:
-    mov esi, cmdline
+; ---------- command processor ----------
+; Runs one simple command (esi = text, no pipes or redirections); the
+; pipeline driver do_command in shell.asm calls it for each stage.
+run_simple:
     cmp byte [esi], 0
     je .empty
     ; ls
@@ -349,6 +337,7 @@ do_command:
 .run:
     add esi, 4
     call next_word              ; esi = app name, edi = argument (may be empty)
+    mov [run_rest], edi
     call set_run_arg
     mov ebx, run_table
 .rfind:
@@ -360,8 +349,14 @@ do_command:
     add ebx, 8
     jmp .rfind
 .rnone:
-    mov esi, unknown
-    call puts
+    ; not built in: load it from the data disk (0.3.0 program loader)
+    mov ebx, esi
+    mov ecx, [run_rest]
+    mov eax, SYS_EXEC
+    int SYSCALL_VEC
+    test eax, eax
+    jns .rwait
+    call ld_perror
     jmp .empty
 .rgo:
     ; the app runs as its own process; the shell waits for it
@@ -371,6 +366,7 @@ do_command:
     int SYSCALL_VEC
     cmp eax, -1
     je .rfull
+.rwait:
     mov ebx, eax
     mov eax, SYS_WAIT
     int SYSCALL_VEC
@@ -392,10 +388,6 @@ do_command:
     call cmd_proctest_run
     jmp .empty
 .empty:
-    mov esi, prompt
-    call puts
-    mov byte [cmdline], 0
-    mov dword [cmdpos], 0
     ret
 
 streq:                        ; esi, edi
@@ -453,12 +445,15 @@ set_gate:
     ret
 
 cls:
+    cmp byte [cap_on], 0        ; keep the screen while output is redirected
+    jne .r
     mov edi, 0xB8000
     mov ecx, 80*25
     mov ax, 0x0720
     rep stosw
     mov dword [cur], 0
     call cursor_sync
+.r:
     ret
 
 puts:
@@ -471,6 +466,8 @@ puts:
     ret
 
 putc:                         ; al = char; preserves all registers
+    cmp byte [cap_on], 0
+    jne cap_putc                ; output redirected (shell.asm)
     push eax
     push ebx
     push edx
@@ -658,7 +655,7 @@ kbd_dispatch:
     or al, al
     jz .e
     mov ebx, [cmdpos]
-    cmp ebx, 60
+    cmp ebx, SH_LINE-8
     jae .e
     mov [cmdline+ebx], al
     mov byte [cmdline+ebx+1], 0
@@ -690,7 +687,7 @@ default_isr:
 
 ; ---------- data ----------
 banner db 'Squirrel-OS/2 0.2.3', 10
-       db 'Commands: ls | cat <f> | run <app> | put <f> <text> | mk <f> | rm <f>', 10
+       db 'Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>', 10
        db '          mv <f> <new> | format | ps | disk', 10
        db 'Tests: systest | proctest | blktest | fstest | keys', 10
        db 'Apps: files, calc, sci, graph, matrix, diff, topo, edit, vedit, draw', 10, 0
@@ -707,6 +704,7 @@ cmd_trap db 'trap', 0
 
 ; argument for the next app started with run (e.g. run edit notes)
 run_arg times 16 db 0           ; FS_NAMELEN
+run_rest dd 0                   ; whole argument text, for loaded programs
 cmd_ps db 'ps', 0
 cmd_format db 'format', 0
 cmd_fstest db 'fstest', 0
@@ -714,11 +712,13 @@ cmd_put db 'put ', 0
 cmd_mk db 'mk ', 0
 cmd_rm db 'rm ', 0
 cmd_mv db 'mv ', 0
+cmd_echo db 'echo ', 0
 arg_cmds:
     dd cmd_put, cmd_put_run
     dd cmd_mk, cmd_mk_run
     dd cmd_rm, cmd_rm_run
     dd cmd_mv, cmd_mv_run
+    dd cmd_echo, cmd_echo_run
     dd 0, 0
 cmd_disk db 'disk', 0
 cmd_blktest db 'blktest', 0
@@ -750,12 +750,8 @@ name_matrix db 'matrix', 0
 name_diff db 'diff', 0
 name_topo db 'topo', 0
 
-sci_banner db 'Scientific Calculator', 10, 0
-sci_stub db 'Scaffolded. Floating-point and transcendentals pending FPU support.', 10, 'See documentation/apps/calculators.md', 10, 0
 graph_banner db 'Graphing Calculator', 10, 0
 graph_stub db 'Scaffolded. Requires graphics primitives (milestone 1.3).', 10, 'See documentation/apps/calculators.md', 10, 0
-matrix_banner db 'Matrix Calculator', 10, 0
-matrix_stub db 'Scaffolded. Linear algebra (add, mul, det, inv) pending.', 10, 'See documentation/apps/calculators.md', 10, 0
 diff_banner db 'DiffEq / Calculus Calculator', 10, 0
 diff_stub db 'Scaffolded. Numerical derivatives, integrals, ODEs pending.', 10, 'See documentation/apps/calculators.md', 10, 0
 topo_banner db 'Topology Calculator', 10, 0
@@ -771,14 +767,14 @@ file_table:
     dd calc_help
     dd 70
     db 'sci', 0, 0, 0, 0, 0
-    dd sci_stub
-    dd 90
+    dd sci_help
+    dd sci_help_len
     db 'graph', 0, 0, 0
     dd graph_stub
     dd 80
     db 'matrix', 0, 0
-    dd matrix_stub
-    dd 80
+    dd mx_help
+    dd mx_help_len
     db 'diff', 0, 0, 0, 0
     dd diff_stub
     dd 80
@@ -805,7 +801,7 @@ KBD_RING_SIZE equ 64
 kbd_ring times KBD_RING_SIZE db 0
 kbd_head dd 0
 kbd_tail dd 0
-cmdline times 64 db 0
+cmdline times 128 db 0         ; SH_LINE (shell.asm)
 cmdpos dd 0
 cur dd 0
 ticks dd 0
@@ -904,10 +900,14 @@ exc_at db ' at EIP 0x', 0
 %include "proc.asm"
 %include "ata.asm"
 %include "fs.asm"
+%include "shell.asm"
 %include "browser.asm"
 %include "calc.asm"
 %include "editor.asm"
 %include "draw.asm"
+%include "loader.asm"
+%include "sci.asm"
+%include "matrix.asm"
 
 align 8
 gdt:

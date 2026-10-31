@@ -8,6 +8,17 @@ mkdir -p "$out"
 (cd "$root/kernel" && nasm -f bin boot.asm -o "$out/boot.bin" \
     && nasm -f bin pm.asm -o "$out/pm.bin" 2>/dev/null)
 cat "$out/boot.bin" "$out/pm.bin" > "$out/os.img"
+for prog in hello wc elfhello ls cat; do
+    nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
+done
+python3 "$root/tools/sqfs.py" "$out/progs.img" format 1024
+for prog in hello wc elfhello ls cat; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
+printf 'one two\nthree\n' > "$out/notes"
+python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/notes"
+printf '2 + 3\n6 * 7\n' > "$out/exprs"
+python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/exprs"
+head -c 70000 /dev/zero | tr '\0' 'x' > "$out/huge"
+python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/huge"
 rm -f "$out/data.img"
 dd if=/dev/zero of="$out/data.img" bs=1024 count=1024 2>/dev/null
 
@@ -51,8 +62,24 @@ check ps            '0        running'      ps '<ret>'
 check proctest      'reaped pid 3 exit code 30'  proctest '<ret>'
 check interleave    'worker 3 step 1'       proctest '<ret>'
 check app-process   '= 42'            'run calc' '<ret>' '6 * 7' '<ret>' '<esc>' 'run calc' '<ret>' '6 * 7' '<ret>'
-check slot-reuse    'exit code 30'          'run sci' '<ret>' 'run sci' '<ret>' 'run sci' '<ret>' 'run sci' '<ret>' \
-                    'run sci' '<ret>' 'run sci' '<ret>' 'run sci' '<ret>' 'run sci' '<ret>' proctest '<ret>'
+check slot-reuse    'exit code 30'          'run topo' '<ret>' 'run topo' '<ret>' 'run topo' '<ret>' 'run topo' '<ret>' \
+                    'run topo' '<ret>' 'run topo' '<ret>' 'run topo' '<ret>' 'run topo' '<ret>' proctest '<ret>'
+check sci-float     '= 0.3'                 'run sci' '<ret>' '0.1 + 0.2' '<ret>'
+check sci-prec      '= 1024'                'run sci' '<ret>' '2 ^ 10' '<ret>'
+check sci-sqrt      '= 1.414213562'         'run sci' '<ret>' 'sqrt(2)' '<ret>'
+check sci-deg       '= 0.5'                 'run sci' '<ret>' deg '<ret>' 'sin(30)' '<ret>'
+check sci-ln        '= 3'                   'run sci' '<ret>' 'ln(exp(3))' '<ret>'
+check sci-exp       '= 1.204e24'            'run sci' '<ret>' '6.02e23 * 2' '<ret>'
+check sci-negpow    '= -8'                  'run sci' '<ret>' '(-2) ^ 3' '<ret>'
+check sci-domain    'outside the function'  'run sci' '<ret>' 'sqrt(-1)' '<ret>'
+check sci-div0      'division by zero'      'run sci' '<ret>' '1 / 0' '<ret>'
+check sci-exit      'systest: PASS'         'run sci' '<ret>' q '<ret>' systest '<ret>'
+check mx-mul        '43           50'       'run matrix' '<ret>' 'A = [1 2; 3 4]' '<ret>' 'A * [5 6; 7 8]' '<ret>'
+check mx-det        'ans = 24'              'run matrix' '<ret>' 'det [2 0 0; 0 3 0; 0 0 4]' '<ret>'
+check mx-inv        '1.5         -0.5'      'run matrix' '<ret>' 'inv [1 2; 3 4]' '<ret>'
+check mx-scale      '-1.5           -2'     'run matrix' '<ret>' 'X = -[1 2; 3 4] * 0.5' '<ret>'
+check mx-mismatch   'sizes do not match'    'run matrix' '<ret>' '[1 2] + [1; 2]' '<ret>'
+check mx-singular   'matrix is singular'    'run matrix' '<ret>' 'inv [1 2; 2 4]' '<ret>'
 # file system: the first boot formats the blank data disk; later checks
 # reuse the same disk, so the persist check reads what fs-put wrote
 check fs-ls         'help'                  ls '<ret>'
@@ -84,6 +111,31 @@ check draw-line     '**'                    'run draw diag' '<ret>' l '<right>' 
 check draw-reload   'Loaded.'               'run draw pic' '<ret>'
 check disk-detect   'disk 1: 2048 sectors'  disk '<ret>'
 check blktest       'blktest: PASS'         blktest '<ret>' blktest '<ret>'
+# program loader: a disk prepared on the host with tools/sqfs.py
+disk=$out/progs.img
+check ld-sqx        'Hello from a loaded program!'  'run hello' '<ret>'
+check ld-arg        'Argument: world'       'run hello world' '<ret>'
+check ld-wc         '2 3 14 notes'          'run wc notes' '<ret>'
+check ld-elf        'Hello from an ELF program!'    'run elfhello' '<ret>'
+check ld-notprog    'Not a program'         'run notes' '<ret>'
+check ld-big        'too big'               'run huge' '<ret>'
+check ld-missing    'Unknown command or program'    'run nothere' '<ret>'
+check ld-again      'Argument: 2'           'run hello 1' '<ret>' 'run hello 2' '<ret>'
+check ld-browser    'Hello from a loaded'   'run files' '<ret>' '<home>' '<ret>'
+check ld-host-ls    'elfhello'              ls '<ret>'
+check up-ls         '8 file(s)'             'run ls' '<ret>'
+check up-ls-filter  '2 file(s)'             'run ls he' '<ret>'
+check up-cat        'three'                 'run cat notes' '<ret>'
+check up-cat-missing 'not found: zip'       'run cat zip notes' '<ret>'
+check sh-redirect   'hi there'              'echo hi there > greet' '<ret>' 'cat greet' '<ret>'
+check sh-append     'more'                  'echo more >> greet' '<ret>' 'cat greet' '<ret>'
+check sh-pipe       '1 3 6'                 'echo x y z | run cat | run wc' '<ret>'
+check sh-stdin      '= 42'                  'run calc < exprs > out' '<ret>' 'cat out' '<ret>'
+check sh-quiet      'calc> 2 + 3'           'run calc < exprs > out' '<ret>' 'run cat < out' '<ret>'
+check sh-ls-pipe    'elfhello'              'ls | run cat' '<ret>'
+check sh-badpipe    'command on both sides' 'ls |' '<ret>'
+check sh-noname     'needs a file name'     'cat >' '<ret>'
+check sh-nofile     'Cannot read nofile'    'run wc < nofile' '<ret>'
 disk=
 check no-disk       'no data disk'          blktest '<ret>'
 check rom-fallback  'Hello from Squirrel'   'cat edit' '<ret>'
