@@ -316,6 +316,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - The desktop's entries are object files in `/desktop`, written the first time and loaded each time; a removed file's entry is not listed; `entry` holds the program's name as text (`apps/desktop.md`; `dk-store`, `dk-store-cat`, `dk-store-rm`, `dk-store-left`, `dk-store-open`).
 
+## 1.9.0
+
+- Desktop folders: a `Folder` class and a text field `in` on `DesktopObject`; the desktop shows one folder at a time (Enter opens, Backspace returns to the top level); `/desktop/Tools.obj` is an empty folder written with the defaults (`apps/desktop.md`; `dk-folder`, `dk-folder-open`, `dk-folder-back`, `dk-folder-cat`, `dk-folder-quit`).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.

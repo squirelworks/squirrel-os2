@@ -11,8 +11,8 @@
 |  [edit  ]      black bar              |
 |  [vedit ]                             |
 |  [draw  ]                             |
-|                                       |
-| Up/Down: choose   Esc: shell          |
+|  [Tools ]                             |
+| Enter: open  Bksp: up  Esc: shell     |
 +---------------------------------------+
 ```
 
@@ -20,6 +20,7 @@
 |-----|--------|
 | Up, Down | choose a program in the list |
 | Enter | send `open` to the chosen entry, which runs the program in a window (`calc` since 1.6.1, `draw` 1.6.3, `edit` and `vedit` 1.6.4, `files` 1.7.6) |
+| Backspace | in a folder: back to the top level (1.9.0) |
 | Esc | close the desktop, return to text mode and the shell prompt (`Desktop closed.`) |
 
 ## Programs in windows
@@ -64,6 +65,12 @@ When the desktop starts it makes one `Program` per entry (files, calc, edit, ved
 Since 1.8.3 the entries are object files in `/desktop` on the data disk (`../kernel/objects.md`, "Object files"). When the desktop starts and `/desktop` does not exist yet, it makes the directory and saves one `Program` per default entry as `/desktop/<name>.obj`: `files.obj`, `calc.obj`, `edit.obj`, `vedit.obj` and `draw.obj`. It then loads each of those files that is still there, in that order, and lists them. A removed file's entry is not listed. `entry` is now the program's name as text (`calc`), not the address of its routine, so a file stays valid when the kernel is rebuilt; `open` looks the name up among the programs the desktop knows and opens nothing for a name it does not know. After the desktop has run (so `Program` is recorded), `objcat /desktop/calc.obj` shows `class Program`, `name: calc` and `entry: calc`.
 
 Without a data disk, or with none of the files left, the desktop lists the built-in entries as before. Checks (on a data disk of their own): `dk-store` (`ls /desktop` after the first desktop lists the five files), `dk-store-cat`, `dk-store-rm` (with `draw.obj` removed, the next desktop does not list `draw`), `dk-store-left` (it still lists the others), `dk-store-open` (calc, now the second entry after `files`, still opens and computes).
+
+## Folders (1.9.0)
+
+`DesktopObject` has a second text field, `in`: the name of the folder that holds the object, empty for the top level. A `Folder` class under `DesktopObject` has no fields of its own; its `open` makes the desktop show that folder. The desktop lists only the objects whose `in` is the folder being shown, and the window title is the folder's name (`Squirrel-OS/2 Desktop` at the top level). Backspace goes back to the top level. With nothing in the folder, the list is empty and Enter does nothing.
+
+The first time, `/desktop` also gets `Tools.obj`, an empty folder, after the five programs. A `Program`'s fields are now `name`, `in` and `entry`, one more than in 1.8, so 1.8's files are refused when they load. When none of the files load, the desktop writes the defaults again, so a 1.8 disk gets all six entries back. Checks (on a data disk of their own): `dk-folder` (the top level lists `draw` and `Tools`), `dk-folder-open` (Enter on `Tools` shows a list without `calc`, titled `Tools`), `dk-folder-back` (Backspace shows the programs again), `dk-folder-cat` (`objcat` shows `class Folder` and a `Program`'s empty `in`), `dk-folder-quit`.
 
 ## Booting into the desktop
 

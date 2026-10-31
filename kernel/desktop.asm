@@ -19,6 +19,7 @@ cmd_desktop_run:
     jmp puts
 .ok:
     call dk_mkobjs              ; the entries are objects (1.7.6)
+    mov dword [dk_cur], 0       ; the top level (1.9.0)
     mov eax, DK_X
     mov ebx, DK_Y
     mov ecx, DK_W
@@ -34,7 +35,7 @@ cmd_desktop_run:
     mov ebx, 4
     mov ecx, 16
     mov esi, dk_names
-    mov edx, [dk_n]
+    xor edx, edx
     call wg_list
     mov [dk_list], eax
     mov eax, [dk_win]
@@ -42,21 +43,37 @@ cmd_desktop_run:
     mov ecx, DK_H - WM_TITLE_H - 2 - GFX_CELL_H - 4
     mov esi, dk_help
     call wg_label
+    call dk_relist
 .draw:
     call wm_redraw
 .key:
     call wg_getkey
     cmp al, 27
     je .quit
+    cmp al, 8
+    je .up
     call wg_key
     jnc .draw
     cmp al, 10
     jne .key
+    cmp dword [dk_nvis], 0
+    je .key
     mov eax, [dk_list]          ; Enter: send open to the chosen object
     call wg_selected
+    mov eax, [dk_vis+eax*4]
     mov eax, [dk_objs+eax*4]
+    mov byte [dk_opened], 0
     mov esi, dk_s_open
     call obj_send
+    cmp byte [dk_opened], 0      ; a folder was opened
+    je .draw
+    call dk_relist
+    jmp .draw
+.up:                            ; Backspace: from a folder to the top
+    cmp dword [dk_cur], 0
+    je .key
+    mov dword [dk_cur], 0
+    call dk_relist
     jmp .draw
 .quit:
     mov eax, [dk_win]
@@ -66,102 +83,175 @@ cmd_desktop_run:
     mov esi, dk_bye
     jmp puts
 
+; List the objects whose `in` is the folder shown ([dk_cur], 0 for the
+; top level), and name the window after that folder (1.9.0).
+dk_relist:
+    pushad
+    xor ebx, ebx                ; objects
+    xor edx, edx                ; listed
+.o:
+    cmp ebx, [dk_n]
+    jae .done
+    mov eax, [dk_objs+ebx*4]
+    test eax, eax
+    jz .no
+    push ebx
+    mov ebx, 1
+    call obj_get                ; in
+    pop ebx
+    mov esi, eax
+    test esi, esi
+    jnz .cmp
+    mov esi, dk_empty
+.cmp:
+    mov edi, [dk_cur]
+    test edi, edi
+    jnz .eq
+    mov edi, dk_empty
+.eq:
+    call streq
+    jne .no
+    mov [dk_vis+edx*4], ebx
+    mov eax, [dk_objs+ebx*4]
+    push ebx
+    push edx
+    mov esi, dk_s_name
+    call obj_send
+    pop edx
+    pop ebx
+    mov [dk_names+edx*4], eax
+    inc edx
+.no:
+    inc ebx
+    jmp .o
+.done:
+    mov [dk_nvis], edx
+    mov eax, [dk_list]
+    imul eax, WG_SIZE
+    mov [wg_table+eax+WG_CODE], edx
+    mov dword [wg_table+eax+WG_SEL], 0
+    mov esi, [dk_cur]
+    test esi, esi
+    jnz .t
+    mov esi, dk_title
+.t:
+    mov eax, [dk_win]
+    imul eax, WIN_SIZE
+    mov [wm_table+eax+WIN_TITLE], esi
+    popad
+    ret
+
 ; ---------- desktop objects (1.7.6) ----------
-; DesktopObject: field name, methods name and open (nothing to open).
-; Program under it: field entry, and open runs the entry in a window.
+; DesktopObject: fields name and in (the folder holding it, 1.9.0);
+; methods name and open (nothing to open).
+; Program under it: field entry (a program's name), and open runs that
+; program in a window. Folder under it (1.9.0): open shows its contents.
 
 dk_mkobjs:
     pushad
     xor eax, eax
     mov [dk_n], eax
     mov edi, dk_objs
-    mov ecx, DK_NAPPS
+    mov ecx, DK_NDEF
     rep stosd
     mov esi, dk_c_dobj
     call obj_class
     mov esi, dk_c_prog
+    call obj_class
+    mov esi, dk_c_fold
     call obj_class
     cmp byte [fs_mounted], 0
     je .builtin
     mov esi, dk_dir             ; the first time: write the defaults (1.8.3)
     call fs_mkdir
     test eax, eax
-    jnz .load                   ; already there
-    xor edi, edi
-.w:
-    call dk_newprog
-    test eax, eax
-    jz .load
-    mov esi, [dk_apps+edi*4]
-    call dk_path
-    call obj_save
-    call obj_free
-    inc edi
-    cmp edi, DK_NAPPS
-    jb .w
+    jz .write
 .load:                          ; an entry for each file still there
     xor edi, edi
 .l:
-    mov esi, [dk_apps+edi*4]
+    mov esi, [dk_defs+edi*4]
     call dk_path
     call obj_load
     jc .ln
     call dk_add
 .ln:
     inc edi
-    cmp edi, DK_NAPPS
+    cmp edi, DK_NDEF
     jb .l
     cmp dword [dk_n], 0
     jne .out
+    cmp byte [dk_wrote], 0      ; none loaded (files from 1.8 have one
+    jne .builtin                ; field fewer): write the defaults again
+.write:
+    mov byte [dk_wrote], 1
+    xor edi, edi
+.w:
+    call dk_newobj
+    test eax, eax
+    jz .load
+    mov esi, [dk_defs+edi*4]
+    call dk_path
+    call obj_save
+    call obj_free
+    inc edi
+    cmp edi, DK_NDEF
+    jb .w
+    jmp .load
 .builtin:                       ; no data disk, or nothing loaded
     xor edi, edi
 .b:
-    call dk_newprog             ; 0 when no slot: the entry opens nothing
+    call dk_newobj              ; 0 when no slot: the entry is left out
     call dk_add
     inc edi
-    cmp edi, DK_NAPPS
+    cmp edi, DK_NDEF
     jb .b
 .out:
+    mov byte [dk_wrote], 0
     popad
     ret
 
-; edi = default entry -> eax = a new Program for it, or 0
-dk_newprog:
+; edi = default entry -> eax = a new Program (or, for the last, a Folder)
+; for it, or 0
+dk_newobj:
     push ebx
     push ecx
     mov eax, dk_c_prog
+    cmp edi, DK_NAPPS
+    jb .new
+    mov eax, dk_c_fold
+.new:
     call obj_new
     test eax, eax
     jz .r
     xor ebx, ebx
-    mov ecx, [dk_apps+edi*4]
+    mov ecx, [dk_defs+edi*4]
     call obj_set                ; name
-    mov ebx, 1
+    inc ebx
+    mov ecx, dk_empty
+    call obj_set                ; in: the top level
+    cmp edi, DK_NAPPS
+    jae .r
+    inc ebx
+    mov ecx, [dk_defs+edi*4]
     call obj_set                ; entry: the program's name, as text
 .r:
     pop ecx
     pop ebx
     ret
 
-; eax = object (or 0), edi = default entry: append it to the list, which
-; shows what the object answers to name
+; eax = object (or 0): keep it
 dk_add:
-    pushad
+    test eax, eax
+    jz .r
+    push edx
     mov edx, [dk_n]
-    cmp edx, DK_NAPPS
-    jae .r
+    cmp edx, DK_NDEF
+    jae .full
     mov [dk_objs+edx*4], eax
-    mov ecx, [dk_apps+edi*4]
-    mov esi, dk_s_name
-    call obj_send
-    jc .keep
-    mov ecx, eax
-.keep:
-    mov edx, [dk_n]
-    mov [dk_names+edx*4], ecx
     inc dword [dk_n]
+.full:
+    pop edx
 .r:
-    popad
     ret
 
 ; esi = an entry's name -> esi = "/desktop/<name>.obj" in dk_pbuf
@@ -202,7 +292,7 @@ dk_freeobjs:
     mov eax, [dk_objs+edi*4]
     call obj_free               ; refuses 0
     inc edi
-    cmp edi, DK_NAPPS
+    cmp edi, DK_NDEF
     jb .f
     popad
     ret
@@ -213,9 +303,16 @@ dk_dobj_name:
 dk_dobj_open:
     mov eax, -1
     ret
+dk_fold_open:                   ; show the folder's contents (1.9.0)
+    xor ebx, ebx
+    call obj_get
+    mov [dk_cur], eax
+    mov byte [dk_opened], 1
+    xor eax, eax
+    ret
 dk_prog_open:                   ; dk_textwin(entry, name)
     push eax
-    mov ebx, 1
+    mov ebx, 2
     call obj_get                ; the entry is a program's name (1.8.3)
     xor ecx, ecx
 .f:
@@ -348,18 +445,23 @@ wg_getkey:
     mov al, ah
     ret
 
-DK_NAPPS equ 5
+DK_NAPPS equ 5                  ; programs
+DK_NDEF equ DK_NAPPS + 1        ; and the Tools folder (1.9.0)
 dk_title db 'Squirrel-OS/2 Desktop', 0
 dk_heading db 'Programs:', 0
-dk_help db 'Up/Down, Enter: open   Esc: shell', 0
+dk_help db 'Enter: open  Bksp: up  Esc: shell', 0
 dk_a0 db 'files', 0
 dk_a1 db 'calc', 0
 dk_a2 db 'edit', 0
 dk_a3 db 'vedit', 0
 dk_a4 db 'draw', 0
+dk_a5 db 'Tools', 0
+dk_empty db 0
 dk_bye db 'Desktop closed.', 10, 0
 dk_cn_dobj db 'DesktopObject', 0
 dk_cn_prog db 'Program', 0
+dk_cn_fold db 'Folder', 0
+dk_f_in db 'in', 0
 dk_s_name db 'name', 0
 dk_s_open db 'open', 0
 dk_dir db '/desktop', 0
@@ -369,16 +471,24 @@ dk_f_entry db 'entry', 0
 dk_nomem db 'desktop: no memory for graphics', 10, 0
 align 4
 dk_apps dd dk_a0, dk_a1, dk_a2, dk_a3, dk_a4
+dk_defs dd dk_a0, dk_a1, dk_a2, dk_a3, dk_a4, dk_a5 ; the files in /desktop
 dk_run dd fb_main, run_calc, run_edit, run_vedit, run_draw ; each Program's entry
-dk_objs times DK_NAPPS dd 0
-dk_n dd 0                       ; entries in the list (1.8.3)
-dk_names times DK_NAPPS dd 0
-dk_c_dobj dd dk_cn_dobj, 0, dk_dobj_m, dk_dobj_f, 1 ; name is text
+dk_objs times DK_NDEF dd 0
+dk_n dd 0                       ; objects loaded (1.8.3)
+dk_vis times DK_NDEF dd 0       ; the objects listed, by their index (1.9.0)
+dk_nvis dd 0
+dk_names times DK_NDEF dd 0
+dk_cur dd 0                     ; the folder shown: its name, or 0 for the top
+dk_c_dobj dd dk_cn_dobj, 0, dk_dobj_m, dk_dobj_f, 3 ; name and in are text
 dk_c_prog dd dk_cn_prog, dk_c_dobj, dk_prog_m, dk_prog_f, 1 ; entry is text
+dk_c_fold dd dk_cn_fold, dk_c_dobj, dk_fold_m, 0, 0
 dk_dobj_m dd dk_s_name, dk_dobj_name, dk_s_open, dk_dobj_open, 0
 dk_prog_m dd dk_s_open, dk_prog_open, 0
-dk_dobj_f dd dk_s_name, 0       ; field 0
-dk_prog_f dd dk_f_entry, 0      ; field 1
+dk_fold_m dd dk_s_open, dk_fold_open, 0
+dk_dobj_f dd dk_s_name, dk_f_in, 0 ; fields 0 and 1
+dk_prog_f dd dk_f_entry, 0      ; field 2
+dk_opened db 0                  ; a folder's open ran
+dk_wrote db 0
 dk_win dd 0
 dk_list dd 0
 dk_twin dd 0

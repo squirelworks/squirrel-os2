@@ -123,6 +123,7 @@ This avoids retargeting chains and confirmation steps.
 | 1.8.1   | 2026-10-31 | Installer: bootable CD image         |
 | 1.8.2   | 2026-10-31 | Objects: objcat across reboot        |
 | 1.8.3   | 2026-10-31 | Desktop entries kept on disk         |
+| 1.9.0   | 2026-11-01 | Desktop folders                      |
 
 ## Next planned release
 
