@@ -11,7 +11,8 @@ import os, socket, subprocess, sys, tempfile, time
 KEYMAP = {' ': 'spc', '\n': 'ret', '-': 'minus', '=': 'equal', '/': 'slash',
           '.': 'dot', ',': 'comma', ';': 'semicolon',
           '+': 'shift-equal', '*': 'shift-8', '%': 'shift-5', '!': 'shift-1',
-          '?': 'shift-slash', '(': 'shift-9', ')': 'shift-0', ':': 'shift-semicolon', '_': 'shift-minus'}
+          '?': 'shift-slash', '(': 'shift-9', ')': 'shift-0', ':': 'shift-semicolon', '_': 'shift-minus',
+          '^': 'shift-6', '[': 'bracket_left', ']': 'bracket_right'}
 
 
 def monitor(sock, cmd):

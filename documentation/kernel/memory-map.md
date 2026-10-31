@@ -8,6 +8,7 @@
 | `0x20000–0x2FFFF` | `KSCRATCH`: kernel scratch buffers (ATA identify/test buffers, later FS cache) |
 | `0x30000–0x3FFFF` | Program area: the resident loaded program (0.3.0, `loader.md`) |
 | `0x40000–0x4FFFF` | Loader staging buffer |
+| `0x50000–0x57BFF` | `matrix` variables (27 × 304 bytes from `0x50000`) and temporaries (64 × 304 bytes from `0x53000`) |
 | `0x70000–0x7FFFF` | Process stacks, 8 KB per slot (slot *i* top = `0x70000 + i*0x2000`) |
 | `0x9F000` and down | Boot / shell (pid 0) stack |
 | `0xB8000–0xB8F9F` | VGA text buffer |
