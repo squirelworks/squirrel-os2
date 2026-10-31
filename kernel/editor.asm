@@ -900,6 +900,8 @@ ed_draw:
     inc esi
     cmp byte [ed_ctl], 0        ; vedit Ctrl+T: show the line end as '$'
     je .pad
+    test edx, edx               ; the line ended before ed_hs: its end is
+    jnz .pad                    ; off the screen to the left
     jecxz .pad
     mov ax, (ATTR_DIM<<8)|'$'
     stosw

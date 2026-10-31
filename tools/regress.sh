@@ -173,6 +173,8 @@ check ed-undo-mem   '129912 KB free'        'run edit' '<ret>' x '<ctrl-z>' '<es
 check_all ved-ctl   "    1 ab\$${nl}|5/16384|Control characters shown" 'run vedit' '<ret>' ab '<ret>' cd '<ctrl-t>'
 check_all ved-ctl-off "    1 ab${nl}|Control characters hidden" 'run vedit' '<ret>' ab '<ret>' cd '<ctrl-t>' '<ctrl-t>'
 check ved-ctl-edit  'New buffer.'           'run edit' '<ret>' ab '<ctrl-t>'
+# with the view scrolled past a short line's end, its '$' is not drawn
+check_all ved-ctl-hs "    1${nl}    2 xxxx|L2 C81" 'run vedit' '<ret>' ab '<ret>' xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx '<ctrl-t>'
 check fb-edit       'Loaded.'               'run files' '<ret>' '<home>' e
 # 0.9.0: the browser starts each 1.0 app and gets it back when it quits
 d6="<down> <down> <down> <down> <down> <down>"
