@@ -53,6 +53,8 @@ proc_spawn:
     push ecx
     push edx
     push edi
+    call proc_reap_orphans
+.retry:
     mov edi, proc_table+PCB_SIZE
     mov edx, 1                ; slot index
 .find:
@@ -62,6 +64,8 @@ proc_spawn:
     inc edx
     cmp edx, PROC_MAX
     jb .find
+    call proc_reclaim_zombie    ; table full: the oldest zombie gives way
+    jnc .retry
     mov eax, -1
     jmp .out
 .got:
@@ -154,17 +158,90 @@ proc_wait:
     call proc_switch
     jmp .again
 .reap:
-    mov eax, [edi+PCB_AS]
-    mov dword [edi+PCB_AS], 0
-    call as_release
     mov eax, [edi+PCB_CODE]
-    mov dword [edi+PCB_STATE], P_FREE
+    call proc_free
     jmp .out
 .bad:
     mov eax, -1
 .out:
     pop edi
     pop esi
+    ret
+
+; edi = zombie PCB: releases its address space and frees the slot
+; (eax is kept)
+proc_free:
+    push eax
+    mov eax, [edi+PCB_AS]
+    mov dword [edi+PCB_AS], 0
+    call as_release
+    mov dword [edi+PCB_STATE], P_FREE
+    pop eax
+    ret
+
+; Frees every zombie whose parent has exited: nobody can wait for it
+; any more (1.0.4). A pid is never reused, so a parent is alive only
+; if a live, non-zombie slot still carries its pid.
+proc_reap_orphans:
+    pushad
+    mov edi, proc_table
+    mov ecx, PROC_MAX
+.z:
+    cmp dword [edi+PCB_STATE], P_ZOMBIE
+    jne .next
+    cmp edi, [proc_cur]
+    je .next
+    mov ebx, [edi+PCB_PARENT]
+    push edi
+    call proc_find
+    mov esi, edi
+    pop edi
+    test esi, esi
+    jz .orphan
+    cmp dword [esi+PCB_STATE], P_ZOMBIE
+    jne .next
+.orphan:
+    call proc_free
+.next:
+    add edi, PCB_SIZE
+    loop .z
+    popad
+    ret
+
+; The process table is full: frees the zombie with the lowest pid (the
+; one waited for least recently), so a parent that never waits cannot
+; use up the table. A later wait for that pid returns -1. CF if there
+; is no zombie to free.
+proc_reclaim_zombie:
+    pushad
+    xor esi, esi                ; best so far
+    mov edi, proc_table
+    mov ecx, PROC_MAX
+.z:
+    cmp dword [edi+PCB_STATE], P_ZOMBIE
+    jne .next
+    cmp edi, [proc_cur]
+    je .next
+    test esi, esi
+    jz .take
+    mov eax, [edi+PCB_PID]
+    cmp eax, [esi+PCB_PID]
+    jae .next
+.take:
+    mov esi, edi
+.next:
+    add edi, PCB_SIZE
+    loop .z
+    test esi, esi
+    jz .none
+    mov edi, esi
+    call proc_free
+    popad
+    clc
+    ret
+.none:
+    popad
+    stc
     ret
 
 ; esi = name, edi = PCB: names the process (cut to 15 characters)
@@ -298,6 +375,7 @@ proc_panic:
 ; ---------- shell commands ----------
 ; ps: list live processes
 cmd_ps_run:
+    call proc_reap_orphans      ; (1.0.4)
     mov esi, ps_header
     call puts
     mov ebx, proc_table
