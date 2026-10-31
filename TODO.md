@@ -155,7 +155,7 @@ Keyboard only.
 - [x] **1.4-create** — Create a window, draw its frame and title, close it.
   **Acceptance:** a test command prints `win: PASS` after creating a window and reading back a frame pixel, and closing removes it (a second read misses that pixel). A regression check expects `win: PASS`. Text mode or the graphics console is left so the shell works.
 
-- [ ] **1.4-move-resize** — Move and resize a window.
+- [x] **1.4-move-resize** — Move and resize a window.
   Start after **1.4-create** is on `main`.
   **Acceptance:** after a move, the old frame pixel is gone and the new one is present. A regression check expects `winmove: PASS`.
 
