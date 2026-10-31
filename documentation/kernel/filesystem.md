@@ -100,7 +100,10 @@ On −1, `fs_errno` says why (0.9.2): `FE_NOFS`, `FE_NAME` (empty, over 15 chara
 `FE_NOTFOUND`, `FE_BUSY` (open), `FE_NOTEMPTY`, `FE_CWD` (the current directory), `FE_LOOP`
 (a directory into itself), `FE_IO`, `FE_FULL` (no free run of sectors), `FE_ISDIR`, `FE_NOFD`
 (all eight descriptors in use). The shell prints the matching message (`fs_report`/`fs_why`), and
-the editors and `draw` show it on their message line. Syscalls still return only −1.
+the editors and `draw` show it on their message line. Syscalls return −1; since 1.0.3 a program
+asks why with `SYS_FSERROR`, which returns the `FE_*` code and copies the same words the shell
+prints (localized where the shell's are, as for `Not found`) into the program's buffer. The
+reason is the system-wide `fs_errno`, so ask right after the failed call.
 
 Open flags: `O_CREATE` 1, `O_TRUNC` 2, `O_APPEND` 4. Each descriptor has its own position,
 starting at 0 (or at the end with `O_APPEND`). Eight descriptors are shared system-wide.
@@ -123,6 +126,7 @@ middle overwrites, and a write past the old end grows the file as before.
 | 15 | `SYS_DELETE` | `ebx` name | 0 / −1 |
 | 16 | `SYS_RENAME` | `ebx` old, `ecx` new | 0 / −1 |
 | 25 | `SYS_SEEK` | `ebx` fd, `ecx` offset, `edx` whence (0 set, 1 cur, 2 end) | position / −1 (1.0.2) |
+| 26 | `SYS_FSERROR` | `ebx` buf, `ecx` buf size | `FE_*` code of the last failure; text in buf (1.0.3) |
 
 ## Shell
 

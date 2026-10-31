@@ -47,6 +47,7 @@ add its `SYS_*` constant, bump `SYS_COUNT`.
 | 21 | `SYS_SBRK` | `ebx` = bytes to grow (negative shrinks, 0 asks) | the old break, or −1 | Added in 0.6.2: moves the end of the program's heap at `0x40000000` (up to 4 MB), see `memory.md` |
 | 22–24 | `SYS_DEVFIND`, `SYS_DEVREAD`, `SYS_DEVWRITE` | | | Added in 0.7.0, see `drivers.md` |
 | 25 | `SYS_SEEK` | `ebx` = fd, `ecx` = offset (signed), `edx` = 0 from start / 1 from current / 2 from end | new position, or −1 | Added in 1.0.2, see `filesystem.md` |
+| 26 | `SYS_FSERROR` | `ebx` = buffer, `ecx` = its size | the `FE_*` code of the last failed file call; the buffer gets the shell's words for it, zero-terminated, without a newline | Added in 1.0.3, see `filesystem.md` |
 
 Example:
 
