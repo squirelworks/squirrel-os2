@@ -99,6 +99,7 @@ This avoids retargeting chains and confirmation steps.
 | 1.3.1   | 2026-10-31 | Lines and filled rectangles          |
 | 1.3.2   | 2026-10-31 | Text in graphics mode                |
 | 1.3.3   | 2026-10-31 | graph plots a function               |
+| 1.4.0   | 2026-10-31 | Windows: create and close            |
 
 ## Next planned release
 

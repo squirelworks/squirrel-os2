@@ -220,6 +220,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - `graph` plots y = f(x) for x and y from −10 to 10 (`apps/calculators.md`; `graph`, `graph-domain`, `graph-syntax`, `graph-mem`). The banner lists `graph` as an app; only `topo` is planned. Graphics mode now saves and restores the text screen and the font (`kernel/graphics.md`). This completes milestone 1.3.
 
+## 1.4.0
+
+- A window manager in graphics mode: up to 4 windows, each with a frame, a title bar and a client area, drawn over a desktop; created and closed by the kernel (`kernel/windows.md`; `wintest`, `wintest-text`). Moving, resizing and focus follow in later 1.4 tasks.
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.
