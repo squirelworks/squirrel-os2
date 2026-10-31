@@ -33,6 +33,7 @@ dd if=/dev/zero of="$out/data.img" bs=1024 count=1024 2>/dev/null
 
 fail=0
 disk=$out/data.img              # data disk attached as primary slave
+nl=$(printf '\n_'); nl=${nl%_}  # a newline, for expected text that spans two lines (POSIX sh has no $'\n')
 check() {   # check NAME EXPECTED KEYS...
     name=$1; want=$2; shift 2
     screen=$(python3 "$root/tools/qemu_screen.py" ${disk:+--disk "$disk"} ${boot:-"$out/os.img"} "$@")
@@ -106,22 +107,22 @@ check sci-div0      'division by zero'      'run sci' '<ret>' '1 / 0' '<ret>'
 check sci-exit      'systest: PASS'         'run sci' '<ret>' q '<ret>' systest '<ret>'
 check sci-nox       'syntax at column 1'    'run sci' '<ret>' 'x + 1' '<ret>'
 # 1.0.7: diff derivatives (central difference on the sci evaluator)
-check diff-sin      $'= 1\ndiff>'           'run diff' '<ret>' 'd sin(x) at 0' '<ret>'
-check diff-poly     $'= 6\ndiff>'           'run diff' '<ret>' 'd x^2 at 3' '<ret>'
+check diff-sin      "= 1${nl}diff>"           'run diff' '<ret>' 'd sin(x) at 0' '<ret>'
+check diff-poly     "= 6${nl}diff>"           'run diff' '<ret>' 'd x^2 at 3' '<ret>'
 check diff-exp      '= 2.718281829'         'run diff' '<ret>' 'd exp(x) at 1' '<ret>'
-check diff-rad      $'= 1\ndiff>'           'run sci' '<ret>' deg '<ret>' q '<ret>' 'run diff' '<ret>' 'd sin(x) at 0' '<ret>'
+check diff-rad      "= 1${nl}diff>"           'run sci' '<ret>' deg '<ret>' q '<ret>' 'run diff' '<ret>' 'd sin(x) at 0' '<ret>'
 check diff-domain   'outside the function'  'run diff' '<ret>' 'd ln(x) at 0' '<ret>'
 check diff-noat     'syntax at column 9'    'run diff' '<ret>' 'd sin(x)' '<ret>'
 # 1.0.8: diff integrals (composite Simpson)
-check diff-int1     $'= 2\ndiff>'           'run diff' '<ret>' 'i 1 from 0 to 2' '<ret>'
-check diff-intsin   $'= 2\ndiff>'           'run diff' '<ret>' 'i sin(x) from 0 to pi' '<ret>'
+check diff-int1     "= 2${nl}diff>"           'run diff' '<ret>' 'i 1 from 0 to 2' '<ret>'
+check diff-intsin   "= 2${nl}diff>"           'run diff' '<ret>' 'i sin(x) from 0 to pi' '<ret>'
 check diff-intexp   '= 1.718281828'         'run diff' '<ret>' 'i exp(x) from 0 to 1' '<ret>'
-check diff-intrev   $'= -2\ndiff>'          'run diff' '<ret>' 'i x from 2 to 0' '<ret>'
+check diff-intrev   "= -2${nl}diff>"          'run diff' '<ret>' 'i x from 2 to 0' '<ret>'
 check diff-noto     'syntax at column 11'   'run diff' '<ret>' 'i x from 1' '<ret>'
 # 1.0.10: diff ODE stepper (Euler)
-check diff-euler1   $'= 1.1\ndiff>'         'run diff' '<ret>' 'euler y from 0 to 0.1 y0 1 step 0.1' '<ret>'
+check diff-euler1   "= 1.1${nl}diff>"         'run diff' '<ret>' 'euler y from 0 to 0.1 y0 1 step 0.1' '<ret>'
 check diff-euler    '= 2.716923932'         'run diff' '<ret>' 'euler y from 0 to 1 y0 1 step 0.001' '<ret>'
-check diff-eulerxy  $'= 1.25\ndiff>'        'run diff' '<ret>' 'euler x*y from 0 to 1 y0 1 step 0.5' '<ret>'
+check diff-eulerxy  "= 1.25${nl}diff>"        'run diff' '<ret>' 'euler x*y from 0 to 1 y0 1 step 0.5' '<ret>'
 check diff-eulerh   'step must be greater'  'run diff' '<ret>' 'euler y from 0 to 1 y0 1 step 0' '<ret>'
 check diff-noy      'syntax at column 3'    'run diff' '<ret>' 'i y from 0 to 1' '<ret>'
 check diff-exit     'systest: PASS'         'run diff' '<ret>' q '<ret>' systest '<ret>'
@@ -161,14 +162,14 @@ check ed-find-again 'Found ab at line 2, column 1'  'run edit' '<ret>' 'ab ab' '
 check ed-find-space 'Found b a at line 1'   'run vedit' '<ret>' 'ab ab' '<ctrl-f>' 'b a' '<ret>'
 check ed-find-none  'Not found: zz'         'run edit' '<ret>' abc '<ctrl-f>' zz '<ret>'
 # 1.0.11: one-level undo (Ctrl+Z)
-check_all ed-undo   $'ab\n~|Undone.'          'run edit' '<ret>' abc '<ctrl-z>'
-check_all ed-undo-once $'ab\n~|Nothing to undo.' 'run edit' '<ret>' abc '<ctrl-z>' '<ctrl-z>'
-check_all ed-undo-bs $'abc\n~|Undone.'        'run edit' '<ret>' abc '<backspace>' '<ctrl-z>'
+check_all ed-undo   "ab${nl}~|Undone."          'run edit' '<ret>' abc '<ctrl-z>'
+check_all ed-undo-once "ab${nl}~|Nothing to undo." 'run edit' '<ret>' abc '<ctrl-z>' '<ctrl-z>'
+check_all ed-undo-bs "abc${nl}~|Undone."        'run edit' '<ret>' abc '<backspace>' '<ctrl-z>'
 check_all ed-undo-tab 'L1 C3 off 2|Undone.' 'run vedit' '<ret>' ab '<tab>' '<ctrl-z>'
 check ed-undo-mem   '129912 KB free'        'run edit' '<ret>' x '<ctrl-z>' '<esc>' mem '<ret>'
 # 1.0.12: vedit Ctrl+T shows control characters; the buffer stays the same
-check_all ved-ctl   $'    1 ab$\n|5/16384|Control characters shown' 'run vedit' '<ret>' ab '<ret>' cd '<ctrl-t>'
-check_all ved-ctl-off $'    1 ab\n|Control characters hidden' 'run vedit' '<ret>' ab '<ret>' cd '<ctrl-t>' '<ctrl-t>'
+check_all ved-ctl   "    1 ab\$${nl}|5/16384|Control characters shown" 'run vedit' '<ret>' ab '<ret>' cd '<ctrl-t>'
+check_all ved-ctl-off "    1 ab${nl}|Control characters hidden" 'run vedit' '<ret>' ab '<ret>' cd '<ctrl-t>' '<ctrl-t>'
 check ved-ctl-edit  'New buffer.'           'run edit' '<ret>' ab '<ctrl-t>'
 check fb-edit       'Loaded.'               'run files' '<ret>' '<home>' e
 # 0.9.0: the browser starts each 1.0 app and gets it back when it quits
