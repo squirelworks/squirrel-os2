@@ -48,6 +48,8 @@ ed_main:
     je .quit
     cmp al, 0x3C                ; F2
     je .save
+    cmp al, 0x3D                ; F3: find the same text again
+    je .again
     cmp al, 0x48
     je .up
     cmp al, 0x50
@@ -82,6 +84,18 @@ ed_main:
     je .save
     cmp al, 0x10                ; Ctrl+Q
     je .quit
+    cmp al, 0x21                ; Ctrl+F
+    je .find
+    jmp .loop
+.find:
+    mov esi, ed_m_find
+    mov edi, ed_find
+    mov byte [ed_pany], 1       ; the text may contain spaces
+    call ed_prompt
+    mov byte [ed_pany], 0
+    jc .loop
+.again:
+    call ed_search
     jmp .loop
 .up:
     call ed_up
@@ -485,7 +499,11 @@ ed_prompt:
     je .bs
     call kbd_ascii
     cmp al, ' '
-    jbe .l
+    ja .ch
+    jb .l
+    cmp byte [ed_pany], 0       ; a space only where the caller allows it
+    je .l
+.ch:
     cmp ecx, FS_PATHMAX-1
     jae .l
     mov [edi+ecx], al
@@ -504,6 +522,79 @@ ed_prompt:
 .esc:
     popad
     stc
+    ret
+
+; Finds ed_find after the cursor, wrapping to the start, and moves the
+; cursor there (1.0.9). Case-sensitive. The message line says where.
+ed_search:
+    pushad
+    mov esi, ed_find
+    xor ecx, ecx                ; ecx = length of the text
+.len:
+    cmp byte [esi+ecx], 0
+    je .gotlen
+    inc ecx
+    jmp .len
+.gotlen:
+    test ecx, ecx               ; F3 before any Ctrl+F
+    jz .none
+    mov edx, [ed_len]
+    sub edx, ecx                ; last start that fits
+    jl .notfound
+    mov ebx, [ed_pos]
+    xor ebp, ebp                ; starts tried
+.try:
+    inc ebx
+    cmp ebx, edx
+    jbe .cmp
+    xor ebx, ebx                ; wrap to the start of the buffer
+.cmp:
+    push ecx
+    lea edi, [ED_BUF+ebx]
+    mov esi, ed_find
+    repe cmpsb
+    pop ecx
+    je .found
+    inc ebp
+    cmp ebp, edx
+    jbe .try                    ; every start (edx+1 of them) tried once
+.notfound:
+    call sb_reset
+    mov esi, ed_m_notfound
+    call sb_str
+    mov esi, ed_find
+    call sb_str
+    jmp .show
+.found:
+    mov [ed_pos], ebx
+    mov dword [ed_want], -1
+    call ed_where
+    call sb_reset
+    mov esi, ed_m_found
+    call sb_str
+    mov esi, ed_find
+    call sb_str
+    mov esi, ed_m_atline
+    call sb_str
+    mov eax, [ed_line]
+    inc eax
+    call sb_num
+    mov esi, ed_m_atcol
+    call sb_str
+    mov eax, [ed_col]
+    inc eax
+    call sb_num
+.show:
+    mov esi, ed_sb
+    mov edi, ed_msgbuf
+    mov ecx, 80
+    rep movsb
+    mov dword [ed_msgp], ed_msgbuf
+    popad
+    ret
+.none:
+    mov dword [ed_msgp], ed_m_nofind
+    popad
     ret
 
 ; ---------- messages ----------
@@ -707,7 +798,7 @@ ed_status:
     mov esi, ed_s_mod
     call sb_str
 .nm:
-    mov eax, 52
+    mov eax, 80-34              ; the key reminder ends at the last column
     call sb_pad
     mov esi, ed_s_keys
     call sb_str
@@ -968,10 +1059,12 @@ sb_p dd ed_sb
 ed_name times FS_PATHMAX db 0
 ed_sb times 82 db 0
 ed_msgbuf times 82 db 0
+ed_find times FS_PATHMAX db 0   ; last Ctrl+F text, kept for F3
+ed_pany db 0                    ; 1: ed_prompt accepts spaces
 ed_s_noname db '(untitled)', 0
 ed_s_sep db ': ', 0
 ed_s_mod db ' [modified]', 0
-ed_s_keys db 'Ctrl+S save  Esc quit', 0
+ed_s_keys db 'Ctrl+F find  Ctrl+S save  Esc quit', 0
 ed_s_line db 'L', 0
 ed_s_col db ' C', 0
 ed_s_off db ' off ', 0
@@ -989,6 +1082,12 @@ ed_m_nodisk db 'No data disk: editing in memory only, cannot save.', 0
 ed_m_ioerr db 'Disk error.', 0
 ed_m_saved db 'Saved.', 0
 ed_m_saveas db 'Save as (Esc cancels): ', 0
+ed_m_find db 'Find (Esc cancels): ', 0
+ed_m_found db 'Found ', 0
+ed_m_atline db ' at line ', 0
+ed_m_atcol db ', column ', 0
+ed_m_notfound db 'Not found: ', 0
+ed_m_nofind db 'Nothing to find again: Ctrl+F first', 0
 ed_m_cancel db 'Cancelled.', 0
 ed_m_unsaved db 'Unsaved changes: s = save and quit, d = discard, any other key = cancel', 0
 ed_m_full db 'Buffer full (16384 bytes).', 0

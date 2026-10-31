@@ -148,6 +148,12 @@ check ed-vstatus    'L1 C4 off 3'           'run vedit' '<ret>' abc
 check ed-vaction    "Deleted 'c'"           'run vedit' '<ret>' abc '<backspace>'
 check ed-unsaved    'Unsaved changes'       'run edit' '<ret>' x '<esc>'
 check ed-saveas     'memo2'                 'run edit' '<ret>' hi '<f2>' memo2 '<ret>' '<esc>' ls '<ret>'
+# 1.0.9: Ctrl+F finds text, F3 finds it again (wrapping to the start)
+check ed-find       'Found zebra at line 1, column 9'  'put zfind one two zebra' '<ret>' 'run edit zfind' '<ret>' '<ctrl-f>' zebra '<ret>'
+check ed-find-at    'one two Xzebra'        'run edit zfind' '<ret>' '<ctrl-f>' zebra '<ret>' X
+check ed-find-again 'Found ab at line 2, column 1'  'run edit' '<ret>' 'ab ab' '<ret>' ab '<ctrl-f>' ab '<ret>' '<f3>' '<f3>'
+check ed-find-space 'Found b a at line 1'   'run vedit' '<ret>' 'ab ab' '<ctrl-f>' 'b a' '<ret>'
+check ed-find-none  'Not found: zz'         'run edit' '<ret>' abc '<ctrl-f>' zz '<ret>'
 check fb-edit       'Loaded.'               'run files' '<ret>' '<home>' e
 # 0.9.0: the browser starts each 1.0 app and gets it back when it quits
 d6="<down> <down> <down> <down> <down> <down>"
@@ -196,7 +202,7 @@ check ed-path-r     'deep'                  'cat e1/long-name.txt' '<ret>'
 check fb-dir        'in /e1'                'cd e1' '<ret>' 'run files' '<ret>'
 check fb-dir-up     '[app]'                 'cd e1' '<ret>' 'run files' '<ret>' '<ret>'
 # 0.9.3: release readiness
-check ver-banner    'Squirrel-OS/2 1.0.8'   systest '<ret>'
+check ver-banner    'Squirrel-OS/2 1.0.9'   systest '<ret>'
 check ver-planned   '(planned: graph, topo)'  systest '<ret>'
 check calc-hist-root '1 + 1 = 2'            'mkdir c1' '<ret>' 'cd c1' '<ret>' 'run calc' '<ret>' '1 + 1' '<ret>' '<esc>' 'cat /calc.hist' '<ret>'
 boot="--floppy $out/floppy.img"
@@ -285,7 +291,7 @@ check l10n-hint-la  '(lineam tabulae addit)'  'lang la' '<ret>' put '<ret>'
 check l10n-fe-tlh   "tu'lu'pu'"             'lang tlh' '<ret>' 'mkdir t1' '<ret>' 'mkdir t1' '<ret>'
 check l10n-rm-tlh   "tu'lu'be'"             'lang tlh' '<ret>' 'rm nosuch' '<ret>'
 check lang-bad      'Unknown language (en la tlh)'  'lang fr' '<ret>'
-check lang-banner   'Sciurus-OS/2 1.0.8'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
+check lang-banner   'Sciurus-OS/2 1.0.9'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
 # 1.0.6: calc, edit and draw titles follow lang
 check l10n-calc-tlh "mI' De'wI' (Esc to exit)" 'lang tlh' '<ret>' 'run calc' '<ret>'
 check l10n-edit-tlh "ghItlhwI': (untitled)" 'lang tlh' '<ret>' 'run edit' '<ret>'
