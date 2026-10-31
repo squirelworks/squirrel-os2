@@ -38,6 +38,7 @@ ed_main:
     rep movsb
     mov byte [run_arg], 0
     call ed_load
+    call ed_undo_init
 .loop:
     call ed_draw
     call fb_waitkey
@@ -77,6 +78,7 @@ ed_main:
     call kbd_ascii              ; Enter maps to 10
     test al, al
     jz .loop
+    call ed_snap
     call ed_type
     jmp .loop
 .ctrl:
@@ -86,6 +88,11 @@ ed_main:
     je .quit
     cmp al, 0x21                ; Ctrl+F
     je .find
+    cmp al, 0x2C                ; Ctrl+Z
+    je .undo
+    jmp .loop
+.undo:
+    call ed_undo
     jmp .loop
 .find:
     mov esi, ed_m_find
@@ -157,6 +164,7 @@ ed_main:
     mov eax, [ed_pos]
     test eax, eax
     jz .loop
+    call ed_snap
     dec eax
     mov [ed_pos], eax
     call ed_delete_at
@@ -165,9 +173,11 @@ ed_main:
     mov eax, [ed_pos]
     cmp eax, [ed_len]
     jae .loop
+    call ed_snap
     call ed_delete_at
     jmp .loop
 .tab:
+    call ed_snap                ; one undo takes back all four spaces
     mov ecx, 4
 .t:
     mov al, ' '
@@ -198,6 +208,7 @@ ed_main:
     cmp byte [ed_mod], 0
     jne .loop
 .bye:
+    call ed_undo_free
     call app_home
     xor eax, eax
     ret
@@ -595,6 +606,120 @@ ed_search:
 .none:
     mov dword [ed_msgp], ed_m_nofind
     popad
+    ret
+
+; ---------- one-level undo (1.0.11) ----------
+; Before each edit (a typed key, Enter, Backspace, Delete, Tab) the whole
+; buffer is copied to ED_UNDO_PAGES pages from pg_alloc; Ctrl+Z copies it
+; back once. The pages are taken at start and given back on exit. Without
+; them, undo says so and the editor works as before.
+
+ED_UNDO_PAGES equ ED_CAP / 4096     ; (PAGE_SIZE: mm.asm comes later)
+
+ed_undo_init:
+    pushad
+    mov byte [ed_uok], 0
+    xor ebx, ebx
+.a:
+    call pg_alloc
+    mov [ed_upages+ebx*4], eax
+    test eax, eax
+    jz .fail
+    inc ebx
+    cmp ebx, ED_UNDO_PAGES
+    jb .a
+    popad
+    ret
+.fail:
+    popad
+    jmp ed_undo_free            ; frees what was taken; undo is off
+
+ed_undo_free:
+    pushad
+    xor ebx, ebx
+.f:
+    mov eax, [ed_upages+ebx*4]
+    mov dword [ed_upages+ebx*4], 0
+    test eax, eax
+    jz .n
+    call pg_free
+.n:
+    inc ebx
+    cmp ebx, ED_UNDO_PAGES
+    jb .f
+    popad
+    ret
+
+; Remembers the buffer, cursor and modified flag as they are now.
+ed_snap:
+    pushad
+    cmp dword [ed_upages+(ED_UNDO_PAGES-1)*4], 0
+    je .r
+    mov eax, [ed_len]
+    mov [ed_ulen], eax
+    mov eax, [ed_pos]
+    mov [ed_upos], eax
+    mov al, [ed_mod]
+    mov [ed_umod], al
+    mov byte [ed_uok], 1
+    xor edx, edx                ; 0: buffer -> pages
+    call ed_ucopy
+.r:
+    popad
+    ret
+
+; Ctrl+Z: puts back the state before the last edit. A second Ctrl+Z
+; finds nothing more to undo.
+ed_undo:
+    pushad
+    mov esi, ed_m_noundo
+    cmp dword [ed_upages+(ED_UNDO_PAGES-1)*4], 0
+    je .m
+    mov esi, ed_m_nothing
+    cmp byte [ed_uok], 0
+    je .m
+    mov eax, [ed_ulen]
+    mov [ed_len], eax
+    mov eax, [ed_upos]
+    mov [ed_pos], eax
+    mov al, [ed_umod]
+    mov [ed_mod], al
+    mov byte [ed_uok], 0
+    mov dword [ed_want], -1
+    mov edx, 1                  ; pages -> buffer
+    call ed_ucopy
+    mov esi, ed_m_undone
+.m:
+    call ed_msg
+    popad
+    ret
+
+; Copies ed_ulen bytes between ED_BUF and the undo pages, page by page.
+; edx = 0: buffer to pages, 1: pages to buffer.
+ed_ucopy:
+    mov ebp, [ed_ulen]
+    xor ebx, ebx
+.page:
+    test ebp, ebp
+    jz .d
+    mov ecx, PAGE_SIZE
+    cmp ebp, ecx
+    jae .full
+    mov ecx, ebp
+.full:
+    sub ebp, ecx
+    mov esi, ebx
+    shl esi, 12
+    add esi, ED_BUF
+    mov edi, [ed_upages+ebx*4]
+    test edx, edx
+    jz .go
+    xchg esi, edi
+.go:
+    rep movsb
+    inc ebx
+    jmp .page
+.d:
     ret
 
 ; ---------- messages ----------
@@ -1060,6 +1185,11 @@ ed_name times FS_PATHMAX db 0
 ed_sb times 82 db 0
 ed_msgbuf times 82 db 0
 ed_find times FS_PATHMAX db 0   ; last Ctrl+F text, kept for F3
+ed_upages times ED_UNDO_PAGES dd 0   ; undo copy of the buffer
+ed_ulen dd 0
+ed_upos dd 0
+ed_umod db 0
+ed_uok db 0                     ; 1: Ctrl+Z has something to undo
 ed_pany db 0                    ; 1: ed_prompt accepts spaces
 ed_s_noname db '(untitled)', 0
 ed_s_sep db ': ', 0
@@ -1083,6 +1213,9 @@ ed_m_ioerr db 'Disk error.', 0
 ed_m_saved db 'Saved.', 0
 ed_m_saveas db 'Save as (Esc cancels): ', 0
 ed_m_find db 'Find (Esc cancels): ', 0
+ed_m_undone db 'Undone.', 0
+ed_m_nothing db 'Nothing to undo.', 0
+ed_m_noundo db 'Undo unavailable: no free memory.', 0
 ed_m_found db 'Found ', 0
 ed_m_atline db ' at line ', 0
 ed_m_atcol db ', column ', 0
