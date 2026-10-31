@@ -34,7 +34,7 @@ ed_main:
     mov byte [kbd_ctrl], 0
     mov esi, run_arg
     mov edi, ed_name
-    mov ecx, FS_NAMELEN
+    mov ecx, FS_PATHMAX
     rep movsb
     mov byte [run_arg], 0
     call ed_load
@@ -381,9 +381,10 @@ ed_load:
     call ed_msg
     ret
 .newfile:
-    mov esi, ed_m_newfile
-    call ed_msg
-    ret
+    call ed_open_why
+    jc ed_msg
+    mov byte [ed_name], 0       ; a directory, say: Ctrl+S asks for a name
+    jmp ed_msg
 .new:
     mov esi, ed_m_new
     call ed_msg
@@ -407,15 +408,12 @@ ed_save:
     mov edi, ed_name
     call ed_prompt
     jc .cancel
-    mov esi, ed_name
-    call fs_check_name
-    jc .badname
 .named:
     mov esi, ed_name
     mov ecx, O_CREATE|O_TRUNC
     call fs_open
     cmp eax, -1
-    je .err
+    je .openerr
     mov ebx, eax
     mov esi, ED_BUF
     mov ecx, [ed_len]
@@ -429,10 +427,6 @@ ed_save:
     call ed_msg
     popad
     ret
-.badname:
-    mov byte [ed_name], 0
-    mov esi, ed_m_badname
-    jmp .m
 .cancel:
     mov byte [ed_name], 0
     mov esi, ed_m_cancel
@@ -440,14 +434,30 @@ ed_save:
 .nodisk:
     mov esi, ed_m_nodisk
     jmp .m
+.openerr:
+    mov byte [ed_name], 0       ; the next save asks for another name
 .err:
-    mov esi, ed_m_ioerr
+    movzx eax, byte [fs_errno]
+    mov esi, [fs_errmsg+eax*4]
 .m:
     call ed_msg
     popad
     ret
 
-; esi = prompt, edi = 16-byte destination: reads a name on the message
+; After fs_open failed while loading: esi = the message to show.
+; CF if the file just does not exist yet (a new file under that name).
+ed_open_why:
+    mov esi, ed_m_newfile
+    cmp byte [fs_errno], FE_NOTFOUND
+    stc
+    je .r
+    movzx esi, byte [fs_errno]
+    mov esi, [fs_errmsg+esi*4]
+    clc
+.r:
+    ret
+
+; esi = prompt, edi = FS_PATHMAX-byte destination: reads a path on the message
 ; row. CF set on Esc or empty input.
 ed_prompt:
     pushad
@@ -474,7 +484,7 @@ ed_prompt:
     call kbd_ascii
     cmp al, ' '
     jbe .l
-    cmp ecx, FS_NAMELEN-1
+    cmp ecx, FS_PATHMAX-1
     jae .l
     mov [edi+ecx], al
     inc ecx
@@ -771,13 +781,15 @@ sb_char:                        ; al
     pop edi
     ret
 
-sb_str:                         ; esi = ASCIIZ (esi preserved)
+sb_str:                         ; esi = ASCIIZ, or up to a newline (esi preserved)
     push eax
     push esi
 .l:
     lodsb
     test al, al
     jz .d
+    cmp al, 10
+    je .d
     call sb_char
     jmp .l
 .d:
@@ -947,7 +959,7 @@ ed_width dd 80
 ed_msgp dd 0
 ed_pdst dd 0
 sb_p dd ed_sb
-ed_name times FS_NAMELEN db 0
+ed_name times FS_PATHMAX db 0
 ed_sb times 82 db 0
 ed_msgbuf times 82 db 0
 ed_s_noname db '(untitled)', 0
@@ -970,7 +982,6 @@ ed_m_nodisk db 'No data disk: editing in memory only, cannot save.', 0
 ed_m_ioerr db 'Disk error.', 0
 ed_m_saved db 'Saved.', 0
 ed_m_saveas db 'Save as (Esc cancels): ', 0
-ed_m_badname db 'Invalid name (1-15 characters).', 0
 ed_m_cancel db 'Cancelled.', 0
 ed_m_unsaved db 'Unsaved changes: s = save and quit, d = discard, any other key = cancel', 0
 ed_m_full db 'Buffer full (16384 bytes).', 0

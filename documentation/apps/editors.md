@@ -34,9 +34,12 @@ Both editors are implemented in `kernel/editor.asm` as one full-screen engine ru
 - 16 KB buffer, drawn in place (rows 0–22 text, row 23 status, row 24 messages); vertical and horizontal scrolling keep the cursor visible.
 - Cursor: arrows, Home/End (line), PgUp/PgDn (23 lines); up/down remember the wanted column across short lines.
 - Editing: printable keys (with Shift), Enter, Backspace, Delete, Tab (4 spaces), Insert toggles insert/overwrite.
-- Files: `run edit <file>` / `run vedit <file>` loads the file (or starts a new one with that name);
+- Files: `run edit <file>` / `run vedit <file>` loads the file (or starts a new one with that name).
+  The name may be a path of up to 63 characters (`run edit docs/notes.txt`; 0.9.2). A directory, or a
+  path through a missing directory, is reported on the message line and the buffer starts untitled;
   Ctrl+S or F2 saves (asks for a name if untitled); Esc or Ctrl+Q quits, asking `s`ave / `d`iscard / cancel when modified.
 - Without a data disk the editors still work in memory and say that saving is unavailable.
+- A failed save shows why (`Disk full`, `Bad name: ...`, `Is a directory`, ...). When the name itself was the problem, the buffer becomes untitled so the next save asks for another one (0.9.2). `draw` does the same.
 - From the file browser, `e` opens the selected file in `edit`.
 
 ### `edit` status line

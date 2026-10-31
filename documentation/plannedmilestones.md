@@ -117,7 +117,7 @@ This is a natural end-of-day point. Next session can resume at either:
 ### 0.9.x — Integration
 - **0.9.0** — File browser launches the applications (calc, edit, vedit, draw)
 - **0.9.1** — Files persist across reboot
-- **0.9.2** — Stability and polish pass
+- **0.9.2** — Stability and polish pass (done — file-system error reasons, usage hints, `mv` into directories, directories in the browser, paths in the apps; KB-8 to KB-10)
 
 ### 1.0.0 — Functional OS
 - Boots to a usable environment

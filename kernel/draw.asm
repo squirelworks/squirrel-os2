@@ -26,7 +26,7 @@ run_draw:
     call dr_clear
     mov esi, run_arg
     mov edi, dr_name
-    mov ecx, FS_NAMELEN
+    mov ecx, FS_PATHMAX
     rep movsb
     mov byte [run_arg], 0
     call dr_load
@@ -439,7 +439,11 @@ dr_load:
 .out:
     ret
 .new:
-    mov dword [ed_msgp], ed_m_newfile
+    call ed_open_why
+    mov [ed_msgp], esi
+    jc .r
+    mov byte [dr_name], 0       ; a directory, say: Ctrl+S asks for a name
+.r:
     ret
 .nodisk:
     mov dword [ed_msgp], ed_m_nodisk
@@ -455,9 +459,6 @@ dr_save:
     mov edi, dr_name
     call ed_prompt
     jc .cancel
-    mov esi, dr_name
-    call fs_check_name
-    jc .badname
 .named:
     ; build text: each row with trailing spaces trimmed, then a newline
     mov edi, DR_FILEBUF
@@ -499,7 +500,7 @@ dr_save:
     mov ecx, O_CREATE|O_TRUNC
     call fs_open
     cmp eax, -1
-    je .err
+    je .openerr
     mov ebx, eax
     mov esi, DR_FILEBUF
     mov ecx, [dr_flen]
@@ -512,11 +513,6 @@ dr_save:
     mov dword [ed_msgp], ed_m_saved
     popad
     ret
-.badname:
-    mov byte [dr_name], 0
-    mov dword [ed_msgp], ed_m_badname
-    popad
-    ret
 .cancel:
     mov byte [dr_name], 0
     mov dword [ed_msgp], ed_m_cancel
@@ -526,8 +522,12 @@ dr_save:
     mov dword [ed_msgp], ed_m_nodisk
     popad
     ret
+.openerr:
+    mov byte [dr_name], 0       ; the next save asks for another name
 .err:
-    mov dword [ed_msgp], ed_m_ioerr
+    movzx eax, byte [fs_errno]
+    mov eax, [fs_errmsg+eax*4]
+    mov [ed_msgp], eax
     popad
     ret
 
@@ -693,7 +693,7 @@ dr_brush db '*'
 dr_pen db 0
 dr_mode db 0                    ; 0 none, 1 line, 2 rectangle (corner marked)
 dr_mod db 0
-dr_name times FS_NAMELEN db 0
+dr_name times FS_PATHMAX db 0
 dr_title db ' Draw - ASCII canvas 64x18', 0
 dr_keys1 db 'Arrows move  Space plot  x/Bksp erase  p pen up/down  b brush  c clear', 0
 dr_keys2 db 'l line, r rectangle (press at both corners)  f fill  Ctrl+S/F2 save  Esc quit', 0

@@ -72,6 +72,7 @@ This avoids retargeting chains and confirmation steps.
 | 0.8.0   | 2026-10-30 | SQFS directories                     |
 | 0.8.1   | 2026-10-30 | Localization runtime                 |
 | 0.8.2   | 2026-10-30 | Crash reports and shell restart      |
+| 0.9.2   | 2026-10-31 | Stability and polish pass            |
 
 ## Next planned release
 
