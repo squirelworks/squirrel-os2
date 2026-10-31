@@ -31,8 +31,8 @@ Both editors are implemented in `kernel/editor.asm` as one full-screen engine ru
 
 ### Shared behaviour
 
-- 16 KB buffer, drawn in place (rows 0–22 text, row 23 status, row 24 messages); vertical and horizontal scrolling keep the cursor visible.
-- Cursor: arrows, Home/End (line), PgUp/PgDn (23 lines); up/down remember the wanted column across short lines.
+- 16 KB buffer, drawn in place (rows 0–22 text, row 23 status, row 24 messages; in a desktop window, 18 text rows of 52 columns, then the status and message rows, `desktop.md`); vertical and horizontal scrolling keep the cursor visible.
+- Cursor: arrows, Home/End (line), PgUp/PgDn (a screenful of text rows: 23, or 18 in a window); up/down remember the wanted column across short lines.
 - Editing: printable keys (with Shift), Enter, Backspace, Delete, Tab (4 spaces), Insert toggles insert/overwrite.
 - Files: `run edit <file>` / `run vedit <file>` loads the file (or starts a new one with that name).
   The name may be a path of up to 63 characters (`run edit docs/notes.txt`; 0.9.2). A directory, or a

@@ -59,7 +59,7 @@ A list is a box as wide as its longest item, with one row per item. The selected
 
 ## Console
 
-A console shows part of an 80 × 25 text buffer laid out as at `0xB8000` (character and attribute words). The characters are drawn in black on the client colour. As many columns as fit are shown. The rows shown are the first `edx`, or the `edx` rows that end at the cursor row (`cur`) once the cursor is further down. If those rows do not fit in the client area, the console is not drawn. It takes no keys. The desktop uses it to run text programs in windows (`../apps/desktop.md`).
+A console shows part of an 80 × 25 text buffer laid out as at `0xB8000` (character and attribute words). The characters are drawn in black on the client colour; a cell whose attribute has a background colour (such as the editor's status row) is drawn inverted, and the cell at the cursor is drawn inverted too (or back to normal, on such a row), as a block cursor. As many columns as fit are shown. The rows shown are the first `edx`, or the `edx` rows that end at the cursor row (`cur`) once the cursor is further down. If those rows do not fit in the client area, the console is not drawn. It takes no keys. The desktop uses it to run text programs in windows (`../apps/desktop.md`).
 
 | Routine | In | Out |
 |---------|----|-----|

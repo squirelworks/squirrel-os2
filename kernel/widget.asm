@@ -344,6 +344,9 @@ wg_draw:
     add edx, [edi+WG_Y]
     cmp edx, [wg_ch]
     jg .out                     ; not all rows fit: not drawn
+    mov edx, [cur]              ; the cell the cursor is in (1.6.4)
+    lea edx, [esi+edx*2]
+    mov [wg_curp], edx
     push eax
     mov eax, [cur]              ; the first row shown
     xor edx, edx
@@ -357,8 +360,6 @@ wg_draw:
     imul eax, 160
     add esi, eax
     pop eax
-    mov byte [gfx_colour], WM_TEXT
-    mov byte [gfx_bg], WM_CLIENT
     mov ebp, [edi+WG_CODE]
 .crow:
     push eax
@@ -367,6 +368,20 @@ wg_draw:
 .cch:
     cmp ecx, GFX_CELL_W
     jl .crd                     ; no room for another column
+    mov byte [gfx_colour], WM_TEXT
+    mov byte [gfx_bg], WM_CLIENT
+    xor dl, dl
+    test byte [esi+1], 0x70     ; a background colour (a status bar)
+    setnz dl
+    cmp esi, [wg_curp]          ; the cursor's cell
+    jne .cinv
+    xor dl, 1                   ; is drawn inverted (1.6.4)
+.cinv:
+    test dl, dl
+    jz .cnorm
+    mov byte [gfx_colour], WM_CLIENT
+    mov byte [gfx_bg], WM_TEXT
+.cnorm:
     mov dl, [esi]
     call gfx_drawchar
     add eax, GFX_CELL_W
@@ -883,4 +898,5 @@ wg_cx dd 0
 wg_cy dd 0
 wg_cw dd 0
 wg_ch dd 0
+wg_curp dd 0                    ; console: address of the cursor's cell
 wg_table times WG_MAX * WG_SIZE db 0

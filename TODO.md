@@ -189,7 +189,7 @@ Start after **1.4-focus** and **1.2-key-event** are on `main`. One widget per PR
   Start after **1.6-desktop** is on `main`.
   **Acceptance:** the desktop is back afterwards and a regression check has seen `= 4` during the session.
 
-- [ ] **1.6-edit** — Open `edit` and `vedit` in a window, type a character, save, close.
+- [x] **1.6-edit** — Open `edit` and `vedit` in a window, type a character, save, close.
   Start after **1.6-desktop** is on `main`.
   **Acceptance:** the saved character is visible to `cat` after the window closes. A regression check expects it.
 

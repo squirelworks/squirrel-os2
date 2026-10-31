@@ -260,6 +260,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - On the desktop, Enter on `draw` runs the ASCII drawing program in the same kind of window as `calc`. `draw` and the shared status-row routine `sb_row` write the text screen through `txt_base` and set `txt_dirty`. The window shows the rows that end at the cursor, so the canvas while drawing and the message row while `draw` asks a question (save as, unsaved changes, brush) (`apps/desktop.md`, `apps/draw.md`; `desktop-draw`, `desktop-draw-save`, `desktop-draw-back`, `desktop-draw-mem`, `desktop-draw-text`).
 
+## 1.6.4
+
+- On the desktop, Enter on `edit` or `vedit` opens the editor in a 52 × 20 window with an empty buffer; it saves as usual (Ctrl+S or F2 asks for a name) and Esc closes the window (`apps/desktop.md`; `desktop-edit`, `desktop-edit-save`, `desktop-vedit-save`, `desktop-edit-mem`). The editor writes through `txt_base` and fits its rows and columns to `txt_rows` and `txt_cols`.
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.

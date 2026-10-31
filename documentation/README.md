@@ -78,4 +78,5 @@ Documentation is active.
 - 1.6.0 `desktop` lists the programs in a window (`releases/1.6.0.md`, `apps/desktop.md`)
 - 1.6.1 `calc` runs in a window on the desktop (`releases/1.6.1.md`, `apps/desktop.md`)
 - 1.6.3 `draw` runs in a window on the desktop (`releases/1.6.3.md`, `apps/desktop.md`)
-- Next: 1.6 edit and vedit in windows (`../ROADMAP.md`, tasks in `../TODO.md`)
+- 1.6.4 `edit` and `vedit` run in windows on the desktop (`releases/1.6.4.md`, `apps/desktop.md`)
+- Next: 1.6 pixel drawing in `draw` (`../ROADMAP.md`, tasks in `../TODO.md`)
