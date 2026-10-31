@@ -138,7 +138,7 @@ fb_main:
 .progerr:
     call ld_perror
 .progdone:
-    mov esi, fb_anykey
+    mov esi, [lstr+LS_FB_ANYKEY*4]
     call puts
     call fb_waitkey
     jmp .reload
@@ -149,7 +149,7 @@ fb_main:
     je .key
     call cls
     call fs_cat
-    mov esi, fb_anykey
+    mov esi, [lstr+LS_FB_ANYKEY*4]
     call puts
     call fb_waitkey
     jmp .draw
@@ -161,7 +161,7 @@ fb_main:
     cmp byte [fs_mounted], 0
     je .key                     ; ROM files cannot be deleted
     push esi
-    mov esi, fb_confirm
+    mov esi, [lstr+LS_FB_CONFIRM*4]
     call fb_status
     call fb_waitkey
     pop esi
@@ -173,7 +173,7 @@ fb_main:
     mov al, 10                  ; say why (open, not empty, ...)
     call putc
     call fs_why
-    mov esi, fb_anykey
+    mov esi, [lstr+LS_FB_ANYKEY*4]
     call puts
     call fb_waitkey
     jmp .reload
@@ -260,17 +260,17 @@ fb_draw:
     mov [fb_top], eax
 .drawn:
     call cls
-    mov esi, fb_title
+    mov esi, [lstr+LS_FB_TITLE*4]
     call puts
-    mov esi, fb_src_disk
+    mov esi, [lstr+LS_FB_SRC_DISK*4]
     cmp byte [fs_mounted], 0
     jne .src
-    mov esi, fb_src_rom
+    mov esi, [lstr+LS_FB_SRC_ROM*4]
 .src:
     call puts
     cmp byte [fs_mounted], 0
     je .list
-    mov esi, fb_in              ; "in /docs"
+    mov esi, [lstr+LS_FB_IN*4]              ; "in /docs"
     call puts
     push edx
     mov dl, [fs_cwd]
@@ -320,7 +320,7 @@ fb_draw:
     test ebx, ebx
     pop ebx
     jz .noapp
-    mov esi, fb_tag_app
+    mov esi, [lstr+LS_FB_TAG_APP*4]
     call puts
 .noapp:
     inc ecx
@@ -329,13 +329,13 @@ fb_draw:
     call putc
     dec edx
     jnz .row
-    mov esi, fb_help
+    mov esi, [lstr+LS_FB_HELP*4]
     call puts
     mov eax, [fb_count]
     call itoa
     mov esi, num_buf
     call puts
-    mov esi, fb_nfiles
+    mov esi, [lstr+LS_FB_NFILES*4]
     call puts
     popad
     ret
@@ -394,13 +394,4 @@ fb_top dd 0
 fb_count dd 0
 fb_names times FB_MAX dd 0
 fb_sizes times FB_MAX dd 0      ; must follow fb_names (indexed as +FB_MAX*4)
-fb_title db 'Files', 0
-fb_src_disk db ' (data disk)', 0
-fb_src_rom db ' (built-in, no data disk)', 0
-fb_in db ' in ', 0
 fb_up db '..', 0
-fb_tag_app db '[app]', 0
-fb_help db 10, 'Arrows PgUp/PgDn Home/End  Enter: open  v: view  e: edit  d: delete  Esc', 10, 0
-fb_nfiles db ' entries', 0
-fb_anykey db 10, '-- press any key --', 0
-fb_confirm db 10, 'Delete this entry? (y/n)', 0

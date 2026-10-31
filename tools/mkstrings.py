@@ -5,8 +5,9 @@
   tools/mkstrings.py --check  exit 1 if kernel/strings.inc is out of date
 
 Each strings.txt holds key=value lines (the value runs to the end of the
-line, trailing spaces included). English defines the keys; another
-language may leave a key out, and the kernel then shows the English text.
+line, trailing spaces included, and \n in it is a newline). English
+defines the keys; another language may leave a key out, and the kernel
+then shows the English text.
 """
 import os
 import sys
@@ -26,20 +27,26 @@ def read(lang):
             key, sep, value = line.partition('=')
             if not sep:
                 sys.exit('%s/strings.txt:%d: no "="' % (lang, n))
-            table[key] = value
+            table[key] = value.replace('\\n', '\n')
     return table
 
 
 # Klingon branch: these letters get one pIqaD glyph each (0x80-0x83 in
 # the font the kernel loads, see tools/klingon-font.py). Longest first.
+# Text in {braces} is Latin (command names) and keeps its letters.
 KLINGON_DIGRAPHS = [('tlh', 0x83), ('ch', 0x80), ('gh', 0x81), ('ng', 0x82)]
 
 
 def klingon_bytes(text):
     out = bytearray()
     i = 0
+    literal = False                 # inside {...}: Latin, e.g. command names
     while i < len(text):
-        for spelling, code in KLINGON_DIGRAPHS:
+        if text[i] in '{}':
+            literal = text[i] == '{'
+            i += 1
+            continue
+        for spelling, code in [] if literal else KLINGON_DIGRAPHS:
             if text.startswith(spelling, i):
                 out.append(code)
                 i += len(spelling)
@@ -52,7 +59,7 @@ def klingon_bytes(text):
 
 def asm_string(text, lang='en'):
     data = text.encode('latin-1')    # the VGA font is code page 437; keep to ASCII
-    if any(b < 32 or b > 126 for b in data):
+    if any((b < 32 and b != 10) or b > 126 for b in data):
         sys.exit('non-ASCII text: %r' % text)
     if lang == 'tlh':
         data = klingon_bytes(text)
@@ -61,7 +68,7 @@ def asm_string(text, lang='en'):
     if not text:
         return '0'
     for q in "'\"":
-        if q not in text:
+        if q not in text and '\n' not in text:
             return '%s%s%s, 0' % (q, text, q)
     return ', '.join(str(b) for b in data) + ', 0'
 

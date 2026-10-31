@@ -38,7 +38,7 @@ bat_start:
     cmp byte [bat_quiet], 0
     jne .r
     push esi
-    mov esi, sh_m_nofile
+    mov esi, [lstr+LS_SH_M_NOFILE*4]
     call puts
     pop esi
     call puts
@@ -110,7 +110,7 @@ bat_run_pending:
     jne .line
     ret
 .stopped:
-    mov esi, bat_m_stopped
+    mov esi, [lstr+LS_BAT_M_STOPPED*4]
     call puts
 .end:
     mov byte [bat_active], 0
@@ -143,7 +143,6 @@ bat_autoexec:
     jmp bat_run_pending
 
 bat_autoname db 'autoexec.bat', 0
-bat_m_stopped db 'Batch stopped', 10, 0
 bat_active db 0
 bat_quiet db 0
 align 4

@@ -26,9 +26,9 @@ fpu_init:
 
 run_sci:
     call cls
-    mov esi, sci_banner
+    mov esi, [lstr+LS_SCI_BANNER*4]
     call puts
-    mov esi, sci_help
+    mov esi, [lstr+LS_SCI_HELP*4]
     call puts
 .prompt:
     call sci_show_mode
@@ -65,11 +65,11 @@ run_sci:
     jmp .prompt
 .error:
     fninit
-    mov esi, calc_errpre
+    mov esi, [lstr+LS_CALC_ERRPRE*4]
     call puts
     mov esi, [calc_errmsg]
     call puts
-    cmp dword [calc_errmsg], calc_e_syntax
+    lcmp calc_errmsg, LS_CALC_E_SYNTAX
     jne .errnl
     mov eax, [calc_errpos]
     sub eax, calc_line
@@ -122,7 +122,7 @@ sci_line_eval:
     ret
 
 sci_domain:
-    mov dword [calc_errmsg], sci_e_domain
+    lset calc_errmsg, LS_SCI_E_DOMAIN
     stc
     ret
 
@@ -812,7 +812,6 @@ sci_kw_e db 'e', 0
 sci_kw_deg db 'deg', 0
 sci_kw_rad db 'rad', 0
 
-sci_banner db 'Scientific Calculator', 10, 0
 sci_help db 'Numbers like 2.5 or 6.02e23; + - * / ^ ( ); pi e ans', 10
          db 'sin cos tan asin acos atan sqrt ln log exp abs', 10
          db 'deg / rad switch angle mode; q or Esc quits', 10, 0
@@ -820,7 +819,6 @@ sci_help_len equ $ - sci_help - 1
 sci_prompt db 'sci> ', 0
 sci_m_rad db '[rad] ', 0
 sci_m_deg db '[deg] ', 0
-sci_e_domain db 'outside the function domain', 0
 
 align 4
 sci_ten dd 10.0

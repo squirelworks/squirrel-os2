@@ -33,7 +33,90 @@ LS_FE_IO equ 28
 LS_FE_FULL equ 29
 LS_FE_ISDIR equ 30
 LS_FE_NOFD equ 31
-LS_COUNT equ 32
+LS_CALC_BANNER equ 32
+LS_CALC_HELP equ 33
+LS_CALC_ERRPRE equ 34
+LS_CALC_E_SYNTAX equ 35
+LS_CALC_E_OVERFLOW equ 36
+LS_CALC_E_LARGE equ 37
+LS_CALC_E_DIV0 equ 38
+LS_CALC_CLEARED equ 39
+LS_SCI_BANNER equ 40
+LS_SCI_HELP equ 41
+LS_SCI_E_DOMAIN equ 42
+LS_MX_BANNER equ 43
+LS_MX_HELP equ 44
+LS_MX_M_NONE equ 45
+LS_MX_E_SIZE equ 46
+LS_MX_E_SQUARE equ 47
+LS_MX_E_SINGULAR equ 48
+LS_MX_E_RAGGED equ 49
+LS_MX_E_BIG equ 50
+LS_MX_E_COMPLEX equ 51
+LS_MX_E_UNDEF equ 52
+LS_ED_S_NONAME equ 53
+LS_ED_S_MOD equ 54
+LS_ED_S_KEYS equ 55
+LS_ED_M_NEW equ 56
+LS_ED_M_NEWFILE equ 57
+LS_ED_M_LOADED equ 58
+LS_ED_M_TRUNCATED equ 59
+LS_ED_M_NODISK equ 60
+LS_ED_M_IOERR equ 61
+LS_ED_M_SAVED equ 62
+LS_ED_M_SAVEAS equ 63
+LS_ED_M_CANCEL equ 64
+LS_ED_M_UNSAVED equ 65
+LS_ED_M_FULL equ 66
+LS_ED_M_MOVED equ 67
+LS_ED_M_INS equ 68
+LS_ED_M_OVR equ 69
+LS_ED_M_TYPED equ 70
+LS_ED_M_DELETED equ 71
+LS_DR_TITLE equ 72
+LS_DR_KEYS1 equ 73
+LS_DR_KEYS2 equ 74
+LS_DR_S_POS equ 75
+LS_DR_S_BRUSH equ 76
+LS_DR_S_PENUP equ 77
+LS_DR_S_PENDOWN equ 78
+LS_DR_S_LINE equ 79
+LS_DR_S_RECT equ 80
+LS_DR_M_HELP equ 81
+LS_DR_M_PENUP equ 82
+LS_DR_M_PENDOWN equ 83
+LS_DR_M_BRUSH equ 84
+LS_DR_M_BRUSHSET equ 85
+LS_DR_M_MARK equ 86
+LS_DR_M_DRAWN equ 87
+LS_DR_M_FILLED equ 88
+LS_DR_M_CLEARED equ 89
+LS_FB_TITLE equ 90
+LS_FB_SRC_DISK equ 91
+LS_FB_SRC_ROM equ 92
+LS_FB_IN equ 93
+LS_FB_TAG_APP equ 94
+LS_FB_HELP equ 95
+LS_FB_NFILES equ 96
+LS_FB_ANYKEY equ 97
+LS_FB_CONFIRM equ 98
+LS_LD_M_ENOENT equ 99
+LS_LD_M_EFORMAT equ 100
+LS_LD_M_EBIG equ 101
+LS_LD_M_EBUSY equ 102
+LS_LD_M_EPROC equ 103
+LS_LD_M_ENOMEM equ 104
+LS_PROC_FULL equ 105
+LS_FS_MSG_FORMATTED equ 106
+LS_FS_MSG_FOREIGN equ 107
+LS_SH_M_REDIR equ 108
+LS_SH_M_PIPE equ 109
+LS_SH_M_NOFILE equ 110
+LS_SH_M_WFAIL equ 111
+LS_SH_M_TRUNC equ 112
+LS_BAT_M_STOPPED equ 113
+LS_COMMANDS equ 114
+LS_COUNT equ 115
 LANG_COUNT equ 3
 
 align 4
@@ -75,6 +158,89 @@ ls_en:
     dd ls_en_fe_full
     dd ls_en_fe_isdir
     dd ls_en_fe_nofd
+    dd ls_en_calc_banner
+    dd ls_en_calc_help
+    dd ls_en_calc_errpre
+    dd ls_en_calc_e_syntax
+    dd ls_en_calc_e_overflow
+    dd ls_en_calc_e_large
+    dd ls_en_calc_e_div0
+    dd ls_en_calc_cleared
+    dd ls_en_sci_banner
+    dd ls_en_sci_help
+    dd ls_en_sci_e_domain
+    dd ls_en_mx_banner
+    dd ls_en_mx_help
+    dd ls_en_mx_m_none
+    dd ls_en_mx_e_size
+    dd ls_en_mx_e_square
+    dd ls_en_mx_e_singular
+    dd ls_en_mx_e_ragged
+    dd ls_en_mx_e_big
+    dd ls_en_mx_e_complex
+    dd ls_en_mx_e_undef
+    dd ls_en_ed_s_noname
+    dd ls_en_ed_s_mod
+    dd ls_en_ed_s_keys
+    dd ls_en_ed_m_new
+    dd ls_en_ed_m_newfile
+    dd ls_en_ed_m_loaded
+    dd ls_en_ed_m_truncated
+    dd ls_en_ed_m_nodisk
+    dd ls_en_ed_m_ioerr
+    dd ls_en_ed_m_saved
+    dd ls_en_ed_m_saveas
+    dd ls_en_ed_m_cancel
+    dd ls_en_ed_m_unsaved
+    dd ls_en_ed_m_full
+    dd ls_en_ed_m_moved
+    dd ls_en_ed_m_ins
+    dd ls_en_ed_m_ovr
+    dd ls_en_ed_m_typed
+    dd ls_en_ed_m_deleted
+    dd ls_en_dr_title
+    dd ls_en_dr_keys1
+    dd ls_en_dr_keys2
+    dd ls_en_dr_s_pos
+    dd ls_en_dr_s_brush
+    dd ls_en_dr_s_penup
+    dd ls_en_dr_s_pendown
+    dd ls_en_dr_s_line
+    dd ls_en_dr_s_rect
+    dd ls_en_dr_m_help
+    dd ls_en_dr_m_penup
+    dd ls_en_dr_m_pendown
+    dd ls_en_dr_m_brush
+    dd ls_en_dr_m_brushset
+    dd ls_en_dr_m_mark
+    dd ls_en_dr_m_drawn
+    dd ls_en_dr_m_filled
+    dd ls_en_dr_m_cleared
+    dd ls_en_fb_title
+    dd ls_en_fb_src_disk
+    dd ls_en_fb_src_rom
+    dd ls_en_fb_in
+    dd ls_en_fb_tag_app
+    dd ls_en_fb_help
+    dd ls_en_fb_nfiles
+    dd ls_en_fb_anykey
+    dd ls_en_fb_confirm
+    dd ls_en_ld_m_enoent
+    dd ls_en_ld_m_eformat
+    dd ls_en_ld_m_ebig
+    dd ls_en_ld_m_ebusy
+    dd ls_en_ld_m_eproc
+    dd ls_en_ld_m_enomem
+    dd ls_en_proc_full
+    dd ls_en_fs_msg_formatted
+    dd ls_en_fs_msg_foreign
+    dd ls_en_sh_m_redir
+    dd ls_en_sh_m_pipe
+    dd ls_en_sh_m_nofile
+    dd ls_en_sh_m_wfail
+    dd ls_en_sh_m_trunc
+    dd ls_en_bat_m_stopped
+    dd ls_en_commands
 ls_la:
     dd ls_la_banner
     dd ls_la_prompt
@@ -108,6 +274,89 @@ ls_la:
     dd ls_la_fe_full
     dd ls_la_fe_isdir
     dd ls_la_fe_nofd
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
+    dd 0
 ls_tlh:
     dd ls_tlh_banner
     dd ls_tlh_prompt
@@ -141,6 +390,89 @@ ls_tlh:
     dd ls_tlh_fe_full
     dd ls_tlh_fe_isdir
     dd ls_tlh_fe_nofd
+    dd ls_tlh_calc_banner
+    dd ls_tlh_calc_help
+    dd ls_tlh_calc_errpre
+    dd ls_tlh_calc_e_syntax
+    dd ls_tlh_calc_e_overflow
+    dd ls_tlh_calc_e_large
+    dd ls_tlh_calc_e_div0
+    dd ls_tlh_calc_cleared
+    dd ls_tlh_sci_banner
+    dd ls_tlh_sci_help
+    dd ls_tlh_sci_e_domain
+    dd ls_tlh_mx_banner
+    dd ls_tlh_mx_help
+    dd ls_tlh_mx_m_none
+    dd ls_tlh_mx_e_size
+    dd ls_tlh_mx_e_square
+    dd ls_tlh_mx_e_singular
+    dd ls_tlh_mx_e_ragged
+    dd ls_tlh_mx_e_big
+    dd ls_tlh_mx_e_complex
+    dd ls_tlh_mx_e_undef
+    dd ls_tlh_ed_s_noname
+    dd ls_tlh_ed_s_mod
+    dd ls_tlh_ed_s_keys
+    dd ls_tlh_ed_m_new
+    dd ls_tlh_ed_m_newfile
+    dd ls_tlh_ed_m_loaded
+    dd ls_tlh_ed_m_truncated
+    dd ls_tlh_ed_m_nodisk
+    dd ls_tlh_ed_m_ioerr
+    dd ls_tlh_ed_m_saved
+    dd ls_tlh_ed_m_saveas
+    dd ls_tlh_ed_m_cancel
+    dd ls_tlh_ed_m_unsaved
+    dd ls_tlh_ed_m_full
+    dd ls_tlh_ed_m_moved
+    dd ls_tlh_ed_m_ins
+    dd ls_tlh_ed_m_ovr
+    dd ls_tlh_ed_m_typed
+    dd ls_tlh_ed_m_deleted
+    dd ls_tlh_dr_title
+    dd ls_tlh_dr_keys1
+    dd ls_tlh_dr_keys2
+    dd ls_tlh_dr_s_pos
+    dd ls_tlh_dr_s_brush
+    dd ls_tlh_dr_s_penup
+    dd ls_tlh_dr_s_pendown
+    dd ls_tlh_dr_s_line
+    dd ls_tlh_dr_s_rect
+    dd ls_tlh_dr_m_help
+    dd ls_tlh_dr_m_penup
+    dd ls_tlh_dr_m_pendown
+    dd ls_tlh_dr_m_brush
+    dd ls_tlh_dr_m_brushset
+    dd ls_tlh_dr_m_mark
+    dd ls_tlh_dr_m_drawn
+    dd ls_tlh_dr_m_filled
+    dd ls_tlh_dr_m_cleared
+    dd ls_tlh_fb_title
+    dd ls_tlh_fb_src_disk
+    dd ls_tlh_fb_src_rom
+    dd ls_tlh_fb_in
+    dd ls_tlh_fb_tag_app
+    dd ls_tlh_fb_help
+    dd ls_tlh_fb_nfiles
+    dd ls_tlh_fb_anykey
+    dd ls_tlh_fb_confirm
+    dd ls_tlh_ld_m_enoent
+    dd ls_tlh_ld_m_eformat
+    dd ls_tlh_ld_m_ebig
+    dd ls_tlh_ld_m_ebusy
+    dd ls_tlh_ld_m_eproc
+    dd ls_tlh_ld_m_enomem
+    dd ls_tlh_proc_full
+    dd ls_tlh_fs_msg_formatted
+    dd ls_tlh_fs_msg_foreign
+    dd ls_tlh_sh_m_redir
+    dd ls_tlh_sh_m_pipe
+    dd ls_tlh_sh_m_nofile
+    dd ls_tlh_sh_m_wfail
+    dd ls_tlh_sh_m_trunc
+    dd ls_tlh_bat_m_stopped
+    dd ls_tlh_commands
 ls_en_banner db 'Squirrel-OS/2', 0
 ls_en_prompt db '> ', 0
 ls_en_files db 'Files:', 0
@@ -173,6 +505,89 @@ ls_en_fe_io db 'Disk error', 0
 ls_en_fe_full db 'Disk full', 0
 ls_en_fe_isdir db 'Is a directory', 0
 ls_en_fe_nofd db 'Too many open files', 0
+ls_en_calc_banner db 66, 97, 115, 105, 99, 32, 67, 97, 108, 99, 117, 108, 97, 116, 111, 114, 32, 40, 69, 115, 99, 32, 116, 111, 32, 101, 120, 105, 116, 41, 10, 0
+ls_en_calc_help db 73, 110, 116, 101, 103, 101, 114, 115, 58, 32, 43, 32, 45, 32, 42, 32, 47, 32, 40, 32, 41, 32, 32, 112, 101, 114, 99, 101, 110, 116, 58, 32, 49, 48, 48, 32, 43, 32, 49, 53, 37, 32, 32, 50, 48, 48, 32, 42, 32, 49, 53, 37, 32, 32, 50, 48, 48, 32, 37, 32, 49, 53, 10, 97, 110, 115, 32, 61, 32, 108, 97, 115, 116, 32, 114, 101, 115, 117, 108, 116, 59, 32, 115, 116, 97, 114, 116, 32, 119, 105, 116, 104, 32, 97, 110, 32, 111, 112, 101, 114, 97, 116, 111, 114, 32, 116, 111, 32, 99, 111, 110, 116, 105, 110, 117, 101, 32, 102, 114, 111, 109, 32, 105, 116, 32, 40, 42, 32, 50, 41, 10, 67, 111, 109, 109, 97, 110, 100, 115, 58, 32, 99, 108, 101, 97, 114, 32, 32, 104, 105, 115, 116, 32, 32, 113, 10, 0
+ls_en_calc_errpre db 'Error: ', 0
+ls_en_calc_e_syntax db 'syntax at column ', 0
+ls_en_calc_e_overflow db 'overflow', 0
+ls_en_calc_e_large db 'number too large', 0
+ls_en_calc_e_div0 db 'division by zero', 0
+ls_en_calc_cleared db 97, 110, 115, 32, 99, 108, 101, 97, 114, 101, 100, 10, 0
+ls_en_sci_banner db 83, 99, 105, 101, 110, 116, 105, 102, 105, 99, 32, 67, 97, 108, 99, 117, 108, 97, 116, 111, 114, 10, 0
+ls_en_sci_help db 78, 117, 109, 98, 101, 114, 115, 32, 108, 105, 107, 101, 32, 50, 46, 53, 32, 111, 114, 32, 54, 46, 48, 50, 101, 50, 51, 59, 32, 43, 32, 45, 32, 42, 32, 47, 32, 94, 32, 40, 32, 41, 59, 32, 112, 105, 32, 101, 32, 97, 110, 115, 10, 115, 105, 110, 32, 99, 111, 115, 32, 116, 97, 110, 32, 97, 115, 105, 110, 32, 97, 99, 111, 115, 32, 97, 116, 97, 110, 32, 115, 113, 114, 116, 32, 108, 110, 32, 108, 111, 103, 32, 101, 120, 112, 32, 97, 98, 115, 10, 100, 101, 103, 32, 47, 32, 114, 97, 100, 32, 115, 119, 105, 116, 99, 104, 32, 97, 110, 103, 108, 101, 32, 109, 111, 100, 101, 59, 32, 113, 32, 111, 114, 32, 69, 115, 99, 32, 113, 117, 105, 116, 115, 10, 0
+ls_en_sci_e_domain db 'outside the function domain', 0
+ls_en_mx_banner db 77, 97, 116, 114, 105, 120, 32, 67, 97, 108, 99, 117, 108, 97, 116, 111, 114, 10, 0
+ls_en_mx_help db 65, 32, 61, 32, 91, 49, 32, 50, 59, 32, 51, 32, 52, 93, 32, 100, 101, 102, 105, 110, 101, 115, 32, 65, 32, 40, 65, 45, 90, 44, 32, 117, 112, 32, 116, 111, 32, 54, 120, 54, 41, 59, 32, 97, 110, 115, 32, 104, 111, 108, 100, 115, 32, 116, 104, 101, 32, 108, 97, 115, 116, 32, 114, 101, 115, 117, 108, 116, 10, 43, 32, 45, 32, 42, 44, 32, 110, 117, 109, 98, 101, 114, 32, 42, 32, 65, 44, 32, 100, 101, 116, 32, 65, 44, 32, 116, 114, 97, 110, 115, 32, 65, 44, 32, 105, 110, 118, 32, 65, 44, 32, 40, 32, 41, 59, 32, 108, 105, 115, 116, 44, 32, 99, 108, 101, 97, 114, 44, 32, 113, 32, 111, 114, 32, 69, 115, 99, 10, 0
+ls_en_mx_m_none db 78, 111, 32, 109, 97, 116, 114, 105, 99, 101, 115, 32, 100, 101, 102, 105, 110, 101, 100, 10, 0
+ls_en_mx_e_size db 'matrix sizes do not match', 0
+ls_en_mx_e_square db 'matrix is not square', 0
+ls_en_mx_e_singular db 'matrix is singular', 0
+ls_en_mx_e_ragged db 'rows have different lengths', 0
+ls_en_mx_e_big db 'larger than 6x6', 0
+ls_en_mx_e_complex db 'expression too complex', 0
+ls_en_mx_e_undef db 'undefined matrix', 0
+ls_en_ed_s_noname db '(untitled)', 0
+ls_en_ed_s_mod db ' [modified]', 0
+ls_en_ed_s_keys db 'Ctrl+S save  Esc quit', 0
+ls_en_ed_m_new db 'New buffer. Ctrl+S or F2 saves, Esc quits.', 0
+ls_en_ed_m_newfile db 'New file (not on disk yet).', 0
+ls_en_ed_m_loaded db 'Loaded.', 0
+ls_en_ed_m_truncated db 'File larger than 16384 bytes: only the start was loaded.', 0
+ls_en_ed_m_nodisk db 'No data disk: editing in memory only, cannot save.', 0
+ls_en_ed_m_ioerr db 'Disk error.', 0
+ls_en_ed_m_saved db 'Saved.', 0
+ls_en_ed_m_saveas db 'Save as (Esc cancels): ', 0
+ls_en_ed_m_cancel db 'Cancelled.', 0
+ls_en_ed_m_unsaved db 'Unsaved changes: s = save and quit, d = discard, any other key = cancel', 0
+ls_en_ed_m_full db 'Buffer full (16384 bytes).', 0
+ls_en_ed_m_moved db 'Moved.', 0
+ls_en_ed_m_ins db 'Insert mode.', 0
+ls_en_ed_m_ovr db 'Overwrite mode.', 0
+ls_en_ed_m_typed db 'Typed ', 0
+ls_en_ed_m_deleted db 'Deleted ', 0
+ls_en_dr_title db ' Draw - ASCII canvas 64x18', 0
+ls_en_dr_keys1 db 'Arrows move  Space plot  x/Bksp erase  p pen up/down  b brush  c clear', 0
+ls_en_dr_keys2 db 'l line, r rectangle (press at both corners)  f fill  Ctrl+S/F2 save  Esc quit', 0
+ls_en_dr_s_pos db 'Pos ', 0
+ls_en_dr_s_brush db "  Brush '", 0
+ls_en_dr_s_penup db '  Pen up', 0
+ls_en_dr_s_pendown db '  Pen DOWN', 0
+ls_en_dr_s_line db '  [line: move, press l]  ', 0
+ls_en_dr_s_rect db '  [rect: move, press r]  ', 0
+ls_en_dr_m_help db 'Ready.', 0
+ls_en_dr_m_penup db 'Pen up.', 0
+ls_en_dr_m_pendown db 'Pen down: moving draws.', 0
+ls_en_dr_m_brush db 'Type the new brush character (Esc cancels).', 0
+ls_en_dr_m_brushset db 'Brush set.', 0
+ls_en_dr_m_mark db 'Corner marked. Move and press the same key again.', 0
+ls_en_dr_m_drawn db 'Drawn.', 0
+ls_en_dr_m_filled db 'Filled.', 0
+ls_en_dr_m_cleared db 'Canvas cleared.', 0
+ls_en_fb_title db 'Files', 0
+ls_en_fb_src_disk db ' (data disk)', 0
+ls_en_fb_src_rom db ' (built-in, no data disk)', 0
+ls_en_fb_in db ' in ', 0
+ls_en_fb_tag_app db '[app]', 0
+ls_en_fb_help db 10, 65, 114, 114, 111, 119, 115, 32, 80, 103, 85, 112, 47, 80, 103, 68, 110, 32, 72, 111, 109, 101, 47, 69, 110, 100, 32, 32, 69, 110, 116, 101, 114, 58, 32, 111, 112, 101, 110, 32, 32, 118, 58, 32, 118, 105, 101, 119, 32, 32, 101, 58, 32, 101, 100, 105, 116, 32, 32, 100, 58, 32, 100, 101, 108, 101, 116, 101, 32, 32, 69, 115, 99, 10, 0
+ls_en_fb_nfiles db ' entries', 0
+ls_en_fb_anykey db 10, 45, 45, 32, 112, 114, 101, 115, 115, 32, 97, 110, 121, 32, 107, 101, 121, 32, 45, 45, 0
+ls_en_fb_confirm db 10, 68, 101, 108, 101, 116, 101, 32, 116, 104, 105, 115, 32, 101, 110, 116, 114, 121, 63, 32, 40, 121, 47, 110, 41, 0
+ls_en_ld_m_enoent db 85, 110, 107, 110, 111, 119, 110, 32, 99, 111, 109, 109, 97, 110, 100, 32, 111, 114, 32, 112, 114, 111, 103, 114, 97, 109, 10, 0
+ls_en_ld_m_eformat db 78, 111, 116, 32, 97, 32, 112, 114, 111, 103, 114, 97, 109, 32, 40, 98, 97, 100, 32, 83, 81, 88, 47, 69, 76, 70, 32, 104, 101, 97, 100, 101, 114, 41, 10, 0
+ls_en_ld_m_ebig db 80, 114, 111, 103, 114, 97, 109, 32, 116, 111, 111, 32, 98, 105, 103, 32, 102, 111, 114, 32, 116, 104, 101, 32, 54, 52, 32, 75, 66, 32, 112, 114, 111, 103, 114, 97, 109, 32, 97, 114, 101, 97, 10, 0
+ls_en_ld_m_ebusy db 65, 110, 111, 116, 104, 101, 114, 32, 112, 114, 111, 103, 114, 97, 109, 32, 105, 115, 32, 115, 116, 105, 108, 108, 32, 114, 117, 110, 110, 105, 110, 103, 10, 0
+ls_en_ld_m_eproc db 84, 111, 111, 32, 109, 97, 110, 121, 32, 112, 114, 111, 99, 101, 115, 115, 101, 115, 10, 0
+ls_en_ld_m_enomem db 78, 111, 116, 32, 101, 110, 111, 117, 103, 104, 32, 109, 101, 109, 111, 114, 121, 32, 116, 111, 32, 108, 111, 97, 100, 32, 116, 104, 101, 32, 112, 114, 111, 103, 114, 97, 109, 10, 0
+ls_en_proc_full db 84, 111, 111, 32, 109, 97, 110, 121, 32, 112, 114, 111, 99, 101, 115, 115, 101, 115, 10, 0
+ls_en_fs_msg_formatted db 68, 97, 116, 97, 32, 100, 105, 115, 107, 32, 119, 97, 115, 32, 98, 108, 97, 110, 107, 58, 32, 102, 111, 114, 109, 97, 116, 116, 101, 100, 32, 83, 81, 70, 83, 32, 97, 110, 100, 32, 97, 100, 100, 101, 100, 32, 116, 104, 101, 32, 98, 117, 105, 108, 116, 45, 105, 110, 32, 102, 105, 108, 101, 115, 46, 10, 0
+ls_en_fs_msg_foreign db 68, 97, 116, 97, 32, 100, 105, 115, 107, 32, 105, 115, 32, 110, 111, 116, 32, 83, 81, 70, 83, 59, 32, 116, 121, 112, 101, 32, 102, 111, 114, 109, 97, 116, 32, 116, 111, 32, 101, 114, 97, 115, 101, 32, 105, 116, 46, 10, 0
+ls_en_sh_m_redir db 82, 101, 100, 105, 114, 101, 99, 116, 105, 111, 110, 32, 110, 101, 101, 100, 115, 32, 97, 32, 102, 105, 108, 101, 32, 110, 97, 109, 101, 10, 0
+ls_en_sh_m_pipe db 65, 32, 112, 105, 112, 101, 32, 110, 101, 101, 100, 115, 32, 97, 32, 99, 111, 109, 109, 97, 110, 100, 32, 111, 110, 32, 98, 111, 116, 104, 32, 115, 105, 100, 101, 115, 10, 0
+ls_en_sh_m_nofile db 'Cannot read ', 0
+ls_en_sh_m_wfail db 'Cannot write ', 0
+ls_en_sh_m_trunc db 40, 111, 117, 116, 112, 117, 116, 32, 99, 117, 116, 32, 97, 116, 32, 51, 50, 32, 75, 66, 41, 10, 0
+ls_en_bat_m_stopped db 66, 97, 116, 99, 104, 32, 115, 116, 111, 112, 112, 101, 100, 10, 0
+ls_en_commands db 67, 111, 109, 109, 97, 110, 100, 115, 58, 32, 108, 115, 32, 124, 32, 99, 97, 116, 32, 60, 102, 62, 32, 124, 32, 114, 117, 110, 32, 60, 97, 112, 112, 124, 102, 105, 108, 101, 62, 32, 124, 32, 112, 117, 116, 32, 60, 102, 62, 32, 60, 116, 101, 120, 116, 62, 32, 124, 32, 109, 107, 32, 60, 102, 62, 32, 124, 32, 114, 109, 32, 60, 102, 62, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 109, 118, 32, 60, 102, 62, 32, 60, 110, 101, 119, 62, 32, 124, 32, 109, 107, 100, 105, 114, 32, 60, 100, 62, 32, 124, 32, 99, 100, 32, 60, 100, 62, 32, 124, 32, 112, 119, 100, 32, 124, 32, 101, 99, 104, 111, 32, 124, 32, 98, 97, 116, 99, 104, 32, 60, 102, 62, 32, 124, 32, 102, 111, 114, 109, 97, 116, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 112, 115, 32, 124, 32, 100, 105, 115, 107, 32, 124, 32, 109, 101, 109, 32, 124, 32, 100, 101, 118, 105, 99, 101, 115, 32, 124, 32, 108, 97, 110, 103, 32, 60, 101, 110, 124, 108, 97, 124, 116, 108, 104, 62, 10, 84, 101, 115, 116, 115, 58, 32, 115, 121, 115, 116, 101, 115, 116, 32, 124, 32, 112, 114, 111, 99, 116, 101, 115, 116, 32, 124, 32, 98, 108, 107, 116, 101, 115, 116, 32, 124, 32, 102, 115, 116, 101, 115, 116, 32, 124, 32, 109, 101, 109, 116, 101, 115, 116, 32, 124, 32, 107, 101, 121, 115, 10, 65, 112, 112, 115, 58, 32, 102, 105, 108, 101, 115, 44, 32, 99, 97, 108, 99, 44, 32, 115, 99, 105, 44, 32, 109, 97, 116, 114, 105, 120, 44, 32, 101, 100, 105, 116, 44, 32, 118, 101, 100, 105, 116, 44, 32, 100, 114, 97, 119, 32, 32, 32, 40, 112, 108, 97, 110, 110, 101, 100, 58, 32, 103, 114, 97, 112, 104, 44, 32, 100, 105, 102, 102, 44, 32, 116, 111, 112, 111, 41, 10, 0
 ls_la_banner db 'Sciurus-OS/2', 0
 ls_la_prompt db '> ', 0
 ls_la_files db 'Tabulae:', 0
@@ -237,3 +652,86 @@ ls_tlh_fe_io db 72, 101, 119, 32, 81, 97, 129, 0
 ls_tlh_fe_full db 'Hew teb', 0
 ls_tlh_fe_isdir db 129, 73, 131, 32, 112, 97, 39, 32, 39, 111, 72, 0
 ls_tlh_fe_nofd db 116, 101, 121, 119, 73, 39, 109, 101, 121, 32, 112, 111, 83, 109, 111, 72, 108, 117, 39, 98, 111, 129, 32, 108, 97, 119, 39, 113, 117, 39, 0
+ls_tlh_calc_banner db 109, 73, 39, 32, 83, 73, 109, 119, 73, 39, 32, 40, 69, 115, 99, 58, 32, 109, 101, 106, 41, 10, 0
+ls_tlh_calc_help db 109, 73, 39, 109, 101, 121, 32, 110, 97, 81, 58, 32, 43, 32, 45, 32, 42, 32, 47, 32, 40, 32, 41, 32, 32, 118, 97, 131, 118, 73, 39, 58, 32, 49, 48, 48, 32, 43, 32, 49, 53, 37, 32, 32, 50, 48, 48, 32, 42, 32, 49, 53, 37, 32, 32, 50, 48, 48, 32, 37, 32, 49, 53, 10, 97, 110, 115, 58, 32, 109, 73, 39, 32, 81, 97, 118, 46, 32, 109, 73, 39, 32, 81, 97, 118, 32, 68, 97, 83, 73, 109, 32, 68, 97, 110, 101, 72, 128, 117, 129, 44, 32, 42, 32, 50, 32, 121, 73, 129, 73, 131, 10, 114, 97, 39, 109, 101, 121, 58, 32, 99, 108, 101, 97, 114, 32, 32, 104, 105, 115, 116, 32, 32, 113, 10, 0
+ls_tlh_calc_errpre db 81, 97, 129, 58, 32, 0
+ls_tlh_calc_e_syntax db 112, 97, 98, 32, 81, 97, 129, 44, 32, 130, 117, 131, 32, 0
+ls_tlh_calc_e_overflow db 131, 111, 121, 32, 116, 73, 110, 0
+ls_tlh_calc_e_large db 109, 73, 39, 32, 131, 111, 121, 32, 116, 73, 110, 0
+ls_tlh_calc_e_div0 db 112, 97, 129, 118, 97, 68, 32, 119, 97, 118, 108, 117, 39, 0
+ls_tlh_calc_cleared db 97, 110, 115, 32, 81, 97, 119, 39, 108, 117, 39, 10, 0
+ls_tlh_sci_banner db 81, 101, 68, 32, 109, 73, 39, 32, 83, 73, 109, 119, 73, 39, 10, 0
+ls_tlh_sci_help db 109, 73, 39, 109, 101, 121, 58, 32, 50, 46, 53, 32, 112, 97, 129, 32, 54, 46, 48, 50, 101, 50, 51, 59, 32, 43, 32, 45, 32, 42, 32, 47, 32, 94, 32, 40, 32, 41, 59, 32, 112, 105, 32, 101, 32, 97, 110, 115, 10, 115, 105, 110, 32, 99, 111, 115, 32, 116, 97, 110, 32, 97, 115, 105, 110, 32, 97, 99, 111, 115, 32, 97, 116, 97, 110, 32, 115, 113, 114, 116, 32, 108, 110, 32, 108, 111, 103, 32, 101, 120, 112, 32, 97, 98, 115, 10, 100, 101, 103, 32, 47, 32, 114, 97, 100, 58, 32, 128, 111, 72, 59, 32, 113, 32, 112, 97, 129, 32, 69, 115, 99, 58, 32, 109, 101, 106, 10, 0
+ls_tlh_sci_e_domain db "mI' lo'laHbe'", 0
+ls_tlh_mx_banner db 109, 73, 39, 32, 129, 111, 109, 32, 83, 73, 109, 119, 73, 39, 10, 0
+ls_tlh_mx_help db 65, 32, 61, 32, 91, 49, 32, 50, 59, 32, 51, 32, 52, 93, 58, 32, 65, 32, 121, 73, 128, 101, 110, 109, 111, 72, 32, 40, 65, 45, 90, 44, 32, 54, 120, 54, 32, 131, 111, 121, 32, 116, 73, 110, 98, 101, 39, 41, 59, 32, 97, 110, 115, 58, 32, 109, 73, 39, 32, 129, 111, 109, 32, 81, 97, 118, 10, 43, 32, 45, 32, 42, 44, 32, 109, 73, 39, 32, 42, 32, 65, 44, 32, 100, 101, 116, 32, 65, 44, 32, 116, 114, 97, 110, 115, 32, 65, 44, 32, 105, 110, 118, 32, 65, 44, 32, 40, 32, 41, 59, 32, 108, 105, 115, 116, 44, 32, 99, 108, 101, 97, 114, 44, 32, 113, 32, 112, 97, 129, 32, 69, 115, 99, 10, 0
+ls_tlh_mx_m_none db 109, 73, 39, 32, 129, 111, 109, 32, 116, 117, 39, 108, 117, 39, 98, 101, 39, 10, 0
+ls_tlh_mx_e_size db 109, 73, 39, 32, 129, 111, 109, 109, 101, 121, 32, 116, 73, 110, 32, 114, 97, 112, 98, 101, 39, 0
+ls_tlh_mx_e_square db 109, 73, 39, 32, 129, 111, 109, 32, 114, 101, 68, 109, 101, 121, 32, 114, 97, 112, 98, 101, 39, 0
+ls_tlh_mx_e_singular db 109, 73, 39, 32, 129, 111, 109, 32, 119, 97, 118, 108, 97, 72, 98, 101, 39, 108, 117, 39, 0
+ls_tlh_mx_e_ragged db 131, 101, 129, 109, 101, 121, 32, 116, 73, 113, 32, 114, 97, 112, 98, 101, 39, 0
+ls_tlh_mx_e_big db 54, 120, 54, 32, 131, 111, 121, 32, 116, 73, 110, 0
+ls_tlh_mx_e_complex db 131, 111, 121, 32, 81, 97, 131, 0
+ls_tlh_mx_e_undef db 109, 73, 39, 32, 129, 111, 109, 32, 83, 111, 118, 98, 101, 39, 108, 117, 39, 0
+ls_tlh_ed_s_noname db 40, 112, 111, 130, 32, 72, 117, 131, 41, 0
+ls_tlh_ed_s_mod db 32, 91, 128, 111, 72, 108, 117, 39, 112, 117, 39, 93, 0
+ls_tlh_ed_s_keys db 67, 116, 114, 108, 43, 83, 32, 128, 111, 113, 32, 32, 69, 115, 99, 32, 109, 101, 106, 0
+ls_tlh_ed_m_new db 116, 101, 121, 119, 73, 39, 32, 128, 117, 39, 46, 32, 67, 116, 114, 108, 43, 83, 32, 112, 97, 129, 32, 70, 50, 58, 32, 128, 111, 113, 46, 32, 69, 115, 99, 58, 32, 109, 101, 106, 46, 0
+ls_tlh_ed_m_newfile db 116, 101, 121, 119, 73, 39, 32, 128, 117, 39, 32, 40, 72, 101, 119, 32, 68, 97, 113, 32, 116, 117, 39, 108, 117, 39, 98, 101, 39, 41, 46, 0
+ls_tlh_ed_m_loaded db "poSmoHlu'pu'.", 0
+ls_tlh_ed_m_truncated db 116, 101, 121, 119, 73, 39, 32, 131, 111, 121, 32, 116, 73, 110, 32, 40, 49, 54, 51, 56, 52, 32, 68, 117, 130, 41, 58, 32, 116, 97, 129, 32, 110, 101, 72, 32, 112, 111, 83, 109, 111, 72, 108, 117, 39, 112, 117, 39, 46, 0
+ls_tlh_ed_m_nodisk db 68, 101, 39, 32, 72, 101, 119, 32, 116, 117, 39, 108, 117, 39, 98, 101, 39, 58, 32, 113, 97, 119, 72, 97, 113, 68, 97, 113, 32, 110, 101, 72, 32, 128, 111, 72, 108, 117, 39, 59, 32, 128, 111, 113, 108, 97, 72, 98, 101, 39, 108, 117, 39, 46, 0
+ls_tlh_ed_m_ioerr db 72, 101, 119, 32, 81, 97, 129, 46, 0
+ls_tlh_ed_m_saved db 128, 111, 113, 108, 117, 39, 112, 117, 39, 46, 0
+ls_tlh_ed_m_saveas db 112, 111, 130, 32, 128, 117, 39, 32, 40, 69, 115, 99, 58, 32, 113, 73, 108, 41, 58, 32, 0
+ls_tlh_ed_m_cancel db "qIllu'pu'.", 0
+ls_tlh_ed_m_unsaved db 128, 111, 72, 109, 101, 121, 32, 128, 111, 113, 108, 117, 39, 98, 101, 39, 112, 117, 39, 58, 32, 115, 32, 61, 32, 128, 111, 113, 32, 39, 101, 106, 32, 109, 101, 106, 44, 32, 100, 32, 61, 32, 119, 111, 68, 44, 32, 108, 97, 131, 32, 108, 101, 81, 32, 61, 32, 113, 73, 108, 0
+ls_tlh_ed_m_full db "teywI' teb (16384).", 0
+ls_tlh_ed_m_moved db "vIHlu'pu'.", 0
+ls_tlh_ed_m_ins db 128, 101, 108, 32, 68, 111, 131, 46, 0
+ls_tlh_ed_m_ovr db 116, 97, 109, 32, 68, 111, 131, 46, 0
+ls_tlh_ed_m_typed db 129, 73, 131, 32, 0
+ls_tlh_ed_m_deleted db "Qaw' ", 0
+ls_tlh_dr_title db 32, 109, 73, 108, 108, 111, 129, 32, 128, 101, 110, 109, 111, 72, 119, 73, 39, 32, 45, 32, 65, 83, 67, 73, 73, 32, 54, 52, 120, 49, 56, 0
+ls_tlh_dr_keys1 db 65, 114, 114, 111, 119, 115, 58, 32, 118, 73, 72, 32, 32, 83, 112, 97, 99, 101, 58, 32, 68, 97, 113, 32, 32, 120, 47, 66, 107, 115, 112, 58, 32, 81, 97, 119, 39, 32, 32, 112, 58, 32, 129, 73, 131, 119, 73, 39, 32, 68, 117, 130, 47, 98, 73, 130, 32, 32, 98, 58, 32, 130, 117, 131, 32, 32, 99, 58, 32, 83, 97, 121, 39, 109, 111, 72, 0
+ls_tlh_dr_keys2 db 108, 58, 32, 131, 101, 129, 32, 32, 114, 58, 32, 114, 101, 68, 32, 108, 111, 83, 32, 40, 128, 97, 39, 32, 68, 97, 113, 41, 32, 32, 102, 58, 32, 116, 101, 98, 32, 32, 67, 116, 114, 108, 43, 83, 47, 70, 50, 58, 32, 128, 111, 113, 32, 32, 69, 115, 99, 58, 32, 109, 101, 106, 0
+ls_tlh_dr_s_pos db 'Daq ', 0
+ls_tlh_dr_s_brush db 32, 32, 130, 117, 131, 32, 39, 0
+ls_tlh_dr_s_penup db 32, 32, 129, 73, 131, 119, 73, 39, 32, 68, 117, 130, 0
+ls_tlh_dr_s_pendown db 32, 32, 129, 73, 131, 119, 73, 39, 32, 98, 73, 130, 33, 0
+ls_tlh_dr_s_line db 32, 32, 91, 131, 101, 129, 58, 32, 121, 73, 118, 73, 72, 44, 32, 108, 32, 121, 73, 98, 97, 128, 93, 32, 32, 0
+ls_tlh_dr_s_rect db 32, 32, 91, 114, 101, 68, 32, 108, 111, 83, 58, 32, 121, 73, 118, 73, 72, 44, 32, 114, 32, 121, 73, 98, 97, 128, 93, 32, 32, 0
+ls_tlh_dr_m_help db 129, 117, 72, 46, 0
+ls_tlh_dr_m_penup db 129, 73, 131, 119, 73, 39, 32, 68, 117, 130, 46, 0
+ls_tlh_dr_m_pendown db 129, 73, 131, 119, 73, 39, 32, 98, 73, 130, 58, 32, 118, 73, 72, 108, 117, 39, 128, 117, 129, 32, 129, 73, 131, 108, 117, 39, 46, 0
+ls_tlh_dr_m_brush db 130, 117, 131, 32, 128, 117, 39, 32, 121, 73, 129, 73, 131, 32, 40, 69, 115, 99, 58, 32, 113, 73, 108, 41, 46, 0
+ls_tlh_dr_m_brushset db 130, 117, 131, 32, 128, 111, 72, 108, 117, 39, 112, 117, 39, 46, 0
+ls_tlh_dr_m_mark db 68, 97, 113, 32, 129, 73, 131, 108, 117, 39, 112, 117, 39, 46, 32, 121, 73, 118, 73, 72, 32, 39, 101, 106, 32, 108, 101, 81, 32, 114, 97, 112, 32, 121, 73, 98, 97, 128, 113, 97, 39, 46, 0
+ls_tlh_dr_m_drawn db 129, 73, 131, 108, 117, 39, 112, 117, 39, 46, 0
+ls_tlh_dr_m_filled db "teblu'pu'.", 0
+ls_tlh_dr_m_cleared db "Say'moHlu'pu'.", 0
+ls_tlh_fb_title db "teywI'mey", 0
+ls_tlh_fb_src_disk db " (De' Hew)", 0
+ls_tlh_fb_src_rom db " (pat De'; De' Hew tu'lu'be')", 0
+ls_tlh_fb_in db ' - ', 0
+ls_tlh_fb_tag_app db 91, 129, 117, 110, 93, 0
+ls_tlh_fb_help db 10, 65, 114, 114, 111, 119, 115, 32, 80, 103, 85, 112, 47, 80, 103, 68, 110, 32, 72, 111, 109, 101, 47, 69, 110, 100, 32, 32, 69, 110, 116, 101, 114, 58, 32, 112, 111, 83, 109, 111, 72, 32, 32, 118, 58, 32, 108, 101, 129, 32, 32, 101, 58, 32, 128, 111, 72, 32, 32, 100, 58, 32, 81, 97, 119, 39, 32, 32, 69, 115, 99, 58, 32, 109, 101, 106, 10, 0
+ls_tlh_fb_nfiles db 32, 68, 111, 128, 0
+ls_tlh_fb_anykey db 10, 45, 45, 32, 108, 101, 81, 32, 121, 73, 98, 97, 128, 32, 45, 45, 0
+ls_tlh_fb_confirm db 10, 68, 111, 128, 118, 97, 109, 32, 68, 97, 81, 97, 119, 39, 63, 32, 40, 121, 47, 110, 41, 0
+ls_tlh_ld_m_enoent db 114, 97, 39, 32, 112, 97, 129, 32, 129, 117, 110, 32, 83, 111, 118, 98, 101, 39, 108, 117, 39, 10, 0
+ls_tlh_ld_m_eformat db 129, 117, 110, 32, 129, 97, 72, 98, 101, 39, 32, 40, 83, 81, 88, 47, 69, 76, 70, 32, 110, 97, 128, 32, 81, 73, 72, 41, 10, 0
+ls_tlh_ld_m_ebig db 129, 117, 110, 32, 131, 111, 121, 32, 116, 73, 110, 32, 40, 54, 52, 32, 75, 66, 41, 10, 0
+ls_tlh_ld_m_ebusy db 108, 97, 131, 32, 129, 117, 110, 32, 81, 97, 112, 116, 97, 72, 10, 0
+ls_tlh_ld_m_eproc db 129, 117, 110, 109, 101, 121, 32, 131, 111, 121, 32, 108, 97, 119, 39, 10, 0
+ls_tlh_ld_m_enomem db 129, 117, 110, 32, 112, 111, 83, 109, 111, 72, 109, 101, 72, 32, 113, 97, 119, 72, 97, 113, 32, 121, 97, 112, 32, 116, 117, 39, 108, 117, 39, 98, 101, 39, 10, 0
+ls_tlh_proc_full db 129, 117, 110, 109, 101, 121, 32, 131, 111, 121, 32, 108, 97, 119, 39, 10, 0
+ls_tlh_fs_msg_formatted db 68, 101, 39, 32, 72, 101, 119, 32, 128, 73, 109, 58, 32, 83, 81, 70, 83, 32, 128, 101, 114, 108, 117, 39, 32, 39, 101, 106, 32, 112, 97, 116, 32, 116, 101, 121, 119, 73, 39, 109, 101, 121, 32, 128, 101, 108, 108, 117, 39, 46, 10, 0
+ls_tlh_fs_msg_foreign db 68, 101, 39, 32, 72, 101, 119, 32, 83, 81, 70, 83, 32, 129, 97, 72, 98, 101, 39, 59, 32, 81, 97, 119, 39, 109, 101, 72, 32, 102, 111, 114, 109, 97, 116, 32, 121, 73, 129, 73, 131, 46, 10, 0
+ls_tlh_sh_m_redir db 62, 32, 112, 111, 81, 32, 116, 101, 121, 119, 73, 39, 32, 112, 111, 130, 10, 0
+ls_tlh_sh_m_pipe db 124, 32, 112, 111, 81, 32, 128, 97, 39, 32, 114, 97, 39, 10, 0
+ls_tlh_sh_m_nofile db "laDlaHbe'lu': ", 0
+ls_tlh_sh_m_wfail db 129, 73, 131, 108, 97, 72, 98, 101, 39, 108, 117, 39, 58, 32, 0
+ls_tlh_sh_m_trunc db 40, 51, 50, 32, 75, 66, 32, 68, 117, 130, 32, 112, 101, 39, 108, 117, 39, 41, 10, 0
+ls_tlh_bat_m_stopped db 114, 97, 39, 109, 101, 121, 32, 116, 101, 131, 32, 109, 101, 118, 10, 0
+ls_tlh_commands db 114, 97, 39, 109, 101, 121, 58, 32, 108, 115, 32, 124, 32, 99, 97, 116, 32, 60, 102, 62, 32, 124, 32, 114, 117, 110, 32, 60, 97, 112, 112, 124, 102, 105, 108, 101, 62, 32, 124, 32, 112, 117, 116, 32, 60, 102, 62, 32, 60, 116, 101, 120, 116, 62, 32, 124, 32, 109, 107, 32, 60, 102, 62, 32, 124, 32, 114, 109, 32, 60, 102, 62, 10, 32, 32, 32, 32, 32, 32, 32, 32, 109, 118, 32, 60, 102, 62, 32, 60, 110, 101, 119, 62, 32, 124, 32, 109, 107, 100, 105, 114, 32, 60, 100, 62, 32, 124, 32, 99, 100, 32, 60, 100, 62, 32, 124, 32, 112, 119, 100, 32, 124, 32, 101, 99, 104, 111, 32, 124, 32, 98, 97, 116, 99, 104, 32, 60, 102, 62, 32, 124, 32, 102, 111, 114, 109, 97, 116, 10, 32, 32, 32, 32, 32, 32, 32, 32, 112, 115, 32, 124, 32, 100, 105, 115, 107, 32, 124, 32, 109, 101, 109, 32, 124, 32, 100, 101, 118, 105, 99, 101, 115, 32, 124, 32, 108, 97, 110, 103, 32, 60, 101, 110, 124, 108, 97, 124, 116, 108, 104, 62, 10, 119, 97, 72, 109, 101, 121, 58, 32, 115, 121, 115, 116, 101, 115, 116, 32, 124, 32, 112, 114, 111, 99, 116, 101, 115, 116, 32, 124, 32, 98, 108, 107, 116, 101, 115, 116, 32, 124, 32, 102, 115, 116, 101, 115, 116, 32, 124, 32, 109, 101, 109, 116, 101, 115, 116, 32, 124, 32, 107, 101, 121, 115, 10, 129, 117, 110, 109, 101, 121, 58, 32, 102, 105, 108, 101, 115, 44, 32, 99, 97, 108, 99, 44, 32, 115, 99, 105, 44, 32, 109, 97, 116, 114, 105, 120, 44, 32, 101, 100, 105, 116, 44, 32, 118, 101, 100, 105, 116, 44, 32, 100, 114, 97, 119, 32, 32, 32, 40, 112, 73, 113, 58, 32, 103, 114, 97, 112, 104, 44, 32, 100, 105, 102, 102, 44, 32, 116, 111, 112, 111, 41, 10, 0

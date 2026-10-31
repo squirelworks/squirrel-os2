@@ -23,9 +23,9 @@ MX_DATA     equ 8
 
 run_matrix:
     call cls
-    mov esi, mx_banner
+    mov esi, [lstr+LS_MX_BANNER*4]
     call puts
-    mov esi, mx_help
+    mov esi, [lstr+LS_MX_HELP*4]
     call puts
     cmp byte [mx_ready], 0
     jne .prompt
@@ -55,11 +55,11 @@ run_matrix:
     call mx_line
     jnc .prompt
     fninit
-    mov esi, calc_errpre
+    mov esi, [lstr+LS_CALC_ERRPRE*4]
     call puts
     mov esi, [calc_errmsg]
     call puts
-    cmp dword [calc_errmsg], calc_e_syntax
+    lcmp calc_errmsg, LS_CALC_E_SYNTAX
     jne .errnl
     mov eax, [calc_errpos]
     sub eax, calc_line
@@ -73,7 +73,7 @@ run_matrix:
     jmp .prompt
 .clear:
     call mx_clear_all
-    mov esi, calc_cleared
+    mov esi, [lstr+LS_CALC_CLEARED*4]
     call puts
     jmp .prompt
 .list:
@@ -240,7 +240,7 @@ mx_list:
     jb .l
     test edx, edx
     jnz .out
-    mov esi, mx_m_none
+    mov esi, [lstr+LS_MX_M_NONE*4]
     call puts
 .out:
     popad
@@ -258,7 +258,7 @@ mx_alloc:
     clc
     ret
 .full:
-    mov dword [calc_errmsg], mx_e_complex
+    lset calc_errmsg, LS_MX_E_COMPLEX
     stc
     ret
 
@@ -282,11 +282,11 @@ mx_count:
     ret
 
 mx_mismatch:
-    mov dword [calc_errmsg], mx_e_size
+    lset calc_errmsg, LS_MX_E_SIZE
     stc
     ret
 mx_notsquare:
-    mov dword [calc_errmsg], mx_e_square
+    lset calc_errmsg, LS_MX_E_SQUARE
     stc
     ret
 
@@ -392,7 +392,7 @@ mx_factor:
     add eax, MX_VARS
     cmp dword [eax+MX_ROWS], 0
     jne .ok
-    mov dword [calc_errmsg], mx_e_undef
+    lset calc_errmsg, LS_MX_E_UNDEF
     stc
     ret
 .ok:
@@ -547,11 +547,11 @@ mx_literal:
     add esp, 4                  ; drop .endrow's return address
     jmp calc_syntax
 .ragged:
-    mov dword [calc_errmsg], mx_e_ragged
+    lset calc_errmsg, LS_MX_E_RAGGED
     stc
     ret
 .toobig2:
-    mov dword [calc_errmsg], mx_e_big
+    lset calc_errmsg, LS_MX_E_BIG
     stc
     ret
 .bad:
@@ -563,7 +563,7 @@ mx_literal:
     ret
 .toobig:
     fstp st0
-    mov dword [calc_errmsg], mx_e_big
+    lset calc_errmsg, LS_MX_E_BIG
     stc
     ret
 
@@ -800,7 +800,7 @@ mx_inv:
     ret
 
 mx_singular:
-    mov dword [calc_errmsg], mx_e_singular
+    lset calc_errmsg, LS_MX_E_SINGULAR
     stc
     ret
 
@@ -1008,24 +1008,15 @@ mx_eliminate:
     pop eax
     ret
 
-mx_banner db 'Matrix Calculator', 10, 0
 mx_help db 'A = [1 2; 3 4] defines A (A-Z, up to 6x6); ans holds the last result', 10
         db '+ - *, number * A, det A, trans A, inv A, ( ); list, clear, q or Esc', 10, 0
 mx_help_len equ $ - mx_help - 1
 mx_prompt db 'matrix> ', 0
 mx_m_eq db ' = ', 0
-mx_m_none db 'No matrices defined', 10, 0
 mx_kw_list db 'list', 0
 mx_kw_det db 'det', 0
 mx_kw_trans db 'trans', 0
 mx_kw_inv db 'inv', 0
-mx_e_size db 'matrix sizes do not match', 0
-mx_e_square db 'matrix is not square', 0
-mx_e_singular db 'matrix is singular', 0
-mx_e_ragged db 'rows have different lengths', 0
-mx_e_big db 'larger than 6x6', 0
-mx_e_complex db 'expression too complex', 0
-mx_e_undef db 'undefined matrix', 0
 
 align 8
 mx_eps dq 1.0e-12

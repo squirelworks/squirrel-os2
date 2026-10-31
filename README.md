@@ -66,7 +66,15 @@ Notes: `documentation/releases/1.0.0.md` (patches: `1.0.1.md`, `1.0.2.md`, `1.0.
   Latin letters map to the nearest Klingon letter (`d`→`D`, `k`/`c`→`q`,
   `x`→`Q`, `f`→`v`, `z`→`S`), so English text shows in pIqaD too.
 - `tools/mkstrings.py` turns `tlh`, `ch`, `gh` and `ng` in the Klingon
-  strings into one glyph each (0x80-0x83).
+  strings into one glyph each (0x80-0x83). Text in `{braces}` (command
+  names such as `{echo}`) keeps its Latin letters.
+- The whole system speaks Klingon, not just the shell: the banner's command
+  list, the loader and file-system messages, and the UI of calc, sci,
+  matrix, edit/vedit, draw and the file browser come from
+  `localization/*/strings.txt` (`\n` in a value is a newline). Command
+  words (`q`, `clear`, `det`, `y/n`) stay as they are. Latin has no
+  translations for these yet and falls back to English. The built-in
+  `help`, `calc`, `sci` and `matrix` files keep their English text.
 - The kernel starts in Klingon. Build with `nasm -DDEFAULT_LANG_EN` to start
   in English; `tools/regress.sh` does, so its English checks still apply.
   `lang en` switches at run time (the letters stay alien).
@@ -84,9 +92,14 @@ tools/build.sh && tools/regress.sh
 git push --force-with-lease origin klingon-font
 ```
 
-The joke touches only `kernel/klingon.asm`, `kernel/klingon-font.inc`,
+The joke touches `kernel/klingon.asm`, `kernel/klingon-font.inc`,
 `tools/klingon-font.py`, a few lines in `kernel/pm.asm` (font load and
-default language), `tools/mkstrings.py` (digraphs), the `lang-tlh` check
-and `nasm -DDEFAULT_LANG_EN` in `tools/regress.sh`, and this README. New
-Klingon strings in `localization/tlh/strings.txt` pick up the digraph
-glyphs automatically.
+default language), `tools/mkstrings.py` (digraphs, `{}` and `\n`), the
+`lang-tlh` check and `nasm -DDEFAULT_LANG_EN` in `tools/regress.sh`, this
+README, and the app texts: the keys after the "Klingon branch" comment in
+`localization/en` and `localization/tlh`, and the `[lstr+LS_...*4]`,
+`lset` and `lcmp` references that replaced the English `db` strings in
+the apps, `loader.asm`, `fs.asm`, `shell.asm`, `batch.asm` and
+`lang.asm`. On a rebase, a new English app string just shows in English
+until it gets a key. New Klingon strings in `localization/tlh/strings.txt`
+pick up the digraph glyphs automatically.

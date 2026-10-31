@@ -507,7 +507,7 @@ run_simple:
     int SYSCALL_VEC
     jmp .empty
 .rfull:
-    mov esi, proc_full
+    mov esi, [lstr+LS_PROC_FULL*4]
     call puts
     jmp .empty
 .ps:
@@ -918,7 +918,6 @@ arg_cmds:
 cmd_disk db 'disk', 0
 cmd_blktest db 'blktest', 0
 cmd_proctest db 'proctest', 0
-proc_full db 'Too many processes', 10, 0
 
 ; run <name>: app start routines, each hosted in its own process
 run_table:

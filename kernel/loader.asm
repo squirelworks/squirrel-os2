@@ -303,7 +303,8 @@ ld_perror:
     jbe .ok
     mov eax, 1
 .ok:
-    mov esi, [ld_errs+eax*4]
+    mov esi, [ld_errs+eax*4]    ; a string key: the text follows lang
+    mov esi, [lstr+esi*4]
     call puts
     pop esi
     ret
@@ -317,10 +318,4 @@ ld_as dd 0
 prog_arg times LD_ARGMAX db 0
 prog_args times PROC_MAX*LD_ARGMAX db 0
 ld_probe db 0
-ld_errs dd ld_m_enoent, ld_m_eformat, ld_m_ebig, ld_m_ebusy, ld_m_eproc, ld_m_enomem
-ld_m_enoent db 'Unknown command or program', 10, 0
-ld_m_eformat db 'Not a program (bad SQX/ELF header)', 10, 0
-ld_m_ebig db 'Program too big for the 64 KB program area', 10, 0
-ld_m_ebusy db 'Another program is still running', 10, 0
-ld_m_eproc db 'Too many processes', 10, 0
-ld_m_enomem db 'Not enough memory to load the program', 10, 0
+ld_errs dd LS_LD_M_ENOENT, LS_LD_M_EFORMAT, LS_LD_M_EBIG, LS_LD_M_EBUSY, LS_LD_M_EPROC, LS_LD_M_ENOMEM

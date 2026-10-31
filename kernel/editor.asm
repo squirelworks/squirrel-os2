@@ -127,15 +127,15 @@ ed_main:
     loop .pd
     jmp .moved
 .moved:
-    mov esi, ed_m_moved
+    mov esi, [lstr+LS_ED_M_MOVED*4]
     call ed_vmsg
     jmp .loop
 .insmode:
     xor byte [ed_ins], 1
-    mov esi, ed_m_ins
+    mov esi, [lstr+LS_ED_M_INS*4]
     cmp byte [ed_ins], 0
     jne .im
-    mov esi, ed_m_ovr
+    mov esi, [lstr+LS_ED_M_OVR*4]
 .im:
     call ed_vmsg
     jmp .loop
@@ -168,7 +168,7 @@ ed_main:
 .quit:
     cmp byte [ed_mod], 0
     je .bye
-    mov esi, ed_m_unsaved
+    mov esi, [lstr+LS_ED_M_UNSAVED*4]
     call ed_msg
     call ed_draw
     call fb_waitkey
@@ -176,7 +176,7 @@ ed_main:
     je .savequit
     cmp al, 0x20                ; d: discard
     je .bye
-    mov esi, ed_m_cancel
+    mov esi, [lstr+LS_ED_M_CANCEL*4]
     call ed_msg
     jmp .loop
 .savequit:
@@ -224,12 +224,12 @@ ed_type:
     inc dword [ed_pos]
     mov byte [ed_mod], 1
     mov dword [ed_want], -1
-    mov esi, ed_m_typed
+    mov esi, [lstr+LS_ED_M_TYPED*4]
     call ed_keymsg
     popad
     ret
 .full:
-    mov esi, ed_m_full
+    mov esi, [lstr+LS_ED_M_FULL*4]
     call ed_msg
     popad
     ret
@@ -249,7 +249,7 @@ ed_delete_at:
     mov byte [ed_mod], 1
     mov dword [ed_want], -1
     mov al, [ed_last]
-    mov esi, ed_m_deleted
+    mov esi, [lstr+LS_ED_M_DELETED*4]
     call ed_keymsg
     popad
     ret
@@ -373,10 +373,10 @@ ed_load:
     mov [ed_len], edx
     mov esi, ed_name
     call fs_lookup
-    mov esi, ed_m_loaded
+    mov esi, [lstr+LS_ED_M_LOADED*4]
     cmp dword [edi+DE_SIZE], ED_CAP
     jbe .msg
-    mov esi, ed_m_truncated
+    mov esi, [lstr+LS_ED_M_TRUNCATED*4]
 .msg:
     call ed_msg
     ret
@@ -386,15 +386,15 @@ ed_load:
     mov byte [ed_name], 0       ; a directory, say: Ctrl+S asks for a name
     jmp ed_msg
 .new:
-    mov esi, ed_m_new
+    mov esi, [lstr+LS_ED_M_NEW*4]
     call ed_msg
     ret
 .nodisk:
-    mov esi, ed_m_nodisk
+    mov esi, [lstr+LS_ED_M_NODISK*4]
     call ed_msg
     ret
 .err:
-    mov esi, ed_m_ioerr
+    mov esi, [lstr+LS_ED_M_IOERR*4]
     call ed_msg
     ret
 
@@ -404,7 +404,7 @@ ed_save:
     je .nodisk
     cmp byte [ed_name], 0
     jne .named
-    mov esi, ed_m_saveas
+    mov esi, [lstr+LS_ED_M_SAVEAS*4]
     mov edi, ed_name
     call ed_prompt
     jc .cancel
@@ -423,16 +423,16 @@ ed_save:
     cmp edx, [ed_len]
     jne .err
     mov byte [ed_mod], 0
-    mov esi, ed_m_saved
+    mov esi, [lstr+LS_ED_M_SAVED*4]
     call ed_msg
     popad
     ret
 .cancel:
     mov byte [ed_name], 0
-    mov esi, ed_m_cancel
+    mov esi, [lstr+LS_ED_M_CANCEL*4]
     jmp .m
 .nodisk:
-    mov esi, ed_m_nodisk
+    mov esi, [lstr+LS_ED_M_NODISK*4]
     jmp .m
 .openerr:
     mov byte [ed_name], 0       ; the next save asks for another name
@@ -447,7 +447,7 @@ ed_save:
 ; After fs_open failed while loading: esi = the message to show.
 ; CF if the file just does not exist yet (a new file under that name).
 ed_open_why:
-    mov esi, ed_m_newfile
+    mov esi, [lstr+LS_ED_M_NEWFILE*4]
     cmp byte [fs_errno], FE_NOTFOUND
     stc
     je .r
@@ -695,17 +695,17 @@ ed_status:
     mov esi, ed_name
     cmp byte [esi], 0
     jne .n
-    mov esi, ed_s_noname
+    mov esi, [lstr+LS_ED_S_NONAME*4]
 .n:
     call sb_str
     cmp byte [ed_mod], 0
     je .nm
-    mov esi, ed_s_mod
+    mov esi, [lstr+LS_ED_S_MOD*4]
     call sb_str
 .nm:
     mov eax, 52
     call sb_pad
-    mov esi, ed_s_keys
+    mov esi, [lstr+LS_ED_S_KEYS*4]
     call sb_str
     jmp .out
 .verbose:
@@ -964,9 +964,6 @@ sb_p dd ed_sb
 ed_name times FS_PATHMAX db 0
 ed_sb times 82 db 0
 ed_msgbuf times 82 db 0
-ed_s_noname db '(untitled)', 0
-ed_s_mod db ' [modified]', 0
-ed_s_keys db 'Ctrl+S save  Esc quit', 0
 ed_s_line db 'L', 0
 ed_s_col db ' C', 0
 ed_s_off db ' off ', 0
@@ -976,19 +973,3 @@ ed_s_ins db ' INS', 0
 ed_s_ovr db ' OVR', 0
 ed_s_modv db ' MOD ', 0
 ed_s_clean db ' --- ', 0
-ed_m_new db 'New buffer. Ctrl+S or F2 saves, Esc quits.', 0
-ed_m_newfile db 'New file (not on disk yet).', 0
-ed_m_loaded db 'Loaded.', 0
-ed_m_truncated db 'File larger than 16384 bytes: only the start was loaded.', 0
-ed_m_nodisk db 'No data disk: editing in memory only, cannot save.', 0
-ed_m_ioerr db 'Disk error.', 0
-ed_m_saved db 'Saved.', 0
-ed_m_saveas db 'Save as (Esc cancels): ', 0
-ed_m_cancel db 'Cancelled.', 0
-ed_m_unsaved db 'Unsaved changes: s = save and quit, d = discard, any other key = cancel', 0
-ed_m_full db 'Buffer full (16384 bytes).', 0
-ed_m_moved db 'Moved.', 0
-ed_m_ins db 'Insert mode.', 0
-ed_m_ovr db 'Overwrite mode.', 0
-ed_m_typed db 'Typed ', 0
-ed_m_deleted db 'Deleted ', 0

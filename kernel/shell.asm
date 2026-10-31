@@ -106,7 +106,7 @@ sh_run_line:
     mov byte [in_on], 0
     cmp byte [cap_over], 0
     je .fitted
-    mov esi, sh_m_trunc
+    mov esi, [lstr+LS_SH_M_TRUNC*4]
     call puts
 .fitted:
     cmp byte [sh_outname], 0
@@ -125,7 +125,7 @@ sh_run_line:
     mov esi, [sh_next]
     jmp .stage
 .badredir:
-    mov esi, sh_m_redir
+    mov esi, [lstr+LS_SH_M_REDIR*4]
     call puts
     jmp .done
 .empty_stage:
@@ -135,7 +135,7 @@ sh_run_line:
     cmp byte [sh_last], 0
     jne .done
 .emptypipe:
-    mov esi, sh_m_pipe
+    mov esi, [lstr+LS_SH_M_PIPE*4]
     call puts
 .done:
     mov byte [cap_on], 0
@@ -249,7 +249,7 @@ sh_load_input:
     clc
     ret
 .missing:
-    mov esi, sh_m_nofile
+    mov esi, [lstr+LS_SH_M_NOFILE*4]
     call puts
     mov esi, sh_inname
     call puts
@@ -282,7 +282,7 @@ sh_save_output:
     clc
     ret
 .err:
-    mov esi, sh_m_wfail
+    mov esi, [lstr+LS_SH_M_WFAIL*4]
     call puts
     mov esi, sh_outname
     call puts
@@ -374,11 +374,6 @@ cmd_echo_run:
     mov al, 10
     jmp putc
 
-sh_m_redir db 'Redirection needs a file name', 10, 0
-sh_m_pipe db 'A pipe needs a command on both sides', 10, 0
-sh_m_nofile db 'Cannot read ', 0
-sh_m_wfail db 'Cannot write ', 0
-sh_m_trunc db '(output cut at 32 KB)', 10, 0
 
 cap_on db 0
 cap_over db 0

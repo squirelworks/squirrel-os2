@@ -76,11 +76,11 @@ fs_mount_boot:
     loop .blank
     call fs_format
     jc .out
-    mov esi, fs_msg_formatted
+    mov esi, [lstr+LS_FS_MSG_FORMATTED*4]
     call puts
     jmp .out
 .foreign:
-    mov esi, fs_msg_foreign
+    mov esi, [lstr+LS_FS_MSG_FOREIGN*4]
     call puts
     jmp .out
 .mount:
@@ -1521,5 +1521,3 @@ fs_errkey:                      ; FE_* code -> string key (1.0.5)
     db LS_FE_ERROR, LS_FE_NOFS, LS_FE_NAME, LS_FE_EXISTS, LS_FE_NODIR, LS_FE_TABLE
     db LS_NOTFOUND, LS_FE_BUSY, LS_FE_NOTEMPTY, LS_FE_CWD, LS_FE_LOOP, LS_FE_IO
     db LS_FE_FULL, LS_FE_ISDIR, LS_FE_NOFD
-fs_msg_formatted db 'Data disk was blank: formatted SQFS and added the built-in files.', 10, 0
-fs_msg_foreign db 'Data disk is not SQFS; type format to erase it.', 10, 0

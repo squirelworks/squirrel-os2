@@ -51,15 +51,40 @@ lang_set_code:
     clc
     ret
 
-; The banner's first line in the current language, then the rest.
+; The banner's first line in the current language, the version, then the
+; command list in the current language.
 show_banner:
+    push eax
     push esi
     mov esi, [lstr+LS_BANNER*4]
     call puts
     mov esi, banner_rest
+.ver:
+    lodsb
+    call putc
+    cmp al, 10
+    jne .ver
+    mov esi, [lstr+LS_COMMANDS*4]
     call puts
     pop esi
+    pop eax
     ret
+
+; lset dest, key: point the dword dest at a key's text; flags kept
+%macro lset 2
+    push eax
+    mov eax, [lstr+%2*4]
+    mov [%1], eax
+    pop eax
+%endmacro
+
+; lcmp dest, key: compare the dword dest with a key's text
+%macro lcmp 2
+    push eax
+    mov eax, [lstr+%2*4]
+    cmp [%1], eax
+    pop eax
+%endmacro
 
 ; esi = key's text: prints it and a newline
 lputs_nl:

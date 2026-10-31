@@ -21,7 +21,7 @@ run_draw:
     mov byte [dr_mod], 0
     mov dword [dr_x], 0
     mov dword [dr_y], 0
-    mov dword [ed_msgp], dr_m_help
+    lset ed_msgp, LS_DR_M_HELP
     mov byte [kbd_ctrl], 0
     call dr_clear
     mov esi, run_arg
@@ -106,25 +106,25 @@ run_draw:
     jmp .loop
 .pen:
     xor byte [dr_pen], 1
-    mov dword [ed_msgp], dr_m_penup
+    lset ed_msgp, LS_DR_M_PENUP
     cmp byte [dr_pen], 0
     je .loop
-    mov dword [ed_msgp], dr_m_pendown
+    lset ed_msgp, LS_DR_M_PENDOWN
     mov al, [dr_brush]
     call dr_set_here
     jmp .loop
 .brush:
-    mov dword [ed_msgp], dr_m_brush
+    lset ed_msgp, LS_DR_M_BRUSH
     call dr_draw
     call fb_waitkey
     call kbd_ascii
     cmp al, ' '
     jbe .bcancel
     mov [dr_brush], al
-    mov dword [ed_msgp], dr_m_brushset
+    lset ed_msgp, LS_DR_M_BRUSHSET
     jmp .loop
 .bcancel:
-    mov dword [ed_msgp], ed_m_cancel
+    lset ed_msgp, LS_ED_M_CANCEL
     jmp .loop
 .line:
     mov bl, 1
@@ -140,7 +140,7 @@ run_draw:
     mov [dr_mx], eax
     mov eax, [dr_y]
     mov [dr_my], eax
-    mov dword [ed_msgp], dr_m_mark
+    lset ed_msgp, LS_DR_M_MARK
     jmp .loop
 .finish:
     mov byte [dr_mode], 0
@@ -152,7 +152,7 @@ run_draw:
     call dr_line
 .shaped:
     mov byte [dr_mod], 1
-    mov dword [ed_msgp], dr_m_drawn
+    lset ed_msgp, LS_DR_M_DRAWN
     jmp .loop
 .fill:
     call dr_fill
@@ -160,7 +160,7 @@ run_draw:
 .clear:
     call dr_clear
     mov byte [dr_mod], 1
-    mov dword [ed_msgp], dr_m_cleared
+    lset ed_msgp, LS_DR_M_CLEARED
     jmp .loop
 .save:
     call dr_save
@@ -168,14 +168,14 @@ run_draw:
 .quit:
     cmp byte [dr_mod], 0
     je .bye
-    mov dword [ed_msgp], ed_m_unsaved
+    lset ed_msgp, LS_ED_M_UNSAVED
     call dr_draw
     call fb_waitkey
     cmp al, 0x1F
     je .savequit
     cmp al, 0x20
     je .bye
-    mov dword [ed_msgp], ed_m_cancel
+    lset ed_msgp, LS_ED_M_CANCEL
     jmp .loop
 .savequit:
     call dr_save
@@ -386,7 +386,7 @@ dr_fill:
     ret
 .done:
     mov byte [dr_mod], 1
-    mov dword [ed_msgp], dr_m_filled
+    lset ed_msgp, LS_DR_M_FILLED
     popad
     ret
 
@@ -435,7 +435,7 @@ dr_load:
     inc ecx
     jmp .c
 .loaded:
-    mov dword [ed_msgp], ed_m_loaded
+    lset ed_msgp, LS_ED_M_LOADED
 .out:
     ret
 .new:
@@ -446,7 +446,7 @@ dr_load:
 .r:
     ret
 .nodisk:
-    mov dword [ed_msgp], ed_m_nodisk
+    lset ed_msgp, LS_ED_M_NODISK
     ret
 
 dr_save:
@@ -455,7 +455,7 @@ dr_save:
     je .nodisk
     cmp byte [dr_name], 0
     jne .named
-    mov esi, ed_m_saveas
+    mov esi, [lstr+LS_ED_M_SAVEAS*4]
     mov edi, dr_name
     call ed_prompt
     jc .cancel
@@ -510,16 +510,16 @@ dr_save:
     cmp edx, [dr_flen]
     jne .err
     mov byte [dr_mod], 0
-    mov dword [ed_msgp], ed_m_saved
+    lset ed_msgp, LS_ED_M_SAVED
     popad
     ret
 .cancel:
     mov byte [dr_name], 0
-    mov dword [ed_msgp], ed_m_cancel
+    lset ed_msgp, LS_ED_M_CANCEL
     popad
     ret
 .nodisk:
-    mov dword [ed_msgp], ed_m_nodisk
+    lset ed_msgp, LS_ED_M_NODISK
     popad
     ret
 .openerr:
@@ -538,7 +538,7 @@ dr_frame:
     pushad
     call cls
     call sb_reset
-    mov esi, dr_title
+    mov esi, [lstr+LS_DR_TITLE*4]
     call sb_str
     xor ebx, ebx
     mov ah, ATTR_STATUS
@@ -559,13 +559,13 @@ dr_frame:
     cmp ecx, DR_Y0+DR_H
     jb .side
     call sb_reset
-    mov esi, dr_keys1
+    mov esi, [lstr+LS_DR_KEYS1*4]
     call sb_str
     mov ebx, 22
     mov ah, ATTR_TEXT
     call sb_row
     call sb_reset
-    mov esi, dr_keys2
+    mov esi, [lstr+LS_DR_KEYS2*4]
     call sb_str
     mov ebx, 23
     mov ah, ATTR_TEXT
@@ -617,7 +617,7 @@ dr_draw:
     jb .row
     ; status row
     call sb_reset
-    mov esi, dr_s_pos
+    mov esi, [lstr+LS_DR_S_POS*4]
     call sb_str
     mov eax, [dr_x]
     call sb_num
@@ -625,22 +625,22 @@ dr_draw:
     call sb_char
     mov eax, [dr_y]
     call sb_num
-    mov esi, dr_s_brush
+    mov esi, [lstr+LS_DR_S_BRUSH*4]
     call sb_str
     mov al, [dr_brush]
     call sb_char
     mov al, 39
     call sb_char
-    mov esi, dr_s_penup
+    mov esi, [lstr+LS_DR_S_PENUP*4]
     cmp byte [dr_pen], 0
     je .pen
-    mov esi, dr_s_pendown
+    mov esi, [lstr+LS_DR_S_PENDOWN*4]
 .pen:
     call sb_str
-    mov esi, dr_s_line
+    mov esi, [lstr+LS_DR_S_LINE*4]
     cmp byte [dr_mode], 1
     je .md
-    mov esi, dr_s_rect
+    mov esi, [lstr+LS_DR_S_RECT*4]
     cmp byte [dr_mode], 2
     je .md
     mov esi, dr_s_none
@@ -649,12 +649,12 @@ dr_draw:
     mov esi, dr_name
     cmp byte [esi], 0
     jne .nm
-    mov esi, ed_s_noname
+    mov esi, [lstr+LS_ED_S_NONAME*4]
 .nm:
     call sb_str
     cmp byte [dr_mod], 0
     je .clean
-    mov esi, ed_s_mod
+    mov esi, [lstr+LS_ED_S_MOD*4]
     call sb_str
 .clean:
     mov ebx, DR_Y0+DR_H+1
@@ -694,22 +694,4 @@ dr_pen db 0
 dr_mode db 0                    ; 0 none, 1 line, 2 rectangle (corner marked)
 dr_mod db 0
 dr_name times FS_PATHMAX db 0
-dr_title db ' Draw - ASCII canvas 64x18', 0
-dr_keys1 db 'Arrows move  Space plot  x/Bksp erase  p pen up/down  b brush  c clear', 0
-dr_keys2 db 'l line, r rectangle (press at both corners)  f fill  Ctrl+S/F2 save  Esc quit', 0
-dr_s_pos db 'Pos ', 0
-dr_s_brush db "  Brush '", 0
-dr_s_penup db '  Pen up', 0
-dr_s_pendown db '  Pen DOWN', 0
-dr_s_line db '  [line: move, press l]  ', 0
-dr_s_rect db '  [rect: move, press r]  ', 0
 dr_s_none db '  ', 0
-dr_m_help db 'Ready.', 0
-dr_m_penup db 'Pen up.', 0
-dr_m_pendown db 'Pen down: moving draws.', 0
-dr_m_brush db 'Type the new brush character (Esc cancels).', 0
-dr_m_brushset db 'Brush set.', 0
-dr_m_mark db 'Corner marked. Move and press the same key again.', 0
-dr_m_drawn db 'Drawn.', 0
-dr_m_filled db 'Filled.', 0
-dr_m_cleared db 'Canvas cleared.', 0

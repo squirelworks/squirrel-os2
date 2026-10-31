@@ -10,9 +10,9 @@ CALC_LINE     equ 60
 
 run_calc:
     call cls
-    mov esi, calc_banner
+    mov esi, [lstr+LS_CALC_BANNER*4]
     call puts
-    mov esi, calc_help
+    mov esi, [lstr+LS_CALC_HELP*4]
     call puts
 .prompt:
     mov esi, calc_prompt
@@ -50,11 +50,11 @@ run_calc:
     call calc_log
     jmp .prompt
 .error:
-    mov esi, calc_errpre
+    mov esi, [lstr+LS_CALC_ERRPRE*4]
     call puts
     mov esi, [calc_errmsg]
     call puts
-    cmp dword [calc_errmsg], calc_e_syntax
+    lcmp calc_errmsg, LS_CALC_E_SYNTAX
     jne .errnl
     mov eax, [calc_errpos]
     sub eax, calc_line
@@ -69,7 +69,7 @@ run_calc:
 .clear:
     mov dword [calc_ans], 0
     mov dword [calc_count], 0
-    mov esi, calc_cleared
+    mov esi, [lstr+LS_CALC_CLEARED*4]
     call puts
     jmp .prompt
 .hist:
@@ -448,19 +448,19 @@ calc_match:
 
 calc_syntax:
     mov [calc_errpos], esi
-    mov dword [calc_errmsg], calc_e_syntax
+    lset calc_errmsg, LS_CALC_E_SYNTAX
     stc
     ret
 calc_overflow:
-    mov dword [calc_errmsg], calc_e_overflow
+    lset calc_errmsg, LS_CALC_E_OVERFLOW
     stc
     ret
 calc_toolarge:
-    mov dword [calc_errmsg], calc_e_large
+    lset calc_errmsg, LS_CALC_E_LARGE
     stc
     ret
 calc_div0:
-    mov dword [calc_errmsg], calc_e_div0
+    lset calc_errmsg, LS_CALC_E_DIV0
     stc
     ret
 
@@ -500,19 +500,12 @@ calc_pct db 0
 calc_errmsg dd 0
 calc_errpos dd 0
 calc_line times CALC_LINE+1 db 0
-calc_banner db 'Basic Calculator (Esc to exit)', 10, 0
 calc_help db 'Integers: + - * / ( )  percent: 100 + 15%  200 * 15%  200 % 15', 10
           db 'ans = last result; start with an operator to continue from it (* 2)', 10
           db 'Commands: clear  hist  q', 10, 0
 calc_prompt db 'calc> ', 0
 calc_eq db '= ', 0
 calc_eq_sp db ' = ', 0
-calc_errpre db 'Error: ', 0
-calc_e_syntax db 'syntax at column ', 0
-calc_e_overflow db 'overflow', 0
-calc_e_large db 'number too large', 0
-calc_e_div0 db 'division by zero', 0
-calc_cleared db 'ans cleared', 10, 0
 calc_kw_ans db 'ans', 0
 calc_kw_quit db 'quit', 0
 calc_kw_q db 'q', 0
