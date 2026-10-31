@@ -288,6 +288,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - Installer step I.3 (`guides/install.md`): `install copy` writes the kernel to sectors 1 to 192 of the target and copies the data disk's root files into its SQFS partition, after a y/n question; files over 64 KB and subdirectories are skipped. The boot disk must be an IDE disk (`install-copy`, `install-copied`).
 
+## 1.7.5
+
+- Installer step I.4 (`guides/install.md`): `install boot` writes the boot code into the target's sector 0, keeping its partition table, and marks partition 1 active, after a y/n question. Booted with no data disk, the system uses partition 1 of the boot disk as its file system (`install-alone`).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.
