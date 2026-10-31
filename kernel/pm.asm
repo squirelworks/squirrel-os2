@@ -361,6 +361,9 @@ run_simple:
     mov edi, cmd_gfxprim
     call streq
     je .gfxprim
+    mov edi, cmd_gfxtext
+    call streq
+    je .gfxtext
     ; format
     mov edi, cmd_format
     call streq
@@ -528,6 +531,9 @@ run_simple:
     jmp .empty
 .gfxprim:
     call cmd_gfxprim_run
+    jmp .empty
+.gfxtext:
+    call cmd_gfxtext_run
     jmp .empty
 .proctest:
     call cmd_proctest_run
@@ -818,12 +824,12 @@ default_isr:
 
 ; ---------- data ----------
 banner db 'Squirrel-OS/2'          ; (the "help" file: the English banner)
-banner_rest db ' 1.3.1', 10   ; OS version: here only (see releases/PROCESS.md)
+banner_rest db ' 1.3.2', 10   ; OS version: here only (see releases/PROCESS.md)
        db 'Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>', 10
        db '          mv <f> <new> | mkdir <d> | cd <d> | pwd | echo | batch <f> | format', 10
        db '          ps | disk | mem | devices | lang <en|la|tlh>', 10
        db 'Tests: systest | proctest | blktest | fstest | memtest | keys', 10
-       db '       gfxtest | gfxprim', 10
+       db '       gfxtest | gfxprim | gfxtext', 10
        db 'Apps: files, calc, sci, matrix, diff, edit, vedit, draw   (planned: graph, topo)', 10, 0
 msg_partial db 'Warning: kernel image only partly loaded', 10, 0
 cmd_ls db 'ls', 0
@@ -938,6 +944,7 @@ cmd_disk db 'disk', 0
 cmd_blktest db 'blktest', 0
 cmd_gfxtest db 'gfxtest', 0
 cmd_gfxprim db 'gfxprim', 0
+cmd_gfxtext db 'gfxtext', 0
 cmd_proctest db 'proctest', 0
 proc_full db 'Too many processes', 10, 0
 

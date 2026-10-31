@@ -6,6 +6,7 @@ root=$(cd "$(dirname "$0")/.." && pwd)
 out=${TMPDIR:-/tmp}/squirrel-os2-build
 mkdir -p "$out"
 python3 "$root/tools/mkstrings.py" --check || exit 1
+python3 "$root/tools/mkfont.py" --check || exit 1
 (cd "$root/kernel" && nasm -f bin boot.asm -o "$out/boot.bin" \
     && nasm -f bin pm.asm -o "$out/pm.bin" 2>/dev/null)
 cat "$out/boot.bin" "$out/pm.bin" > "$out/os.img"
@@ -208,6 +209,9 @@ check gfx-text     'systest: PASS'         gfxtest '<ret>' systest '<ret>'
 # 1.3.1: a line and a filled rectangle, read back
 check gfxprim      'gfxprim: PASS'         gfxprim '<ret>'
 check gfxprim-text 'systest: PASS'         gfxprim '<ret>' systest '<ret>'
+# 1.3.2: a string in graphics mode, ink and background read back
+check gfxtext      'gfxtext: PASS'         gfxtext '<ret>'
+check gfxtext-text 'systest: PASS'         gfxtext '<ret>' systest '<ret>'
 # program loader: a disk prepared on the host with tools/sqfs.py
 # 0.9.2: usage hints, file-system error reasons, mv into a directory,
 # paths in edit, directories in the browser
@@ -226,7 +230,7 @@ check ed-path-r     'deep'                  'cat e1/long-name.txt' '<ret>'
 check fb-dir        'in /e1'                'cd e1' '<ret>' 'run files' '<ret>'
 check fb-dir-up     '[app]'                 'cd e1' '<ret>' 'run files' '<ret>' '<ret>'
 # 0.9.3: release readiness
-check ver-banner    'Squirrel-OS/2 1.3.1'   systest '<ret>'
+check ver-banner    'Squirrel-OS/2 1.3.2'   systest '<ret>'
 check ver-planned   '(planned: graph, topo)'  systest '<ret>'
 check calc-hist-root '1 + 1 = 2'            'mkdir c1' '<ret>' 'cd c1' '<ret>' 'run calc' '<ret>' '1 + 1' '<ret>' '<esc>' 'cat /calc.hist' '<ret>'
 boot="--floppy $out/floppy.img"
@@ -324,7 +328,7 @@ check l10n-hint-la  '(lineam tabulae addit)'  'lang la' '<ret>' put '<ret>'
 check l10n-fe-tlh   "tu'lu'pu'"             'lang tlh' '<ret>' 'mkdir t1' '<ret>' 'mkdir t1' '<ret>'
 check l10n-rm-tlh   "tu'lu'be'"             'lang tlh' '<ret>' 'rm nosuch' '<ret>'
 check lang-bad      'Unknown language (en la tlh)'  'lang fr' '<ret>'
-check lang-banner   'Sciurus-OS/2 1.3.1'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
+check lang-banner   'Sciurus-OS/2 1.3.2'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
 # 1.0.6: calc, edit and draw titles follow lang
 check l10n-calc-tlh "mI' De'wI' (Esc to exit)" 'lang tlh' '<ret>' 'run calc' '<ret>'
 check l10n-edit-tlh "ghItlhwI': (untitled)" 'lang tlh' '<ret>' 'run edit' '<ret>'

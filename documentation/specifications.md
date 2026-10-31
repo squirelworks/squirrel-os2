@@ -212,6 +212,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - Lines (Bresenham) and filled rectangles in graphics mode (`kernel/graphics.md`; `gfxprim`, `gfxprim-text`). Drawing above row 103 can still change the text screen and the font.
 
+## 1.3.2
+
+- Strings in graphics mode with an original 5 × 7 font for printable ASCII (`kernel/graphics.md`; `gfxtext`, `gfxtext-text`).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.

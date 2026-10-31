@@ -352,3 +352,135 @@ gl_y1 dd 0
 gl_dx dd 0
 gl_dy dd 0
 gl_err dd 0
+
+; ---------- text in graphics mode (1.3.2) ----------
+; 5 x 7 glyphs from font5x7 (font.inc, built by tools/mkfont.py from
+; tools/font5x7.txt). Each character takes a 6 x 8 cell: the glyph, a
+; column and a row of background after it.
+
+GFX_CELL_W equ FONT_W + 1
+GFX_CELL_H equ FONT_H + 1
+
+; eax = x, ebx = y (top left of the cell), dl = character.
+; Ink in [gfx_colour], background in [gfx_bg]. A code outside the font
+; draws as '?'.
+gfx_drawchar:
+    pushad
+    movzx esi, dl
+    cmp esi, FONT_FIRST
+    jb .unknown
+    cmp esi, FONT_LAST
+    jbe .known
+.unknown:
+    mov esi, '?'
+.known:
+    sub esi, FONT_FIRST
+    imul esi, FONT_H
+    add esi, font5x7
+    mov edi, eax                ; left edge
+    xor edx, edx                ; row
+.row:
+    xor ebp, ebp                ; column
+    mov dh, 0                   ; the row's bits; row FONT_H is all background
+    cmp dl, FONT_H
+    jae .bits
+    mov dh, [esi]
+    inc esi
+.bits:
+    lea eax, [edi+ebp]
+    mov ecx, 8 + FONT_W - 1     ; dh is bits 8-15 of edx; column 0 is bit 4 of dh
+    sub ecx, ebp                ; the spacing column lands on bit 7, which is
+    bt edx, ecx                 ; clear: dl, the row number, is below 8
+    mov cl, [gfx_bg]
+    jnc .put
+    mov cl, [gfx_colour]
+.put:
+    call gfx_putpixel
+    inc ebp
+    cmp ebp, GFX_CELL_W
+    jb .bits
+    inc ebx
+    inc dl
+    cmp dl, GFX_CELL_H
+    jb .row
+    popad
+    ret
+
+; esi = zero-terminated string, eax = x, ebx = y. Colours as gfx_drawchar.
+gfx_drawstr:
+    pushad
+.next:
+    mov dl, [esi]
+    test dl, dl
+    jz .done
+    call gfx_drawchar
+    add eax, GFX_CELL_W
+    inc esi
+    jmp .next
+.done:
+    popad
+    ret
+
+; gfxtext: clears the lower part of the screen, draws a string and reads
+; back ink and background pixels of its first glyph, the spacing column
+; after it, and a pixel left of the string that must stay clear.
+GFXX_X equ 40
+GFXX_Y equ 140
+
+cmd_gfxtext_run:
+    call gfx_mode13
+    mov byte [gfxt_ok], 1
+    mov byte [gfx_colour], 0
+    xor eax, eax
+    mov ebx, GFX_SAFE_Y
+    mov ecx, GFX_W
+    mov edx, GFX_H - GFX_SAFE_Y
+    call gfx_fillrect
+    mov byte [gfx_colour], 0x0F
+    mov byte [gfx_bg], 0x01
+    mov esi, gfxx_str
+    mov eax, GFXX_X
+    mov ebx, GFXX_Y
+    call gfx_drawstr
+    mov esi, gfxx_expect
+.check:
+    lodsd
+    cmp eax, -1
+    je .end
+    mov ebx, [esi]
+    mov dl, [esi+4]
+    add esi, 5
+    call gfx_getpixel
+    cmp cl, dl
+    je .check
+    mov byte [gfxt_ok], 0
+    jmp .check
+.end:
+    call gfx_text
+    mov esi, gfxx_pass
+    cmp byte [gfxt_ok], 1
+    je .say
+    mov esi, gfxx_fail
+.say:
+    jmp puts
+
+; 'S' is .#### / #.... / ... : its top row starts with background, then ink
+gfxx_expect:
+    dd GFXX_X + 1, GFXX_Y
+    db 0x0F                     ; ink: top row, second column of 'S'
+    dd GFXX_X, GFXX_Y + 1
+    db 0x0F                     ; ink: second row, first column
+    dd GFXX_X, GFXX_Y
+    db 0x01                     ; background: top left corner of 'S'
+    dd GFXX_X + FONT_W, GFXX_Y + 1
+    db 0x01                     ; background: the spacing column
+    dd GFXX_X - 1, GFXX_Y
+    db 0                        ; left of the string: untouched
+    dd -1
+
+gfxx_str db 'Squirrel-OS/2', 0
+gfx_bg db 0
+gfxx_pass db 'gfxtext: PASS', 10, 0
+gfxx_fail db 'gfxtext: FAIL', 10, 0
+
+%include "font.inc"

@@ -138,7 +138,7 @@ Each command returns to text mode before it prints `PASS`, so the existing scree
   Start after **1.3-pixel** is on `main`.
   **Acceptance:** the self-check reads back a pixel on the line and a pixel inside the rectangle, misses a pixel outside it, and prints `gfxprim: PASS`. A regression check expects that.
 
-- [ ] **1.3-text** — Draw a bitmap string in graphics mode.
+- [x] **1.3-text** — Draw a bitmap string in graphics mode.
   Start after **1.3-pixel** is on `main`.
   **Acceptance:** the self-check reads back an ink pixel and a background pixel of a drawn glyph and prints `gfxtext: PASS`. A regression check expects that. The font is original.
 
