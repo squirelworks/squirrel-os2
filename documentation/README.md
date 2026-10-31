@@ -72,4 +72,5 @@ Documentation is active.
 - 1.4.1 windows: move and resize (`releases/1.4.1.md`, `kernel/windows.md`)
 - 1.4.2 windows: z-order and keyboard focus (`releases/1.4.2.md`, `kernel/windows.md`)
 - 1.5.0 widgets: a text label in a window (`releases/1.5.0.md`, `kernel/widgets.md`)
-- Next: 1.5 button (`../ROADMAP.md`, tasks in `../TODO.md`)
+- 1.5.1 widgets: a button that posts a message (`releases/1.5.1.md`, `kernel/widgets.md`)
+- Next: 1.5 edit field (`../ROADMAP.md`, tasks in `../TODO.md`)

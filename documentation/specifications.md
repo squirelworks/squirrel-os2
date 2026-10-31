@@ -236,6 +236,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - Widgets inside windows, starting with a text label; up to 16 widgets in all, dropped with their window (`kernel/widgets.md`; `labeltest`, `labeltest-text`). Button, edit field and list follow in later 1.5 tasks.
 
+## 1.5.1
+
+- A button widget: Enter or Space, while its window has the focus, posts `MSG_BUTTON` with the button's code to the process that added it, through the 1.2 message queue (`kernel/widgets.md`; `buttontest`, `buttontest-2`, `buttontest-none`, `buttontest-text`).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.
