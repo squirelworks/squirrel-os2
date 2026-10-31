@@ -85,6 +85,7 @@ This avoids retargeting chains and confirmation steps.
 | 1.0.4   | 2026-10-31 | Zombies no longer fill the table     |
 | 1.0.5   | 2026-10-31 | Localized usage lines and FS errors  |
 | 1.0.6   | 2026-10-31 | App titles follow the language       |
+| 1.0.7   | 2026-10-31 | Numerical derivatives in diff        |
 
 ## Next planned release
 

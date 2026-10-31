@@ -112,13 +112,26 @@ When a matrix is printed, rounding noise below 1e-10 shows as 0 (so `A * inv A` 
 
 ## Differential Equations and Calculus Calculator (`diff`)
 
-For derivatives, integrals, and ordinary differential equations.
+For derivatives, integrals, and ordinary differential equations, done numerically (`kernel/diff.asm`). The function is an ordinary `sci` expression in the variable `x`. It is evaluated again at every sample point, so every `sci` function and constant works in it. There is no symbolic algebra.
 
-- Symbolic or numerical differentiation (finite differences, or later symbolic rules)
-- Numerical integration (trapezoid, Simpson — original)
-- Simple ODE solvers (Euler, Runge-Kutta, original)
+```
+Calculus Calculator (Esc to exit)
+diff> d sin(x) at 0
+= 1
+diff> d x^3 at 2
+= 12
+diff> d exp(x) at 1
+= 2.718281829
+```
 
-Scaffolded. Builds on the scientific evaluator and numerical methods written in-house.
+- **Derivative** (1.0.7): `d <f(x)> at <x0>`. It uses the central difference (f(x0+h) − f(x0−h)) / 2h, with h = 10⁻⁵·max(1, |x0|). The method's error shrinks with h², and the FPU's 64-bit mantissa keeps rounding error far below the 10 digits that are printed. Polynomials up to degree 2 come out exact, and smooth functions are right to about 10 digits.
+- `x0` is a plain `sci` expression (`pi / 2`, `sqrt(2)`), but it may not use `x`.
+- Angles are always radians in `diff`, whatever mode `sci` was left in.
+- Errors are the same as in `sci`. A sample point outside the domain gives `outside the function domain` (`d ln(x) at 0` samples −10⁻⁵). A missing `at` gives `syntax at column N`.
+- `x` is a syntax error in `sci` itself.
+- `q`, `quit` or Esc quits.
+
+Planned: numerical integrals (task 1.0-diff-integ, trapezoid or Simpson) and one ODE stepper (1.0-diff-ode, Euler).
 
 ## Topology Calculator (`topo`)
 
