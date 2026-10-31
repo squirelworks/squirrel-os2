@@ -110,6 +110,10 @@ Kept in `documentation/plannedmilestones.md`: 64-bit bring-up, multi-core, UEFI,
 
 Do not break 2.x or 3.0 into tasks until 2.0.0's prerequisites above are on `main`.
 
+### Modern hardware (H.1–H.6) — unscheduled
+
+Today the system boots the BIOS way and expects IDE/ATA disks, a PS/2-style keyboard, and VGA. Many new PCs have dropped Legacy/CSM boot, and their disks, keyboards, and displays sit behind controllers the kernel does not drive. This milestone is the concrete breakdown of 2.4 (UEFI) and 2.5 (modern storage and USB), plus a framebuffer display. The boxes are in `TODO.md`. None of them starts while a 1.x box is open; the BIOS path keeps working throughout.
+
 ## Explicitly later
 
 These exist in the tree as scaffolds or notes. They are not milestones on the way to 1.0 or to the 1.x desktop:
