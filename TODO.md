@@ -223,3 +223,20 @@ Kept here so they are not added as tasks by accident. Reasons are in `ROADMAP.md
 - virtio-blk, ATA IRQ, a `/dev` directory, loadable drivers.
 - Ring 3 and growing stacks (2.x, per `documentation/kernel/memory.md`).
 - Classic OS/2 binary compatibility.
+
+## Modern hardware (unscheduled)
+
+Not before 2.0.0's prerequisites are on `main` (see `ROADMAP.md`). Each box is one PR, and the BIOS boot path and its regression checks keep passing. QEMU covers each one: OVMF for UEFI, `-device ahci`, `-device nvme`, `-device qemu-xhci` with `usb-kbd` and `usb-storage`.
+
+- [ ] **H.1-uefi** — A UEFI loader that reads the memory map, loads the kernel, and enters it with the same handoff as the BIOS path.
+  **Acceptance:** QEMU with OVMF boots to the shell prompt.
+- [ ] **H.2-gop** — Text console on the UEFI GOP framebuffer (the 1.3 bitmap font), used when VGA text mode is not there.
+  **Acceptance:** the UEFI boot prints the banner and a check reads it back from the framebuffer.
+- [ ] **H.3-ahci** — AHCI/SATA disk driver registered as `hd0`/`hd1` like the ATA driver.
+  **Acceptance:** SQFS mounts and the `persist-*` checks pass on an AHCI disk.
+- [ ] **H.4-nvme** — NVMe disk driver behind the same interface.
+  **Acceptance:** SQFS mounts and a file written before a reboot reads back after it.
+- [ ] **H.5-usb-kbd** — xHCI controller and a USB keyboard feeding the existing `kbd` device.
+  **Acceptance:** the shell takes input from `usb-kbd` with no PS/2 keyboard attached.
+- [ ] **H.6-usb-storage** — USB mass storage, so the system can boot from and read the stick it was written to.
+  **Acceptance:** SQFS on a `usb-storage` disk lists its files.
