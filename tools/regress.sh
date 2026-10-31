@@ -181,7 +181,7 @@ check ed-path-r     'deep'                  'cat e1/long-name.txt' '<ret>'
 check fb-dir        'in /e1'                'cd e1' '<ret>' 'run files' '<ret>'
 check fb-dir-up     '[app]'                 'cd e1' '<ret>' 'run files' '<ret>' '<ret>'
 # 0.9.3: release readiness
-check ver-banner    'Squirrel-OS/2 0.9.3'   systest '<ret>'
+check ver-banner    'Squirrel-OS/2 1.0.0'   systest '<ret>'
 check ver-planned   '(planned: graph, diff, topo)'  systest '<ret>'
 check calc-hist-root '1 + 1 = 2'            'mkdir c1' '<ret>' 'cd c1' '<ret>' 'run calc' '<ret>' '1 + 1' '<ret>' '<esc>' 'cat /calc.hist' '<ret>'
 boot="--floppy $out/floppy.img"
@@ -254,7 +254,7 @@ check lang-show     'Language: en (en la tlh)'  lang '<ret>'
 check lang-la       'Tabulae:'              'lang la' '<ret>' ls '<ret>'
 check lang-tlh      "ra' tlhaQ"             'lang tlh' '<ret>' xyz '<ret>'
 check lang-bad      'Unknown language (en la tlh)'  'lang fr' '<ret>'
-check lang-banner   'Sciurus-OS/2 0.9.3'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
+check lang-banner   'Sciurus-OS/2 1.0.0'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
 check lang-systest  'systest: PROBATUM'     'lang la' '<ret>' systest '<ret>'
 disk=$out/auto.img
 check bat-autoexec  'autoexec ran'

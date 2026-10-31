@@ -7,6 +7,8 @@ Squirrel-OS/2 uses a simple `major.minor.patch` scheme for early development:
 - **0.0.x** — boot sector / pre-kernel experiments
 - **0.1.x** — protected-mode entry and native timer
 - **0.2.x** — minimal kernel services (console, memory map, basic interrupts)
+- **0.3.x–0.9.x** — applications, loader, shell, memory, drivers, directories, integration
+- **1.0.0** — the usable minimal system; **1.0.x** patch releases, then **1.x** minor releases toward 2.0 (`../../ROADMAP.md`)
 
 ## What belongs in a release
 
@@ -76,9 +78,12 @@ This avoids retargeting chains and confirmation steps.
 | 0.9.1   | 2026-10-31 | Files persist across reboots         |
 | 0.9.2   | 2026-10-31 | Stability and polish pass            |
 | 0.9.3   | 2026-10-31 | Release readiness                    |
+| 1.0.0   | 2026-10-31 | Usable minimal system                |
 
 ## Next planned release
 
-**1.0.0** — Release packaging: version bump, release note, the four apps + browser + persistent file system checked together (the `walk-1.0` check in `tools/regress.sh`, one boot).
+**1.0.x** — Patch releases for the holes the docs already name (seek, error reasons for programs, FPU save, zombies, localization, `diff`, editor search and undo), then **1.1** — preemptive scheduler and threads.
 
-The forward plan and the PR-sized tasks for that release are [`../../ROADMAP.md`](../../ROADMAP.md) and [`../../TODO.md`](../../TODO.md).
+1.0.0 is released (`1.0.0.md`). Its applications are checked together in one boot by `walk-1.0` in `tools/regress.sh`.
+
+The forward plan and the PR-sized tasks are [`../../ROADMAP.md`](../../ROADMAP.md) and [`../../TODO.md`](../../TODO.md).
