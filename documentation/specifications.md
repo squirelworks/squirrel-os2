@@ -224,6 +224,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - A window manager in graphics mode: up to 4 windows, each with a frame, a title bar and a client area, drawn over a desktop; created and closed by the kernel (`kernel/windows.md`; `wintest`, `wintest-text`). Moving, resizing and focus follow in later 1.4 tasks.
 
+## 1.4.1
+
+- Windows can be moved and resized; a move or size that would leave the screen or go below the minimum is refused and changes nothing (`kernel/windows.md`; `winmove`, `winmove-text`).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.
