@@ -93,6 +93,7 @@ This avoids retargeting chains and confirmation steps.
 | 1.0.12  | 2026-10-31 | vedit shows control characters      |
 | 1.1.0   | 2026-10-31 | Timer preempts spinning programs     |
 | 1.1.1   | 2026-10-31 | Threads share a program's memory     |
+| 1.2.0   | 2026-10-31 | Message queues between processes     |
 
 ## Next planned release
 

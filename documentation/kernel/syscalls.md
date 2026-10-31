@@ -48,6 +48,7 @@ add its `SYS_*` constant, bump `SYS_COUNT`.
 | 22–24 | `SYS_DEVFIND`, `SYS_DEVREAD`, `SYS_DEVWRITE` | | | Added in 0.7.0, see `drivers.md` |
 | 25 | `SYS_SEEK` | `ebx` = fd, `ecx` = offset (signed), `edx` = 0 from start / 1 from current / 2 from end | new position, or −1 | Added in 1.0.2, see `filesystem.md` |
 | 26 | `SYS_FSERROR` | `ebx` = buffer, `ecx` = its size | the `FE_*` code of the last failed file call; the buffer gets the shell's words for it, zero-terminated, without a newline | Added in 1.0.3, see `filesystem.md` |
+| 27–28 | `SYS_SEND`, `SYS_RECV` | | | Added in 1.2.0: a four-byte message to another process's queue, see `messages.md` |
 
 Example:
 

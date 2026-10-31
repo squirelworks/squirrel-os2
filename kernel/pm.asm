@@ -801,7 +801,7 @@ default_isr:
 
 ; ---------- data ----------
 banner db 'Squirrel-OS/2'          ; (the "help" file: the English banner)
-banner_rest db ' 1.1.1', 10   ; OS version: here only (see releases/PROCESS.md)
+banner_rest db ' 1.2.0', 10   ; OS version: here only (see releases/PROCESS.md)
        db 'Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>', 10
        db '          mv <f> <new> | mkdir <d> | cd <d> | pwd | echo | batch <f> | format', 10
        db '          ps | disk | mem | devices | lang <en|la|tlh>', 10
@@ -1061,6 +1061,7 @@ puthex:
 
 %include "syscall.asm"
 %include "proc.asm"
+%include "msg.asm"
 %include "ata.asm"
 %include "fs.asm"
 %include "shell.asm"
