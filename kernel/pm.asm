@@ -354,6 +354,10 @@ run_simple:
     mov edi, cmd_blktest
     call streq
     je .blktest
+    ; gfxtest (1.3)
+    mov edi, cmd_gfxtest
+    call streq
+    je .gfxtest
     ; format
     mov edi, cmd_format
     call streq
@@ -515,6 +519,9 @@ run_simple:
     jmp .empty
 .blktest:
     call cmd_blktest_run
+    jmp .empty
+.gfxtest:
+    call cmd_gfxtest_run
     jmp .empty
 .proctest:
     call cmd_proctest_run
@@ -805,11 +812,11 @@ default_isr:
 
 ; ---------- data ----------
 banner db 'Squirrel-OS/2'          ; (the "help" file: the English banner)
-banner_rest db ' 1.2.1', 10   ; OS version: here only (see releases/PROCESS.md)
+banner_rest db ' 1.3.0', 10   ; OS version: here only (see releases/PROCESS.md)
        db 'Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>', 10
        db '          mv <f> <new> | mkdir <d> | cd <d> | pwd | echo | batch <f> | format', 10
        db '          ps | disk | mem | devices | lang <en|la|tlh>', 10
-       db 'Tests: systest | proctest | blktest | fstest | memtest | keys', 10
+       db 'Tests: systest | proctest | blktest | fstest | memtest | gfxtest | keys', 10
        db 'Apps: files, calc, sci, matrix, diff, edit, vedit, draw   (planned: graph, topo)', 10, 0
 msg_partial db 'Warning: kernel image only partly loaded', 10, 0
 cmd_ls db 'ls', 0
@@ -922,6 +929,7 @@ arg_cmds:
     dd 0, 0
 cmd_disk db 'disk', 0
 cmd_blktest db 'blktest', 0
+cmd_gfxtest db 'gfxtest', 0
 cmd_proctest db 'proctest', 0
 proc_full db 'Too many processes', 10, 0
 
@@ -1066,6 +1074,7 @@ puthex:
 %include "syscall.asm"
 %include "proc.asm"
 %include "msg.asm"
+%include "gfx.asm"
 %include "ata.asm"
 %include "fs.asm"
 %include "shell.asm"

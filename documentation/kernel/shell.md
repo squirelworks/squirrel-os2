@@ -85,7 +85,7 @@ redirections on the lines inside the script instead.
 ## Built-in commands
 
 `ls`, `cat <f>`, `echo <text>`, `batch <file>`, `put <f> <text>`, `mk <f>`, `rm <f>`, `mv <f> <new>`, `format`, `ps`, `disk`,
-`run <app|file> [args]`, and the tests `systest`, `proctest`, `blktest`, `fstest`, `keys`.
+`run <app|file> [args]`, and the tests `systest`, `proctest`, `blktest`, `fstest`, `memtest`, `gfxtest` (1.3, `graphics.md`), `keys`.
 
 A command that needs arguments, typed alone (`put`, `mk`, `rm`, `mv`, `mkdir`, `cat`, `run`, `batch`),
 prints a `Usage:` line instead of `Unknown command`; `echo` alone prints an empty line (0.9.2,

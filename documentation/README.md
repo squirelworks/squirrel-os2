@@ -64,4 +64,5 @@ Documentation is active.
 - 1.1.1 threads: a spawn in a program's own image shares its memory (`releases/1.1.1.md`, `kernel/processes.md`)
 - 1.2.0 message queues: `SYS_SEND` and `SYS_RECV` (`releases/1.2.0.md`, `kernel/messages.md`)
 - 1.2.1 key events: `SYS_KEYEVENTS` posts each key to a process's queue (`releases/1.2.1.md`, `kernel/messages.md`)
-- Next: 1.3 graphics primitives (`../ROADMAP.md`, tasks in `../TODO.md`)
+- 1.3.0 graphics mode 13h, a pixel written and read back (`releases/1.3.0.md`, `kernel/graphics.md`)
+- Next: 1.3 lines, rectangles and text, then `graph` (`../ROADMAP.md`, tasks in `../TODO.md`)

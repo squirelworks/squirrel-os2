@@ -131,7 +131,7 @@ Start only after **1.0-fpu** is on `main`. `yield` and `proctest` keep their cur
 
 Each command returns to text mode before it prints `PASS`, so the existing screen harness can see the result.
 
-- [ ] **1.3-pixel** — Enter a graphics mode, write a pixel, read it back, restore text mode.
+- [x] **1.3-pixel** — Enter a graphics mode, write a pixel, read it back, restore text mode.
   **Acceptance:** a `gfxtest` command prints `gfxtest: PASS` only if the byte read from the framebuffer is the byte written. A regression check expects that, then a later `systest` still passes (text mode is back).
 
 - [ ] **1.3-line-fill** — Line and filled rectangle.
