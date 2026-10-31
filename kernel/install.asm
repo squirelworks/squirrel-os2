@@ -99,26 +99,8 @@ cmd_install_part_run:
     call ins_size
     call ins_confirm
     jc .r
-    call ins_mbr
-    mov esi, INS_OUT
-    xor ecx, ecx
-    call ata_write
+    call ins_do_part
     jc .fail
-    ; read the table back from the disk and show it
-    mov edi, INS_IN
-    push edi
-    mov ecx, SECTOR_SIZE/4
-    xor eax, eax
-    rep stosd
-    pop edi
-    xor ecx, ecx
-    call ata_read
-    jc .fail
-    mov esi, INS_OUT
-    mov edi, INS_IN
-    mov ecx, SECTOR_SIZE
-    repe cmpsb
-    jne .fail
     mov esi, ins_msg_written
     call puts
     call ins_show_part
@@ -135,6 +117,45 @@ cmd_install_part_run:
 .none:
     mov esi, ins_msg_notarget
     call puts
+    ret
+
+; ebx = target: writes the MBR and reads it back into INS_IN. CF on error.
+ins_do_part:
+    pushad
+    call ins_mbr
+    mov esi, INS_OUT
+    xor ecx, ecx
+    call ata_write
+    jc .fail
+    mov edi, INS_IN
+    push edi
+    mov ecx, SECTOR_SIZE/4
+    xor eax, eax
+    rep stosd
+    pop edi
+    xor ecx, ecx
+    call ata_read
+    jc .fail
+    mov esi, INS_OUT
+    mov edi, INS_IN
+    mov ecx, SECTOR_SIZE
+    repe cmpsb
+    jne .fail
+    popad
+    clc
+    ret
+.fail:
+    popad
+    stc
+    ret
+
+; dev_inst set up (ins_open_part): SQFS with an empty root there. CF on error.
+ins_do_format:
+    call ins_fs_target
+    call fs_format_empty
+    pushfd
+    call ins_fs_back
+    popfd
     ret
 
 ; Prints "Everything on that disk is lost. Write it? (y/n)" and waits for
@@ -183,11 +204,7 @@ cmd_install_format_run:
     call ins_print_size
     call ins_confirm
     jc .r
-    call ins_fs_target
-    call fs_format_empty
-    pushfd
-    call ins_fs_back
-    popfd
+    call ins_do_format
     mov esi, ins_msg_fmtfail
     jc .say
     mov esi, ins_msg_formatted
@@ -259,33 +276,71 @@ cmd_install_copy_run:
     mov esi, ins_ask_copy2
     call ins_ask
     jc .r
-    ; the kernel, sector by sector, each one read back
+    call ins_do_kernel
+    jc .kfail
+    mov esi, ins_msg_kcopied
+    call puts
+    call ins_do_files
+    mov eax, [ins_ncopied]
+    call itoa
+    mov esi, num_buf
+    call puts
+    mov esi, ins_msg_copied
+    jmp puts
+.kfail:
+    mov esi, ins_msg_kfail
+    jmp puts
+.nofs:
+    mov esi, ins_msg_nofs
+    jmp puts
+.nodata:
+    mov esi, blk_nodisk
+    jmp puts
+.r:
+    ret
+
+; Sectors 1 to INS_KSECTS from [ins_src] to [ins_tgt], each read back.
+; CF on error.
+ins_do_kernel:
+    pushad
     mov ecx, 1
 .k:
     mov ebx, [ins_src]
     mov edi, INS_IN
     call ata_read
-    jc .kfail
+    jc .fail
     mov ebx, [ins_tgt]
     mov esi, INS_IN
     call ata_write
-    jc .kfail
+    jc .fail
     mov edi, INS_OUT
     call ata_read
-    jc .kfail
+    jc .fail
     push ecx
     mov esi, INS_IN
     mov edi, INS_OUT
     mov ecx, SECTOR_SIZE
     repe cmpsb
     pop ecx
-    jne .kfail
+    jne .fail
     inc ecx
     cmp ecx, INS_KSECTS
     jbe .k
-    mov esi, ins_msg_kcopied
-    call puts
-    ; the names of the files in the data disk's root, before switching
+    popad
+    clc
+    ret
+.fail:
+    popad
+    stc
+    ret
+
+; Every file in the root of the mounted file system to the root of the
+; target's (dev_inst). One line per file unless ins_quiet. ins_ncopied =
+; how many; CF when one failed.
+ins_do_files:
+    pushad
+    mov byte [ins_ffailed], 0
+    ; the names, before switching
     mov edi, ins_names
     xor edx, edx                ; how many
     mov ebx, FS_DIR
@@ -316,37 +371,35 @@ cmd_install_copy_run:
     je .done
     dec dword [ins_nfiles]
     mov esi, ebp
-    call puts
+    call ins_say
     cmp dword [ebp+FS_NAMELEN], INS_FILEMAX
     ja .big
     call ins_copy_file
     mov esi, ins_msg_ffail
-    jc .say
+    jc .bad
     inc dword [ins_ncopied]
     mov esi, ins_msg_fok
 .say:
-    call puts
+    call ins_say
     add ebp, FS_NAMELEN+4
     jmp .f
+.bad:
+    mov byte [ins_ffailed], 1
+    jmp .say
 .big:
     mov esi, ins_msg_fbig
     jmp .say
 .done:
-    mov eax, [ins_ncopied]
-    call itoa
-    mov esi, num_buf
+    popad
+    cmp byte [ins_ffailed], 1
+    cmc                         ; CF = a file failed
+    ret
+
+; esi = text: puts unless ins_quiet
+ins_say:
+    cmp byte [ins_quiet], 0
+    jne .r
     call puts
-    mov esi, ins_msg_copied
-    jmp puts
-.kfail:
-    mov esi, ins_msg_kfail
-    jmp puts
-.nofs:
-    mov esi, ins_msg_nofs
-    jmp puts
-.nodata:
-    mov esi, blk_nodisk
-    jmp puts
 .r:
     ret
 
@@ -432,6 +485,26 @@ cmd_install_boot_run:
     mov esi, ins_ask_boot2
     call ins_ask
     jc .r
+    call ins_do_boot
+    jc .fail
+    mov esi, ins_msg_booted
+    jmp puts
+.nokernel:
+    mov esi, ins_msg_nokernel
+    jmp puts
+.noboot:
+    mov esi, ins_msg_noboot
+    jmp puts
+.fail:
+    mov esi, ins_msg_bfail
+    jmp puts
+.r:
+    ret
+
+; The boot code of [ins_src]'s sector 0 over [ins_tgt]'s, keeping its
+; signature and table, partition 1 active, read back. CF on error.
+ins_do_boot:
+    pushad
     mov ebx, [ins_tgt]
     mov edi, INS_OUT
     xor ecx, ecx
@@ -459,18 +532,12 @@ cmd_install_boot_run:
     mov ecx, SECTOR_SIZE
     repe cmpsb
     jne .fail
-    mov esi, ins_msg_booted
-    jmp puts
-.nokernel:
-    mov esi, ins_msg_nokernel
-    jmp puts
-.noboot:
-    mov esi, ins_msg_noboot
-    jmp puts
+    popad
+    clc
+    ret
 .fail:
-    mov esi, ins_msg_bfail
-    jmp puts
-.r:
+    popad
+    stc
     ret
 
 ; -> ebx = the boot disk (an IDE disk that holds the running kernel), or CF
@@ -526,6 +593,126 @@ ins_mount_system:
     call puts
 .r:
     popad
+    ret
+
+; run install (I.5): the whole installation in one go, with one question
+; first. Its text follows lang (localization/*/strings.txt, inst_*).
+run_install:
+    call cls
+    mov esi, [lstr+LS_INST_TITLE*4]
+    call lputs_nl
+    mov al, 10
+    call putc
+    call ins_target
+    jc .notarget
+    cmp dword [ata_sectors+ebx*4], INS_MIN
+    jb .notarget
+    mov [ins_tgt], ebx
+    call ins_find_boot
+    jc .noboot
+    mov [ins_src], ebx
+    cmp byte [fs_mounted], 0
+    je .nofs
+    ; "Target disk: 2 (16 MiB)"
+    mov esi, [lstr+LS_INST_TARGET*4]
+    call puts
+    mov al, ' '
+    call putc
+    mov eax, [ins_tgt]
+    call itoa
+    mov esi, num_buf
+    call puts
+    mov esi, ins_paren
+    call puts
+    mov ebx, [ins_tgt]
+    mov eax, [ata_sectors+ebx*4]
+    shr eax, 11
+    call itoa
+    mov esi, num_buf
+    call puts
+    mov esi, ins_mibp
+    call puts
+    mov esi, [lstr+LS_INST_ERASE*4]
+    call lputs_nl
+    mov esi, [lstr+LS_INST_CONFIRM*4]
+    call lputs_nl
+.key:
+    call fb_waitkey
+    cmp al, 0x01                ; Esc
+    je .cancel
+    cmp al, 0x1C                ; Enter
+    jne .key
+    mov byte [ins_quiet], 1
+    mov al, 10
+    call putc
+    mov esi, [lstr+LS_INST_PART*4]
+    call ins_step
+    mov ebx, [ins_tgt]
+    call ins_do_part
+    call ins_result
+    jc .failed
+    mov esi, [lstr+LS_INST_FORMAT*4]
+    call ins_step
+    mov ebx, [ins_tgt]
+    call ins_open_part
+    jc .sfail
+    call ins_do_format
+    call ins_result
+    jc .failed
+    mov esi, [lstr+LS_INST_COPY*4]
+    call ins_step
+    call ins_do_kernel
+    jc .sfail
+    call ins_do_files
+    call ins_result
+    jc .failed
+    mov esi, [lstr+LS_INST_BOOT*4]
+    call ins_step
+    call ins_do_boot
+    call ins_result
+    jc .failed
+    mov esi, [lstr+LS_INST_DONE*4]
+    jmp .end
+.sfail:
+    stc
+    call ins_result
+.failed:
+    mov esi, [lstr+LS_INST_FAILED*4]
+    jmp .end
+.cancel:
+    mov esi, [lstr+LS_INST_CANCEL*4]
+    jmp .end
+.notarget:
+    mov esi, [lstr+LS_INST_NOTARGET*4]
+    jmp .end
+.noboot:
+    mov esi, [lstr+LS_INST_NOBOOT*4]
+    jmp .end
+.nofs:
+    mov esi, [lstr+LS_FE_NOFS*4]
+.end:
+    mov byte [ins_quiet], 0
+    call lputs_nl
+    mov esi, [lstr+LS_INST_ANYKEY*4]
+    call lputs_nl
+    call fb_waitkey
+    ret
+
+; esi = a step's name: prints it and " ... "
+ins_step:
+    call puts
+    mov esi, ins_dots
+    jmp puts
+
+; CF from the step: prints done or failed and a newline, keeping CF
+ins_result:
+    pushfd
+    mov esi, [lstr+LS_INST_OK*4]
+    jnc .p
+    mov esi, [lstr+LS_INST_FAIL*4]
+.p:
+    call lputs_nl
+    popfd
     ret
 
 ; Points the file system at the target partition and loads it, at its
@@ -885,12 +1072,17 @@ ins_src dd 0
 ins_nfiles dd 0
 ins_ncopied dd 0
 ins_fsize dd 0
+ins_quiet db 0
+ins_ffailed db 0
 ins_names times FS_MAXFILES*(FS_NAMELEN+4) db 0 ; name, then size
 ins_path times FS_NAMELEN+2 db 0
 ins_was_fds times FS_MAXFD dd 0
 ins_was_mounted db 0
 ins_was_cwd db 0
 
+ins_paren db ' (', 0
+ins_mibp db ' MiB)', 10, 0
+ins_dots db ' ... ', 0
 cmd_install db 'install', 0
 cmd_install_part db 'install part', 0
 cmd_install_format db 'install format', 0

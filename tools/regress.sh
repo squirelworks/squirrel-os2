@@ -287,6 +287,19 @@ saved_disk=$disk; boot=$target; disk=; target=
 check_all install-alone 'File system: partition 1 of the boot disk|copied-ok' 'cat instfile' '<ret>'
 check install-alone-boot 'boot disk, not touched'  install '<ret>'
 boot=; disk=$saved_disk; target=$out/target.img
+# installer I.5: run install does I.1 to I.4 after one question, on a second blank scratch image
+target=$out/target2.img
+rm -f "$target"
+dd if=/dev/zero of="$target" bs=1024 count=16384 2>/dev/null
+check_all inst-esc  'Target disk: 2 (16 MiB)|Cancelled. Nothing was written.'  'run install' '<ret>' '<pause>' '<esc>'
+mbr   inst-esc-blank 'blank'
+check inst-la       'Sciurus-OS/2: Installatio'  'lang la' '<ret>' 'run install' '<ret>' '<pause>' '<esc>'
+check inst-tlh      "Squirrel-OS/2 jomwI'"  'lang tlh' '<ret>' 'run install' '<ret>' '<pause>' '<esc>'
+check_all inst-run  'Partition table ... done|File system ... done|Copying the system ... done|Boot code ... done|Installed.' \
+                    'put inst.bat run install' '<ret>' 'run inst.bat' '<ret>' '<pause>' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>'
+saved_disk=$disk; boot=$target; disk=; target=
+check_all inst-boots 'File system: partition 1 of the boot disk|run install'  'cat inst.bat' '<ret>'
+boot=; disk=$saved_disk; target=$out/target.img
 target=
 check install-none  'No target disk.'       'install part' '<ret>'
 # 1.3.0: graphics mode, one pixel written and read back, then text mode again
@@ -406,7 +419,7 @@ check ed-path-r     'deep'                  'cat e1/long-name.txt' '<ret>'
 check fb-dir        'in /e1'                'cd e1' '<ret>' 'run files' '<ret>'
 check fb-dir-up     '[app]'                 'cd e1' '<ret>' 'run files' '<ret>' '<ret>'
 # 0.9.3: release readiness
-check ver-banner    'Squirrel-OS/2 1.7.6'   systest '<ret>'
+check ver-banner    'Squirrel-OS/2 1.7.7'   systest '<ret>'
 check ver-planned   '(planned: topo)'  systest '<ret>'
 check calc-hist-root '1 + 1 = 2'            'mkdir c1' '<ret>' 'cd c1' '<ret>' 'run calc' '<ret>' '1 + 1' '<ret>' '<esc>' 'cat /calc.hist' '<ret>'
 boot="--floppy $out/floppy.img"
@@ -507,7 +520,7 @@ check l10n-hint-la  '(lineam tabulae addit)'  'lang la' '<ret>' put '<ret>'
 check l10n-fe-tlh   "tu'lu'pu'"             'lang tlh' '<ret>' 'mkdir t1' '<ret>' 'mkdir t1' '<ret>'
 check l10n-rm-tlh   "tu'lu'be'"             'lang tlh' '<ret>' 'rm nosuch' '<ret>'
 check lang-bad      'Unknown language (en la tlh)'  'lang fr' '<ret>'
-check lang-banner   'Sciurus-OS/2 1.7.6'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
+check lang-banner   'Sciurus-OS/2 1.7.7'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
 # 1.0.6: calc, edit and draw titles follow lang
 check l10n-calc-tlh "mI' De'wI' (Esc to exit)" 'lang tlh' '<ret>' 'run calc' '<ret>'
 check l10n-edit-tlh "ghItlhwI': (untitled)" 'lang tlh' '<ret>' 'run edit' '<ret>'

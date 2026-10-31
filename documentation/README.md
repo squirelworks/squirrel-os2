@@ -87,4 +87,5 @@ Documentation is active.
 - 1.7.4 installer step I.3: `install copy` puts the kernel and the data disk's files on the target (`releases/1.7.4.md`, `guides/install.md`)
 - 1.7.5 installer step I.4: `install boot`; an installed disk boots and uses its own partition (`releases/1.7.5.md`, `guides/install.md`)
 - 1.7.6 the desktop's entries are objects, and `files` opens in a window (`releases/1.7.6.md`, `apps/desktop.md`)
+- 1.7.7 installer step I.5: `run install`, the localized install program (`releases/1.7.7.md`, `guides/install.md`)
 - Next: 1.8, split into tasks in `../TODO.md` first (`../ROADMAP.md`)
