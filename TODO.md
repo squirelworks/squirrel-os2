@@ -214,11 +214,21 @@ Split from `documentation/plannedmilestones.md` once 1.6 was on `main`. Work top
 - [x] **1.7-desktop** — The desktop's entries become objects: a `Program` class (under a `DesktopObject` class with `name` and `open`) for calc, edit, vedit, draw, and `files`. Enter sends `open` to the selected object instead of reading the `dk_run` table.
   **Acceptance:** every `desktop-*` check still passes, and a new check opens a program through `open` and reads its window.
 
-## 1.8 and after
+## 1.8 — Persistent objects
 
-Do not start these while any box above is open. When 1.7 is on `main`, split the next milestone into PR-sized boxes in this file before writing code. The shapes, from `documentation/plannedmilestones.md`:
+Split from `documentation/plannedmilestones.md` once 1.7 was on `main`. Work top to bottom; each box is one PR and takes the next free version. The design note is `documentation/kernel/objects.md`.
 
-- [ ] **1.8-store** — Save that object into SQFS and load it back after a reboot. The regression disk already persists across checks; the check reads the loaded value.
+- [ ] **1.8-format** — An object file: `obj_save` writes an object to a file (a header, its class name, its field count and its fields) and `obj_load` reads one back into a new object of the class with that name. A class marks which of its fields hold text; those are saved as the text, not as an address.
+  **Acceptance:** `objtest` saves a square of size 5, frees it, loads the file, and `perimeter` gives 20 again; it prints `obj store: PASS` and a regression check expects it. A file whose class is not recorded is refused.
+- [ ] **1.8-store** — The saved object outlives a reboot. A shell command `objcat <file>` loads an object file and prints its class and fields.
+  **Acceptance:** one check saves the object; a later check, in a new boot on the same data disk, runs `objcat` and reads the class and the field value.
+- [ ] **1.8-desktop** — The desktop keeps its entries as object files in `/desktop` on the data disk: it loads them when it starts, and writes the defaults there the first time.
+  **Acceptance:** after the first `desktop`, `ls /desktop` lists one file per entry; with one of them removed, the next desktop's list does not show that entry.
+
+## 1.9 and after
+
+Do not start these while any box above is open. When 1.8 is on `main`, split the next milestone into PR-sized boxes in this file before writing code. The shapes, from `documentation/plannedmilestones.md`:
+
 - [ ] **1.9-dnd** — Pick up, move focus, and drop a desktop object from the keyboard. A regression check expects the object's new parent. No mouse.
 - [ ] **2.0-net** — Only once 1.9 is on `main`: split basic networking into its own tasks in this file, then implement the first of them (a loopback that a test program can send on and read back).
 
