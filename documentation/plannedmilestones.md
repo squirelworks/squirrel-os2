@@ -1,5 +1,8 @@
 # Squirrel-OS/2 Planned Milestones
 
+Historical ladder (0.0.1–0.9.2, all done) and the long-range 2.0 / 3.0 vision.
+What to do next is [`../ROADMAP.md`](../ROADMAP.md) and [`../TODO.md`](../TODO.md).
+
 ## Naming and scope decision (2026-10-14)
 
 The project keeps the name Squirrel-OS/2.
@@ -53,6 +56,10 @@ A functional original operating system that:
 - **0.2.3** — File browser (list, navigate, launch) (done — `run files`, `apps/files.md`)
 
 ### Session bookmark (2026-10-14)
+
+Historical snapshot from that day. Do not resume from the "next session" lines
+below; those items have since shipped through 0.9.2. See `ROADMAP.md`.
+
 In-memory file system and interactive application stubs are implemented:
 - Commands: `ls`, `cat <name>`, `run <name>`
 - Basic calculator (`calc`): interactive integer arithmetic + percentage

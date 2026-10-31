@@ -1,5 +1,9 @@
 # Progress toward 1.0.0 (session summary)
 
+**Superseded.** This file is the 2026-10-14 session snapshot. The ladder it calls
+"remaining" (0.1.x through 0.9.x) has since shipped; 0.9.2 is the current release.
+Plan from [`../../ROADMAP.md`](../../ROADMAP.md) and [`../../TODO.md`](../../TODO.md).
+
 ## Completed this session
 - **0.0.4** — Protected-mode IDT + native PIT timer
 - **0.0.5** — Keyboard (IRQ1) + console (`putc`/`puts`/`cls`)

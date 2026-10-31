@@ -22,9 +22,9 @@ Documentation is active.
 - PIT timer design added (`architecture/pit-timer.md`)
 - Release process formalized (`releases/PROCESS.md`)
 - Milestone plan added (`plannedmilestones.md`) — 1.0.0 defined
-- Known bugs list added (`knownbugs.md`)
-- Specifications added (`specifications.md`) — capabilities and intentional limitations
-- Current milestone: in-memory FS + interactive basic calculator + editor stubs + calculator suite scaffolds (session bookmark 2026-10-14)
+- Known bugs list added (`knownbugs.md`) — no open defects as of 0.9.3 (KB-11 to KB-15 found and resolved in 0.9.3)
+- Specifications added (`specifications.md`) — capabilities and intentional limitations (body still stops at 0.0.3; see [`../TODO.md`](../TODO.md))
+- Forward plan: [`../ROADMAP.md`](../ROADMAP.md). Task list: [`../TODO.md`](../TODO.md). Milestone history: `plannedmilestones.md`
 - 0.1.1 syscall interface implemented (`kernel/syscalls.md`, `releases/0.1.1.md`); regression script `tools/regress.sh`
 - 0.1.2 process model implemented (`kernel/processes.md`, `releases/0.1.2.md`)
 - 0.2.0 ATA PIO block driver implemented (`kernel/block-device.md`, `releases/0.2.0.md`)
@@ -47,4 +47,4 @@ Documentation is active.
 - 0.9.1 files persist across reboots (`releases/0.9.1.md`)
 - 0.9.2 stability and polish pass (`releases/0.9.2.md`, `knownbugs.md`)
 - 0.9.3 release readiness: floppy boot, CPU check, build/run scripts, Bochs (`releases/0.9.3.md`, `guides/getting-started.md`)
-- Next: 1.0.0 release packaging
+- Next: 1.0.0 release packaging (`../ROADMAP.md`, first tasks in `../TODO.md`)
