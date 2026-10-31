@@ -5,8 +5,9 @@
 ; a process. Two formats are accepted:
 ;   SQX  flat binary with a 16-byte header (see programs/sqx.inc)
 ;   ELF  32-bit, little-endian, ET_EXEC, i386, PT_LOAD segments only
-; Both must be linked to run inside the program area. One program is
-; resident at a time. See documentation/kernel/loader.md.
+; Both must be linked to run inside the program area. Each program gets
+; an address space of its own (vm.asm), so several can be alive at once.
+; See documentation/kernel/loader.md.
 
 PROG_BASE    equ 0x30000            ; program area: 0x30000-0x3FFFF
 PROG_MAX     equ 0x10000
@@ -26,6 +27,7 @@ LD_EFORMAT   equ -2
 LD_EBIG      equ -3
 LD_EBUSY     equ -4
 LD_EPROC     equ -5
+LD_ENOMEM    equ -6
 
 ; esi = file name, edi = argument string (or 0)
 ; -> eax = pid of the started program, or LD_E* (< 0)
@@ -37,21 +39,6 @@ prog_exec:
     push edi
     push ebp
     mov ebp, edi                ; keep the argument
-    ; only one resident program: is the last one still alive?
-    mov ebx, [prog_pid]
-    test ebx, ebx
-    jz .free
-    push edi
-    call proc_find
-    mov eax, edi
-    pop edi
-    test eax, eax
-    jz .free
-    cmp dword [eax+PCB_STATE], P_ZOMBIE
-    je .free
-    mov eax, LD_EBUSY
-    jmp .out
-.free:
     mov eax, LD_ENOENT
     cmp byte [fs_mounted], 0
     je .out
@@ -78,9 +65,9 @@ prog_exec:
     cmp edx, 4
     jb .badfmt
     cmp dword [LD_STAGE], SQX_MAGIC
-    je .sqx
+    je .known
     cmp dword [LD_STAGE], ELF_MAGIC
-    je .elf
+    je .known
 .badfmt:
     mov eax, LD_EFORMAT
     jmp .out
@@ -90,14 +77,34 @@ prog_exec:
 .enoent:
     mov eax, LD_ENOENT
     jmp .out
-.sqx:
+.known:
+    ; a fresh address space; the image is copied into it from the
+    ; staging buffer, which every address space maps
+    call as_create
+    test eax, eax
+    jz .nomem
+    mov [ld_as], eax
+    mov eax, [eax+AS_PD]
+    mov cr3, eax
+    cmp dword [LD_STAGE], SQX_MAGIC
+    jne .elf
     call ld_sqx
     jmp .loaded
 .elf:
     call ld_elf
 .loaded:
+    call vm_reload
     test eax, eax
-    js .out
+    jns .image
+    push eax
+    mov eax, [ld_as]
+    call as_release
+    pop eax
+    jmp .out
+.nomem:
+    mov eax, LD_ENOMEM
+    jmp .out
+.image:
     ; eax = entry point; copy the argument and start the process
     mov ebx, eax
     mov edi, prog_arg
@@ -119,10 +126,31 @@ prog_exec:
     call proc_spawn
     cmp eax, -1
     jne .started
+    mov eax, [ld_as]
+    call as_release
     mov eax, LD_EPROC
     jmp .out
 .started:
-    mov [prog_pid], eax
+    ; move it into its own address space, and give it an argument
+    ; buffer that belongs to its process slot
+    mov ebx, eax
+    call proc_find
+    push eax
+    mov eax, [edi+PCB_AS]       ; the parent's, inherited by proc_spawn
+    call as_release
+    mov eax, [ld_as]
+    mov [edi+PCB_AS], eax
+    mov eax, edi
+    sub eax, proc_table
+    shr eax, 6                  ; / PCB_SIZE
+    imul eax, LD_ARGMAX
+    add eax, prog_args
+    mov [edi+PCB_ARG], eax
+    mov esi, prog_arg
+    mov edi, eax
+    mov ecx, LD_ARGMAX/4
+    rep movsd
+    pop eax
 .out:
     pop ebp
     pop edi
@@ -257,7 +285,7 @@ ld_perror:
     push esi
     neg eax
     dec eax
-    cmp eax, 4
+    cmp eax, 5
     jbe .ok
     mov eax, 1
 .ok:
@@ -271,12 +299,14 @@ sys_exec:                       ; ebx = name, ecx = argument (or 0)
     mov edi, ecx
     jmp prog_exec
 
-prog_pid dd 0
+ld_as dd 0
 prog_arg times LD_ARGMAX db 0
+prog_args times PROC_MAX*LD_ARGMAX db 0
 ld_probe db 0
-ld_errs dd ld_m_enoent, ld_m_eformat, ld_m_ebig, ld_m_ebusy, ld_m_eproc
+ld_errs dd ld_m_enoent, ld_m_eformat, ld_m_ebig, ld_m_ebusy, ld_m_eproc, ld_m_enomem
 ld_m_enoent db 'Unknown command or program', 10, 0
 ld_m_eformat db 'Not a program (bad SQX/ELF header)', 10, 0
 ld_m_ebig db 'Program too big for the 64 KB program area', 10, 0
 ld_m_ebusy db 'Another program is still running', 10, 0
 ld_m_eproc db 'Too many processes', 10, 0
+ld_m_enomem db 'Not enough memory to load the program', 10, 0

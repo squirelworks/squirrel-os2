@@ -10,6 +10,8 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `elfhello.asm` | ELF32 | Hand-written ELF header; checks its bss is zeroed |
 | `ls.asm` | SQX | Lists the disk with sizes; `run ls txt` filters by substring |
 | `cat.asm` | SQX | Prints one or more files (`run cat a b`), or copies its input |
+| `nest.asm` | SQX | Runs `hello` from inside itself, waits, then checks its own memory survived (0.6.1) |
+| `crash.asm` | SQX | Reads unmapped memory: the fault ends only this program (0.6.1) |
 | `sqx.inc` | — | SQX header macro and syscall numbers |
 
 Build and install:

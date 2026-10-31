@@ -101,7 +101,7 @@ This is a natural end-of-day point. Next session can resume at either:
 
 ### 0.6.x — Memory management
 - **0.6.0** — Physical page allocator with free lists (done — E820 map, free list + bitmap, `mem`/`memtest`, `kernel/memory.md`)
-- **0.6.1** — Per-process address spaces (page directory bookkeeping)
+- **0.6.1** — Per-process address spaces (done — paging on, own page directory per program, several programs at once, faulting programs are ended)
 - **0.6.2** — Stack/heap growth
 
 ### 0.7.x — Device model

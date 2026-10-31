@@ -89,6 +89,7 @@ pm:
     call fpu_init
     call proc_init
     call mm_init
+    call vm_init
     call ata_init
 
     ; PIC + PIT
@@ -871,8 +872,10 @@ scancode_map_shift:
 
 ; ---------- CPU exceptions ----------
 ; One fixed-size stub per vector pushes its number; the report prints
-; it with the faulting EIP and halts. (Vectors with an error code push
-; it first, so EIP is read from the right slot for those.)
+; it with the faulting EIP (and, for a page fault, the address). A fault
+; in a loaded program ends that program; anywhere else the kernel halts.
+; (Vectors with an error code push it first, so EIP is read from the
+; right slot for those.)
 EXC_STUB_SIZE equ 8
 exc_stubs:
 %assign v 0
@@ -904,8 +907,29 @@ exc_report:
     call puts
     mov eax, edx
     call puthex
+    cmp ebx, 14
+    jne .eol
+    mov esi, exc_addr
+    call puts
+    mov eax, cr2
+    call puthex
+.eol:
     mov al, 10
     call putc
+    mov esi, [proc_cur]
+    cmp dword [esi+PCB_AS], 0
+    je .halt
+    mov esi, exc_killed
+    call puts
+    mov esi, [proc_cur]
+    mov eax, [esi+PCB_PID]
+    call itoa
+    mov esi, num_buf
+    call puts
+    mov al, 10
+    call putc
+    mov ebx, -1
+    jmp proc_exit
 .halt:
     hlt
     jmp .halt
@@ -935,6 +959,8 @@ puthex:
 EXC_ERRCODE_MASK equ (1<<8)|(1<<10)|(1<<11)|(1<<12)|(1<<13)|(1<<14)|(1<<17)
 exc_msg db 10, '*** CPU exception ', 0
 exc_at db ' at EIP 0x', 0
+exc_addr db ', address 0x', 0
+exc_killed db 'Program ended: pid ', 0
 
 %include "syscall.asm"
 %include "proc.asm"
@@ -944,6 +970,7 @@ exc_at db ' at EIP 0x', 0
 %include "lineedit.asm"
 %include "batch.asm"
 %include "mm.asm"
+%include "vm.asm"
 %include "browser.asm"
 %include "calc.asm"
 %include "editor.asm"

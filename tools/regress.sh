@@ -8,11 +8,11 @@ mkdir -p "$out"
 (cd "$root/kernel" && nasm -f bin boot.asm -o "$out/boot.bin" \
     && nasm -f bin pm.asm -o "$out/pm.bin" 2>/dev/null)
 cat "$out/boot.bin" "$out/pm.bin" > "$out/os.img"
-for prog in hello wc elfhello ls cat; do
+for prog in hello wc elfhello ls cat nest crash; do
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
 done
 python3 "$root/tools/sqfs.py" "$out/progs.img" format 1024
-for prog in hello wc elfhello ls cat; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
+for prog in hello wc elfhello ls cat nest crash; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
 printf 'one two\nthree\n' > "$out/notes"
 python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/notes"
 printf '2 + 3\n6 * 7\n' > "$out/exprs"
@@ -139,7 +139,14 @@ check ld-missing    'Unknown command or program'    'run nothere' '<ret>'
 check ld-again      'Argument: 2'           'run hello 1' '<ret>' 'run hello 2' '<ret>'
 check ld-browser    'Hello from a loaded'   'run files' '<ret>' '<home>' '<ret>'
 check ld-host-ls    'elfhello'              ls '<ret>'
-check up-ls         '11 file(s)'             'run ls' '<ret>'
+check vm-nest       'own memory intact'     'run nest' '<ret>'
+check vm-nest-child 'Argument: from nest'   'run nest' '<ret>'
+check vm-crash      'Program ended: pid'    'run crash' '<ret>'
+check vm-crash-addr 'address 0xC0000000'    'run crash' '<ret>'
+check vm-after      'systest: PASS'         'run crash' '<ret>' systest '<ret>'
+check vm-no-leak    '129912 KB free'        'run nest' '<ret>' 'run crash' '<ret>' 'run hello' '<ret>' mem '<ret>'
+check vm-ps         'kernel'                ps '<ret>'
+check up-ls         '13 file(s)'             'run ls' '<ret>'
 check up-ls-filter  '3 file(s)'             'run ls he' '<ret>'
 check up-cat        'three'                 'run cat notes' '<ret>'
 check up-cat-missing 'not found: zip'       'run cat zip notes' '<ret>'
