@@ -109,6 +109,7 @@ This avoids retargeting chains and confirmation steps.
 | 1.6.0   | 2026-10-31 | Desktop: program list                |
 | 1.6.1   | 2026-10-31 | Desktop: calc in a window            |
 | 1.6.3   | 2026-10-31 | Desktop: draw in a window            |
+| 1.6.4   | 2026-10-31 | Desktop: edit and vedit in windows   |
 
 ## Next planned release
 

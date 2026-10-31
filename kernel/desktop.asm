@@ -97,6 +97,9 @@ dk_textwin:
     mov eax, [dk_page]
     mov [txt_base], eax
     mov dword [cur], 0
+    mov dword [txt_cols], DKT_COLS ; what the program may use (1.6.4)
+    mov dword [txt_rows], DKT_ROWS
+    mov byte [run_arg], 0       ; no file name: edit asks when it saves
     mov eax, DKT_X
     mov ebx, DKT_Y
     mov ecx, DKT_W
@@ -119,6 +122,8 @@ dk_textwin:
     call wm_close
     mov eax, [dk_oldbase]
     mov [txt_base], eax
+    mov dword [txt_cols], 80
+    mov dword [txt_rows], 25
     mov eax, [dk_oldcur]
     mov [cur], eax
     mov eax, [dk_page]
@@ -179,7 +184,7 @@ dk_bye db 'Desktop closed.', 10, 0
 dk_nomem db 'desktop: no memory for graphics', 10, 0
 align 4
 dk_apps dd dk_a0, dk_a1, dk_a2, dk_a3, dk_a4
-dk_run dd 0, run_calc, 0, 0, run_draw  ; what Enter runs in a window (0: not yet)
+dk_run dd 0, run_calc, run_edit, run_vedit, run_draw ; what Enter runs in a window
 dk_win dd 0
 dk_list dd 0
 dk_twin dd 0

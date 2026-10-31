@@ -24,14 +24,15 @@
 
 ## Programs in windows
 
-Since 1.6.1, Enter on `calc` runs the calculator in a window titled `calc`, over the desktop. The window shows 52 columns and 20 rows of a text screen. When the calculator quits (Esc), the window closes and the desktop is back with `calc` still selected.
+Since 1.6.1, Enter on `calc` runs the calculator in a window titled `calc`, over the desktop. Since 1.6.4, `edit` and `vedit` open the same way, with an empty buffer: Ctrl+S or F2 asks for a file name, and Esc closes the window. The window shows 52 columns and 20 rows of a text screen. When the calculator quits (Esc), the window closes and the desktop is back with `calc` still selected.
 
 How it works (`dk_textwin` in `kernel/desktop.asm`):
 
 - A page from `pg_alloc` stands in for the text screen. `putc`, `cls` and `scroll_up` write to the address in `txt_base`, which is `0xB8000` normally and this page while the program runs. The cursor (`cur`) is saved and set to 0, and both are put back afterwards.
 - A console widget (`wg_console`, `../kernel/widgets.md`) shows the page in the window. It shows the first 20 rows, or, once the cursor is further down, the 20 rows that end at the cursor row. Columns past 52 are cut off.
 - `kbd_getscan` calls `kbd_wait_hook` while it waits for a key. While the program runs, the hook redraws the screen if anything was written (`txt_dirty`). So output appears before each key is read.
-- The program is called the way `run` calls it. It reads keys as it does in text mode.
+- The program is called the way `run` calls it, with no file name. It reads keys as it does in text mode.
+- `txt_cols` and `txt_rows` are 52 and 20 while the program runs, and 80 and 25 otherwise. The editor fits its screen to them, so its status and message rows are the last two rows of the window.
 
 ### draw (1.6.3)
 
@@ -41,7 +42,11 @@ Enter on `draw` runs the ASCII drawing program the same way, in a window titled 
 - When `draw` asks a question on the message row (Save as, the unsaved-changes question on Esc, the new brush), it first moves the cursor to that row (`dr_askrow`), so the window shows rows 5 to 24 and the question is visible. On the text screen the cursor stays where it was.
 - Esc (and d or s if there are unsaved changes) closes the window, and the desktop is back with `draw` selected.
 
-`edit` and `vedit` write to the text screen directly and open in windows in a later 1.6 task (`../../TODO.md`). `files` is not scheduled for a window yet.
+### edit and vedit (1.6.4)
+
+Enter on `edit` or `vedit` opens the editor with an empty buffer. Ctrl+S or F2 asks for a file name and saves; Esc closes the window (after asking, if there are unsaved changes). The editor fits its screen to `txt_cols` × `txt_rows`, so the window shows 18 text rows of 52 columns, the status row (inverted) and the message row. The key reminder on `edit`'s status row is left out when it does not fit.
+
+`files` is not scheduled for a window yet.
 
 ## Booting into the desktop
 

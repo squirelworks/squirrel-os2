@@ -7,9 +7,8 @@
 
 ED_CAP      equ 16384
 ED_BUF      equ KSCRATCH+0x4000     ; 16 KB text buffer
-ED_ROWS     equ 23                  ; text rows; row 23 = status, row 24 = messages
-ED_STATUS   equ 23
-ED_MSGROW   equ 24
+; Text rows are txt_rows - 2; the status row and the message row follow.
+; In a desktop window txt_rows and txt_cols are smaller (1.6.4).
 ED_GUTTER   equ 6                   ; vedit line-number column width
 ATTR_TEXT   equ 0x07
 ATTR_DIM    equ 0x08
@@ -150,13 +149,13 @@ ed_main:
     mov dword [ed_want], -1
     jmp .moved
 .pgup:
-    mov ecx, ED_ROWS
+    call ed_rows
 .pu:
     call ed_up
     loop .pu
     jmp .moved
 .pgdn:
-    mov ecx, ED_ROWS
+    call ed_rows
 .pd:
     call ed_down
     loop .pd
@@ -512,7 +511,8 @@ ed_prompt:
     call sb_str
     mov esi, [ed_pdst]
     call sb_str
-    mov ebx, ED_MSGROW
+    mov ebx, [txt_rows]
+    dec ebx                     ; the message row
     mov ah, ATTR_TEXT
     call sb_row
     pop esi
@@ -796,15 +796,17 @@ ed_draw:
     jae .t1
     mov [ed_top], eax
 .t1:
+    call ed_rows
     mov ebx, [ed_top]
-    add ebx, ED_ROWS
+    add ebx, ecx
     cmp eax, ebx
     jb .t2
-    sub eax, ED_ROWS-1
+    sub eax, ecx
+    inc eax
     mov [ed_top], eax
 .t2:
     ; text width and horizontal scroll
-    mov edx, 80
+    mov edx, [txt_cols]
     cmp byte [ed_verbose], 0
     je .w
     sub edx, ED_GUTTER
@@ -841,7 +843,7 @@ ed_draw:
 .row:
     mov edi, ebx
     imul edi, 160
-    add edi, 0xB8000
+    add edi, [txt_base]
     cmp byte [ed_verbose], 0
     je .text
     ; gutter: line number or blank
@@ -913,7 +915,8 @@ ed_draw:
     mov ax, (ATTR_TEXT<<8)|' '
     rep stosw
     inc ebx
-    cmp ebx, ED_ROWS
+    call ed_rows
+    cmp ebx, ecx
     jb .row
     call ed_status
     ; message row
@@ -923,7 +926,8 @@ ed_draw:
     jz .nomsg
     call sb_str
 .nomsg:
-    mov ebx, ED_MSGROW
+    mov ebx, [txt_rows]
+    dec ebx                     ; the message row
     mov ah, ATTR_TEXT
     call sb_row
     ; hardware cursor
@@ -938,6 +942,7 @@ ed_draw:
 .cur:
     mov [cur], eax
     call cursor_sync
+    mov byte [txt_dirty], 1     ; a desktop window shows the new screen
     popad
     ret
 
@@ -962,7 +967,12 @@ ed_status:
     mov esi, ed_s_mod
     call sb_str
 .nm:
-    mov eax, 80-34              ; the key reminder ends at the last column
+    mov eax, [txt_cols]
+    sub eax, 34                 ; the key reminder ends at the last column
+    mov ebx, [sb_p]
+    sub ebx, ed_sb
+    cmp ebx, eax
+    jae .out                    ; no room for it (a desktop window, 1.6.4)
     call sb_pad
     mov esi, ed_s_keys
     call sb_str
@@ -1017,7 +1027,8 @@ ed_status:
     mov esi, ed_name
     call sb_str
 .out:
-    mov ebx, ED_STATUS
+    call ed_rows
+    mov ebx, ecx                ; the status row follows the text
     mov ah, ATTR_STATUS
     call sb_row
     ret
@@ -1172,14 +1183,20 @@ sb_charinfo:
     pop eax
     ret
 
-; ebx = screen row, ah = attribute: writes ed_sb padded to 80 columns
+; -> ecx = text rows on screen (txt_rows less the status and message rows)
+ed_rows:
+    mov ecx, [txt_rows]
+    sub ecx, 2
+    ret
+
+; ebx = screen row, ah = attribute: writes ed_sb padded to txt_cols columns
 sb_row:
     pushad
     mov edi, ebx
     imul edi, 160
     add edi, [txt_base]         ; the screen, or a desktop window's (1.6.3)
     mov esi, ed_sb
-    mov ecx, 80
+    mov ecx, [txt_cols]
     call vga_text
     mov byte [txt_dirty], 1
     popad

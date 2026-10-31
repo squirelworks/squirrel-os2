@@ -894,7 +894,7 @@ default_isr:
 
 ; ---------- data ----------
 banner db 'Squirrel-OS/2'          ; (the "help" file: the English banner)
-banner_rest db ' 1.6.3', 10   ; OS version: here only (see releases/PROCESS.md)
+banner_rest db ' 1.6.4', 10   ; OS version: here only (see releases/PROCESS.md)
        db 'Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>', 10
        db '          mv <f> <new> | mkdir <d> | cd <d> | pwd | echo | batch <f> | format', 10
        db '          ps | disk | mem | devices | lang <en|la|tlh> | desktop | install', 10
@@ -1108,6 +1108,8 @@ txt_base dd 0xB8000             ; the text screen putc, cls and scroll_up write
                                 ; (a window's buffer while the desktop runs a
                                 ; text program in it, 1.6.1)
 txt_dirty db 0                  ; set by every write there
+txt_cols dd 80                  ; columns and rows of it a program can see:
+txt_rows dd 25                  ; less in a desktop window (1.6.4)
 ticks dd 0
 num_buf times 16 db 0
 
