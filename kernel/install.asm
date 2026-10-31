@@ -20,11 +20,14 @@
 INS_PART_LBA  equ 2048          ; the partition starts at 1 MiB
 INS_MIN       equ INS_PART_LBA+2048 ; smallest target: 2 MiB
 INS_PTYPE     equ 0x7F          ; MBR type for alternative-OS development
+INS_SIG       equ 440           ; disk signature in sector 0
 INS_ENTRY     equ 446           ; first partition entry in sector 0
 INS_HEADS     equ 255           ; CHS geometry for the table's CHS fields
 INS_SPT       equ 63
 INS_OUT       equ blk_buf_out   ; the sector being written (ata.asm)
 INS_IN        equ blk_buf_in    ; a sector read back
+INS_KSECTS    equ KERNEL_SIZE/SECTOR_SIZE ; the kernel image, from sector 1
+INS_FILEMAX   equ 0x10000       ; largest file install copy takes (LD_STAGE)
 INS_BOOTCMP   equ gdt-stage2    ; bytes of sector 1 compared with 0x8000
 %if INS_BOOTCMP < 64 || INS_BOOTCMP > 512
 %error the boot-disk check needs 64 to 512 bytes of code before gdt
@@ -135,6 +138,8 @@ cmd_install_part_run:
 ; Keeps ebx.
 ins_confirm:
     mov esi, ins_ask2
+; esi = the question, ending in (y/n): the same
+ins_ask:
     call puts
     push ebx
     call kbd_getchar            ; (does not keep ebx)
@@ -193,15 +198,7 @@ cmd_install_ls_run:
     jc ins_say_notarget
     call ins_open_part
     jc ins_say_nopart
-    call ins_fs_target
-    mov ebx, dev_inst
-    xor ecx, ecx
-    mov edi, FS_SB
-    call dev_bread
-    jc .nofs
-    cmp dword [FS_SB+SB_MAGIC], FS_MAGIC
-    jne .nofs
-    call fs_load
+    call ins_mount_target
     jc .nofs
     xor dl, dl
     call fs_list_dir
@@ -225,9 +222,213 @@ cmd_install_ls_run:
     call puts
     jmp ins_fs_back
 .nofs:
-    call ins_fs_back
     mov esi, ins_msg_nofs
     jmp puts
+
+; install copy (I.3): the kernel from the boot disk to sectors 1 to
+; INS_KSECTS of the target, then every file in the root of the data disk
+; into the root of the target's file system
+cmd_install_copy_run:
+    call ins_target
+    jc ins_say_notarget
+    mov [ins_tgt], ebx
+    call ins_open_part
+    jc ins_say_nopart
+    call ins_mount_target       ; is there a file system to copy into?
+    jc .nofs
+    call ins_fs_back
+    cmp byte [fs_mounted], 0
+    je .nodata
+    ; the boot disk: the drive whose sector 1 is the running kernel
+    xor ebx, ebx
+.b:
+    cmp dword [ata_sectors+ebx*4], INS_KSECTS+1
+    jb .bn
+    call ins_is_boot
+    jnc .bfound
+.bn:
+    inc ebx
+    cmp ebx, ATA_NDRIVES
+    jb .b
+    mov esi, ins_msg_noboot
+    jmp puts
+.bfound:
+    mov [ins_src], ebx
+    mov ebx, [ins_tgt]
+    mov esi, ins_ask_copy
+    call puts
+    mov eax, ebx
+    call itoa
+    mov esi, num_buf
+    call puts
+    mov esi, ins_ask_copy2
+    call ins_ask
+    jc .r
+    ; the kernel, sector by sector, each one read back
+    mov ecx, 1
+.k:
+    mov ebx, [ins_src]
+    mov edi, INS_IN
+    call ata_read
+    jc .kfail
+    mov ebx, [ins_tgt]
+    mov esi, INS_IN
+    call ata_write
+    jc .kfail
+    mov edi, INS_OUT
+    call ata_read
+    jc .kfail
+    push ecx
+    mov esi, INS_IN
+    mov edi, INS_OUT
+    mov ecx, SECTOR_SIZE
+    repe cmpsb
+    pop ecx
+    jne .kfail
+    inc ecx
+    cmp ecx, INS_KSECTS
+    jbe .k
+    mov esi, ins_msg_kcopied
+    call puts
+    ; the names of the files in the data disk's root, before switching
+    mov edi, ins_names
+    xor edx, edx                ; how many
+    mov ebx, FS_DIR
+    mov ecx, FS_MAXFILES
+.l:
+    cmp byte [ebx], 0
+    je .ln
+    cmp byte [ebx+DE_PARENT], 0
+    jne .ln
+    cmp byte [ebx+DE_KIND], DK_FILE
+    jne .ln
+    push ecx
+    mov esi, ebx
+    mov ecx, FS_NAMELEN/4
+    rep movsd
+    pop ecx
+    mov eax, [ebx+DE_SIZE]
+    stosd
+    inc edx
+.ln:
+    add ebx, FS_DIRENT
+    loop .l
+    mov [ins_nfiles], edx
+    mov dword [ins_ncopied], 0
+    mov ebp, ins_names
+.f:
+    cmp dword [ins_nfiles], 0
+    je .done
+    dec dword [ins_nfiles]
+    mov esi, ebp
+    call puts
+    cmp dword [ebp+FS_NAMELEN], INS_FILEMAX
+    ja .big
+    call ins_copy_file
+    mov esi, ins_msg_ffail
+    jc .say
+    inc dword [ins_ncopied]
+    mov esi, ins_msg_fok
+.say:
+    call puts
+    add ebp, FS_NAMELEN+4
+    jmp .f
+.big:
+    mov esi, ins_msg_fbig
+    jmp .say
+.done:
+    mov eax, [ins_ncopied]
+    call itoa
+    mov esi, num_buf
+    call puts
+    mov esi, ins_msg_copied
+    jmp puts
+.kfail:
+    mov esi, ins_msg_kfail
+    jmp puts
+.nofs:
+    mov esi, ins_msg_nofs
+    jmp puts
+.nodata:
+    mov esi, blk_nodisk
+    jmp puts
+.r:
+    ret
+
+; ebp = a name in ins_names: reads that file from the data disk's root
+; into LD_STAGE and writes it to the target's root. CF on error. The data
+; disk is the file system again afterwards.
+ins_copy_file:
+    pushad
+    mov edi, ins_path           ; "/name": the root, whatever cd says
+    mov byte [edi], '/'
+    inc edi
+    mov esi, ebp
+    mov ecx, FS_NAMELEN
+    rep movsb
+    mov esi, ins_path
+    xor ecx, ecx
+    call fs_open
+    cmp eax, -1
+    je .fail
+    mov ebx, eax
+    mov edi, LD_STAGE
+    mov ecx, INS_FILEMAX
+    call fs_read
+    mov [ins_fsize], eax
+    call fs_close
+    cmp dword [ins_fsize], -1
+    je .fail
+    call ins_mount_target
+    jc .fail
+    mov esi, ins_path
+    mov ecx, O_CREATE|O_TRUNC
+    call fs_open
+    cmp eax, -1
+    je .back
+    mov ebx, eax
+    mov esi, LD_STAGE
+    mov ecx, [ins_fsize]
+    call fs_write
+    push eax
+    call fs_close
+    pop eax
+    cmp eax, [ins_fsize]
+    jne .back
+    call ins_fs_back
+    popad
+    clc
+    ret
+.back:
+    call ins_fs_back
+.fail:
+    popad
+    stc
+    ret
+
+; Points the file system at the target partition and loads it, at its
+; root. CF (and the data disk again) when the partition has no SQFS.
+ins_mount_target:
+    call ins_fs_target
+    pushad
+    mov ebx, dev_inst
+    xor ecx, ecx
+    mov edi, FS_SB
+    call dev_bread
+    jc .no
+    cmp dword [FS_SB+SB_MAGIC], FS_MAGIC
+    jne .no
+    call fs_load
+    jc .no
+    mov byte [fs_cwd], 0
+    popad
+    clc
+    ret
+.no:
+    popad
+    call ins_fs_back
+    stc
+    ret
 
 ins_say_notarget:
     mov esi, ins_msg_notarget
@@ -364,7 +565,8 @@ ins_target:
     ret
 
 ; ebx = drive -> CF clear when it is the boot disk (its sector 1 starts
-; with the running kernel's code). A disk that cannot be read counts
+; with the running kernel's code, and the end of its sector 0 matches the
+; boot sector in memory). A disk that cannot be read counts
 ; as the boot disk, so it is never picked.
 ins_is_boot:
     pushad
@@ -375,6 +577,18 @@ ins_is_boot:
     mov esi, stage2
     mov edi, INS_IN
     mov ecx, INS_BOOTCMP
+    repe cmpsb
+    jne .no
+    ; and its sector 0 ends like the boot sector still in memory at 0x7C00:
+    ; the same disk signature and partition table (none on a release
+    ; image). A target that holds a copy of the kernel (I.3) differs here.
+    mov edi, INS_IN
+    xor ecx, ecx
+    call ata_read
+    jc .yes
+    mov esi, 0x7C00+INS_SIG
+    mov edi, INS_IN+INS_SIG
+    mov ecx, SECTOR_SIZE-INS_SIG
     repe cmpsb
     jne .no
 .yes:
@@ -449,7 +663,7 @@ ins_mbr:
     rep stosd
     mov eax, [ticks]            ; disk signature: any value but 0
     or eax, 0x53510000
-    mov [INS_OUT+440], eax
+    mov [INS_OUT+INS_SIG], eax
     mov edi, INS_OUT+INS_ENTRY
     mov eax, INS_PART_LBA
     lea edx, [edi+1]
@@ -536,6 +750,13 @@ dev_inst:
     db 'inst', 0, 0, 0, 0
     dd DEV_BLOCK, dev_probe_yes, ins_inst_read, ins_inst_write, 0, DEVF_UP, 0, 0
 ins_pstart dd 0
+ins_tgt dd 0
+ins_src dd 0
+ins_nfiles dd 0
+ins_ncopied dd 0
+ins_fsize dd 0
+ins_names times FS_MAXFILES*(FS_NAMELEN+4) db 0 ; name, then size
+ins_path times FS_NAMELEN+2 db 0
 ins_was_fds times FS_MAXFD dd 0
 ins_was_mounted db 0
 ins_was_cwd db 0
@@ -544,6 +765,7 @@ cmd_install db 'install', 0
 cmd_install_part db 'install part', 0
 cmd_install_format db 'install format', 0
 cmd_install_ls db 'install ls', 0
+cmd_install_copy db 'install copy', 0
 ins_title db 'Installer: the target disk', 10, 0
 ins_mib db ' MiB)  ', 0
 ins_k_boot db 'boot disk, not touched', 10, 0
@@ -553,7 +775,7 @@ ins_k_used db 'not blank', 10, 0
 ins_k_ours db 'has a Squirrel-OS/2 partition', 10, 0
 ins_k_unread db 'cannot be read', 10, 0
 ins_msg_target db 'Target: disk ', 0
-ins_msg_next db '. Steps: install part, install format, install ls.', 10, 0
+ins_msg_next db '. Steps: install part, install format, install copy.', 10, 0
 ins_msg_notarget db 'No target disk. Attach one as secondary master or slave.', 10, 0
 ins_msg_small db 'The target disk is smaller than 2 MiB.', 10, 0
 ins_ask1 db 'Write a new partition table to disk ', 0
@@ -567,5 +789,14 @@ ins_ask_fmt db 'Format partition 1 of disk ', 0
 ins_msg_formatted db 'Formatted SQFS with an empty root. Type install ls to see it.', 10, 0
 ins_msg_fmtfail db 'Format failed.', 10, 0
 ins_msg_nofs db 'Partition 1 has no SQFS. Type install format.', 10, 0
+ins_ask_copy db 'Copy the kernel and the files in the root of the data disk to disk ', 0
+ins_msg_noboot db 'The boot disk is not an IDE disk, so the kernel cannot be read back.', 10, 0
+ins_ask_copy2 db '?', 10, 'Files with the same names there are replaced. Copy? (y/n) ', 0
+ins_msg_kcopied db 'Kernel copied and read back.', 10, 0
+ins_msg_kfail db 'Copying the kernel failed.', 10, 0
+ins_msg_fok db ' copied', 10, 0
+ins_msg_ffail db ' failed', 10, 0
+ins_msg_fbig db ' skipped: larger than 64 KB', 10, 0
+ins_msg_copied db ' files copied.', 10, 0
 ins_msg_inroot db ' entries in the root of partition 1.', 10, 0
 ins_msg_psize db ', ', 0

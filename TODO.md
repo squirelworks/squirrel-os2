@@ -230,8 +230,8 @@ The author lifted the old gate ("not before the 1.5 and 1.6 boxes above are clos
   **Acceptance:** a regression check reads the table back from the blank disk. Shell commands `install` and `install part` (`kernel/install.asm`); checks `install-list`, `install-esc`, `install-esc-blank`, `install-part`, `install-mbr`, `install-again`, `install-none`.
 - [x] **I.2-format** — Format SQFS inside that partition (SQFS learns a starting LBA).
   **Acceptance:** after a reboot, `ls` on the new partition shows an empty root. Shell commands `install format` and `install ls`; the file system reaches its disk through `fs_dev`. Checks `install-fmt-nopart`, `install-ls-nofs`, `install-fmt-esc`, `install-fmt-esc-blank`, `install-format`, `install-sqfs`, `install-ls`, `install-back`.
-- [ ] **I.3-copy** — Copy the kernel and the sample programs from the boot media onto the target.
-  **Acceptance:** a check compares the copied files with the originals.
+- [x] **I.3-copy** — Copy the kernel and the sample programs from the boot media onto the target.
+  **Acceptance:** a check compares the copied files with the originals. Shell command `install copy`: the kernel to sectors 1 to 192, the data disk's root files into the partition. Checks `install-copy-esc`, `install-copy-esc-blank`, `install-copy`, `install-copied`, `install-after-copy`.
 - [ ] **I.4-bootable** — Write the boot sector to the target so the PC boots from it with the stick removed.
   **Acceptance:** QEMU boots from the target disk alone and reaches the shell prompt.
 - [ ] **I.5-ui** — A text-mode `install` program that walks through I.1–I.4 with a confirm step before anything is written. Localized like the other programs.

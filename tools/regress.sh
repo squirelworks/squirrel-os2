@@ -246,6 +246,28 @@ check install-format 'Formatted SQFS with an empty root.'  'install format' '<re
 part  install-sqfs  'SQFS[]'
 check install-ls    '0 entries in the root of partition 1.'  'install ls' '<ret>'   # a new boot: it is on the disk
 check_all install-back 'help|memo1'        'install ls' '<ret>' ls '<ret>'   # the data disk is the file system again
+# installer I.3: the kernel to sectors 1 to 192 of the target, the data disk's root files into its SQFS
+check install-copy-esc 'Nothing was written.'  'install copy' '<ret>' '<esc>'
+copied() {  # copied NAME WANT: on the host, 'none' (sector 1 still blank) or 'same' (kernel and files match)
+    got=$(python3 -c 'import subprocess, sys
+tgt, osimg, data, sq = sys.argv[1:5]
+t = open(tgt, "rb").read()
+if not any(t[512:1024]): print("none"); sys.exit()
+o = open(osimg, "rb").read()
+if t[512:512 * 193] != o[512:512 * 193]: print("kernel differs"); sys.exit()
+open(tgt + ".part", "wb").write(t[2048 * 512:])
+ls = lambda img: subprocess.run(["python3", sq, img, "ls"], capture_output=True, text=True).stdout.split()
+get = lambda img, p: subprocess.run(["python3", sq, img, "get", p], capture_output=True).stdout
+names = ls(data)
+files = [n for n, z in zip(names[0::2], names[1::2]) if "/" not in n and n != "shell.hist"]
+bad = [n for n in files if get(data, n) != get(tgt + ".part", n)]
+print("same" if files and not bad else "differ: %s" % bad)' "$target" "$out/os.img" "$disk" "$root/tools/sqfs.py")
+    if [ "$got" = "$2" ]; then echo "ok   $1"; else echo "FAIL $1 (expected: $2, got: $got)"; fail=1; fi
+}
+copied install-copy-esc-blank 'none'
+check_all install-copy 'Kernel copied and read back.|help copied| files copied.'  'install copy' '<ret>' y '<pause>' '<pause>' '<pause>'
+copied install-copied 'same'
+check install-after-copy 'Target: disk 2.'  install '<ret>'   # a copy of the kernel is not the boot disk
 target=
 check install-none  'No target disk.'       'install part' '<ret>'
 # 1.3.0: graphics mode, one pixel written and read back, then text mode again
@@ -359,7 +381,7 @@ check ed-path-r     'deep'                  'cat e1/long-name.txt' '<ret>'
 check fb-dir        'in /e1'                'cd e1' '<ret>' 'run files' '<ret>'
 check fb-dir-up     '[app]'                 'cd e1' '<ret>' 'run files' '<ret>' '<ret>'
 # 0.9.3: release readiness
-check ver-banner    'Squirrel-OS/2 1.7.3'   systest '<ret>'
+check ver-banner    'Squirrel-OS/2 1.7.4'   systest '<ret>'
 check ver-planned   '(planned: topo)'  systest '<ret>'
 check calc-hist-root '1 + 1 = 2'            'mkdir c1' '<ret>' 'cd c1' '<ret>' 'run calc' '<ret>' '1 + 1' '<ret>' '<esc>' 'cat /calc.hist' '<ret>'
 boot="--floppy $out/floppy.img"
@@ -460,7 +482,7 @@ check l10n-hint-la  '(lineam tabulae addit)'  'lang la' '<ret>' put '<ret>'
 check l10n-fe-tlh   "tu'lu'pu'"             'lang tlh' '<ret>' 'mkdir t1' '<ret>' 'mkdir t1' '<ret>'
 check l10n-rm-tlh   "tu'lu'be'"             'lang tlh' '<ret>' 'rm nosuch' '<ret>'
 check lang-bad      'Unknown language (en la tlh)'  'lang fr' '<ret>'
-check lang-banner   'Sciurus-OS/2 1.7.3'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
+check lang-banner   'Sciurus-OS/2 1.7.4'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
 # 1.0.6: calc, edit and draw titles follow lang
 check l10n-calc-tlh "mI' De'wI' (Esc to exit)" 'lang tlh' '<ret>' 'run calc' '<ret>'
 check l10n-edit-tlh "ghItlhwI': (untitled)" 'lang tlh' '<ret>' 'run edit' '<ret>'
