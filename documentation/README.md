@@ -82,4 +82,5 @@ Documentation is active.
 - 1.6.5 pixel drawing in `draw` (`releases/1.6.5.md`, `apps/draw.md`)
 - 1.7.0 objects: classes and messages (`releases/1.7.0.md`, `kernel/objects.md`)
 - 1.7.1 objects: instance fields (`releases/1.7.1.md`, `kernel/objects.md`)
+- 1.7.2 installer steps I.1 and I.2: the target disk, its partition table and SQFS (`releases/1.7.2.md`, `guides/install.md`)
 - Next: 1.7 the `objs` listing and `obj_free` (`1.7-objs` in `../TODO.md`, `../ROADMAP.md`)

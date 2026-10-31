@@ -94,7 +94,7 @@ From `documentation/plannedmilestones.md`. 1.6 is on `main`, and 1.7 is split in
 
 ### Installer (I.1–I.6) — unscheduled
 
-Today the release images are the install: write `os.img` to a USB stick or `floppy.img` to a floppy, byte for byte, and boot it. A real installer boots from that media and copies the system onto the computer's own disk, so the stick can be removed. The boxes are in `TODO.md`. They run alongside the 1.6 desktop work (the author lifted the earlier gate on 2026-10-31), they do not move the OS version, and none of them is a 2.0.0 requirement.
+Today the release images are the install: write `os.img` to a USB stick or `floppy.img` to a floppy, byte for byte, and boot it. A real installer boots from that media and copies the system onto the computer's own disk, so the stick can be removed. The boxes are in `TODO.md`. They run alongside the 1.6 desktop work (the author lifted the earlier gate on 2026-10-31), each ships in the next OS version, and none of them is a 2.0.0 requirement.
 
 Assumptions the installer keeps: BIOS boot (Legacy/CSM), an IDE/ATA target disk reached through the existing polled driver, and SQFS as the installed file system. UEFI, AHCI/NVMe, and USB mass storage stay in 2.x.
 

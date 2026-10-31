@@ -355,13 +355,19 @@ run_simple:
     mov edi, cmd_disk
     call streq
     je .disk
-    ; install, install part (installer step I.1)
+    ; install, install part / format / ls (installer I.1, I.2)
     mov edi, cmd_install
     call streq
     je .install
     mov edi, cmd_install_part
     call streq
     je .install_part
+    mov edi, cmd_install_format
+    call streq
+    je .install_format
+    mov edi, cmd_install_ls
+    call streq
+    je .install_ls
     ; blktest
     mov edi, cmd_blktest
     call streq
@@ -570,6 +576,12 @@ run_simple:
     jmp .empty
 .install_part:
     call cmd_install_part_run
+    jmp .empty
+.install_format:
+    call cmd_install_format_run
+    jmp .empty
+.install_ls:
+    call cmd_install_ls_run
     jmp .empty
 .blktest:
     call cmd_blktest_run
@@ -906,7 +918,7 @@ default_isr:
 
 ; ---------- data ----------
 banner db 'Squirrel-OS/2'          ; (the "help" file: the English banner)
-banner_rest db ' 1.7.1', 10   ; OS version: here only (see releases/PROCESS.md)
+banner_rest db ' 1.7.2', 10   ; OS version: here only (see releases/PROCESS.md)
        db 'Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>', 10
        db '          mv <f> <new> | mkdir <d> | cd <d> | pwd | echo | batch <f> | format', 10
        db '          ps | disk | mem | devices | lang <en|la|tlh> | desktop | install', 10
@@ -1189,8 +1201,8 @@ puthex:
 %include "msg.asm"
 %include "gfx.asm"
 %include "ata.asm"
-%include "install.asm"
 %include "fs.asm"
+%include "install.asm"
 %include "shell.asm"
 %include "lineedit.asm"
 %include "batch.asm"

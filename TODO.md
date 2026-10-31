@@ -224,12 +224,12 @@ Do not start these while any box above is open. When 1.7 is on `main`, split the
 
 ## Installer (unscheduled)
 
-The author lifted the old gate ("not before the 1.5 and 1.6 boxes above are closed") on 2026-10-31: these boxes now run alongside the 1.6 desktop work, and stay out of the desktop and editor files. They do not move the OS version; each PR is named by its box (I.1, I.2, ...). Each box is one PR. Design notes go in `documentation/guides/install.md` with the first box. The target is an IDE/ATA disk in BIOS mode; the regression run uses a blank QEMU disk as the target.
+The author lifted the old gate ("not before the 1.5 and 1.6 boxes above are closed") on 2026-10-31: these boxes now run alongside the 1.x work, and stay out of the desktop and editor files. Each PR carries the OS version it ships in, like any other release (I.1 and I.2 shipped in 1.7.2). Each box is one PR. Design notes go in `documentation/guides/install.md` with the first box. The target is an IDE/ATA disk in BIOS mode; the regression run uses a blank QEMU disk as the target.
 
 - [x] **I.1-target** — Find the target disk, show its size, and refuse to touch the boot disk. Write an MBR partition table with one Squirrel-OS/2 partition.
   **Acceptance:** a regression check reads the table back from the blank disk. Shell commands `install` and `install part` (`kernel/install.asm`); checks `install-list`, `install-esc`, `install-esc-blank`, `install-part`, `install-mbr`, `install-again`, `install-none`.
-- [ ] **I.2-format** — Format SQFS inside that partition (SQFS learns a starting LBA).
-  **Acceptance:** after a reboot, `ls` on the new partition shows an empty root.
+- [x] **I.2-format** — Format SQFS inside that partition (SQFS learns a starting LBA).
+  **Acceptance:** after a reboot, `ls` on the new partition shows an empty root. Shell commands `install format` and `install ls`; the file system reaches its disk through `fs_dev`. Checks `install-fmt-nopart`, `install-ls-nofs`, `install-fmt-esc`, `install-fmt-esc-blank`, `install-format`, `install-sqfs`, `install-ls`, `install-back`.
 - [ ] **I.3-copy** — Copy the kernel and the sample programs from the boot media onto the target.
   **Acceptance:** a check compares the copied files with the originals.
 - [ ] **I.4-bootable** — Write the boot sector to the target so the PC boots from it with the stick removed.

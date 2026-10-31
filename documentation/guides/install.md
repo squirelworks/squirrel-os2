@@ -1,6 +1,6 @@
 # Installing Squirrel-OS/2 onto a disk
 
-Status: **in progress**. Step I.1 is done; I.2 to I.6 are open in `TODO.md`.
+Status: **in progress**. Steps I.1 and I.2 are done; I.3 to I.6 are open in `TODO.md`.
 
 ## Today
 
@@ -16,13 +16,13 @@ the medium can be removed afterwards. Each step is one pull request:
 | Step | What it does | State |
 |------|--------------|-------|
 | I.1-target | Find the target disk, refuse the boot and data disks, write an MBR with one partition | done |
-| I.2-format | Format SQFS inside that partition (SQFS learns a starting LBA) | open |
+| I.2-format | Format SQFS inside that partition (SQFS learns a starting LBA) | done |
 | I.3-copy | Copy the kernel and the sample programs onto the target | open |
 | I.4-bootable | Write the boot code into the target's MBR so the PC boots from it alone | open |
 | I.5-ui | A text-mode `install` program that walks through I.1 to I.4, with a confirm step, localized | open |
 | I.6-cd | Optional: a bootable CD image around `floppy.img` | open |
 
-The steps do not move the OS version. They are named by their box.
+Each step ships in the next OS version, like any other release: I.1 and I.2 are in 1.7.2.
 
 Assumptions: BIOS boot (Legacy/CSM), an IDE/ATA target disk reached through the polled
 driver, SQFS as the installed file system. UEFI, AHCI/NVMe and USB mass storage stay in 2.x.
@@ -75,8 +75,22 @@ at least 2 MiB.
 Programs cannot reach drives 2 and 3: they have no entry in the device table, so
 `SYS_BREAD`/`SYS_BWRITE` refuse them.
 
-These I.1 messages are English only, like `disk` and `blktest`. The `install` program of I.5
+These installer messages are English only, like `disk` and `blktest`. The `install` program of I.5
 is the localized one.
+
+## Step I.2: the file system
+
+- `install format` checks that the target's partition 1 is a type-`7F` partition that fits
+  on the disk (else: `Type install part first.`), asks the same y/n question, and formats
+  SQFS there with an empty root. The built-in files are not added.
+- `install ls` lists the root of that file system and counts its entries, for example
+  `0 entries in the root of partition 1.` Without SQFS there it says `Type install format.`
+
+Both point the file system at the partition only while they run (`fs_dev`, see
+`../kernel/filesystem.md`). The data disk is loaded again afterwards, with the same current
+directory and open files, so the shell history and everything else stay on the data disk.
+The partition's SQFS has the same layout as a data disk, so on the host
+`dd if=target.img of=part.img bs=512 skip=2048` and `tools/sqfs.py part.img ls` read it.
 
 ## Trying it in QEMU
 
@@ -90,13 +104,15 @@ qemu-system-i386 -drive format=raw,file=build/os.img,index=0,media=disk \
                  -drive format=raw,file=build/target.img,index=2,media=disk
 ```
 
-Then type `install` and `install part`. On the host, `fdisk -l build/target.img` shows the
+Then type `install`, `install part` and `install format`, and after a reboot `install ls`. On the host, `fdisk -l build/target.img` shows the
 new partition. `tools/regress.sh` does the same with a fresh 16 MiB image each run
 (`tools/qemu_screen.py --target`) and reads the table back on the host.
 
-## Limits of I.1
+## Limits so far
 
 - One partition, the whole disk after the first MiB. No other partitions are kept.
+- While `install format` or `install ls` runs, the file system is the target's. A program
+  running in the background at that moment would see it too.
 - LBA28 only: disks up to 128 GiB.
 - A USB stick, CD or floppy that the BIOS booted from is not an ATA disk, so the kernel cannot
   read files back from it yet. I.3 decides where the copy comes from (the running kernel is

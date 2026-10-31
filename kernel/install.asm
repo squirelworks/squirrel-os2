@@ -1,9 +1,13 @@
-; Squirrel-OS/2 — installer, step I.1: the target disk and its partition table
+; Squirrel-OS/2 — installer steps I.1 and I.2: the target disk, its
+; partition table and its file system
 ; Included from pm.asm. Original code.
 ;
-;   install        list the disks and pick the target
-;   install part   write an MBR with one Squirrel-OS/2 partition to the
-;                  target, after a y/n question
+;   install         list the disks and pick the target
+;   install part    write an MBR with one Squirrel-OS/2 partition to the
+;                   target, after a y/n question (I.1)
+;   install format  format SQFS with an empty root in that partition,
+;                   after a y/n question (I.2)
+;   install ls      list the root of that file system (I.2)
 ;
 ; The target is the first disk that is present, is not the data disk
 ; (drive 1, which the file system mounts) and is not the disk the kernel
@@ -86,25 +90,8 @@ cmd_install_part_run:
     mov esi, disk_sep
     call puts
     call ins_size
-    mov esi, ins_ask2
-    call puts
-    push ebx
-    call kbd_getchar            ; (does not keep ebx)
-    pop ebx
-    cmp al, ' '
-    jb .noecho
-    call putc
-.noecho:
-    cmp al, 'y'
-    je .yes
-    cmp al, 'Y'
-    je .yes
-    mov esi, ins_msg_kept
-    call puts
-    ret
-.yes:
-    mov al, 10
-    call putc
+    call ins_confirm
+    jc .r
     call ins_mbr
     mov esi, INS_OUT
     xor ecx, ecx
@@ -128,6 +115,7 @@ cmd_install_part_run:
     mov esi, ins_msg_written
     call puts
     call ins_show_part
+.r:
     ret
 .fail:
     mov esi, ins_msg_fail
@@ -140,6 +128,219 @@ cmd_install_part_run:
 .none:
     mov esi, ins_msg_notarget
     call puts
+    ret
+
+; Prints "Everything on that disk is lost. Write it? (y/n)" and waits for
+; a key. -> CF clear for y; otherwise CF set and "Nothing was written."
+; Keeps ebx.
+ins_confirm:
+    mov esi, ins_ask2
+    call puts
+    push ebx
+    call kbd_getchar            ; (does not keep ebx)
+    pop ebx
+    cmp al, ' '
+    jb .noecho
+    call putc
+.noecho:
+    or al, 0x20                 ; Y -> y
+    cmp al, 'y'
+    je .yes
+    mov esi, ins_msg_kept
+    call puts
+    stc
+    ret
+.yes:
+    mov al, 10
+    call putc
+    clc
+    ret
+
+; install format (I.2): SQFS with an empty root inside partition 1
+cmd_install_format_run:
+    call ins_target
+    jc ins_say_notarget
+    call ins_open_part
+    jc ins_say_nopart
+    mov esi, ins_ask_fmt
+    call puts
+    mov eax, ebx
+    call itoa
+    mov esi, num_buf
+    call puts
+    mov esi, disk_sep
+    call puts
+    mov eax, [dev_inst+DEV_SIZE]
+    call ins_print_size
+    call ins_confirm
+    jc .r
+    call ins_fs_target
+    call fs_format_empty
+    pushfd
+    call ins_fs_back
+    popfd
+    mov esi, ins_msg_fmtfail
+    jc .say
+    mov esi, ins_msg_formatted
+.say:
+    call puts
+.r:
+    ret
+
+; install ls (I.2): the root of the file system in partition 1
+cmd_install_ls_run:
+    call ins_target
+    jc ins_say_notarget
+    call ins_open_part
+    jc ins_say_nopart
+    call ins_fs_target
+    mov ebx, dev_inst
+    xor ecx, ecx
+    mov edi, FS_SB
+    call dev_bread
+    jc .nofs
+    cmp dword [FS_SB+SB_MAGIC], FS_MAGIC
+    jne .nofs
+    call fs_load
+    jc .nofs
+    xor dl, dl
+    call fs_list_dir
+    ; count what is in the root
+    xor eax, eax
+    mov ebx, FS_DIR
+    mov ecx, FS_MAXFILES
+.c:
+    cmp byte [ebx], 0
+    je .n
+    cmp byte [ebx+DE_PARENT], 0
+    jne .n
+    inc eax
+.n:
+    add ebx, FS_DIRENT
+    loop .c
+    call itoa
+    mov esi, num_buf
+    call puts
+    mov esi, ins_msg_inroot
+    call puts
+    jmp ins_fs_back
+.nofs:
+    call ins_fs_back
+    mov esi, ins_msg_nofs
+    jmp puts
+
+ins_say_notarget:
+    mov esi, ins_msg_notarget
+    jmp puts
+ins_say_nopart:
+    mov esi, ins_msg_nopart
+    jmp puts
+
+; ebx = target drive: reads its sector 0 and, when partition 1 is a
+; Squirrel-OS/2 partition inside the disk, sets up dev_inst to reach it.
+; CF when there is none. Keeps ebx.
+ins_open_part:
+    pushad
+    mov edi, INS_IN
+    xor ecx, ecx
+    call ata_read
+    jc .no
+    cmp word [INS_IN+510], 0xAA55
+    jne .no
+    cmp byte [INS_IN+INS_ENTRY+4], INS_PTYPE
+    jne .no
+    mov eax, [INS_IN+INS_ENTRY+8]   ; start
+    mov edx, [INS_IN+INS_ENTRY+12]  ; size
+    cmp edx, FS_DATA_LBA+2
+    jb .no
+    test eax, eax
+    jz .no                      ; never over the MBR
+    mov ecx, eax
+    add ecx, edx
+    jc .no
+    cmp ecx, [ata_sectors+ebx*4]
+    ja .no
+    mov [ins_pstart], eax
+    mov [dev_inst+DEV_SIZE], edx
+    mov [dev_inst+DEV_UNIT], ebx
+    popad
+    clc
+    ret
+.no:
+    popad
+    stc
+    ret
+
+; Points the file system at dev_inst, keeping what it had for ins_fs_back.
+ins_fs_target:
+    pushad
+    mov al, [fs_mounted]
+    mov [ins_was_mounted], al
+    mov al, [fs_cwd]
+    mov [ins_was_cwd], al
+    mov esi, fs_fds
+    mov edi, ins_was_fds
+    mov ecx, FS_MAXFD
+    rep movsd
+    mov dword [fs_dev], dev_inst
+    mov byte [fs_mounted], 0
+    popad
+    ret
+
+; Points the file system back at the data disk and loads it again.
+ins_fs_back:
+    pushad
+    mov dword [fs_dev], FS_DEV
+    mov byte [fs_mounted], 0
+    cmp byte [ins_was_mounted], 0
+    je .r
+    mov ebx, FS_DEV
+    xor ecx, ecx
+    mov edi, FS_SB
+    call dev_bread
+    jc .r
+    call fs_load
+    jc .r
+    mov al, [ins_was_cwd]
+    mov [fs_cwd], al
+    mov esi, ins_was_fds
+    mov edi, fs_fds
+    mov ecx, FS_MAXFD
+    rep movsd
+.r:
+    popad
+    ret
+
+; dev_inst operations: sectors of partition 1 of the target.
+; ebx = dev_inst, ecx = sector in the partition -> CF on error
+ins_inst_read:
+    cmp ecx, [ebx+DEV_SIZE]
+    jae .bad
+    push ebx
+    push ecx
+    add ecx, [ins_pstart]
+    mov ebx, [ebx+DEV_UNIT]
+    call ata_read
+    pop ecx
+    pop ebx
+    ret
+.bad:
+    stc
+    ret
+
+ins_inst_write:
+    cmp ecx, [ebx+DEV_SIZE]
+    jae .bad
+    push ebx
+    push ecx
+    add ecx, [ins_pstart]
+    mov ebx, [ebx+DEV_UNIT]
+    call ata_write
+    pop ecx
+    pop ebx
+    ret
+.bad:
+    stc
     ret
 
 ; -> ebx = target drive, or CF when there is none
@@ -221,24 +422,22 @@ ins_kind:
 
 ; ebx = drive: prints "N sectors (M MiB)  "
 ins_size:
-    push ebx
     mov eax, [ata_sectors+ebx*4]
+; eax = sectors: the same
+ins_print_size:
+    push eax
     call itoa
     mov esi, num_buf
     call puts
     mov esi, disk_sectors
     call puts
-    pop ebx
-    push ebx
-    mov eax, [ata_sectors+ebx*4]
+    pop eax
     shr eax, 11
     call itoa
     mov esi, num_buf
     call puts
     mov esi, ins_mib
-    call puts
-    pop ebx
-    ret
+    jmp puts
 
 ; ebx = drive: builds sector 0 in INS_OUT. No boot code yet (I.4), one
 ; partition from INS_PART_LBA to the end of the disk, not active.
@@ -330,9 +529,22 @@ ins_show_part:
     call puts
     ret
 
+; the target partition as a block device. It is not in the device table,
+; so programs cannot find it; only the file system uses it, through fs_dev.
+align 4
+dev_inst:
+    db 'inst', 0, 0, 0, 0
+    dd DEV_BLOCK, dev_probe_yes, ins_inst_read, ins_inst_write, 0, DEVF_UP, 0, 0
+ins_pstart dd 0
+ins_was_fds times FS_MAXFD dd 0
+ins_was_mounted db 0
+ins_was_cwd db 0
+
 cmd_install db 'install', 0
 cmd_install_part db 'install part', 0
-ins_title db 'Installer step I.1: the target disk', 10, 0
+cmd_install_format db 'install format', 0
+cmd_install_ls db 'install ls', 0
+ins_title db 'Installer: the target disk', 10, 0
 ins_mib db ' MiB)  ', 0
 ins_k_boot db 'boot disk, not touched', 10, 0
 ins_k_data db 'data disk, not touched', 10, 0
@@ -341,7 +553,7 @@ ins_k_used db 'not blank', 10, 0
 ins_k_ours db 'has a Squirrel-OS/2 partition', 10, 0
 ins_k_unread db 'cannot be read', 10, 0
 ins_msg_target db 'Target: disk ', 0
-ins_msg_next db '. Type install part to write its partition table.', 10, 0
+ins_msg_next db '. Steps: install part, install format, install ls.', 10, 0
 ins_msg_notarget db 'No target disk. Attach one as secondary master or slave.', 10, 0
 ins_msg_small db 'The target disk is smaller than 2 MiB.', 10, 0
 ins_ask1 db 'Write a new partition table to disk ', 0
@@ -350,4 +562,10 @@ ins_msg_kept db 10, 'Nothing was written.', 10, 0
 ins_msg_written db 'Partition table written and read back.', 10, 0
 ins_msg_fail db 'Write failed: the table did not read back.', 10, 0
 ins_msg_part db 'Partition 1: type 7F, start ', 0
+ins_msg_nopart db 'The target has no Squirrel-OS/2 partition. Type install part first.', 10, 0
+ins_ask_fmt db 'Format partition 1 of disk ', 0
+ins_msg_formatted db 'Formatted SQFS with an empty root. Type install ls to see it.', 10, 0
+ins_msg_fmtfail db 'Format failed.', 10, 0
+ins_msg_nofs db 'Partition 1 has no SQFS. Type install format.', 10, 0
+ins_msg_inroot db ' entries in the root of partition 1.', 10, 0
 ins_msg_psize db ', ', 0
