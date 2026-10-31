@@ -81,7 +81,7 @@ Each item is its own patch release after 1.0.0 (its own release note). Independe
   `localization/README.md` marks those keys "(not yet)".
   **Acceptance:** `lang tlh` then `run calc` shows the Klingon title from the string table, and the same for `edit` and `draw`. A regression check expects one translated title. `strings.inc` is regenerated.
 
-- [ ] **1.0-diff-deriv** — Numerical derivative in `diff`.
+- [x] **1.0-diff-deriv** — Numerical derivative in `diff`.
   `diff` is a scaffold that says the numerical work is pending. Use finite differences on the existing scientific evaluator. No second math library, and no symbolic rules.
   **Acceptance:** `run diff` on a derivative of `sin(x)` at 0 prints a value near 1 (the check can accept `1.000`). The scaffold sentence is gone for this operation. `documentation/apps/calculators.md` describes the input. A regression check covers it.
 

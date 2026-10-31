@@ -131,7 +131,7 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 | Boot disk | `hd0` is never written. Without a data disk the system runs with no files. |
 | Editors | Files over 16 KB load truncated, with a warning. No search, undo or control-character display (tasks 1.0-edit-*). |
 | Drawing | ASCII only, on a fixed 64 × 18 canvas. No pixel graphics (milestone 1.3 and 1.6-draw-pixels). |
-| Scaffolds | `graph`, `diff` and `topo` print a scaffold message and return. The banner lists them as planned. `graph` waits for 1.3, `diff` for the 1.0-diff-* tasks, and `topo` for 2.x. |
+| Scaffolds | `graph` and `topo` print a scaffold message and return. The banner lists them as planned. `graph` waits for 1.3 and `topo` for 2.x. `diff` does derivatives since 1.0.7; integrals and ODEs are the remaining 1.0-diff-* tasks. |
 | Localization | Most messages are still English literals. The boot-sector and CPU-check messages are English only by design, because they print before the string tables exist. |
 | Pipes | Stages run one after another, not concurrently. Output beyond 32 KB per stage is cut. There is no quoting and no separate error stream. |
 | Drivers | Polled I/O only, with no interrupt-driven ATA. Devices are fixed at boot, with no `/dev` namespace and no loadable drivers. |
@@ -164,6 +164,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 ## 1.0.6
 
 - The `calc` title, the `edit` status line and the `draw` title use the `calc`, `edit` and `draw` keys in the current language (`kernel/localization.md`; `l10n-*-tlh`, `l10n-draw-la`). The rest of the apps' help text is still English.
+
+## 1.0.7
+
+- `diff` computes numerical derivatives: `d <f(x)> at <x0>`, a central difference on the `sci` evaluator (`apps/calculators.md`; `diff-*`). The banner lists `diff` as an app, no longer as planned.
 
 ## Notes
 
