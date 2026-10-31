@@ -37,7 +37,7 @@ Do these first. The release task is last, and only after the others are on `main
   `banner_rest` in `kernel/pm.asm` said `0.2.3`.
   **Acceptance:** after boot, the VGA screen contains the current version. A new `tools/regress.sh` check fails if it does not. The 1.0.0 release task is what changes the string to `1.0.0`.
 
-- [ ] **1.0-spec** — Write the current specification.
+- [x] **1.0-spec** — Write the current specification.
   `documentation/specifications.md` stops at 0.0.3 while claiming it is updated with each release.
   **Acceptance:** the file has a 0.9.2 section that a reader can check against the tree: boot to a shell, SQFS (64 entries, 15-character names, paths to 63 characters, no seek), browser, `calc` / `sci` / `matrix`, `edit` / `vedit` (16 KB buffer), ASCII `draw`, loaders, shell (pipes, history, batch), paging, heap, devices, `en`/`la`/`tlh`, crash reports. Limits named in the kernel notes are listed as intentional, including cooperative scheduling, ring 0, no FPU save, and `graph` / `diff` / `topo` still scaffolds. Older sections stay.
 
