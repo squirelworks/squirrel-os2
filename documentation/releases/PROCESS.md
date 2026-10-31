@@ -91,6 +91,7 @@ This avoids retargeting chains and confirmation steps.
 | 1.0.10  | 2026-10-31 | Euler ODE stepper in diff            |
 | 1.0.11  | 2026-10-31 | One-level undo in the editors        |
 | 1.0.12  | 2026-10-31 | vedit shows control characters      |
+| 1.1.0   | 2026-10-31 | Timer preempts spinning programs     |
 
 ## Next planned release
 

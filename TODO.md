@@ -111,7 +111,7 @@ Files larger than 16 KB stay truncated, with the existing warning. That cap belo
 
 Start only after **1.0-fpu** is on `main`. `yield` and `proctest` keep their current results.
 
-- [ ] **1.1-preempt** — Switch on a timer tick when another process is ready.
+- [x] **1.1-preempt** — Switch on a timer tick when another process is ready.
   **Acceptance:** a process that spins without calling `yield` does not block a second process from printing. A regression check expects the second process's line (and still expects `proctest`'s existing line). `documentation/kernel/processes.md` describes the tick path and drops "no preemption".
 
 - [ ] **1.1-thread** — Treat a same-address-space spawn as a thread, and test it.
