@@ -23,7 +23,9 @@ Location: `../../kernel/gfx.asm` (included from `kernel/pm.asm`)
 
 ## The text screen while in graphics mode
 
-Mode 13h uses the same video memory as text mode. Byte *n* of the graphics window lands in plane *n* & 3. The text characters and attributes sit at the start of planes 0 and 1, and the font in the first 8 KB of plane 2. Pixels there change the text screen or the font when text mode comes back. Everything from byte 32768 on, which is every row from y = 103 (`GFX_SAFE_Y`) down, is clear of both. `gfxtest` (pixel (160, 100), byte 32160, plane 0 past the text) and `gfxprim` (rows 103–199) stay in the clear part. Saving and restoring the text and the font, so that the whole screen can be drawn, belongs with `graph` (task 1.3-graph).
+Mode 13h uses the same video memory as text mode. Byte *n* of the graphics window lands in plane *n* & 3. The text characters and attributes sit at the start of planes 0 and 1, and the font in the first 8 KB of plane 2. Drawing there overwrites the text screen and the font.
+
+Since 1.3.3, `gfx_mode13` first saves both, in three pages from `pg_alloc`: the 4000 bytes of text from `0xB8000`, and the 8 KB of font from plane 2. It reads the font through `0xA0000` with plane 2 selected and odd/even addressing off (`gfx_plane2`). `gfx_text` writes both back once the text registers are loaded, and frees the pages. So any pixel can be drawn, and the screen and the font are as they were afterwards (`graph` draws the whole screen; check `graph-mem` shows the pages come back). If no pages are free, `gfx_mode13` returns with CF set and stays in text mode. The test commands (`gfxtest`, `gfxprim`, `gfxtext`) were written before that and still keep to rows 103–199 (`GFX_SAFE_Y`), past the text and the font.
 
 ## Font (1.3.2)
 

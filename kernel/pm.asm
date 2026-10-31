@@ -237,13 +237,6 @@ rom_find:                     ; esi = name, returns eax = entry or 0
     ret
 
 ; ---------- apps ----------
-run_graph:
-    mov esi, graph_banner
-    call puts
-    mov esi, graph_stub
-    call puts
-    ret
-
 run_topo:
     mov esi, topo_banner
     call puts
@@ -824,13 +817,13 @@ default_isr:
 
 ; ---------- data ----------
 banner db 'Squirrel-OS/2'          ; (the "help" file: the English banner)
-banner_rest db ' 1.3.2', 10   ; OS version: here only (see releases/PROCESS.md)
+banner_rest db ' 1.3.3', 10   ; OS version: here only (see releases/PROCESS.md)
        db 'Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>', 10
        db '          mv <f> <new> | mkdir <d> | cd <d> | pwd | echo | batch <f> | format', 10
        db '          ps | disk | mem | devices | lang <en|la|tlh>', 10
        db 'Tests: systest | proctest | blktest | fstest | memtest | keys', 10
        db '       gfxtest | gfxprim | gfxtext', 10
-       db 'Apps: files, calc, sci, matrix, diff, edit, vedit, draw   (planned: graph, topo)', 10, 0
+       db 'Apps: files, calc, sci, graph, matrix, diff, edit, vedit, draw   (planned: topo)', 10, 0
 msg_partial db 'Warning: kernel image only partly loaded', 10, 0
 cmd_ls db 'ls', 0
 cmd_cat db 'cat ', 0
@@ -973,8 +966,6 @@ name_matrix db 'matrix', 0
 name_diff db 'diff', 0
 name_topo db 'topo', 0
 
-graph_banner db 'Graphing Calculator', 10, 0
-graph_stub db 'Scaffolded. Requires graphics primitives (milestone 1.3).', 10, 'See documentation/apps/calculators.md', 10, 0
 topo_banner db 'Topology Calculator', 10, 0
 topo_stub db 'Scaffolded. Simplicial homology sketches (long-term).', 10, 'See documentation/apps/calculators.md', 10, 0
 edit_sample db 'Hello from Squirrel-OS/2', 10, 0
@@ -991,8 +982,8 @@ file_table:
     dd sci_help
     dd sci_help_len
     db 'graph', 0, 0, 0
-    dd graph_stub
-    dd 80
+    dd graph_help
+    dd graph_help_len
     db 'matrix', 0, 0
     dd mx_help
     dd mx_help_len
@@ -1109,6 +1100,7 @@ puthex:
 %include "sci.asm"
 %include "matrix.asm"
 %include "diff.asm"
+%include "graph.asm"
 
 align 8
 idt: times 256 dq 0

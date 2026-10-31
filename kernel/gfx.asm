@@ -103,22 +103,141 @@ gfx_load_regs:
     out dx, al
     ret
 
+; Since 1.3.3 the switch saves the text screen and the font, which share
+; video memory with the graphics, in GFX_SAVE_PAGES pages from pg_alloc, and
+; gfx_text puts them back, so a caller may draw anywhere. CF set (and still
+; in text mode) when there are no pages for the copy.
 gfx_mode13:
     pushad
+    call gfx_save
+    jc .r
     mov esi, gfx_regs_13h
     call gfx_load_regs
+    clc
+.r:
     popad
     ret
 
-; Back to 80 x 25 text. The text and the font are where they were: mode 13h
-; only touches what the caller wrote (see gfx_putpixel).
+; Back to 80 x 25 text, with the text and the font as they were.
 gfx_text:
     pushad
     mov esi, gfx_regs_text
     call gfx_load_regs
+    call gfx_restore
     call cursor_sync
     popad
     ret
+
+; ---------- keeping the text screen (1.3.3) ----------
+; Page 0 holds the 4000 bytes of text from 0xB8000. Pages 1 and 2 hold the
+; 8 KB of font in plane 2, read and written through 0xA0000 with plane 2
+; selected and odd/even addressing off (gfx_plane2).
+GFX_SAVE_PAGES equ 3
+GFX_TEXT_BYTES equ 80 * 25 * 2
+GFX_FONT_BYTES equ 8192
+
+gfx_save:
+    xor ebx, ebx
+.a:
+    call pg_alloc
+    mov [gfx_pages+ebx*4], eax
+    test eax, eax
+    jz .nomem
+    inc ebx
+    cmp ebx, GFX_SAVE_PAGES
+    jb .a
+    mov esi, 0xB8000
+    mov edi, [gfx_pages]
+    mov ecx, GFX_TEXT_BYTES / 4
+    rep movsd
+    call gfx_plane2
+    mov esi, 0xA0000
+    mov edi, [gfx_pages+4]
+    mov ecx, 4096 / 4
+    rep movsd
+    mov edi, [gfx_pages+8]
+    mov ecx, (GFX_FONT_BYTES - 4096) / 4
+    rep movsd
+    call gfx_plane2_off
+    mov byte [gfx_saved], 1
+    clc
+    ret
+.nomem:
+    call gfx_free_pages
+    stc
+    ret
+
+; In text mode again: the font back into plane 2, then the text.
+gfx_restore:
+    cmp byte [gfx_saved], 0
+    je .r
+    call gfx_plane2
+    mov esi, [gfx_pages+4]
+    mov edi, 0xA0000
+    mov ecx, 4096 / 4
+    rep movsd
+    mov esi, [gfx_pages+8]
+    mov ecx, (GFX_FONT_BYTES - 4096) / 4
+    rep movsd
+    call gfx_plane2_off
+    mov esi, [gfx_pages]
+    mov edi, 0xB8000
+    mov ecx, GFX_TEXT_BYTES / 4
+    rep movsd
+    mov byte [gfx_saved], 0
+    call gfx_free_pages
+.r:
+    ret
+
+gfx_free_pages:
+    xor ebx, ebx
+.f:
+    mov eax, [gfx_pages+ebx*4]
+    test eax, eax
+    jz .n
+    call pg_free
+    mov dword [gfx_pages+ebx*4], 0
+.n:
+    inc ebx
+    cmp ebx, GFX_SAVE_PAGES
+    jb .f
+    ret
+
+; Plane 2 alone at 0xA0000, for reading and writing (from text mode)
+gfx_plane2:
+    mov dx, 0x3C4
+    mov ax, 0x0402              ; map mask: plane 2 only
+    out dx, ax
+    mov ax, 0x0604              ; memory mode: sequential, no odd/even
+    out dx, ax
+    mov dx, 0x3CE
+    mov ax, 0x0204              ; read map: plane 2
+    out dx, ax
+    mov ax, 0x0005              ; mode: write mode 0, read mode 0
+    out dx, ax
+    mov ax, 0x0406              ; misc: 0xA0000, 64 KB, no odd/even
+    out dx, ax
+    ret
+
+; the text-mode values of the same registers (gfx_regs_text)
+gfx_plane2_off:
+    mov dx, 0x3C4
+    mov ax, 0x0302
+    out dx, ax
+    mov ax, 0x0204
+    out dx, ax
+    mov dx, 0x3CE
+    mov ax, 0x0004
+    out dx, ax
+    mov ax, 0x1005
+    out dx, ax
+    mov ax, 0x0E06
+    out dx, ax
+    ret
+
+gfx_saved db 0
+align 4
+gfx_pages times GFX_SAVE_PAGES dd 0
 
 ; eax = x, ebx = y, cl = colour. Off-screen pixels are ignored.
 ; In mode 13h byte n of the window lands in plane n & 3. The text lives in
