@@ -184,3 +184,171 @@ cmd_gfxtest_run:
 gfxt_ok db 0
 gfxt_pass db 'gfxtest: PASS', 10, 0
 gfxt_fail db 'gfxtest: FAIL', 10, 0
+
+; ---------- lines and rectangles (1.3.1) ----------
+
+; eax = x0, ebx = y0, ecx = x1, edx = y1, colour in [gfx_colour].
+; Bresenham: every step moves x, y or both by one toward the end, so the
+; line is unbroken in any direction. Off-screen pixels are skipped.
+gfx_line:
+    pushad
+    mov [gl_x], eax
+    mov [gl_y], ebx
+    mov [gl_x1], ecx
+    mov [gl_y1], edx
+    mov esi, 1                  ; sx
+    sub ecx, eax
+    jge .dxpos
+    neg ecx
+    neg esi
+.dxpos:
+    mov [gl_dx], ecx            ; |x1 - x0|
+    mov edi, 1                  ; sy
+    sub edx, ebx
+    jge .dypos
+    neg edx
+    neg edi
+.dypos:
+    neg edx
+    mov [gl_dy], edx            ; -|y1 - y0|
+    add ecx, edx
+    mov [gl_err], ecx
+.plot:
+    mov eax, [gl_x]
+    mov ebx, [gl_y]
+    mov cl, [gfx_colour]
+    call gfx_putpixel
+    cmp eax, [gl_x1]
+    jne .step
+    cmp ebx, [gl_y1]
+    je .done
+.step:
+    mov edx, [gl_err]
+    add edx, edx                ; e2 = 2 * err
+    cmp edx, [gl_dy]
+    jl .noxstep
+    mov ecx, [gl_dy]
+    add [gl_err], ecx
+    add [gl_x], esi
+.noxstep:
+    cmp edx, [gl_dx]
+    jg .plot
+    mov ecx, [gl_dx]
+    add [gl_err], ecx
+    add [gl_y], edi
+    jmp .plot
+.done:
+    popad
+    ret
+
+; eax = x, ebx = y, ecx = width, edx = height, colour in [gfx_colour].
+; Fills the rectangle; the part off the screen is clipped.
+gfx_fillrect:
+    pushad
+    lea esi, [eax+ecx]          ; right edge (exclusive)
+    lea edi, [ebx+edx]          ; bottom edge (exclusive)
+    cmp esi, GFX_W
+    jbe .wok
+    mov esi, GFX_W
+.wok:
+    cmp edi, GFX_H
+    jbe .hok
+    mov edi, GFX_H
+.hok:
+    mov edx, eax                ; left edge
+.row:
+    cmp ebx, edi
+    jae .done
+    mov eax, edx
+.col:
+    cmp eax, esi
+    jae .next
+    mov cl, [gfx_colour]
+    call gfx_putpixel
+    inc eax
+    jmp .col
+.next:
+    inc ebx
+    jmp .row
+.done:
+    popad
+    ret
+
+; gfxprim: clears the lower part of the screen, draws a line and a filled
+; rectangle there and reads back a pixel on the line, one inside the
+; rectangle and three just outside it. Everything stays at y >= GFX_SAFE_Y,
+; past the text and the font (graphics.md).
+GFX_SAFE_Y equ 103
+
+cmd_gfxprim_run:
+    call gfx_mode13
+    mov byte [gfxt_ok], 1
+    mov byte [gfx_colour], 0
+    xor eax, eax
+    mov ebx, GFX_SAFE_Y
+    mov ecx, GFX_W
+    mov edx, GFX_H - GFX_SAFE_Y
+    call gfx_fillrect
+    mov byte [gfx_colour], 0x0C
+    mov eax, 20                 ; slope 1/4: passes through (160, 155)
+    mov ebx, 120
+    mov ecx, 300
+    mov edx, 190
+    call gfx_line
+    mov byte [gfx_colour], 0x0A
+    mov eax, 200                ; x 200..259, y 105..124
+    mov ebx, 105
+    mov ecx, 60
+    mov edx, 20
+    call gfx_fillrect
+    mov esi, gfxp_expect
+.check:
+    lodsd
+    cmp eax, -1
+    je .end
+    mov ebx, [esi]
+    mov dl, [esi+4]
+    add esi, 5
+    call gfx_getpixel
+    cmp cl, dl
+    je .check
+    mov byte [gfxt_ok], 0
+    jmp .check
+.end:
+    call gfx_text
+    mov esi, gfxp_pass
+    cmp byte [gfxt_ok], 1
+    je .say
+    mov esi, gfxp_fail
+.say:
+    jmp puts
+
+; x (dd), y (dd), expected colour (db); x = -1 ends the list
+gfxp_expect:
+    dd 160, 155
+    db 0x0C                     ; on the line
+    dd 20, 120
+    db 0x0C                     ; its first end
+    dd 300, 190
+    db 0x0C                     ; its last end
+    dd 230, 115
+    db 0x0A                     ; inside the rectangle
+    dd 199, 115
+    db 0                        ; just left of it
+    dd 260, 115
+    db 0                        ; just right of it
+    dd 230, 125
+    db 0                        ; just below it
+    dd -1
+
+gfx_colour db 0
+gfxp_pass db 'gfxprim: PASS', 10, 0
+gfxp_fail db 'gfxprim: FAIL', 10, 0
+align 4
+gl_x dd 0
+gl_y dd 0
+gl_x1 dd 0
+gl_y1 dd 0
+gl_dx dd 0
+gl_dy dd 0
+gl_err dd 0
