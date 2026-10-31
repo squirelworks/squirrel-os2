@@ -651,11 +651,12 @@ set_gate:
 cls:
     cmp byte [cap_on], 0        ; keep the screen while output is redirected
     jne .r
-    mov edi, 0xB8000
+    mov edi, [txt_base]
     mov ecx, 80*25
     mov ax, 0x0720
     rep stosw
     mov dword [cur], 0
+    mov byte [txt_dirty], 1
     call cursor_sync
 .r:
     ret
@@ -681,7 +682,8 @@ putc:                         ; al = char; preserves all registers
     je .bs
     mov ebx, [cur]
     mov ah, 0x07
-    mov [0xB8000+ebx*2], ax
+    mov edx, [txt_base]
+    mov [edx+ebx*2], ax
     inc dword [cur]
     jmp .wrap
 .nl:
@@ -699,13 +701,15 @@ putc:                         ; al = char; preserves all registers
     jz .r
     dec ebx
     mov [cur], ebx
-    mov word [0xB8000+ebx*2], 0x0720
+    mov edx, [txt_base]
+    mov word [edx+ebx*2], 0x0720
     jmp .r
 .wrap:
     cmp dword [cur], 80*25
     jb .r
     call scroll_up
 .r:
+    mov byte [txt_dirty], 1
     call cursor_sync
     pop edx
     pop ebx
@@ -718,8 +722,8 @@ scroll_up:
     push ecx
     push esi
     push edi
-    mov esi, 0xB8000+160
-    mov edi, 0xB8000
+    mov edi, [txt_base]
+    lea esi, [edi+160]
     mov ecx, 80*24/2
     rep movsd
     mov eax, 0x07200720
@@ -1087,6 +1091,10 @@ cmdline times 128 db 0         ; SH_LINE (shell.asm)
 cmdpos dd 0                     ; cursor position in cmdline
 scroll_count dd 0               ; rows scrolled so far (line editor)
 cur dd 0
+txt_base dd 0xB8000             ; the text screen putc, cls and scroll_up write
+                                ; (a window's buffer while the desktop runs a
+                                ; text program in it, 1.6.1)
+txt_dirty db 0                  ; set by every write there
 ticks dd 0
 num_buf times 16 db 0
 
