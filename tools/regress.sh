@@ -227,6 +227,12 @@ check wintest-text 'systest: PASS'         wintest '<ret>' systest '<ret>'
 # 1.4.1: a window moved and resized, frame pixels read back
 check winmove      'winmove: PASS'         winmove '<ret>'
 check winmove-text 'systest: PASS'         winmove '<ret>' systest '<ret>'
+# 1.4.2: two windows; Tab moves the focus and the top, typing goes to the focused one
+check_all winfocus 'One got "cd"|Two got "ab"|top: One' \
+                   winfocus '<ret>' '<pause>' ab '<tab>' cd '<ret>'
+check_all winfocus-none 'One got ""|Two got "xy"|top: Two' \
+                   winfocus '<ret>' '<pause>' xy '<ret>'
+check winfocus-text 'systest: PASS'        winfocus '<ret>' '<pause>' '<ret>' systest '<ret>'
 check topo-stub     'Scaffolded. Simplicial homology'  'run topo' '<ret>'
 # program loader: a disk prepared on the host with tools/sqfs.py
 # 0.9.2: usage hints, file-system error reasons, mv into a directory,
@@ -246,7 +252,7 @@ check ed-path-r     'deep'                  'cat e1/long-name.txt' '<ret>'
 check fb-dir        'in /e1'                'cd e1' '<ret>' 'run files' '<ret>'
 check fb-dir-up     '[app]'                 'cd e1' '<ret>' 'run files' '<ret>' '<ret>'
 # 0.9.3: release readiness
-check ver-banner    'Squirrel-OS/2 1.4.1'   systest '<ret>'
+check ver-banner    'Squirrel-OS/2 1.4.2'   systest '<ret>'
 check ver-planned   '(planned: topo)'  systest '<ret>'
 check calc-hist-root '1 + 1 = 2'            'mkdir c1' '<ret>' 'cd c1' '<ret>' 'run calc' '<ret>' '1 + 1' '<ret>' '<esc>' 'cat /calc.hist' '<ret>'
 boot="--floppy $out/floppy.img"
@@ -346,7 +352,7 @@ check l10n-hint-la  '(lineam tabulae addit)'  'lang la' '<ret>' put '<ret>'
 check l10n-fe-tlh   "tu'lu'pu'"             'lang tlh' '<ret>' 'mkdir t1' '<ret>' 'mkdir t1' '<ret>'
 check l10n-rm-tlh   "tu'lu'be'"             'lang tlh' '<ret>' 'rm nosuch' '<ret>'
 check lang-bad      'Unknown language (en la tlh)'  'lang fr' '<ret>'
-check lang-banner   'Sciurus-OS/2 1.4.1'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
+check lang-banner   'Sciurus-OS/2 1.4.2'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
 # 1.0.6: calc, edit and draw titles follow lang
 check l10n-calc-tlh "mI' De'wI' (Esc to exit)" 'lang tlh' '<ret>' 'run calc' '<ret>'
 check l10n-edit-tlh "ghItlhwI': (untitled)" 'lang tlh' '<ret>' 'run edit' '<ret>'

@@ -70,4 +70,5 @@ Documentation is active.
 - 1.3.3 `graph` plots y = f(x) (`releases/1.3.3.md`, `apps/calculators.md`)
 - 1.4.0 windows: create, draw and close (`releases/1.4.0.md`, `kernel/windows.md`)
 - 1.4.1 windows: move and resize (`releases/1.4.1.md`, `kernel/windows.md`)
-- Next: 1.4 focus and z-order (`../ROADMAP.md`, tasks in `../TODO.md`)
+- 1.4.2 windows: z-order and keyboard focus (`releases/1.4.2.md`, `kernel/windows.md`)
+- Next: 1.5 widgets (`../ROADMAP.md`, tasks in `../TODO.md`)

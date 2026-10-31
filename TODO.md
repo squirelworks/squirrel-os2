@@ -159,7 +159,7 @@ Keyboard only.
   Start after **1.4-create** is on `main`.
   **Acceptance:** after a move, the old frame pixel is gone and the new one is present. A regression check expects `winmove: PASS`.
 
-- [ ] **1.4-focus** — Two windows, z-order, and keyboard focus.
+- [x] **1.4-focus** — Two windows, z-order, and keyboard focus.
   Start after **1.4-move-resize** is on `main`.
   **Acceptance:** keys change which window is on top, and a character goes to the focused window's buffer. A regression check expects a line that only the focused window would print.
 
