@@ -1,4 +1,4 @@
-; Squirrel-OS/2 — calculus calculator (diff), 1.0.7, integrals 1.0.8
+; Squirrel-OS/2 — calculus calculator (diff), 1.0.7; integrals 1.0.8; ODEs 1.0.10
 ; Included from pm.asm. Original code.
 ;
 ; Numerical calculus on top of the scientific evaluator (sci.asm): the
@@ -7,6 +7,8 @@
 ;
 ;   d <f(x)> at <x0>          derivative, central difference
 ;   i <f(x)> from <a> to <b>  integral, composite Simpson rule
+;   euler <f(x,y)> from <x0> to <x1> y0 <y0> step <h>
+;                             y' = f(x, y), Euler's method
 ;
 ; Angles are always radians here. See documentation/apps/calculators.md.
 
@@ -72,12 +74,16 @@ run_diff:
 ; esi = command line (skipped) -> st0 = result, or CF with calc_errmsg set.
 diff_command:
     fninit
+    mov byte [diff_vars], 1     ; f may use x; euler also allows y
     mov edi, diff_kw_d
     call calc_match
     jnc diff_deriv
     mov edi, diff_kw_i
     call calc_match
     jnc diff_integ
+    mov edi, diff_kw_euler
+    call calc_match
+    jnc diff_euler
     jmp calc_syntax
 
 ; "d f at x0": (f(x0+h) - f(x0-h)) / 2h with h = 1e-5 * max(1, |x0|).
@@ -178,6 +184,100 @@ diff_integ:
 .r:
     ret
 
+; "euler f from x0 to x1 y0 v step h": y' = f(x, y) with y(x0) = v, by
+; Euler's method, y += h * f(x, y). The step is adjusted so that a whole
+; number n = round(|x1 - x0| / h) of steps lands exactly on x1 (at least
+; one step when x1 differs from x0); x = x0 + i*h, not a running sum.
+diff_euler:
+    mov byte [diff_vars], 2
+    mov [diff_f], esi
+    mov edi, diff_kw_from
+    call diff_cut
+    jc .r
+    mov [diff_tx0], esi
+    mov edi, diff_kw_to
+    call diff_cut
+    jc .r
+    mov [diff_tx1], esi
+    mov edi, diff_kw_y0
+    call diff_cut
+    jc .r
+    mov [diff_ty0], esi
+    mov edi, diff_kw_step
+    call diff_cut
+    jc .r
+    call diff_value             ; h
+    jc .r
+    fstp qword [diff_h]
+    mov esi, [diff_ty0]
+    call diff_value
+    jc .r
+    fstp qword [sci_y]
+    mov esi, [diff_tx1]
+    call diff_value
+    jc .r
+    mov esi, [diff_tx0]
+    call diff_value
+    jc .r
+    fst qword [diff_x0]
+    fsubp st1, st0              ; x1 - x0
+    fldz
+    fcomp qword [diff_h]
+    fnstsw ax
+    sahf
+    jae .badstep                ; h <= 0 (or not a number)
+    fld st0
+    fabs
+    fdiv qword [diff_h]
+    fcom qword [diff_maxn]
+    fnstsw ax
+    sahf
+    ja .many
+    frndint
+    fistp dword [diff_n2]
+    cmp dword [diff_n2], 0
+    jne .n
+    ftst                        ; x1 = x0: no step; else one step
+    fnstsw ax
+    sahf
+    je .n
+    mov dword [diff_n2], 1
+.n:
+    cmp dword [diff_n2], 0
+    je .done
+    fidiv dword [diff_n2]
+    fstp qword [diff_h]         ; signed step that lands on x1
+    xor ecx, ecx
+.step:
+    mov [diff_i], ecx
+    fild dword [diff_i]
+    fmul qword [diff_h]
+    fadd qword [diff_x0]        ; x
+    push ecx
+    call diff_f_at              ; f(x, y)
+    pop ecx
+    jc .r
+    fmul qword [diff_h]
+    fadd qword [sci_y]
+    fstp qword [sci_y]
+    inc ecx
+    cmp ecx, [diff_n2]
+    jb .step
+    fldz
+.done:
+    fstp st0
+    fld qword [sci_y]
+    jmp diff_status
+.badstep:
+    mov dword [calc_errmsg], diff_e_step
+    stc
+    ret
+.many:
+    mov dword [calc_errmsg], diff_e_many
+    stc
+.r:
+    ret
+
 ; Finds the word edi (" at ", " from ", ...) at or after esi, ends the
 ; text before it with a 0, and returns esi just after the word. CF with
 ; a syntax error at the end of the line when the word is missing.
@@ -235,7 +335,8 @@ diff_f_at:
     fstp qword [sci_x]
     push esi
     mov esi, [diff_f]
-    mov byte [sci_xok], 1
+    mov al, [diff_vars]
+    mov [sci_xok], al
     call sci_expr
     mov byte [sci_xok], 0
     jc .r
@@ -265,7 +366,8 @@ diff_status:
 diff_banner db 'Calculus Calculator (Esc to exit)', 10, 0
 diff_help db 'd <f(x)> at <x0>            derivative, e.g.  d sin(x) at 0', 10
           db 'i <f(x)> from <a> to <b>    integral,   e.g.  i x^2 from 0 to 3', 10
-          db 'f(x) is a sci expression in x; angles are radians. q quits', 10, 0
+          db "euler <f(x,y)> from <x0> to <x1> y0 <y> step <h>   ODE y' = f, Euler", 10
+          db 'f is a sci expression in x (and y); angles are radians. q quits', 10, 0
 diff_help_len equ $ - diff_help - 1
 diff_prompt db 'diff> ', 0
 diff_kw_d db 'd', 0
@@ -273,6 +375,11 @@ diff_kw_i db 'i', 0
 diff_kw_at db 'at', 0
 diff_kw_from db 'from', 0
 diff_kw_to db 'to', 0
+diff_kw_euler db 'euler', 0
+diff_kw_y0 db 'y0', 0
+diff_kw_step db 'step', 0
+diff_e_step db 'step must be greater than 0', 0
+diff_e_many db 'more than 100000 steps', 0
 
 align 8
 diff_hrel dq 1.0e-5
@@ -285,3 +392,11 @@ diff_f dd 0
 DIFF_N equ 1000
 diff_n dd DIFF_N                ; Simpson panels, even
 diff_i dd 0
+diff_vars db 1                  ; sci_xok while f is evaluated
+align 4
+diff_n2 dd 0                    ; Euler steps
+diff_tx0 dd 0                   ; texts of x0, x1 and y0
+diff_tx1 dd 0
+diff_ty0 dd 0
+align 8
+diff_maxn dq 100000.0

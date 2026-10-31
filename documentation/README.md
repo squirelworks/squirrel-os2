@@ -57,4 +57,5 @@ Documentation is active.
 - 1.0.7 numerical derivatives in `diff` (`releases/1.0.7.md`, `apps/calculators.md`)
 - 1.0.8 numerical integrals in `diff` (`releases/1.0.8.md`, `apps/calculators.md`)
 - 1.0.9 search in `edit` and `vedit` (`releases/1.0.9.md`, `apps/editors.md`)
+- 1.0.10 Euler ODE stepper in `diff` (`releases/1.0.10.md`, `apps/calculators.md`)
 - Next: 1.0.x patch releases, then 1.1 preemption (`../ROADMAP.md`, tasks in `../TODO.md`)

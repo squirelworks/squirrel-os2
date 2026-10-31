@@ -38,7 +38,7 @@ Done and covered by `tools/regress.sh`: boot and protected mode, PIT and keyboar
 
 Still scaffolds or stated limits, on purpose:
 
-- `graph` and `topo` print a scaffold message and return (`kernel/pm.asm`). `diff` does numerical derivatives (1.0.7) and integrals (1.0.8).
+- `graph` and `topo` print a scaffold message and return (`kernel/pm.asm`). `diff` does numerical derivatives (1.0.7), integrals (1.0.8) and Euler ODEs (1.0.10).
 - `graph` waits for graphics primitives (milestone 1.3). The on-screen stub says so.
 - `topo` is long-term and is not expected before 2.x (`documentation/apps/calculators.md`).
 - Scheduling is cooperative. A process that never yields starves the others (milestone 1.1).

@@ -297,12 +297,21 @@ sci_primary:
     fldl2e                      ; e = 2^(log2 e)
     jmp sci_exp2
 .notx:
-    cmp byte [sci_xok], 0       ; x exists only while diff evaluates f(x)
+    cmp byte [sci_xok], 0       ; x and y exist only while diff evaluates f
     je calc_syntax
     mov edi, sci_kw_x
     call calc_match
-    jc calc_syntax
+    jc .noty
     fld qword [sci_x]
+    clc
+    ret
+.noty:
+    cmp byte [sci_xok], 2       ; y only in diff's euler
+    jb calc_syntax
+    mov edi, sci_kw_y
+    call calc_match
+    jc calc_syntax
+    fld qword [sci_y]
     clc
     ret
 .paren:
@@ -819,6 +828,7 @@ sci_n_abs db 'abs', 0
 sci_kw_pi db 'pi', 0
 sci_kw_e db 'e', 0
 sci_kw_x db 'x', 0
+sci_kw_y db 'y', 0
 sci_kw_deg db 'deg', 0
 sci_kw_rad db 'rad', 0
 
@@ -839,10 +849,11 @@ sci_180 dd 180.0
 sci_ten_i dd 10
 sci_tmp dd 0
 sci_deg db 0
-sci_xok db 0                    ; 1: the variable x is allowed (diff.asm)
+sci_xok db 0                    ; 1: x is allowed, 2: x and y (diff.asm)
 align 8
 sci_ans dq 0.0
 sci_x dq 0.0
+sci_y dq 0.0                    ; y for diff's ODEs (1.0.10)
 sci_int dq 0
 sci_digs times 24 db 0
 sci_out times 40 db 0
