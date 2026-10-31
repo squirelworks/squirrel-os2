@@ -308,6 +308,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - Installer step I.6: `tools/build.sh` writes `build/cd.iso`, an El Torito floppy-emulation CD around `floppy.img`. Booting from it works; installing from it needs an ATAPI driver (2.x).
 
+## 1.8.2
+
+- `objcat <file>` loads an object file and prints its class and fields (`kernel/objects.md`). After a reboot the file still reads: when the class is not yet recorded, the class name and field values are printed from the file (`obj-persist`).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.
