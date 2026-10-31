@@ -71,6 +71,14 @@ restores the incoming one's with `frstor`. A process whose state has never been 
 checks this: it keeps a value on the FPU stack while a second copy of itself fills all
 eight registers, then reads its own value back (`fpu: PASS`).
 
+## Threads (1.1)
+
+A thread is not a separate kind of object. **`SYS_SPAWN` with an entry inside the program's own image is the thread primitive:** `proc_spawn` gives the child the caller's address space and adds a reference (`memory.md`), so the new process runs the program's code on the program's data. It differs from the parent only in its slot: its own pid, its own 8 KB stack, its own FPU registers and its own exit code. The address space is freed when the last process using it is reaped.
+
+The scheduler treats a thread like any other process: round-robin, `yield`, and timer preemption of program code (above). There is no priority field and no second scheduler.
+
+Threads share memory without locks. A single instruction such as `inc dword [x]` cannot be split by a switch on this one-CPU system, but a read-modify-write over several instructions can. The `thread` program checks the primitive: it and a thread it spawns each add 1000 to one counter in the program's memory, yielding every 100 steps, and it prints `thread: PASS` when the counter ends at 2000 and the thread's exit code is 1000 (check `thread`).
+
 ## Zombies nobody waits for (1.0.4)
 
 A zombie keeps its slot so that its parent can still collect the exit code, but two rules stop

@@ -192,6 +192,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - The timer preempts a loaded program after a 50 ms slice, so a program that spins without a system call no longer starves the others. Kernel code still switches only cooperatively (`kernel/processes.md`; `sched-preempt`). The "Cooperative scheduling" limitation of 0.9.3 is gone.
 
+## 1.1.1
+
+- A `spawn` whose entry is in the program's own image is a thread: it shares the program's memory, with its own stack and pid (`kernel/processes.md`; `thread`). This completes milestone 1.1.
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.

@@ -114,7 +114,7 @@ Start only after **1.0-fpu** is on `main`. `yield` and `proctest` keep their cur
 - [x] **1.1-preempt** — Switch on a timer tick when another process is ready.
   **Acceptance:** a process that spins without calling `yield` does not block a second process from printing. A regression check expects the second process's line (and still expects `proctest`'s existing line). `documentation/kernel/processes.md` describes the tick path and drops "no preemption".
 
-- [ ] **1.1-thread** — Treat a same-address-space spawn as a thread, and test it.
+- [x] **1.1-thread** — Treat a same-address-space spawn as a thread, and test it.
   `proc_spawn` already shares the parent's address space until the loader builds a new one.
   **Acceptance:** a user program spawns an entry in its own image, both sides update one counter, and it prints `thread: PASS`. A regression check expects that. `processes.md` calls this the thread primitive. No second scheduler, and no priority field.
 
