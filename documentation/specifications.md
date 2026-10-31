@@ -268,6 +268,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - `g` in `draw` opens an 80 × 50 pixel canvas, three times larger in graphics mode (over the desktop when `draw` runs in a window). Space plots, `p` draws strokes, F2 saves `<drawing>.px` (4006 bytes: `SQPX`, width, height, one colour byte per pixel), and it is loaded again when the canvas opens. `drawpx` checks a stroke on the screen and through save and load (`apps/draw.md`; `drawpx`, `drawpx-text`, `drawpx-mem`, `draw-pixels`, `desktop-draw-pixels`, `desktop-draw-pixels-back`).
 
+## 1.7.0
+
+- Kernel objects: classes (name, parent, method table of selector names) and objects in a table of 32; `obj_send` runs the first method for the selector in the object's class or its parents, with the object as self, and returns CF set for an unknown selector (`kernel/objects.md`; `objtest`, `objtest-text`). Up to 32 classes and 32 objects.
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.
