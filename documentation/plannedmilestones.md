@@ -85,9 +85,9 @@ This is a natural end-of-day point. Next session can resume at either:
   - Topology (`topo`): simplicial homology sketches — scaffolded (long-term)
   - Design: `documentation/apps/calculators.md`
 - **0.3.2** — Text editor project (done — full-screen `edit`/`vedit` with load/save, `apps/editors.md`)
-  - Shared buffer primitives (insert, delete, cursor, capacity) — basic insert/backspace/enter/esc implemented in `kernel/pm.asm`
+  - Shared buffer primitives (insert, delete, cursor, capacity) — in `kernel/editor.asm`
   - Normal editor (`edit`): minimal status line, ordinary feedback
-  - Verbose editor (`vedit`): full status (line, column, offset, char code, mode, size, capacity) — prefix shown; numeric still scaffolded
+  - Verbose editor (`vedit`): full status (line, column, offset, char code, mode, size, capacity) — numeric fields done, see `apps/editors.md`
   - Both load/save via in-memory FS first, then persistent FS
   - Design: `documentation/apps/editors.md`
   - Current: interactive mode via keyboard ISR (`run edit`, `run vedit`, Esc to exit)

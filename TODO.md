@@ -41,7 +41,7 @@ Do these first. The release task is last, and only after the others are on `main
   `documentation/specifications.md` stops at 0.0.3 while claiming it is updated with each release.
   **Acceptance:** the file has a 0.9.2 section that a reader can check against the tree: boot to a shell, SQFS (64 entries, 15-character names, paths to 63 characters, no seek), browser, `calc` / `sci` / `matrix`, `edit` / `vedit` (16 KB buffer), ASCII `draw`, loaders, shell (pipes, history, batch), paging, heap, devices, `en`/`la`/`tlh`, crash reports. Limits named in the kernel notes are listed as intentional, including cooperative scheduling, ring 0, no FPU save, and `graph` / `diff` / `topo` still scaffolds. Older sections stay.
 
-- [ ] **1.0-docs** — Bring the entry-point docs up to 0.9.2.
+- [x] **1.0-docs** — Bring the entry-point docs up to 0.9.2.
   These still send a reader back to 0.0.1 or to unfinished stubs: `kernel/README.md` (next step is a PIT handler), `documentation/architecture/overview.md` ("Current Stage (0.0.1)" and PIT/GDT as next targets), `documentation/apps/calculators.md` (command list still calls `sci` and `matrix` stubs), `documentation/kernel/processes.md` ("one address space", and `sci` listed as a stub), the 0.3.2 line in `documentation/plannedmilestones.md` (vedit numerics "still scaffolded"; `documentation/apps/editors.md` says they ship).
   **Acceptance:** each of those places describes 0.9.2 and points at `ROADMAP.md` for what is next. No code change. `tools/regress.sh` still passes.
 

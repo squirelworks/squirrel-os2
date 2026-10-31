@@ -64,8 +64,8 @@ the kernel prints `*** kernel panic: no runnable process` and halts.
 
 - `run <name>` looks the app up in `run_table`, spawns `app_host(start_routine)` and waits
   for it. `app_host` calls the app's start routine, then feeds raw scancodes to
-  `kbd_dispatch` until the app clears its mode flag (Esc). Stub apps (`sci`, `graph`, …)
-  print and exit immediately.
+  `kbd_dispatch` until the app clears its mode flag (Esc). Scaffold apps (`graph`, `diff`,
+  `topo`) print a message and exit immediately.
 - `ps` lists live processes (from the shell you see pid 0; apps run while the shell waits).
 - `proctest` spawns three workers that print and yield three times each, then waits for
   each and prints the exit codes (10, 20, 30). Output interleaves
@@ -74,8 +74,9 @@ the kernel prints `*** kernel panic: no runnable process` and halts.
 
 ## Limitations
 
-- No preemption (milestone 1.1). A process that never yields starves everyone.
-- Everything runs in ring 0 with one address space; no per-process memory protection.
+- No preemption (milestone 1.1 in [`../../ROADMAP.md`](../../ROADMAP.md)). A process that never yields starves everyone.
+- Everything runs in ring 0. Since 0.6.1 each loaded program has its own address space for its 64 KB at `0x30000` (`memory.md`), but the kernel is mapped in every one and a program can still write over it.
 - Keyboard input goes to whichever process reads the ring first; with the shell waiting on
   a foreground app this is always the app.
-- Zombies that nobody waits for keep their slot.
+- Zombies that nobody waits for keep their slot (TODO.md task 1.0-zombie).
+- The x87 FPU state is not saved on a switch (TODO.md task 1.0-fpu).

@@ -142,12 +142,12 @@ Scaffolded. Long-term; requires symbolic algebra primitives and careful memory m
 ## Commands
 
 ```
-run calc      # interactive basic
-run sci       # scientific stub
-run graph     # graphing stub
-run matrix    # matrix stub
-run diff      # calculus / DiffEq stub
-run topo      # topology stub
+run calc      # basic: integer arithmetic and percentages
+run sci       # scientific: floating point and functions (x87)
+run matrix    # matrices up to 6 x 6
+run graph     # scaffold: prints a message (needs graphics, milestone 1.3)
+run diff      # scaffold: prints a message (TODO.md 1.0-diff-*)
+run topo      # scaffold: prints a message (2.x)
 ```
 
-See `documentation/plannedmilestones.md` for the schedule.
+See [`../../ROADMAP.md`](../../ROADMAP.md) and [`../../TODO.md`](../../TODO.md) for what is next.
