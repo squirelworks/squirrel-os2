@@ -1239,7 +1239,7 @@ idt: times 256 dq 0
 idt_desc:
     dw 256*8-1
     dd idt
-KERNEL_SIZE equ 65536           ; boot.asm loads 128 sectors
+KERNEL_SIZE equ 98304           ; boot.asm loads 192 sectors (0x8000-0x1FFFF)
 KERNEL_SIG equ 0x4B4F3253       ; 'S2OK'
 %if $-$$ > KERNEL_SIZE-4
 %error kernel image is larger than KERNEL_SIZE

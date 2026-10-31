@@ -1,4 +1,4 @@
-# Physical Memory Map (as of 0.6.2)
+# Physical Memory Map (as of 0.6.2; kernel size after 1.7.2)
 
 Paging is on since 0.6.1, but the kernel's page directory maps the first 256 MB to itself, so
 every address below is both virtual and physical. Only the program area differs per program.
@@ -8,7 +8,7 @@ every address below is both virtual and physical. Only the program area differs 
 | `0x00000–0x004FF` | Real-mode IVT / BIOS data (left alone) |
 | `0x01000–0x012FF` | BIOS E820 memory map, copied by `stage2` (0.6.0) |
 | `0x07C00–0x07DFF` | Boot sector |
-| `0x08000–0x17FFF` | Kernel image (`pm.asm`, 64 KB since 0.5.1; 32 KB from 0.2.1), loaded by the boot sector |
+| `0x08000–0x1FFFF` | Kernel image (`pm.asm`, 96 KB after 1.7.2; 64 KB from 0.5.1; 32 KB from 0.2.1), loaded by the boot sector |
 | `0x20000–0x2FFFF` | `KSCRATCH`: kernel scratch buffers (ATA identify/test buffers, later FS cache) |
 | `0x30000–0x3FFFF` | Program area. Each loaded program sees its own 16 pages here (0.6.1, `memory.md`) |
 | `0x40000–0x4FFFF` | Loader staging buffer |

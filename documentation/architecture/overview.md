@@ -30,7 +30,7 @@ Squirrel-OS/2 is an original operating-system project that assumes full control 
 
 ## Current Stage (0.9.3)
 
-- Boot sector loads a 64 KB kernel (extended disk reads, CHS fallback for floppies).
+- Boot sector loads a 96 KB kernel (extended disk reads, CHS fallback for floppies).
 - Stage 2 checks the CPU, reads the BIOS memory map, and enters 32-bit protected mode with its own GDT and IDT.
 - Native drivers: PIT at 100 Hz, PS/2 keyboard, VGA text console, PC speaker, ATA PIO disks, behind a driver table.
 - Page allocator and paging, with a separate address space for each loaded program.
