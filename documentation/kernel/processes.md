@@ -26,6 +26,7 @@ Location: `../../kernel/proc.asm` (included from `kernel/pm.asm`)
 | 28 | `parent` | Pid of the creator |
 | 32 | `as` | Address space record, 0 = the kernel's (0.6.1, `memory.md`); loaded into CR3 on every switch |
 | 40 | `name` | 16 bytes: `shell`, the app or program name (0.8.2), shown by `ps` and in crash reports |
+| 60 | `fpu` | 1 once its x87 registers have been saved (1.0.1); 0 means it starts with a reset FPU |
 
 ## Lifecycle
 
@@ -60,6 +61,15 @@ the kernel prints `*** kernel panic: no runnable process` and halts.
 
 `SYS_YIELD` (3) now switches to the next ready process.
 
+## FPU state (1.0.1)
+
+Each process has its own x87 registers. `proc_switch` calls `proc_fpu_swap`, which saves the
+outgoing process's registers with `fnsave` into its slot's 108-byte area (`proc_fpu`) and
+restores the incoming one's with `frstor`. A process whose state has never been saved
+(`PCB_FPU` = 0, set at spawn) gets a freshly reset FPU (`fninit`) instead. The `fpu` program
+checks this: it keeps a value on the FPU stack while a second copy of itself fills all
+eight registers, then reads its own value back (`fpu: PASS`).
+
 ## Shell integration
 
 - `run <name>` looks the app up in `run_table`, spawns `app_host(start_routine)` and waits
@@ -79,4 +89,3 @@ the kernel prints `*** kernel panic: no runnable process` and halts.
 - Keyboard input goes to whichever process reads the ring first; with the shell waiting on
   a foreground app this is always the app.
 - Zombies that nobody waits for keep their slot (TODO.md task 1.0-zombie).
-- The x87 FPU state is not saved on a switch (TODO.md task 1.0-fpu).

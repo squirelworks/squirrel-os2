@@ -48,4 +48,5 @@ Documentation is active.
 - 0.9.2 stability and polish pass (`releases/0.9.2.md`, `knownbugs.md`)
 - 0.9.3 release readiness: floppy boot, CPU check, build/run scripts, Bochs (`releases/0.9.3.md`, `guides/getting-started.md`)
 - **1.0.0 released** — the usable minimal system (`releases/1.0.0.md`, `specifications.md`)
+- 1.0.1 each process keeps its own FPU registers (`releases/1.0.1.md`, `kernel/processes.md`)
 - Next: 1.0.x patch releases, then 1.1 preemption (`../ROADMAP.md`, tasks in `../TODO.md`)

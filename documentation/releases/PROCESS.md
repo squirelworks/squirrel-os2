@@ -79,6 +79,7 @@ This avoids retargeting chains and confirmation steps.
 | 0.9.2   | 2026-10-31 | Stability and polish pass            |
 | 0.9.3   | 2026-10-31 | Release readiness                    |
 | 1.0.0   | 2026-10-31 | Usable minimal system                |
+| 1.0.1   | 2026-10-31 | FPU state saved per process          |
 
 ## Next planned release
 

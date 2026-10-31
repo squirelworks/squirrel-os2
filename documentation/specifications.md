@@ -141,6 +141,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 1.0.0 is the 0.9.3 system tagged, and the two 0.9.3 sections above describe it. The only changes are the version string and the one-boot `walk-1.0` check (`releases/1.0.0.md`).
 
+## 1.0.1
+
+- Each process keeps its own x87 FPU registers across a process switch (`kernel/processes.md`; `fpu-switch`). The "No FPU save" limitation of 0.9.3 is gone.
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.
