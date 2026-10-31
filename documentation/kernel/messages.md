@@ -20,7 +20,26 @@ Location: `../../kernel/msg.asm` (included from `kernel/pm.asm`)
 - `SYS_RECV` waits while the caller's queue is empty. It waits the way `SYS_GETC` does: through `proc_idle`, which runs other processes or halts until the next interrupt. It cannot fail, so every dword, including −1 and −2, is a valid message.
 - A process may send to itself.
 
-`SYS_GETC` is unchanged. Delivering keys through the queue as well is task **1.2-key-event**.
+`SYS_GETC` is unchanged.
+
+## Key events (1.2.1)
+
+| # | Name | Args | Returns |
+|---|------|------|---------|
+| 29 | `SYS_KEYEVENTS` | `ebx` = 1 to receive key events, 0 to stop | 0 |
+
+While a process has key events on, every key press also arrives in its queue as the message `MSG_KEY | c` (`MSG_KEY` = `0x4B000000`, `'K'` in the top byte), where `c` is the character `SYS_GETC` returns for that key: Enter 10, Backspace 8, Esc 27, Shift honoured, releases and keys without a character skipped.
+
+The path, in `kbd_isr` (`kernel/pm.asm`) and `key_event` (`kernel/msg.asm`):
+
+1. IRQ 1 puts the raw scancode in the keyboard ring, as before. `SYS_GETC`, the shell and the apps read the ring, so they see every key as they always did.
+2. Then `key_event` decodes the same scancode with the same tables, keeping its own Shift state, and posts the character to the process that asked. A full queue drops the event.
+
+Only one process gets key events at a time: the newest caller of `SYS_KEYEVENTS` with 1 takes over. Turning them off only works for the current receiver. A process that ends while it has them on just stops getting them (pids are not reused, so the posts fail quietly).
+
+The queue operations run with interrupts off, because the keyboard IRQ can post in the middle of a `SYS_SEND` or `SYS_RECV`.
+
+`run keyev` turns key events on, reads one key from its queue and the same key with `SYS_GETC`, and prints `keyev: queue q getc q` and `keyev: PASS` when the two match (checks `keyev`, `keyev-shift`).
 
 ## Test
 

@@ -94,6 +94,7 @@ This avoids retargeting chains and confirmation steps.
 | 1.1.0   | 2026-10-31 | Timer preempts spinning programs     |
 | 1.1.1   | 2026-10-31 | Threads share a program's memory     |
 | 1.2.0   | 2026-10-31 | Message queues between processes     |
+| 1.2.1   | 2026-10-31 | Key events in the message queue      |
 
 ## Next planned release
 

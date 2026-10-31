@@ -701,7 +701,8 @@ timer_isr:
     pop eax
     iretd
 
-; IRQ1: queue the raw scancode (dropped if the ring is full)
+; IRQ1: queue the raw scancode (dropped if the ring is full), and post
+; a key event if a process asked for them (msg.asm)
 kbd_isr:
     push eax
     push ebx
@@ -715,6 +716,9 @@ kbd_isr:
     mov [kbd_ring+ebx], al
     mov [kbd_head], ecx
 .full:
+    pushad
+    call key_event              ; and a key event for SYS_KEYEVENTS (1.2.1)
+    popad
     mov al, 0x20
     out 0x20, al
     pop ecx
@@ -801,7 +805,7 @@ default_isr:
 
 ; ---------- data ----------
 banner db 'Squirrel-OS/2'          ; (the "help" file: the English banner)
-banner_rest db ' 1.2.0', 10   ; OS version: here only (see releases/PROCESS.md)
+banner_rest db ' 1.2.1', 10   ; OS version: here only (see releases/PROCESS.md)
        db 'Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>', 10
        db '          mv <f> <new> | mkdir <d> | cd <d> | pwd | echo | batch <f> | format', 10
        db '          ps | disk | mem | devices | lang <en|la|tlh>', 10

@@ -63,4 +63,5 @@ Documentation is active.
 - 1.1.0 the timer preempts a spinning program (`releases/1.1.0.md`, `kernel/processes.md`)
 - 1.1.1 threads: a spawn in a program's own image shares its memory (`releases/1.1.1.md`, `kernel/processes.md`)
 - 1.2.0 message queues: `SYS_SEND` and `SYS_RECV` (`releases/1.2.0.md`, `kernel/messages.md`)
-- Next: 1.2 key events in the queue, then 1.3 graphics (`../ROADMAP.md`, tasks in `../TODO.md`)
+- 1.2.1 key events: `SYS_KEYEVENTS` posts each key to a process's queue (`releases/1.2.1.md`, `kernel/messages.md`)
+- Next: 1.3 graphics primitives (`../ROADMAP.md`, tasks in `../TODO.md`)
