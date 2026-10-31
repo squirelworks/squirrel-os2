@@ -465,13 +465,14 @@ fpu_work:
     fld1
     fld1
     fld1
-    fld1                        ; 7 registers used
+    fld1
+    fld1                        ; all 8 registers used, seed in st7
     mov ecx, FPU_ITERS
 .l:
-    fadd st0, st6               ; st0 += seed
+    fadd st0, st7               ; st0 += seed
     fsqrt
     fmul st0, st1
-    fadd st0, st6
+    fadd st0, st7
     fxch st3
     fadd st0, st0
     fsqrt
@@ -484,6 +485,7 @@ fpu_work:
     faddp st1, st0
     faddp st1, st0
     faddp st1, st0
+    faddp st1, st0              ; all 8 summed into the result
     fstp qword [esp]
     mov eax, [esp]
     xor eax, [esp+4]
