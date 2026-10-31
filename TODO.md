@@ -171,7 +171,7 @@ Start after **1.4-focus** and **1.2-key-event** are on `main`. One widget per PR
 - [x] **1.5-label** — Draw a text label inside a window.
   **Acceptance:** a self-check reads an ink pixel of the label and prints `label: PASS`. A regression check expects it.
 
-- [ ] **1.5-button** — A button that activates from the keyboard.
+- [x] **1.5-button** — A button that activates from the keyboard.
   **Acceptance:** the activation key posts an event and the test prints `button: PASS`. A regression check expects it.
 
 - [ ] **1.5-field** — A one-line edit field.
