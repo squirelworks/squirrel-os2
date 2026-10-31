@@ -66,4 +66,5 @@ Documentation is active.
 - 1.2.1 key events: `SYS_KEYEVENTS` posts each key to a process's queue (`releases/1.2.1.md`, `kernel/messages.md`)
 - 1.3.0 graphics mode 13h, a pixel written and read back (`releases/1.3.0.md`, `kernel/graphics.md`)
 - 1.3.1 lines and filled rectangles (`releases/1.3.1.md`, `kernel/graphics.md`)
-- Next: 1.3 text in graphics mode, then `graph` (`../ROADMAP.md`, tasks in `../TODO.md`)
+- 1.3.2 text in graphics mode, original 5 × 7 font (`releases/1.3.2.md`, `kernel/graphics.md`)
+- Next: 1.3 `graph` plots a function (`../ROADMAP.md`, tasks in `../TODO.md`)
