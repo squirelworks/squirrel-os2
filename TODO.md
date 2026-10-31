@@ -205,7 +205,7 @@ Start after **1.4-focus** and **1.2-key-event** are on `main`. One widget per PR
 
 Split from `documentation/plannedmilestones.md` once 1.6 was on `main`. Work top to bottom; each box is one PR and moves the version (1.7.0, 1.7.1, ...). The design note is `documentation/kernel/objects.md`, written with the first box.
 
-- [ ] **1.7-class** — Classes and messages: a class has a name, a parent and a method table; an object points at its class; sending a message looks the selector up in the class and then up the parent chain. Kernel routines `obj_class`, `obj_new`, `obj_send` (`kernel/object.asm`). No desktop objects in this PR.
+- [x] **1.7-class** — Classes and messages: a class has a name, a parent and a method table; an object points at its class; sending a message looks the selector up in the class and then up the parent chain. Kernel routines `obj_class`, `obj_new`, `obj_send` (`kernel/object.asm`). No desktop objects in this PR.
   **Acceptance:** a test command `objtest` defines `Shape` with `name` and `area`, and `Square` under it overriding only `area`; sending `name` to a square runs the inherited method, `area` runs the override, and an unknown selector returns an error instead of crashing. It prints `obj: PASS` and a regression check expects it.
 - [ ] **1.7-fields** — Instance fields: a class lists its fields by name after its parent's, so a subclass keeps the parent's layout. `obj_get` / `obj_set` by field index, and a lookup by name.
   **Acceptance:** `objtest` sets a field through the parent's method and reads it through the subclass's; it prints `obj fields: PASS` and a regression check expects it.

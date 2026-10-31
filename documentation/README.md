@@ -80,4 +80,5 @@ Documentation is active.
 - 1.6.3 `draw` runs in a window on the desktop (`releases/1.6.3.md`, `apps/desktop.md`)
 - 1.6.4 `edit` and `vedit` run in windows on the desktop (`releases/1.6.4.md`, `apps/desktop.md`)
 - 1.6.5 pixel drawing in `draw` (`releases/1.6.5.md`, `apps/draw.md`)
-- Next: 1.7 classes and messages (`1.7-class` in `../TODO.md`, `../ROADMAP.md`)
+- 1.7.0 objects: classes and messages (`releases/1.7.0.md`, `kernel/objects.md`)
+- Next: 1.7 instance fields (`1.7-fields` in `../TODO.md`, `../ROADMAP.md`)
