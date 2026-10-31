@@ -41,6 +41,17 @@ check() {   # check NAME EXPECTED KEYS...
         *) echo "FAIL $name (expected: $want)"; fail=1 ;;
     esac
 }
+check_all() {   # check_all NAME 'WANT1|WANT2|...' KEYS...: every WANT must be on the screen
+    name=$1; wants=$2; shift 2
+    screen=$(python3 "$root/tools/qemu_screen.py" ${disk:+--disk "$disk"} ${boot:-"$out/os.img"} "$@")
+    missing=
+    oldifs=$IFS; IFS='|'
+    for want in $wants; do
+        case $screen in *"$want"*) ;; *) missing="$missing [$want]" ;; esac
+    done
+    IFS=$oldifs
+    if [ -z "$missing" ]; then echo "ok   $name"; else echo "FAIL $name (missing:$missing)"; fail=1; fi
+}
 
 check fs-format     'formatted SQFS'        ls '<ret>'   # must run first: blank disk
 check systest      'systest: PASS'          systest '<ret>'
@@ -130,6 +141,14 @@ check fb-run-vedit  '> vedit'               'run files' '<ret>' $d6 '<down>' '<r
 check fb-run-draw   '> draw'                'run files' '<ret>' $d6 '<down>' '<down>' '<ret>' '<spc>' '<esc>' d
 check fb-run-calc   '> calc'                'run files' '<ret>' '<ret>' '6 * 7' '<ret>' '<esc>'
 check fb-run-back   'systest: PASS'         'run files' '<ret>' $d6 '<down>' '<down>' '<ret>' '<esc>' '<esc>' systest '<ret>'
+# 1.0: every 1.0 app in one boot. The last three commands only run if calc, edit,
+# draw and files all gave the keyboard back; calc.hist proves calc evaluated 2 + 2,
+# walk.txt proves edit saved, and systest proves the shell still works.
+check_all walk-1.0  '2 + 2 = 4|walk-ok|systest: PASS' \
+                    'rm /calc.hist' '<ret>' 'run calc' '<ret>' '2 + 2' '<ret>' '<esc>' \
+                    'run edit walk.txt' '<ret>' 'walk-ok' '<ctrl-s>' '<esc>' \
+                    'run draw' '<ret>' '<esc>' 'run files' '<ret>' '<esc>' \
+                    'cat /calc.hist' '<ret>' 'cat walk.txt' '<ret>' systest '<ret>'
 # 0.9.1: what one boot writes, the next boot sees (each check is a fresh boot)
 check persist-w     'ok'                    'mkdir keep' '<ret>' 'put keep/note kept' '<ret>'
 check persist-r     'kept'                  'cat keep/note' '<ret>'
