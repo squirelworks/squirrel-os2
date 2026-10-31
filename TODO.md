@@ -15,7 +15,7 @@ summaries are in [ROADMAP.md](ROADMAP.md). History is in
 
 ## Known bugs
 
-`documentation/knownbugs.md` has **no open defects**. KB-1 through KB-16 are resolved (KB-7 in 0.3.2 / 0.3.3, KB-8 through KB-10 in 0.9.2, KB-11 through KB-15 in 0.9.3, KB-16 after 1.3.2). Leave those entries in place.
+`documentation/knownbugs.md` has **no open defects**. KB-1 through KB-16 are resolved (KB-7 in 0.3.2 / 0.3.3, KB-8 through KB-10 in 0.9.2, KB-11 through KB-15 in 0.9.3, KB-16 after 1.3.3). Leave those entries in place.
 
 - [x] **KB-16** — A wait that closes a cycle of waits returns −1 instead of panicking the kernel. Check `waitcycle`.
 
