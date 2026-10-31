@@ -232,6 +232,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - Windows have a z-order: the top window has the keyboard focus and a blue title bar, the others a grey one. Tab brings the bottom window to the top; typed characters go to the focused window's text (`kernel/windows.md`; `winfocus`, `winfocus-none`, `winfocus-text`). This completes milestone 1.4.
 
+## 1.5.0
+
+- Widgets inside windows, starting with a text label; up to 16 widgets in all, dropped with their window (`kernel/widgets.md`; `labeltest`, `labeltest-text`). Button, edit field and list follow in later 1.5 tasks.
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.
