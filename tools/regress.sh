@@ -90,7 +90,6 @@ check proctest      'reaped pid 3 exit code 30'  proctest '<ret>'
 check mem           'KB free'               mem '<ret>'
 check mem-e820      'usable'                mem '<ret>'
 check memtest       'memtest: PASS'         memtest '<ret>' memtest '<ret>'
-check_all sched-preempt 'spin: second process ran|preempt: PASS' 'run spin' '<ret>' '<pause>'
 check interleave    'worker 3 step 1'       proctest '<ret>'
 check app-process   '= 42'            'run calc' '<ret>' '6 * 7' '<ret>' '<esc>' 'run calc' '<ret>' '6 * 7' '<ret>'
 check slot-reuse    'exit code 30'          'run topo' '<ret>' 'run topo' '<ret>' 'run topo' '<ret>' 'run topo' '<ret>' \
@@ -263,6 +262,8 @@ check devices       'hd1     block   ready 2048 sectors'  devices '<ret>'
 check devices-ro    '(read-only for programs)'  devices '<ret>'
 check devtest       'devtest: PASS'         'run devtest' '<ret>'
 check up-ls         '20 file(s)'             'run ls' '<ret>'
+# 1.1.0: the timer preempts a program that spins without a system call
+check_all sched-preempt 'spin: second process ran|preempt: PASS' 'run spin' '<ret>' '<pause>'
 check up-ls-filter  '4 file(s)'             'run ls he' '<ret>'
 # 1.0.3: programs read why a file call failed (SYS_FSERROR), in the shell's words
 check errno-nf      'errno: Not found'      'run errno missing' '<ret>'
