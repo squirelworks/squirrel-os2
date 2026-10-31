@@ -69,7 +69,7 @@ Each item is its own patch release after 1.0.0 (its own release note). Independe
   `documentation/apps/calculators.md`: the FPU is not saved, so only one of `sci` or `matrix` may run at a time. Required before preemption.
   **Acceptance:** a program loads a known floating-point value, switches to another process that uses the FPU, switches back, and prints `fpu: PASS` only if the value survived. A regression check expects `fpu: PASS`. The calculator note drops the "only one process" warning.
 
-- [ ] **1.0-zombie** — Free a process slot when nobody waits.
+- [x] **1.0-zombie** — Free a process slot when nobody waits.
   `documentation/kernel/processes.md`: a zombie nobody waits for keeps its slot (`PROC_MAX` is 8). Pids stay unreused.
   **Acceptance:** a program exits children without waiting, more times than there are free slots, then a further spawn still works and `ps` does not fill with zombies. A regression check expects a `PASS` line. The limitation paragraph is updated.
 

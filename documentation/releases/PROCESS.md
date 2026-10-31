@@ -82,6 +82,7 @@ This avoids retargeting chains and confirmation steps.
 | 1.0.1   | 2026-10-31 | FPU state saved per process          |
 | 1.0.2   | 2026-10-31 | Seek on open files                   |
 | 1.0.3   | 2026-10-31 | Programs read file-error reasons     |
+| 1.0.4   | 2026-10-31 | Zombies no longer fill the table     |
 
 ## Next planned release
 

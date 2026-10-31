@@ -16,6 +16,7 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `fpu.asm` | SQX | Keeps a value on the FPU stack while a second copy of itself fills all eight registers, then checks it (`run fpu`, 1.0.1) |
 | `seek.asm` | SQX | Writes `abcd`, seeks to the second byte and reads `bcd`; checks a seek past the end is refused (`run seek`, 1.0.2) |
 | `errno.asm` | SQX | Opens its argument; on failure prints the reason from `SYS_FSERROR` (`run errno missing` → `errno: Not found`, 1.0.3) |
+| `zombie.asm` | SQX | Starts 12 threads it never waits for, then one it does; spawning must keep working (`run zombie`, 1.0.4) |
 | `devtest.asm` | SQX | Uses devices by name: writes through `con`, reads `hd1`, checks `hd0` refuses writes (0.7.x) |
 | `sqx.inc` | — | SQX header macro and syscall numbers |
 

@@ -70,6 +70,22 @@ restores the incoming one's with `frstor`. A process whose state has never been 
 checks this: it keeps a value on the FPU stack while a second copy of itself fills all
 eight registers, then reads its own value back (`fpu: PASS`).
 
+## Zombies nobody waits for (1.0.4)
+
+A zombie keeps its slot so that its parent can still collect the exit code, but two rules stop
+zombies from filling the eight-slot table:
+
+- **Orphans are freed.** A zombie whose parent has exited (no live, non-zombie slot carries the
+  parent's pid; pids are never reused) can never be waited for. `proc_reap_orphans` frees all
+  of them; `spawn` and `ps` call it first.
+- **The table never fills with zombies.** When `spawn` finds no free slot, `proc_reclaim_zombie`
+  frees the zombie with the lowest pid and `spawn` tries again. A later `wait` for that pid
+  returns −1.
+
+Freeing a zombie releases its address space (`proc_free`). The `zombie` program checks both:
+it starts twelve threads that exit without being waited for, then one more that it does wait
+for (`zombie: PASS`), and afterwards `ps` shows only the shell.
+
 ## Shell integration
 
 - `run <name>` looks the app up in `run_table`, spawns `app_host(start_routine)` and waits
@@ -88,4 +104,4 @@ eight registers, then reads its own value back (`fpu: PASS`).
 - Everything runs in ring 0. Since 0.6.1 each loaded program has its own address space for its 64 KB at `0x30000` (`memory.md`), but the kernel is mapped in every one and a program can still write over it.
 - Keyboard input goes to whichever process reads the ring first; with the shell waiting on
   a foreground app this is always the app.
-- Zombies that nobody waits for keep their slot (TODO.md task 1.0-zombie).
+- A wait for a zombie that was reclaimed (see above) returns −1 instead of its exit code.

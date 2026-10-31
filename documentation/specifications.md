@@ -153,6 +153,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - `SYS_FSERROR` (26) tells a program why its last file call failed, in the words the shell prints (`kernel/filesystem.md`; `errno-*`). 27 system calls (0–26).
 
+## 1.0.4
+
+- A zombie nobody can wait for is freed, and `spawn` reclaims the oldest zombie when the table is full (`kernel/processes.md`; `zombie`, `zombie-ps`). The "Zombies" limitation of 0.9.3 is gone.
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.
