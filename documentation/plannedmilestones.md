@@ -127,7 +127,7 @@ This is a natural end-of-day point. Next session can resume at either:
 - **0.9.2** — Stability and polish pass (done — file-system error reasons, usage hints, `mv` into directories, directories in the browser, paths in the apps; KB-8 to KB-10)
 - **0.9.3** — Release readiness (done — floppy boot, CPU check, one version string, stub apps marked as planned, `tools/build.sh`/`run.sh`, Bochs smoke test)
 
-### 1.0.0 — Functional OS
+### 1.0.0 — Functional OS (released 2026-10-31 — `releases/1.0.0.md`; one-boot check `walk-1.0`)
 - Boots to a usable environment
 - File system present and browsable
 - Text editor (`edit`), verbose editor (`vedit`), drawing program, and calculator suite load and run

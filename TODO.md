@@ -49,7 +49,7 @@ Do these first. The release task is last, and only after the others are on `main
   Existing checks cover `calc`, `edit`, `draw`, and the browser in separate sessions. `documentation/releases/PROCESS.md` wants them checked together.
   **Acceptance:** one new `tools/regress.sh` check, in a single QEMU session, runs `calc` on `2 + 2` (screen contains `= 4`), saves a line from `edit`, quits, `cat`s that file back, opens `draw` and quits, opens `run files` and quits, and the shell still accepts `systest`. The check's expected string is present only if that whole walk happened.
 
-- [ ] **1.0-release** — Tag 1.0.0.
+- [x] **1.0-release** — Tag 1.0.0.
   Start only after the four tasks above are on `main`.
   **Acceptance:** `documentation/releases/1.0.0.md` states the minimal-system goal and points at the walk check. The banner says `1.0.0` and the 1.0-banner regression expects `1.0.0`. `PROCESS.md`'s release table and "next planned" line, `documentation/README.md`, and the 1.0.0 bullet in `documentation/plannedmilestones.md` match. `tools/regress.sh` passes.
 

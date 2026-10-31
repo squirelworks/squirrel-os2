@@ -17,10 +17,8 @@ The code in this tree is project-native. Early releases are not described as OS/
 | **2.0.0** | The first release that can honestly be called Warp-like: preemptive scheduling, an original windowing system, an object desktop. Original concepts, not binary compatibility with classic OS/2. |
 | **3.0.0** | A 64-bit system with the same character, aimed at everyday use. Optional foreign personalities (Linux, Windows, Darwin, Unix) stay out of the core. |
 
-1.0.0 is the next release. The functional pieces for it are already in the tree
-(see `documentation/releases/0.9.2.md`: "the last work item before 1.0.0").
-What remains for that tag is packaging, a single combined check, and docs that
-describe the system that actually boots.
+1.0.0 is released (2026-10-31, `documentation/releases/1.0.0.md`). Next are the
+1.0.x patch releases and milestone 1.1 below.
 
 ## Principles
 

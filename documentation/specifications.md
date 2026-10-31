@@ -137,6 +137,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 | Drivers | Polled I/O only, with no interrupt-driven ATA. Devices are fixed at boot, with no `/dev` namespace and no loadable drivers. |
 | No GUI, mouse or network | Milestones 1.3 to 1.6 and 2.0. |
 
+## 1.0.0
+
+1.0.0 is the 0.9.3 system tagged, and the two 0.9.3 sections above describe it. The only changes are the version string and the one-boot `walk-1.0` check (`releases/1.0.0.md`).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.

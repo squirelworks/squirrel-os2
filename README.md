@@ -41,6 +41,6 @@ See `documentation/README.md` for the living documentation set.
 
 ## Current release
 
-**0.9.2** — stability and polish (file system, browser, `edit`, `vedit`, `draw`, `calc`, `sci`, `matrix`).  
-The 0.0.1–0.9.2 ladder is done. Next is **1.0.0**, the packaging of that minimal system.  
-Notes: `documentation/releases/0.9.2.md`. What to do next: [TODO.md](TODO.md).
+**1.0.0** — the usable minimal system: file system, browser, `edit`, `vedit`, `draw`, `calc`, `sci`, `matrix`.  
+Build and run with `tools/build.sh` and `tools/run.sh` (`documentation/guides/getting-started.md`).  
+Notes: `documentation/releases/1.0.0.md`. Limits: `documentation/specifications.md`. What to do next: [TODO.md](TODO.md).
