@@ -7,7 +7,8 @@
 ; copy of that directory and of the low page table, with the program
 ; area (PROG_BASE, 64 KB) backed by fresh pages. So two programs linked
 ; at the same address can be alive at once, and a program's stray
-; access above 256 MB faults and ends only that program.
+; access above 256 MB faults and ends only that program. Since 0.6.2 a
+; program also has a heap at HEAP_BASE that SYS_SBRK grows and shrinks.
 ; See documentation/kernel/memory.md.
 
 PG_P        equ 1                   ; present
@@ -22,8 +23,13 @@ PROG_PAGES  equ PROG_MAX >> 12      ; 16
 AS_PD       equ 0                   ; page directory (physical)
 AS_REFS     equ 4                   ; processes using it; 0 = slot free
 AS_PAGES    equ 8                   ; pages it owns (tables included)
+AS_BRK      equ 12                  ; end of the heap (0.6.2)
 AS_SIZE     equ 16
 AS_MAX      equ PROC_MAX
+
+HEAP_BASE   equ 0x40000000          ; heap: one page table, PDE 256
+HEAP_MAX    equ 0x400000
+HEAP_PDE    equ HEAP_BASE >> 22
 
 ; Builds the kernel page directory and turns paging on.
 vm_init:
@@ -91,6 +97,7 @@ as_create:
 .got:
     mov dword [ebx+AS_PD], 0
     mov dword [ebx+AS_PAGES], 0
+    mov dword [ebx+AS_BRK], HEAP_BASE
     call pg_alloc
     test eax, eax
     jz .fail
@@ -161,6 +168,24 @@ as_teardown:
     mov esi, [ebx+AS_PD]
     test esi, esi
     jz .done
+    mov edx, [esi+HEAP_PDE*4]   ; heap pages and their table
+    test edx, edx
+    jz .low
+    and edx, -PAGE_SIZE
+    mov ecx, 1024
+    mov edi, edx
+.heap:
+    mov eax, [edi]
+    test eax, eax
+    jz .hnext
+    and eax, -PAGE_SIZE
+    call pg_free
+.hnext:
+    add edi, 4
+    loop .heap
+    mov eax, edx
+    call pg_free
+.low:
     mov edx, [esi]
     and edx, -PAGE_SIZE         ; its 0-4 MB table
     cmp edx, [kernel_pt]
@@ -214,6 +239,126 @@ vm_reload:
     pop edi
     pop ebx
     pop eax
+    ret
+
+; ---------- heap (0.6.2) ----------
+
+; ebx = bytes to add (negative shrinks) -> eax = the old break, or -1
+; if the caller has no address space of its own, the heap would leave
+; [HEAP_BASE, HEAP_BASE+HEAP_MAX], or memory ran out. New heap memory
+; reads as zero; memory given back is unmapped at once.
+sys_sbrk:
+    push ebx
+    push ecx
+    push edx
+    push esi
+    push edi
+    push ebp
+    mov ebp, [proc_cur]
+    mov ebp, [ebp+PCB_AS]
+    test ebp, ebp
+    jz .fail
+    mov edx, [ebp+AS_BRK]       ; old break
+    lea ecx, [edx+ebx]          ; new break
+    cmp ecx, HEAP_BASE          ; (also catches a wrap-around)
+    jb .fail
+    cmp ecx, HEAP_BASE+HEAP_MAX
+    ja .fail
+    lea esi, [edx+PAGE_SIZE-1]  ; first page past the old heap
+    and esi, -PAGE_SIZE
+    lea edi, [ecx+PAGE_SIZE-1]  ; first page past the new heap
+    and edi, -PAGE_SIZE
+    cmp edi, esi
+    jb .shrink
+    call heap_map
+    jnc .moved
+    ; out of memory: give back what this call mapped
+    mov edi, esi
+    lea esi, [edx+PAGE_SIZE-1]
+    and esi, -PAGE_SIZE
+    call heap_unmap
+    jmp .fail
+.shrink:
+    xchg esi, edi
+    call heap_unmap
+.moved:
+    mov [ebp+AS_BRK], ecx
+    mov eax, edx
+    jmp .out
+.fail:
+    mov eax, -1
+.out:
+    pop ebp
+    pop edi
+    pop esi
+    pop edx
+    pop ecx
+    pop ebx
+    ret
+
+; ebp = address space (the current one), esi = first page, edi = end:
+; maps fresh pages -> esi = where it stopped, CF if memory ran out
+heap_map:
+    cmp esi, edi
+    jae .ok
+    call heap_pte
+    jc .r
+    call pg_alloc
+    test eax, eax
+    jz .no
+    or eax, PG_P|PG_W
+    mov [ebx], eax
+    inc dword [ebp+AS_PAGES]
+    add esi, PAGE_SIZE
+    jmp heap_map
+.no:
+    stc
+    ret
+.ok:
+    clc
+.r:
+    ret
+
+; ebp = address space (the current one), esi = first page, edi = end:
+; unmaps and frees those pages
+heap_unmap:
+    cmp esi, edi
+    jae .r
+    call heap_pte
+    mov eax, [ebx]
+    mov dword [ebx], 0
+    invlpg [esi]
+    and eax, -PAGE_SIZE
+    call pg_free
+    dec dword [ebp+AS_PAGES]
+    add esi, PAGE_SIZE
+    jmp heap_unmap
+.r:
+    ret
+
+; ebp = address space, esi = heap address -> ebx = its page table
+; entry; the table is made on first use. CF if there is no memory for it.
+heap_pte:
+    mov ebx, [ebp+AS_PD]
+    mov eax, [ebx+HEAP_PDE*4]
+    test eax, eax
+    jnz .have
+    call pg_alloc
+    test eax, eax
+    jz .no
+    inc dword [ebp+AS_PAGES]
+    or eax, PG_P|PG_W
+    mov [ebx+HEAP_PDE*4], eax
+.have:
+    and eax, -PAGE_SIZE
+    mov ebx, esi
+    shr ebx, 12
+    and ebx, 1023
+    lea ebx, [eax+ebx*4]
+    clc
+    ret
+.no:
+    stc
     ret
 
 vm_m_nomem db '*** no memory for page tables', 10, 0

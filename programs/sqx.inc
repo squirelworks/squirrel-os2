@@ -31,6 +31,9 @@ SYS_DELETE  equ 15
 SYS_RENAME  equ 16
 SYS_EXEC    equ 17
 SYS_READDIR equ 18
+SYS_PALLOC  equ 19
+SYS_PFREE   equ 20
+SYS_SBRK    equ 21
 
 O_CREATE    equ 1
 O_TRUNC     equ 2

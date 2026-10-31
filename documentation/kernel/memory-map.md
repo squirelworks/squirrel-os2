@@ -1,4 +1,4 @@
-# Physical Memory Map (as of 0.6.1)
+# Physical Memory Map (as of 0.6.2)
 
 Paging is on since 0.6.1, but the kernel's page directory maps the first 256 MB to itself, so
 every address below is both virtual and physical. Only the program area differs per program.
@@ -20,6 +20,7 @@ every address below is both virtual and physical. Only the program area differs 
 | `0xB8000–0xB8F9F` | VGA text buffer |
 | `0x100000` and up | Pages handed out by the page allocator (usable RAM up to 256 MB), including page directories and tables |
 | `0x10000000` and up | Not mapped: any access faults (0.6.1) |
+| `0x40000000–0x403FFFFF` | A program's heap, mapped page by page as `SYS_SBRK` grows it (0.6.2, `memory.md`) |
 
 Scratch layout inside `KSCRATCH`:
 

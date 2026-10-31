@@ -89,3 +89,31 @@ The exception report now also prints CR2 for a page fault. If the faulting proce
 A fault anywhere else (the shell, a built-in app, the kernel) still halts the system as before.
 
 Everything still runs in ring 0, so a program can still write over kernel memory. Protection (user mode) remains a 2.x item.
+
+## Program heap (0.6.2)
+
+Each program's address space has a heap that starts empty at `HEAP_BASE` = `0x40000000` and can grow to 4 MB, which is one page table (directory entry 256).
+
+`SYS_SBRK` (21) moves the end of the heap, the *break*:
+
+| `ebx` | Effect | `eax` |
+|-------|--------|-------|
+| > 0 | Grows the heap by that many bytes | The old break, the start of the new memory |
+| < 0 | Shrinks it | The old break |
+| 0 | Nothing | The current break |
+| any, when refused | Nothing changes | −1 |
+
+The call is refused when:
+
+- the break would leave `0x40000000–0x40400000`;
+- memory runs out (pages mapped by this call are given back first);
+- the caller has no address space of its own (the shell and built-in apps).
+
+How it works:
+
+- **Growing:** fresh zeroed pages are mapped for every page the heap newly covers. The heap's page table is made the first time it is needed.
+- **Shrinking:** whole pages past the new break are unmapped (with `invlpg`) and freed at once. So touching them afterwards faults and ends the program (`run heap after`).
+- **Exit:** when the process is reaped, `as_teardown` frees whatever heap is left, along with its table (`run heap keep`, then `mem`).
+- **Memory count:** heap pages count in `AS_PAGES`, so `ps` includes them.
+
+Stacks are not grown. A program keeps its process slot's 8 KB stack, and all code still runs in ring 0, where a fault while pushing on an unmapped stack page could not be reported. Growing stacks waits for user mode (2.x).

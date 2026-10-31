@@ -27,7 +27,8 @@ SYS_EXEC    equ 17          ; ebx = file name, ecx = argument -> pid or LD_E* (<
 SYS_READDIR equ 18          ; ebx = cursor (0 first), ecx = 20-byte buf -> next cursor, 0 at end, -1 no disk
 SYS_PALLOC  equ 19          ;                       -> zeroed 4 KB page or 0
 SYS_PFREE   equ 20          ; ebx = page            -> 0 or -1
-SYS_COUNT   equ 21
+SYS_SBRK    equ 21          ; ebx = bytes (signed)   -> old break or -1
+SYS_COUNT   equ 22
 
 SYS_ENOSYS  equ -1
 SYSCALL_VEC equ 0x80
@@ -75,6 +76,7 @@ syscall_table:
     dd sys_readdir
     dd sys_palloc
     dd sys_pfree
+    dd sys_sbrk
 
 ; ---------- handlers: args in ebx/ecx/edx, result in eax ----------
 sys_putc:
