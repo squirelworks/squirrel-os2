@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Boot the Squirrel-OS/2 image in headless QEMU, type keys, print the screen.
 
-Usage: qemu_screen.py [--disk DATA_IMAGE] [--floppy] IMAGE [KEYS...]
+Usage: qemu_screen.py [--disk DATA_IMAGE] [--target DISK] [--floppy] IMAGE [KEYS...]
 Each KEYS argument is typed as text; a token like "<ret>", "<esc>",
 "<backspace>" or "<up>" is sent as that single QEMU key name, and
 "<pause>" waits a second before the next key, and "<gfx>" reads the text
@@ -9,6 +9,8 @@ drawn in graphics mode (the 5 x 7 font of tools/font5x7.txt, in 6 x 8
 cells at any pixel offset) and prints each line found as "gfx: <text>"
 after the text screen.
 --disk attaches DATA_IMAGE as the primary slave (the kernel's data disk).
+--target attaches DISK as the secondary master (the installer's target;
+always a scratch image, never a real disk).
 --floppy boots IMAGE from the floppy drive instead of the first hard disk.
 QEMU_EXTRA in the environment adds QEMU options (e.g. QEMU_EXTRA='-cpu 486,-pse'). The 80x25 VGA text buffer is printed at the end.
 """
@@ -91,6 +93,9 @@ def main():
     drives = []
     if args[:1] == ['--disk']:
         drives = ['-drive', f'format=raw,file={args[1]},index=1,media=disk']
+        args = args[2:]
+    if args[:1] == ['--target']:        # installer I.1: the disk to install to
+        drives += ['-drive', f'format=raw,file={args[1]},index=2,media=disk']
         args = args[2:]
     boot = []
     if args[:1] == ['--floppy']:            # boot IMAGE as a floppy (0.9.3)

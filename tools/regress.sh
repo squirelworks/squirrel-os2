@@ -40,7 +40,7 @@ disk=$out/data.img              # data disk attached as primary slave
 nl=$(printf '\n_'); nl=${nl%_}  # a newline, for expected text that spans two lines (POSIX sh has no $'\n')
 check() {   # check NAME EXPECTED KEYS...
     name=$1; want=$2; shift 2
-    screen=$(python3 "$root/tools/qemu_screen.py" ${disk:+--disk "$disk"} ${boot:-"$out/os.img"} "$@")
+    screen=$(python3 "$root/tools/qemu_screen.py" ${disk:+--disk "$disk"} ${target:+--target "$target"} ${boot:-"$out/os.img"} "$@")
     case $screen in
         *"$want"*) echo "ok   $name" ;;
         *) echo "FAIL $name (expected: $want)"; fail=1 ;;
@@ -48,7 +48,7 @@ check() {   # check NAME EXPECTED KEYS...
 }
 check_all() {   # check_all NAME 'WANT1|WANT2|...' KEYS...: every WANT must be on the screen
     name=$1; wants=$2; shift 2
-    screen=$(python3 "$root/tools/qemu_screen.py" ${disk:+--disk "$disk"} ${boot:-"$out/os.img"} "$@")
+    screen=$(python3 "$root/tools/qemu_screen.py" ${disk:+--disk "$disk"} ${target:+--target "$target"} ${boot:-"$out/os.img"} "$@")
     missing=
     oldifs=$IFS; IFS='|'
     for want in $wants; do
@@ -210,6 +210,29 @@ check draw-line     '**'                    'run draw diag' '<ret>' l '<right>' 
 check draw-reload   'Loaded.'               'run draw pic' '<ret>'
 check disk-detect   'disk 1: 2048 sectors'  disk '<ret>'
 check blktest       'blktest: PASS'         blktest '<ret>' blktest '<ret>'
+# installer I.1: a blank 16 MiB scratch image as secondary master is the
+# target; the boot disk and the data disk are never picked. The tests only
+# ever write to that scratch file.
+target=$out/target.img
+rm -f "$target"
+dd if=/dev/zero of="$target" bs=1024 count=16384 2>/dev/null
+mbr() {     # mbr NAME 'blank' | 'TYPE START SIZE': read sector 0 of the target on the host
+    got=$(python3 -c 'import struct, sys
+d = open(sys.argv[1], "rb").read(512)
+if not any(d): print("blank")
+elif d[510:] != b"\x55\xaa": print("no signature")
+else: print("%02X %d %d" % ((d[450],) + struct.unpack("<II", d[454:462])))' "$target")
+    if [ "$got" = "$2" ]; then echo "ok   $1"; else echo "FAIL $1 (expected: $2, got: $got)"; fail=1; fi
+}
+check_all install-list 'disk 0: 129 sectors (0 MiB)  boot disk, not touched|disk 1: 2048 sectors (1 MiB)  data disk, not touched|disk 2: 32768 sectors (16 MiB)  blank|Target: disk 2.' \
+                    install '<ret>'
+check install-esc   'Nothing was written.'  'install part' '<ret>' '<esc>'
+mbr   install-esc-blank 'blank'
+check install-part  'Partition 1: type 7F, start 2048, 30720 sectors (15 MiB)'  'install part' '<ret>' y
+mbr   install-mbr   '7F 2048 30720'
+check install-again 'has a Squirrel-OS/2 partition'  install '<ret>'
+target=
+check install-none  'No target disk.'       'install part' '<ret>'
 # 1.3.0: graphics mode, one pixel written and read back, then text mode again
 check gfxtest      'gfxtest: PASS'         gfxtest '<ret>'
 check gfx-text     'systest: PASS'         gfxtest '<ret>' systest '<ret>'

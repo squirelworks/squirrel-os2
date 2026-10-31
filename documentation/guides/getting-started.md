@@ -27,6 +27,8 @@ Other emulators:
   controller as primary master and primary slave. Untested so far.
 - **Real hardware:** untested. `build/floppy.img` written to a floppy, or `build/os.img` written
   to a disk that the BIOS boots as a hard disk, should work on a PC with a legacy BIOS (not UEFI-only).
+- **Installing to a computer's own disk:** the installer is being built step by step; see
+  `install.md`.
 
 The manual way:
 
