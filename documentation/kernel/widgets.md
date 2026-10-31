@@ -9,11 +9,12 @@ The kernel keeps a table of up to 16 widgets (`WG_MAX`), shared by all windows. 
 | Field | Meaning |
 |-------|---------|
 | `WG_USED` | 1 while the widget exists |
-| `WG_KIND` | what it is: `WGK_LABEL`, `WGK_BUTTON` or `WGK_FIELD` |
+| `WG_KIND` | what it is: `WGK_LABEL`, `WGK_BUTTON`, `WGK_FIELD` or `WGK_LIST` |
 | `WG_WIN` | the window it belongs to |
 | `WG_X`, `WG_Y` | its place in the client area, in pixels |
 | `WG_TEXT` | address of a zero-terminated string |
-| `WG_PID`, `WG_CODE` | button: the process its events go to, and its code; field: `WG_CODE` is the most characters |
+| `WG_PID`, `WG_CODE` | button: the process its events go to, and its code; field: `WG_CODE` is the most characters; list: `WG_CODE` is how many items |
+| `WG_SEL` | list: the selected item, from 0 |
 
 A widget is cut to its window's client area. A label whose text row does not fit below is not drawn; a label that runs past the right edge loses the characters that do not fit.
 
@@ -47,14 +48,24 @@ A field is a box as wide as its most characters, showing the text of a buffer th
 |---------|----|-----|
 | `wg_field` | eax = window id, ebx = x, ecx = y, esi = buffer (zero-terminated, room for edx characters and the zero), edx = most characters | eax = widget id, or −1 |
 
+## List
+
+A list is a box as wide as its longest item, with one row per item. The selected row is a black bar with white text. If not all rows fit in the client area, the list is not drawn.
+
+| Routine | In | Out |
+|---------|----|-----|
+| `wg_list` | eax = window id, ebx = x, ecx = y, esi = items (an array of edx addresses of zero-terminated strings), edx = how many, at least 1 | eax = widget id, or −1; the first item is selected |
+| `wg_selected` | eax = a list's widget id | eax = its selected item, from 0 |
+
 ## Keys
 
-`wg_key` (al = ASCII, 8 for Backspace) gives a key to the first widget of the focused window (`wm_focus`) that takes keys, a button or a field. It returns CF clear if the widget used the key, CF set if not, so the caller can use it.
+`wg_key` (al = ASCII, 8 for Backspace, `WK_UP` 0x18 and `WK_DOWN` 0x19 for the arrows) gives a key to the first widget of the focused window (`wm_focus`) that takes keys: a button, a field or a list. It returns CF clear if the widget used the key, CF set if not, so the caller can use it.
 
 - Button: Enter (10 or 13) or Space posts its event.
 - Field: a printable character (0x20 to 0x7E) is appended if there is room; when the field is full the key is used and dropped. Backspace deletes the last character. Enter and Esc are not used.
+- List: `WK_DOWN` and `WK_UP` move the selection and stop at the first and last item. Other keys are not used.
 
-Moving between widgets comes with the list (1.5-list) or later.
+The caller turns keys into these codes; the scancodes for the arrows are 0x48 (Up) and 0x50 (Down). Moving between widgets in one window is not there yet: the first widget that takes keys gets them.
 
 ## Tests
 
@@ -64,6 +75,8 @@ Moving between widgets comes with the list (1.5-list) or later.
 
 `fieldtest` (1.5.2) opens a window with the label `Name:` and a 16-character field over an empty buffer. Keys go to `wg_key`, with the Backspace scancode passed as 8, until Enter or Esc. It then reads the field box's top left pixel, which must be black, and prints `field: PASS "<text>"` with the buffer's text, or `field: FAIL`. Checks: `fieldtest` (`Hi there`, two Backspaces: `"Hi the"`), `fieldtest-full` (20 letters: the first 16 stay), and `fieldtest-text`. Without the store in `wg_key`, `fieldtest` prints `field: PASS ""`, and the check fails.
 
-## Later in 1.5
+`listtest` (1.5.3) opens a window with the label `Pick:` and a list of `Acorn`, `Beech`, `Cedar` and `Dogwood`. Keys go to `wg_key`, with the arrows passed as `WK_UP` and `WK_DOWN`, until Enter or Esc. It reads a pixel of the selected row below its text, which must be the black bar, and prints `list: <name>` with the selected item, or `list: FAIL`. Checks: `listtest` (Down: `Beech`), `listtest-end` (five Downs: `Dogwood`), `listtest-up` (Down, Up, Up: `Acorn`), and `listtest-text`. With the selection store taken out of `wg_key`, `listtest` prints `list: Acorn` and the check fails.
 
-A list that moves a selection with the arrow keys (`../../TODO.md`).
+## Next
+
+The desktop shell (1.6) hosts the applications as windows (`../../ROADMAP.md`).

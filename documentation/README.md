@@ -74,4 +74,5 @@ Documentation is active.
 - 1.5.0 widgets: a text label in a window (`releases/1.5.0.md`, `kernel/widgets.md`)
 - 1.5.1 widgets: a button that posts a message (`releases/1.5.1.md`, `kernel/widgets.md`)
 - 1.5.2 widgets: a one-line edit field (`releases/1.5.2.md`, `kernel/widgets.md`)
-- Next: 1.5 list (`../ROADMAP.md`, tasks in `../TODO.md`)
+- 1.5.3 widgets: a list with a selection (`releases/1.5.3.md`, `kernel/widgets.md`)
+- Next: 1.6 desktop shell (`../ROADMAP.md`, tasks in `../TODO.md`)
