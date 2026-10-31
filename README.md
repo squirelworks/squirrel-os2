@@ -1,7 +1,7 @@
 # Squirrel-OS/2
 
 > **Joke branch: `klingon-font`.** An alien world where the PC never had
-> ASCII. The kernel writes pIqaD-style glyphs over the VGA font's letters
+> ASCII. The kernel writes real pIqaD glyphs over the VGA font's letters
 > and digits and boots in Klingon (`lang tlh`), so the whole system reads
 > in Klingon script. Not for merging into `main`; see
 > [Klingon font](#klingon-font-joke-branch) below. The matching firmware
@@ -57,9 +57,10 @@ Notes: `documentation/releases/1.0.0.md` (patches: `1.0.1.md`, `1.0.2.md`, `1.0.
 ## Klingon font (joke branch)
 
 - `tools/klingon-font.py` holds the glyphs as ASCII art and writes
-  `kernel/klingon-font.inc`. They are original drawings in the spirit of
-  pIqaD (not copied from an existing font), the same ones SquirrelBIOS's
-  `klingon-font` branch uses.
+  `kernel/klingon-font.inc`. They are hand-drawn pIqaD letters and digits,
+  traced stroke for stroke from a sixteen-segment pIqaD chart (not copied
+  from an existing font), the same ones SquirrelBIOS's `klingon-font`
+  branch uses.
 - `kernel/klingon.asm` loads them into VGA plane 2 at boot, over letters,
   digits and `'` only; punctuation and box drawing keep the BIOS font.
   Latin letters map to the nearest Klingon letter (`d`→`D`, `k`/`c`→`q`,

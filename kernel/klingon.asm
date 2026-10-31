@@ -1,7 +1,7 @@
 ; Squirrel-OS/2 — Klingon font (joke klingon-font branch)
 ; Included from pm.asm. Original code.
 ;
-; Writes the pIqaD-style glyphs of klingon-font.inc over the VGA BIOS
+; Writes the pIqaD glyphs of klingon-font.inc over the VGA BIOS
 ; font in plane 2: letters, digits and the apostrophe, plus the digraph
 ; letters tlh, ch, gh and ng at 0x80-0x83 that tools/mkstrings.py puts
 ; into the Klingon strings. Punctuation and box drawing keep the BIOS
