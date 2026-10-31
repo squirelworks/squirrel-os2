@@ -121,6 +121,18 @@ check ed-vaction    "Deleted 'c'"           'run vedit' '<ret>' abc '<backspace>
 check ed-unsaved    'Unsaved changes'       'run edit' '<ret>' x '<esc>'
 check ed-saveas     'memo2'                 'run edit' '<ret>' hi '<f2>' memo2 '<ret>' '<esc>' ls '<ret>'
 check fb-edit       'Loaded.'               'run files' '<ret>' '<home>' e
+# 0.9.0: the browser starts each 1.0 app and gets it back when it quits
+d6="<down> <down> <down> <down> <down> <down>"
+check fb-run-edit   '> edit'                'run files' '<ret>' $d6 '<ret>' hi '<esc>' d
+check fb-run-vedit  '> vedit'               'run files' '<ret>' $d6 '<down>' '<ret>' hi '<esc>' d
+check fb-run-draw   '> draw'                'run files' '<ret>' $d6 '<down>' '<down>' '<ret>' '<spc>' '<esc>' d
+check fb-run-calc   '> calc'                'run files' '<ret>' '<ret>' '6 * 7' '<ret>' '<esc>'
+check fb-run-back   'systest: PASS'         'run files' '<ret>' $d6 '<down>' '<down>' '<ret>' '<esc>' '<esc>' systest '<ret>'
+# 0.9.1: what one boot writes, the next boot sees (each check is a fresh boot)
+check persist-w     'ok'                    'mkdir keep' '<ret>' 'put keep/note kept' '<ret>'
+check persist-r     'kept'                  'cat keep/note' '<ret>'
+check persist-fb    'memo1'                 'run files' '<ret>'
+check persist-cd    'note'                  'cd keep' '<ret>' ls '<ret>'
 check draw-exit     'systest: PASS'         'run draw' '<ret>' '<right>' '<spc>' '<esc>' d systest '<ret>'
 check draw-unsaved  'Unsaved changes'       'run draw' '<ret>' '<spc>' '<esc>'
 check draw-rect     '*ooo*'                 'run draw pic' '<ret>' r '<right>' '<right>' '<right>' '<right>' \
@@ -199,7 +211,7 @@ check dir-run-root  'Hello from a loaded'   'cd d1' '<ret>' 'run hello' '<ret>'
 check dir-hist-root '0 file(s)'             'mkdir d3' '<ret>' 'cd d3' '<ret>' 'run ls' '<ret>'
 check dir-ls-prog   '<dir>'                 'run ls d1' '<ret>'
 check dir-rm-full   'Directory not empty'   'rm d2' '<ret>'
-check dir-mv-cycle  'cannot move into itsel''mkdir d5' '<ret>' 'mkdir d5/e' '<ret>' 'mv d5 d5/e/f' '<ret>'
+check dir-mv-cycle  'into itself'           'mkdir d5' '<ret>' 'mkdir d5/e' '<ret>' 'mv d5 d5/e/f' '<ret>'
 check dir-mv-into   'g                 6'   'put g nutty' '<ret>' 'mv g d5/g' '<ret>' 'ls d5' '<ret>'
 check dir-cd-bad    'No such directory'     'cd nowhere' '<ret>'
 check dir-rm-empty  '0 file(s)'             'rm d1' '<ret>' 'run ls d1' '<ret>'

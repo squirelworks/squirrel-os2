@@ -43,5 +43,7 @@ Documentation is active.
 - 0.8.0 SQFS directories (`kernel/filesystem.md`, `releases/0.8.0.md`)
 - 0.8.1 localization runtime (`kernel/localization.md`, `releases/0.8.1.md`)
 - 0.8.2 crash reports and shell restart (`kernel/crash-reports.md`, `releases/0.8.2.md`)
+- 0.9.0 browser launches the 1.0 apps (`releases/0.9.0.md`)
+- 0.9.1 files persist across reboots (`releases/0.9.1.md`)
 - 0.9.2 stability and polish pass (`releases/0.9.2.md`, `knownbugs.md`)
-- Next: the 0.9 polish pass toward 1.0
+- Next: 1.0.0 release packaging
