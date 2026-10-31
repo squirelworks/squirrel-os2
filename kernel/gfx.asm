@@ -361,27 +361,37 @@ gfx_line:
     ret
 
 ; eax = x, ebx = y, ecx = width, edx = height, colour in [gfx_colour].
-; Fills the rectangle; the part off the screen is clipped.
+; Fills the rectangle; the part off the screen is clipped. x and y may be
+; negative: the edges are compared signed, so a rectangle that starts left
+; of or above the screen draws its visible part from x = 0 or y = 0.
 gfx_fillrect:
     pushad
     lea esi, [eax+ecx]          ; right edge (exclusive)
     lea edi, [ebx+edx]          ; bottom edge (exclusive)
     cmp esi, GFX_W
-    jbe .wok
+    jle .wok
     mov esi, GFX_W
 .wok:
     cmp edi, GFX_H
-    jbe .hok
+    jle .hok
     mov edi, GFX_H
 .hok:
+    test eax, eax
+    jns .xok
+    xor eax, eax                ; clip the left edge to x = 0
+.xok:
+    test ebx, ebx
+    jns .yok
+    xor ebx, ebx                ; clip the top edge to y = 0
+.yok:
     mov edx, eax                ; left edge
 .row:
     cmp ebx, edi
-    jae .done
+    jge .done
     mov eax, edx
 .col:
     cmp eax, esi
-    jae .next
+    jge .next
     mov cl, [gfx_colour]
     call gfx_putpixel
     inc eax
@@ -393,10 +403,10 @@ gfx_fillrect:
     popad
     ret
 
-; gfxprim: clears the lower part of the screen, draws a line and a filled
-; rectangle there and reads back a pixel on the line, one inside the
-; rectangle and three just outside it. Everything stays at y >= GFX_SAFE_Y,
-; past the text and the font (graphics.md).
+; gfxprim: clears the lower part of the screen, draws a line and two filled
+; rectangles there (the second starting at x = -10) and reads back pixels on
+; the line, inside each rectangle and just outside them. Everything stays
+; at y >= GFX_SAFE_Y, past the text and the font (graphics.md).
 GFX_SAFE_Y equ 103
 
 cmd_gfxprim_run:
@@ -419,6 +429,12 @@ cmd_gfxprim_run:
     mov ebx, 105
     mov ecx, 60
     mov edx, 20
+    call gfx_fillrect
+    mov byte [gfx_colour], 0x09
+    mov eax, -10                ; starts off the left edge: x 0..9 drawn
+    mov ebx, 130                ; y 130..139
+    mov ecx, 20
+    mov edx, 10
     call gfx_fillrect
     mov esi, gfxp_expect
 .check:
@@ -458,6 +474,12 @@ gfxp_expect:
     db 0                        ; just right of it
     dd 230, 125
     db 0                        ; just below it
+    dd 0, 135
+    db 0x09                     ; the clipped rectangle at x = 0
+    dd 9, 135
+    db 0x09                     ; its last column
+    dd 10, 135
+    db 0                        ; just right of it
     dd -1
 
 gfx_colour db 0
