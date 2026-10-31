@@ -97,7 +97,7 @@ Each item is its own patch release after 1.0.0 (its own release note). Independe
   `documentation/apps/editors.md` lists search under "Not yet".
   **Acceptance:** a file containing `zebra` can be searched, the cursor lands on it, and the message line says so. A regression check expects that message. The "Not yet" line drops search.
 
-- [ ] **1.0-edit-undo** — One-level undo in the editors.
+- [x] **1.0-edit-undo** — One-level undo in the editors.
   Listed as not yet. One level, not a history stack.
   **Acceptance:** type a character, undo, and the character is gone. A second undo does not erase more. A regression check covers the first undo. The editors note says one-level undo is present.
 

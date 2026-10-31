@@ -89,6 +89,7 @@ This avoids retargeting chains and confirmation steps.
 | 1.0.8   | 2026-10-31 | Numerical integrals in diff          |
 | 1.0.9   | 2026-10-31 | Search in the editors                |
 | 1.0.10  | 2026-10-31 | Euler ODE stepper in diff            |
+| 1.0.11  | 2026-10-31 | One-level undo in the editors        |
 
 ## Next planned release
 
