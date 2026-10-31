@@ -65,7 +65,7 @@ A missing disk stays in the table as `absent`, and every call on it fails.
 NAME    TYPE    STATUS
 con     char    ready
 kbd     char    ready
-hd0     block   ready 129 sectors (read-only for programs)
+hd0     block   ready 193 sectors (read-only for programs)
 hd1     block   ready 2048 sectors
 ```
 
