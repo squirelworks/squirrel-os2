@@ -57,6 +57,7 @@ Squirrel-OS/2 uses a simple `major.minor.patch` scheme for early development:
 | 0.7.0   | 2026-10-30 | Driver registration table            |
 | 0.7.1   | 2026-10-30 | Console and keyboard as devices      |
 | 0.7.2   | 2026-10-30 | ATA disks as block devices           |
+| 0.8.0   | 2026-10-30 | SQFS directories                     |
 
 ## Next planned release
 

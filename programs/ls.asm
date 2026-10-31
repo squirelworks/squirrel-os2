@@ -41,7 +41,15 @@ main:
     jmp .pad
 .size:
     mov eax, [entry+16]
+    cmp eax, -1                 ; a directory (0.8.0)
+    jne .num
+    mov eax, SYS_PUTS
+    mov ebx, m_dir
+    int 0x80
+    jmp .eol
+.num:
     call putnum
+.eol:
     mov eax, SYS_PUTC
     mov ebx, 10
     int 0x80
@@ -110,6 +118,7 @@ putnum:
     ret
 
 m_files db ' file(s)', 10, 0
+m_dir db '<dir>', 0
 m_nodisk db 'ls: no data disk', 10, 0
 
 SQX_BSS

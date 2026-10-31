@@ -15,6 +15,15 @@ HIST_REWRITE equ 64                 ; compact the file after this many lines
 ; Shows the prompt and starts an empty line.
 sh_prompt:
     push esi
+    cmp byte [fs_mounted], 0    ; outside the root, show where we are
+    je .plain
+    cmp byte [fs_cwd], 0
+    je .plain
+    push edx
+    mov dl, [fs_cwd]
+    call fs_print_path
+    pop edx
+.plain:
     mov esi, prompt
     call puts
     pop esi
@@ -367,7 +376,7 @@ hist_load:
 .r:
     ret
 
-hist_name db 'shell.hist', 0
+hist_name db '/shell.hist', 0      ; in the root, wherever the shell is
 hist_nl db 10
 
 align 4

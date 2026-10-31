@@ -166,8 +166,13 @@ fb_scan:
     je .rom
     mov esi, FS_DIR
     mov ecx, FS_MAXFILES
+    mov dl, [fs_cwd]            ; the files of the current directory
 .d:
     cmp byte [esi], 0
+    je .dn
+    cmp [esi+DE_PARENT], dl
+    jne .dn
+    cmp byte [esi+DE_KIND], DK_DIR
     je .dn
     mov [edi], esi
     mov eax, [esi+DE_SIZE]

@@ -45,7 +45,19 @@ prog_exec:
     xor ecx, ecx
     call fs_open
     cmp eax, -1
+    jne .opened
+    ; not in the current directory: programs in the root are found
+    ; from anywhere (0.8.0)
+    mov cl, [fs_cwd]
+    mov byte [fs_cwd], 0
+    push ecx
+    xor ecx, ecx
+    call fs_open
+    pop ecx
+    mov [fs_cwd], cl
+    cmp eax, -1
     je .out
+.opened:
     mov ebx, eax
     mov edi, LD_STAGE
     mov ecx, PROG_MAX

@@ -110,7 +110,7 @@ This is a natural end-of-day point. Next session can resume at either:
 - **0.7.2** — ATA block device registered as a driver (done — `hd0`/`hd1`; SQFS and the block syscalls use them)
 
 ### 0.8.x — Integration foundations
-- **0.8.0** — Hierarchical directories or long names in SQFS
+- **0.8.0** — Hierarchical directories or long names in SQFS (done — directories via a parent id per entry, paths, `mkdir`/`cd`/`pwd`, `mv` between directories)
 - **0.8.1** — Localization runtime (select `localization/` strings at run time)
 - **0.8.2** — Better exception / crash reporting
 

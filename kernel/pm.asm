@@ -292,6 +292,12 @@ run_simple:
     mov edi, cmd_ls
     call streq
     je .ls
+    mov edi, cmd_cd
+    call streq
+    je .cd
+    mov edi, cmd_pwd
+    call streq
+    je .pwd
     ; cat
     mov edi, cmd_cat
     call streq_prefix
@@ -377,6 +383,13 @@ run_simple:
     jmp .empty
 .ls:
     call fs_list
+    jmp .empty
+.cd:
+    add esi, 2                  ; "cd" alone: back to the root
+    call cmd_cd_run
+    jmp .empty
+.pwd:
+    call cmd_pwd_run
     jmp .empty
 .systest:
     call cmd_systest_run
@@ -730,7 +743,8 @@ default_isr:
 ; ---------- data ----------
 banner db 'Squirrel-OS/2 0.2.3', 10
        db 'Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>', 10
-       db '          mv <f> <new> | echo | batch <f> | format | ps | disk | mem | devices', 10
+       db '          mv <f> <new> | mkdir <d> | cd <d> | pwd | echo | batch <f> | format', 10
+       db '          ps | disk | mem | devices', 10
        db 'Tests: systest | proctest | blktest | fstest | memtest | keys', 10
        db 'Apps: files, calc, sci, graph, matrix, diff, topo, edit, vedit, draw', 10, 0
 prompt db '> ', 0
@@ -758,6 +772,11 @@ cmd_put db 'put ', 0
 cmd_mk db 'mk ', 0
 cmd_rm db 'rm ', 0
 cmd_mv db 'mv ', 0
+cmd_ls_arg db 'ls ', 0
+cmd_cd_arg db 'cd ', 0
+cmd_mkdir db 'mkdir ', 0
+cmd_cd db 'cd', 0
+cmd_pwd db 'pwd', 0
 cmd_echo db 'echo ', 0
 cmd_batch db 'batch ', 0
 arg_cmds:
@@ -765,6 +784,9 @@ arg_cmds:
     dd cmd_mk, cmd_mk_run
     dd cmd_rm, cmd_rm_run
     dd cmd_mv, cmd_mv_run
+    dd cmd_ls_arg, cmd_ls_run
+    dd cmd_cd_arg, cmd_cd_run
+    dd cmd_mkdir, cmd_mkdir_run
     dd cmd_echo, cmd_echo_run
     dd cmd_batch, cmd_batch_run
     dd 0, 0

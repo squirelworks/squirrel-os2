@@ -1,4 +1,4 @@
-# SQFS — On-disk File System (0.2.1 / 0.2.2)
+# SQFS — On-disk File System (0.2.1 / 0.2.2, directories 0.8.0)
 
 Location: `../../kernel/fs.asm` (included from `kernel/pm.asm`)
 
@@ -32,11 +32,36 @@ SQFS lives on the **data disk** (ATA drive 1, primary slave). The boot disk is n
 | 16 | Start LBA of the extent |
 | 20 | Size in bytes |
 | 24 | Capacity in sectors (0 = no extent yet) |
-| 28 | Reserved |
+| 28 | Parent directory id, byte (0.8.0; 0 = the root) |
+| 29 | Kind, byte: 0 file, 1 directory (0.8.0) |
+| 30 | Reserved |
 
 The directory is cached in memory (`KSCRATCH+0x1000`) and written through on every change.
-The flat namespace is the "flat directory" option of milestone 0.2.1; subdirectories can be
-added later by giving entries a type and a parent index in the reserved word.
+
+## Directories (0.8.0)
+
+The 64-entry table stays as it is. A directory is just an entry of kind 1, with no extent; its id is its index in the table plus 1. Every entry records the id of the directory it is in. Disks written before 0.8.0 have zeros in those bytes, which means "a file in the root", so they mount unchanged.
+Kernels older than 0.8.0 show directories as empty files and every file at the top level.
+
+**Paths.** Every name the file system takes is a path:
+
+- Parts are separated by `/`.
+- A path starting with `/` begins at the root; otherwise it begins at the current directory (`fs_cwd`, shown in the prompt and by `pwd`).
+- `.` and `..` work. The root is its own parent.
+- `fs_walk` resolves all but the last part. `fs_lookup` then finds the last part in that directory.
+
+**Rules:**
+
+- **Opening:** a directory cannot be opened as a file.
+- **Deleting:** a directory can be removed only when it is empty and is not the current directory.
+- **Renaming:** `mv` can move an entry into another directory (`mv notes docs/notes`). It refuses to move a directory into itself or below itself.
+- **Names:** `.` and `..` are refused as names.
+
+**Shell and programs:**
+
+- **Listings:** `ls`, `SYS_READDIR`, `run ls` and the file browser list the current directory. In a `SYS_READDIR` entry, a subdirectory's size reads as −1.
+- **Programs:** the loader looks in the current directory first and then in the root. So `run hello` works from anywhere.
+- **History:** the shell history is always `/shell.hist`.
 
 ## Allocation
 
@@ -93,7 +118,11 @@ starting at 0 (or at the end with `O_APPEND`). Eight descriptors are shared syst
 | `put <f> <text>` | Append `text` and a newline (creates the file) |
 | `mk <f>` | Create an empty file |
 | `rm <f>` | Delete |
-| `mv <f> <new>` | Rename |
+| `mv <f> <new>` | Rename, or move to another directory (`mv a docs/a`) |
+| `mkdir <d>` | Make a directory (0.8.0) |
+| `cd [d]` | Change the current directory; alone, back to the root (0.8.0) |
+| `pwd` | Print the current directory (0.8.0) |
+| `ls <d>` | List another directory (0.8.0) |
 | `format` | Erase the data disk and reseed the built-in files |
 | `fstest` | Create, write 1300 bytes in two pieces (forcing a move), reopen, read back and compare, check EOF, rename, delete |
 
@@ -101,7 +130,7 @@ starting at 0 (or at the end with `O_APPEND`). Eight descriptors are shared syst
 
 ## Limitations
 
-- One flat directory, 64 files, 15-character names.
+- 64 entries in all (files and directories together), 15-character names, paths up to 63 characters.
 - No seek call yet; reads and writes are sequential per descriptor.
 - Write-through, no cache: every partial sector write is a read-modify-write.
 - No journaling or fsck; a crash during a file move can leave the old extent referenced.

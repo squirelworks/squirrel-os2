@@ -34,10 +34,11 @@ Scratch layout inside `KSCRATCH`:
 | `0xA00` | 512 | SQFS sector buffer |
 | `0x1000` | 2048 | SQFS directory cache |
 | `0x1800` | 256 | `cat` buffer |
-| `0x2000` | 2048 | `fstest` pattern buffers |
+| `0x2000` | 1300 | `fstest` pattern buffer |
 | `0x2800` | 2048 | Shell history: 16 lines × 128 bytes (0.5.1) |
 | `0x3000` | 4096 | Batch script text (0.5.2) |
 | `0x4000` | 16384 | Editor text buffer (`edit`/`vedit`) |
 | `0x8000` | 1152 | `draw` canvas (64 × 18) |
 | `0x9000` | 20480 | `draw` flood-fill stack |
 | `0xE000` | 1170 | `draw` load/save buffer |
+| `0xF000` | 1300 | `fstest` read-back buffer (moved from `0x2800` in 0.8.0, where it overwrote the shell history) |
