@@ -152,6 +152,8 @@ prog_exec:
     call as_release
     mov eax, [ld_as]
     mov [edi+PCB_AS], eax
+    mov esi, [esp+12]           ; the file name (saved esi), for ps and crash reports
+    call proc_set_name
     mov eax, edi
     sub eax, proc_table
     shr eax, 6                  ; / PCB_SIZE

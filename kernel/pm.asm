@@ -58,7 +58,7 @@ pm:
     mov ds, ax
     mov es, ax
     mov ss, ax
-    mov esp, 0x9F000
+    mov esp, SHELL_STACK
 
     ; IDT (timer + keyboard)
     mov edi, idt
@@ -130,6 +130,7 @@ pm:
 .whole:
     call fs_mount_boot
     call hist_load
+    mov byte [shell_up], 1      ; from here a crash can restart the shell
     sti                         ; autoexec.bat may run apps that need keys
     call bat_autoexec
     call sh_prompt
@@ -445,11 +446,17 @@ run_simple:
 .rgo:
     ; the app runs as its own process; the shell waits for it
     mov ecx, [ebx+4]
+    mov esi, [ebx]              ; its name, for ps and crash reports
     mov ebx, app_host
     mov eax, SYS_SPAWN
     int SYSCALL_VEC
     cmp eax, -1
     je .rfull
+    push eax
+    mov ebx, eax
+    call proc_find
+    call proc_set_name
+    pop eax
 .rwait:
     mov ebx, eax
     mov eax, SYS_WAIT
@@ -908,11 +915,8 @@ scancode_map_shift:
     times 128-($-scancode_map_shift) db 0
 
 ; ---------- CPU exceptions ----------
-; One fixed-size stub per vector pushes its number; the report prints
-; it with the faulting EIP (and, for a page fault, the address). A fault
-; in a loaded program ends that program; anywhere else the kernel halts.
-; (Vectors with an error code push it first, so EIP is read from the
-; right slot for those.)
+; One fixed-size stub per vector pushes its number and jumps to the
+; report in crash.asm (0.8.2).
 EXC_STUB_SIZE equ 8
 exc_stubs:
 %assign v 0
@@ -922,54 +926,6 @@ exc_stubs:
     times exc_stubs+(v+1)*EXC_STUB_SIZE-$ nop
 %assign v v+1
 %endrep
-
-exc_report:
-    cli
-    mov ebx, [esp]            ; vector
-    mov eax, 1
-    mov ecx, ebx
-    shl eax, cl
-    test eax, EXC_ERRCODE_MASK
-    mov edx, [esp+4]          ; eip without error code
-    jz .noerr
-    mov edx, [esp+8]
-.noerr:
-    mov esi, exc_msg
-    call puts
-    mov eax, ebx
-    call itoa
-    mov esi, num_buf
-    call puts
-    mov esi, exc_at
-    call puts
-    mov eax, edx
-    call puthex
-    cmp ebx, 14
-    jne .eol
-    mov esi, exc_addr
-    call puts
-    mov eax, cr2
-    call puthex
-.eol:
-    mov al, 10
-    call putc
-    mov esi, [proc_cur]
-    cmp dword [esi+PCB_AS], 0
-    je .halt
-    mov esi, exc_killed
-    call puts
-    mov esi, [proc_cur]
-    mov eax, [esi+PCB_PID]
-    call itoa
-    mov esi, num_buf
-    call puts
-    mov al, 10
-    call putc
-    mov ebx, -1
-    jmp proc_exit
-.halt:
-    hlt
-    jmp .halt
 
 ; eax -> 8 hex digits on the console
 puthex:
@@ -992,12 +948,6 @@ puthex:
     pop ecx
     ret
 
-; #DF #TS #NP #SS #GP #PF #AC push an error code
-EXC_ERRCODE_MASK equ (1<<8)|(1<<10)|(1<<11)|(1<<12)|(1<<13)|(1<<14)|(1<<17)
-exc_msg db 10, '*** CPU exception ', 0
-exc_at db ' at EIP 0x', 0
-exc_addr db ', address 0x', 0
-exc_killed db 'Program ended: pid ', 0
 
 %include "syscall.asm"
 %include "proc.asm"
@@ -1011,6 +961,7 @@ exc_killed db 'Program ended: pid ', 0
 %include "dev.asm"
 %include "chardev.asm"
 %include "lang.asm"
+%include "crash.asm"
 %include "browser.asm"
 %include "calc.asm"
 %include "editor.asm"

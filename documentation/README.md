@@ -42,4 +42,5 @@ Documentation is active.
 - 0.7.0–0.7.2 device model: registry, console, keyboard, disks (`kernel/drivers.md`, `releases/0.7.0.md`)
 - 0.8.0 SQFS directories (`kernel/filesystem.md`, `releases/0.8.0.md`)
 - 0.8.1 localization runtime (`kernel/localization.md`, `releases/0.8.1.md`)
-- Next: 0.8.2 crash reporting
+- 0.8.2 crash reports and shell restart (`kernel/crash-reports.md`, `releases/0.8.2.md`)
+- Next: the 0.9 polish pass toward 1.0

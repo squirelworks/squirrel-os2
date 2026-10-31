@@ -86,7 +86,7 @@ Each PCB has a `PCB_AS` field (0 means the kernel's directory):
 
 The exception report now also prints CR2 for a page fault. If the faulting process has its own address space, the report ends with `Program ended: pid N`, the process exits with code −1, and the shell carries on (`run crash` reads `0xC0000000`).
 
-A fault anywhere else (the shell, a built-in app, the kernel) still halts the system as before.
+Since 0.8.2 any process but the shell is ended the same way, and a fault in the shell offers a restart (`crash-reports.md`).
 
 Everything still runs in ring 0, so a program can still write over kernel memory. Protection (user mode) remains a 2.x item.
 
