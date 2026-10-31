@@ -201,11 +201,23 @@ Start after **1.4-focus** and **1.2-key-event** are on `main`. One widget per PR
   Start after **1.6-draw** and **1.3-line-fill** are on `main`. This is the "Later" section of `documentation/apps/draw.md`.
   **Acceptance:** a stroke sets a pixel the self-check reads back, save/load keeps it, and a regression check expects `drawpx: PASS`.
 
-## 1.7 and after
+## 1.7 — Object model
 
-Do not start these while any box above is open. When 1.6 is on `main`, split the next milestone into PR-sized boxes in this file before writing code. The shapes, from `documentation/plannedmilestones.md`:
+Split from `documentation/plannedmilestones.md` once 1.6 was on `main`. Work top to bottom; each box is one PR and moves the version (1.7.0, 1.7.1, ...). The design note is `documentation/kernel/objects.md`, written with the first box.
 
-- [ ] **1.7-objects** — A class, a method, and a subclass. A command prints `obj: PASS`. No desktop objects in this PR.
+- [ ] **1.7-class** — Classes and messages: a class has a name, a parent and a method table; an object points at its class; sending a message looks the selector up in the class and then up the parent chain. Kernel routines `obj_class`, `obj_new`, `obj_send` (`kernel/object.asm`). No desktop objects in this PR.
+  **Acceptance:** a test command `objtest` defines `Shape` with `name` and `area`, and `Square` under it overriding only `area`; sending `name` to a square runs the inherited method, `area` runs the override, and an unknown selector returns an error instead of crashing. It prints `obj: PASS` and a regression check expects it.
+- [ ] **1.7-fields** — Instance fields: a class lists its fields by name after its parent's, so a subclass keeps the parent's layout. `obj_get` / `obj_set` by field index, and a lookup by name.
+  **Acceptance:** `objtest` sets a field through the parent's method and reads it through the subclass's; it prints `obj fields: PASS` and a regression check expects it.
+- [ ] **1.7-objs** — A shell command `objs` that lists the classes with their parents and the live objects with their classes. Objects are freed with `obj_free`, and the count goes back down.
+  **Acceptance:** a check reads the class tree off the screen, and `mem` shows the same free memory before and after `objtest`.
+- [ ] **1.7-desktop** — The desktop's entries become objects: a `Program` class (under a `DesktopObject` class with `name` and `open`) for calc, edit, vedit, draw, and `files`. Enter sends `open` to the selected object instead of reading the `dk_run` table.
+  **Acceptance:** every `desktop-*` check still passes, and a new check opens a program through `open` and reads its window.
+
+## 1.8 and after
+
+Do not start these while any box above is open. When 1.7 is on `main`, split the next milestone into PR-sized boxes in this file before writing code. The shapes, from `documentation/plannedmilestones.md`:
+
 - [ ] **1.8-store** — Save that object into SQFS and load it back after a reboot. The regression disk already persists across checks; the check reads the loaded value.
 - [ ] **1.9-dnd** — Pick up, move focus, and drop a desktop object from the keyboard. A regression check expects the object's new parent. No mouse.
 - [ ] **2.0-net** — Only once 1.9 is on `main`: split basic networking into its own tasks in this file, then implement the first of them (a loopback that a test program can send on and read back).
