@@ -413,6 +413,9 @@ check desktop-files 'gfx: Arrows PgUp/PgDn Home/End' \
 check desktop-files-back 'gfx: Squirrel-OS/2 Desktop' \
                    desktop '<ret>' '<pause>' '<ret>' '<pause>' '<esc>' '<pause>' '<gfx>'
 check_all desktop-objs 'Program < DesktopObject|0 live' desktop '<ret>' '<pause>' '<esc>' objs '<ret>'
+# Opening the desktop twice must not re-register DesktopObject/Program (obj_class is idempotent)
+check_all desktop-objs-2 'Program < DesktopObject|0 live' \
+                   desktop '<ret>' '<pause>' '<esc>' desktop '<ret>' '<pause>' '<esc>' objs '<ret>'
 # 1.8.3: the desktop's entries are object files in /desktop, written the
 # first time; a removed file's entry is gone. A disk of their own, so the
 # other desktop checks keep all five entries.
