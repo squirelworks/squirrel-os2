@@ -8,7 +8,7 @@ The machine needs a Pentium-class CPU (CPUID, FPU, 4 MB pages) and at least 4 MB
 The quick way (0.9.3):
 
 ```bash
-tools/build.sh          # build/os.img, build/floppy.img, and build/data.img with the sample programs
+tools/build.sh          # build/os.img, build/floppy.img, build/cd.iso, and build/data.img with the sample programs
 tools/run.sh            # QEMU: boot os.img with data.img as the data disk
 tools/run.sh --floppy   # the same, booting from the floppy image
 ```

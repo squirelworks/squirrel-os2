@@ -1,6 +1,6 @@
 # Installing Squirrel-OS/2 onto a disk
 
-Status: **in progress**. Steps I.1 to I.5 are done: `run install` makes a target disk that boots on its own. I.6 (a CD image) is open in `TODO.md`.
+Status: **done**. Steps I.1 to I.6 are on `main`: `run install` makes a target disk that boots on its own, and `tools/build.sh` also makes a bootable CD image.
 
 ## Today
 
@@ -20,7 +20,7 @@ the medium can be removed afterwards. Each step is one pull request:
 | I.3-copy | Copy the kernel and the sample programs onto the target | done |
 | I.4-bootable | Write the boot code into the target's MBR so the PC boots from it alone | done |
 | I.5-ui | A text-mode `install` program that walks through I.1 to I.4, with a confirm step, localized | done |
-| I.6-cd | Optional: a bootable CD image around `floppy.img` | open |
+| I.6-cd | Optional: a bootable CD image around `floppy.img` | done |
 
 Each step ships in the next OS version, like any other release: I.1 and I.2 are in 1.7.2.
 
@@ -169,6 +169,19 @@ nothing. The texts are the `inst_*` keys in `localization/*/strings.txt` (Englis
 Klingon). The step-by-step shell commands of I.1 to I.4 stay, in English, for testing and for
 finer control; both share the same routines (`ins_do_part`, `ins_do_format`,
 `ins_do_kernel`, `ins_do_files`, `ins_do_boot`).
+
+## Step I.6: a CD image
+
+`tools/build.sh` also writes `build/cd.iso` with `tools/mkiso.py`: an ISO 9660 image whose El
+Torito boot record uses floppy emulation around `floppy.img`. The BIOS boots it as floppy drive
+0, so the boot sector's floppy path loads the kernel exactly as from a real floppy. The ISO
+file system itself is empty. `tools/qemu_screen.py --cdrom` boots it; `cd-boot` and `cd-data`
+check it.
+
+A CD is not an IDE disk to the kernel, so a system booted from the CD can run the installer
+only up to the point where the kernel is read back (`install copy` and `run install` say
+`The boot disk is not an IDE disk ...`). Installing from CD needs a CD-ROM (ATAPI) driver, which
+belongs with the Modern hardware milestone.
 
 ## Trying it in QEMU
 

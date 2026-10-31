@@ -12,6 +12,7 @@ python3 "$root/tools/mkfont.py" --check || exit 1
 cat "$out/boot.bin" "$out/pm.bin" > "$out/os.img"
 dd if=/dev/zero of="$out/floppy.img" bs=1024 count=1440 2>/dev/null
 dd if="$out/os.img" of="$out/floppy.img" conv=notrunc 2>/dev/null
+python3 "$root/tools/mkiso.py" "$out/floppy.img" "$out/cd.iso"    # installer I.6
 for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover; do
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
 done
@@ -428,6 +429,10 @@ boot="--floppy $out/floppy.img"
 check floppy-boot   'systest: PASS'         '<pause>' '<pause>' systest '<ret>'
 check floppy-data   'kept'                  '<pause>' '<pause>' 'cat keep/note' '<ret>'
 check floppy-e820   'usable'                '<pause>' '<pause>' mem '<ret>'
+# installer I.6: the CD image (El Torito floppy emulation around floppy.img) boots to the shell
+boot="--cdrom $out/cd.iso"
+check cd-boot       'systest: PASS'         '<pause>' '<pause>' systest '<ret>'
+check cd-data       'kept'                  '<pause>' '<pause>' 'cat keep/note' '<ret>'
 boot=
 export QEMU_EXTRA='-cpu 486,-pse'
 check cpu-nopse     'needs a Pentium-class CPU'
