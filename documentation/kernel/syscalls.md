@@ -46,6 +46,7 @@ add its `SYS_*` constant, bump `SYS_COUNT`.
 | 19–20 | `SYS_PALLOC`, `SYS_PFREE` | | | Added in 0.6.0, see `memory.md` |
 | 21 | `SYS_SBRK` | `ebx` = bytes to grow (negative shrinks, 0 asks) | the old break, or −1 | Added in 0.6.2: moves the end of the program's heap at `0x40000000` (up to 4 MB), see `memory.md` |
 | 22–24 | `SYS_DEVFIND`, `SYS_DEVREAD`, `SYS_DEVWRITE` | | | Added in 0.7.0, see `drivers.md` |
+| 25 | `SYS_SEEK` | `ebx` = fd, `ecx` = offset (signed), `edx` = 0 from start / 1 from current / 2 from end | new position, or −1 | Added in 1.0.2, see `filesystem.md` |
 
 Example:
 

@@ -851,6 +851,41 @@ fs_close:
     mov eax, -1
     ret
 
+; ebx = fd, ecx = offset (signed), edx = SEEK_SET/CUR/END -> eax = new
+; position, or -1. The position stays within 0..file size (1.0.2).
+SEEK_SET      equ 0
+SEEK_CUR      equ 1
+SEEK_END      equ 2
+fs_seek:
+    push edi
+    push esi
+    call fs_fd
+    jc .bad
+    mov esi, [edi+FD_DIRENT]
+    xor eax, eax                ; SEEK_SET: from 0
+    cmp edx, SEEK_SET
+    je .add
+    mov eax, [edi+FD_POS]
+    cmp edx, SEEK_CUR
+    je .add
+    mov eax, [esi+DE_SIZE]
+    cmp edx, SEEK_END
+    jne .bad
+.add:
+    add eax, ecx
+    js .bad                     ; before the start
+    cmp eax, [esi+DE_SIZE]
+    ja .bad                     ; past the end (no holes)
+    mov [edi+FD_POS], eax
+    pop esi
+    pop edi
+    ret
+.bad:
+    pop esi
+    pop edi
+    mov eax, -1
+    ret
+
 ; ebx = fd, edi = buffer, ecx = length -> eax = bytes read, or -1
 fs_read:
     pushad

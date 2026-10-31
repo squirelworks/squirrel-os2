@@ -145,6 +145,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - Each process keeps its own x87 FPU registers across a process switch (`kernel/processes.md`; `fpu-switch`). The "No FPU save" limitation of 0.9.3 is gone.
 
+## 1.0.2
+
+- `SYS_SEEK` (25) moves a file descriptor's position within the file (`kernel/filesystem.md`; `seek`). The "No seek" limitation of 0.9.3 is gone; 26 system calls (0–25).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.

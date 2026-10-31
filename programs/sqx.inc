@@ -37,6 +37,7 @@ SYS_SBRK    equ 21
 SYS_DEVFIND equ 22
 SYS_DEVREAD equ 23
 SYS_DEVWRITE equ 24
+SYS_SEEK    equ 25
 
 O_CREATE    equ 1
 O_TRUNC     equ 2

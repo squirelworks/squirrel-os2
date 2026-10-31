@@ -92,6 +92,7 @@ Without a data disk, `ls` and `cat` fall back to the built-in (ROM) table, as be
 | `fs_read` | `ebx` fd, `edi` buf, `ecx` len | bytes read (0 at EOF) / −1 |
 | `fs_write` | `ebx` fd, `esi` buf, `ecx` len | bytes written / −1 (disk full) |
 | `fs_close` | `ebx` fd | 0 / −1 |
+| `fs_seek` | `ebx` fd, `ecx` offset (signed), `edx` whence | new position / −1 (1.0.2) |
 | `fs_format` | — | CF on error |
 
 On −1, `fs_errno` says why (0.9.2): `FE_NOFS`, `FE_NAME` (empty, over 15 characters, `.` or `..`),
@@ -104,6 +105,12 @@ the editors and `draw` show it on their message line. Syscalls still return only
 Open flags: `O_CREATE` 1, `O_TRUNC` 2, `O_APPEND` 4. Each descriptor has its own position,
 starting at 0 (or at the end with `O_APPEND`). Eight descriptors are shared system-wide.
 
+Seek (1.0.2): `fs_seek` moves a descriptor's position to `offset` from the start (`SEEK_SET` 0),
+from the current position (`SEEK_CUR` 1), or from the end of the file (`SEEK_END` 2). The new
+position must lie between 0 and the file size; anything else returns −1 and leaves the position
+unchanged, so a file never gets a hole. Reads and writes then continue from there; a write in the
+middle overwrites, and a write past the old end grows the file as before.
+
 ## Syscalls
 
 | # | Name | Args | Returns |
@@ -115,6 +122,7 @@ starting at 0 (or at the end with `O_APPEND`). Eight descriptors are shared syst
 | 14 | `SYS_CREATE` | `ebx` name | 0 / −1 |
 | 15 | `SYS_DELETE` | `ebx` name | 0 / −1 |
 | 16 | `SYS_RENAME` | `ebx` old, `ecx` new | 0 / −1 |
+| 25 | `SYS_SEEK` | `ebx` fd, `ecx` offset, `edx` whence (0 set, 1 cur, 2 end) | position / −1 (1.0.2) |
 
 ## Shell
 
@@ -142,6 +150,6 @@ Failures say why: `Already exists`, `Bad name: 1 to 15 characters, not . or ..`,
 ## Limitations
 
 - 64 entries in all (files and directories together), 15-character names, paths up to 63 characters.
-- No seek call yet; reads and writes are sequential per descriptor.
+- Seeking is limited to positions inside the file (0 to its size); there are no sparse files.
 - Write-through, no cache: every partial sector write is a read-modify-write.
 - No journaling or fsck; a crash during a file move can leave the old extent referenced.
