@@ -200,6 +200,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - `SYS_SEND` (27) and `SYS_RECV` (28) pass four-byte messages through a queue of 8 per process; a full queue returns −2 (`kernel/messages.md`; `msg`). 29 system calls (0–28).
 
+## 1.2.1
+
+- `SYS_KEYEVENTS` (29) lets one process also receive each key press as a `MSG_KEY` message, the same character `SYS_GETC` returns (`kernel/messages.md`; `keyev*`). 30 system calls (0–29). This completes milestone 1.2.
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.
