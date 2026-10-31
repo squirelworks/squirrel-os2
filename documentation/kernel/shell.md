@@ -1,6 +1,29 @@
-# Shell Command Line (0.5.0)
+# Shell Command Line (0.5.0 / 0.5.1)
 
 Location: `../../kernel/shell.asm` (pipeline driver), `../../kernel/pm.asm` (`run_simple`, the built-in commands)
+
+## Line editing and history (0.5.1)
+
+Location: `../../kernel/lineedit.asm`
+
+| Key | Action |
+|-----|--------|
+| Left / Right | Move the cursor |
+| Home / End | Start / end of the line |
+| Backspace / Delete | Erase before / at the cursor |
+| typing | Inserts at the cursor |
+| Up / Down | Older / newer command from the history; Down past the newest returns to the line being typed |
+| Esc | Clears the line |
+| Enter | Runs the line wherever the cursor is |
+
+Lines up to 120 characters may wrap onto the next screen row. The editor redraws from where
+the line started and follows the screen when it scrolls.
+
+The last 16 commands are kept in memory (`KSCRATCH+0x2800`). Blank lines and an immediate
+repeat are not stored. With a data disk, each command is also appended to `shell.hist`.
+At boot the newest 16 lines of that file are loaded, so history survives a reboot. The file is
+rewritten from memory (compacted to 16 lines) at boot when it holds 64 lines or more, and
+after every 64 new commands. It is an ordinary file: `cat shell.hist`, `rm shell.hist`.
 
 ## Redirection and pipes
 
