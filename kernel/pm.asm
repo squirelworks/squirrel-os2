@@ -134,7 +134,7 @@ pm:
     call tss_init               ; double faults get their own stack (KB-17)
     call ata_init
     call dev_init
-    call obj_init               ; the kernel's classes (1.8.1)
+    call obj_init               ; the kernel's classes (1.8.2)
 
     ; PIC + PIT
     mov al, 0x11
@@ -336,7 +336,7 @@ run_simple:
     mov edi, cmd_cat
     call streq_prefix
     je .cat
-    mov edi, cmd_objcat         ; 1.8.1
+    mov edi, cmd_objcat         ; 1.8.2
     call streq_prefix
     je .objcat
     ; systest
@@ -945,7 +945,7 @@ default_isr:
 
 ; ---------- data ----------
 banner db 'Squirrel-OS/2'          ; (the "help" file: the English banner)
-banner_rest db ' 1.8.1', 10   ; OS version: here only (see releases/PROCESS.md)
+banner_rest db ' 1.8.2', 10   ; OS version: here only (see releases/PROCESS.md)
        db 'Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>', 10
        db '          mv <f> <new> | mkdir <d> | cd <d> | pwd | echo | batch <f> | format', 10
        db '          ps | disk | mem | devices | lang <en|la|tlh> | desktop | install', 10

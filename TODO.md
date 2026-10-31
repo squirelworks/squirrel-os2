@@ -246,8 +246,8 @@ The author lifted the old gate ("not before the 1.5 and 1.6 boxes above are clos
   **Acceptance:** QEMU boots from the target disk alone and reaches the shell prompt. Shell command `install boot`; with no data disk, the boot disk's partition is the file system (`dev_sys`). Checks `install-boot-nokernel`, `install-boot-esc`, `install-boot-esc-blank`, `install-boot`, `install-bootsec`, `install-alone`, `install-alone-boot`.
 - [x] **I.5-ui** — A text-mode `install` program that walks through I.1–I.4 with a confirm step before anything is written. Localized like the other programs.
   **Acceptance:** the batch-driven run installs to the blank disk; Esc at the confirm step leaves it blank. `run install`, strings `inst_*` in en, la and tlh. Checks `inst-esc`, `inst-esc-blank`, `inst-la`, `inst-tlh`, `inst-run`, `inst-boots`.
-- [ ] **I.6-cd** — Optional: a bootable CD image (El Torito floppy emulation around `floppy.img`) made by `tools/build.sh`.
-  **Acceptance:** QEMU boots the `.iso` to the shell.
+- [x] **I.6-cd** — Optional: a bootable CD image (El Torito floppy emulation around `floppy.img`) made by `tools/build.sh`.
+  **Acceptance:** QEMU boots the `.iso` to the shell. `tools/mkiso.py`, `build/cd.iso`, `qemu_screen.py --cdrom`; checks `cd-boot`, `cd-data`.
 
 ## Do not schedule
 

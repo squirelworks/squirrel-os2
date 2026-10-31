@@ -613,7 +613,7 @@ obj_intern:
     pop ecx
     ret
 
-; ---------- objcat (1.8.1) ----------
+; ---------- objcat (1.8.2) ----------
 ; The kernel's own classes are recorded at boot, so a file saved before a
 ; reboot can be loaded again before anything has used its class.
 obj_init:
