@@ -145,7 +145,7 @@ It does **not** target binary compatibility with existing OS/2 applications (tha
 | Command environment | Native shell with pipes and redirection |
 
 ### 1.x — Foundation for a desktop
-- **1.1** — Preemptive scheduler and thread primitives
+- **1.1** — Preemptive scheduler and thread primitives (done — priorities 0–3, 50 ms slices preempting loaded programs, `SYS_SLEEP`/`SYS_SETPRIO`/`SYS_TICKS`, per-thread FPU state; the kernel itself stays cooperative)
 - **1.2** — Message-passing and event queue
 - **1.3** — Basic graphics primitives (lines, fills, text, bitmaps)
 - **1.4** — Window manager (create, move, resize, z-order, focus)

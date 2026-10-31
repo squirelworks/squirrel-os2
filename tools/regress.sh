@@ -9,11 +9,11 @@ python3 "$root/tools/mkstrings.py" --check || exit 1
 (cd "$root/kernel" && nasm -f bin boot.asm -o "$out/boot.bin" \
     && nasm -f bin pm.asm -o "$out/pm.bin" 2>/dev/null)
 cat "$out/boot.bin" "$out/pm.bin" > "$out/os.img"
-for prog in hello wc elfhello ls cat nest crash heap devtest; do
+for prog in hello wc elfhello ls cat nest crash heap devtest spin; do
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
 done
 python3 "$root/tools/sqfs.py" "$out/progs.img" format 1024
-for prog in hello wc elfhello ls cat nest crash heap devtest; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
+for prog in hello wc elfhello ls cat nest crash heap devtest spin; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
 printf 'one two\nthree\n' > "$out/notes"
 python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/notes"
 printf '2 + 3\n6 * 7\n' > "$out/exprs"
@@ -169,7 +169,16 @@ check heap-keep-leak '129912 KB free'       'run heap keep' '<ret>' 'run heap af
 check devices       'hd1     block   ready 2048 sectors'  devices '<ret>'
 check devices-ro    '(read-only for programs)'  devices '<ret>'
 check devtest       'devtest: PASS'         'run devtest' '<ret>'
-check up-ls         '15 file(s)'             'run ls' '<ret>'
+# 1.1: preemptive scheduler, priorities, sleep
+check sched-preempt 'preempt: PASS'         'run spin' '<ret>' '<pause>'
+check sched-prio    'prio: PASS'            'run spin prio' '<ret>' '<pause>'
+check sched-sleep   'sleep: PASS'           'run spin sleep' '<ret>' '<pause>'
+check sched-coop    'never ran'             'sched coop' '<ret>' 'run spin' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>'
+check sched-after   'systest: PASS'         'run spin' '<ret>' '<pause>' systest '<ret>'
+check ps-prio       'kernel    1'           ps '<ret>'
+check prio-set      'ok'                    'prio 0 2' '<ret>'
+check prio-bad      'No such process'       'prio 9 1' '<ret>'
+check up-ls         '16 file(s)'             'run ls' '<ret>'
 check up-ls-filter  '4 file(s)'             'run ls he' '<ret>'
 check up-cat        'three'                 'run cat notes' '<ret>'
 check up-cat-missing 'not found: zip'       'run cat zip notes' '<ret>'

@@ -3,7 +3,8 @@
 
 Usage: qemu_screen.py [--disk DATA_IMAGE] IMAGE [KEYS...]
 Each KEYS argument is typed as text; a token like "<ret>", "<esc>",
-"<backspace>" or "<up>" is sent as that single QEMU key name.
+"<backspace>" or "<up>" is sent as that single QEMU key name, and
+"<pause>" waits a second before the next key.
 --disk attaches DATA_IMAGE as the primary slave (the kernel's data disk). The 80x25 VGA text buffer is printed at the end.
 """
 import os, socket, subprocess, sys, tempfile, time
@@ -51,6 +52,9 @@ def main():
         sock.connect(path)
         time.sleep(1.5)
         for chunk in keys:
+            if chunk == '<pause>':      # let the guest run for a second
+                time.sleep(1)
+                continue
             if chunk.startswith('<') and chunk.endswith('>') and len(chunk) > 2:
                 monitor(sock, 'sendkey ' + chunk[1:-1])
                 continue

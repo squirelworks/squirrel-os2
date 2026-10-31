@@ -46,6 +46,9 @@ add its `SYS_*` constant, bump `SYS_COUNT`.
 | 19–20 | `SYS_PALLOC`, `SYS_PFREE` | | | Added in 0.6.0, see `memory.md` |
 | 21 | `SYS_SBRK` | `ebx` = bytes to grow (negative shrinks, 0 asks) | the old break, or −1 | Added in 0.6.2: moves the end of the program's heap at `0x40000000` (up to 4 MB), see `memory.md` |
 | 22–24 | `SYS_DEVFIND`, `SYS_DEVREAD`, `SYS_DEVWRITE` | | | Added in 0.7.0, see `drivers.md` |
+| 25 | `SYS_SLEEP` | `ebx` = ticks | 0 | Added in 1.1, see `processes.md` |
+| 26 | `SYS_SETPRIO` | `ebx` = pid (0: caller), `ecx` = 0–3 | 0 / -1 | Added in 1.1 |
+| 27 | `SYS_TICKS` | — | ticks since boot (100 Hz) | Added in 1.1 |
 
 Example:
 

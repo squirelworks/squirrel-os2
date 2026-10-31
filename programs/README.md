@@ -14,6 +14,7 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `crash.asm` | SQX | Reads unmapped memory: the fault ends only this program (0.6.1) |
 | `heap.asm` | SQX | Grows its heap by 1 MB with `SYS_SBRK`, checks it, gives it back (`run heap`, `run heap after`, `run heap keep`) (0.6.2) |
 | `devtest.asm` | SQX | Uses devices by name: writes through `con`, reads `hd1`, checks `hd0` refuses writes (0.7.x) |
+| `spin.asm` | SQX | Scheduler checks (1.1): two threads that never yield (`run spin`), priorities (`run spin prio`), `SYS_SLEEP` (`run spin sleep`) |
 | `sqx.inc` | — | SQX header macro and syscall numbers |
 
 Build and install:

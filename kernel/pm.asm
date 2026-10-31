@@ -345,6 +345,9 @@ run_simple:
     mov edi, cmd_devices
     call streq
     je .devices
+    mov edi, cmd_sched
+    call streq
+    je .sched
     ; proctest
     mov edi, cmd_proctest
     call streq
@@ -471,6 +474,9 @@ run_simple:
     jmp .empty
 .mem:
     call cmd_mem_run
+    jmp .empty
+.sched:
+    call cmd_sched_run
     jmp .empty
 .devices:
     call cmd_devices_run
@@ -653,6 +659,22 @@ timer_isr:
     inc dword [ticks]
     mov al, 0x20
     out 0x20, al
+    ; preemption (1.1): once the slice is used up, the first tick that
+    ; lands inside a loaded program (not in the kernel, which is not
+    ; reentrant) lets others run
+    dec dword [sched_left]
+    jg .out
+    cmp byte [sched_on], 0
+    je .reset
+    mov eax, [esp+4]            ; interrupted EIP
+    cmp eax, PROG_BASE
+    jb .out                     ; in the kernel: try again next tick
+    cmp eax, PROG_BASE+PROG_MAX
+    jae .out
+    call proc_preempt
+.reset:
+    mov dword [sched_left], SLICE_TICKS
+.out:
     pop eax
     iretd
 
@@ -777,6 +799,9 @@ cmd_ps db 'ps', 0
 cmd_mem db 'mem', 0
 cmd_memtest db 'memtest', 0
 cmd_devices db 'devices', 0
+cmd_sched db 'sched', 0
+cmd_sched_arg db 'sched ', 0
+cmd_prio db 'prio ', 0
 cmd_format db 'format', 0
 cmd_fstest db 'fstest', 0
 cmd_put db 'put ', 0
@@ -803,6 +828,8 @@ arg_cmds:
     dd cmd_lang_arg, cmd_lang_run
     dd cmd_echo, cmd_echo_run
     dd cmd_batch, cmd_batch_run
+    dd cmd_sched_arg, cmd_sched_set
+    dd cmd_prio, cmd_prio_run
     dd 0, 0
 cmd_disk db 'disk', 0
 cmd_blktest db 'blktest', 0

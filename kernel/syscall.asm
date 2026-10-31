@@ -31,7 +31,10 @@ SYS_SBRK    equ 21          ; ebx = bytes (signed)   -> old break or -1
 SYS_DEVFIND equ 22          ; ebx = name             -> handle or -1
 SYS_DEVREAD equ 23          ; ebx = handle, ecx = buf, edx = count/sector -> bytes or -1
 SYS_DEVWRITE equ 24         ; as SYS_DEVREAD
-SYS_COUNT   equ 25
+SYS_SLEEP   equ 25          ; ebx = ticks (10 ms)    -> 0
+SYS_SETPRIO equ 26          ; ebx = pid (0: caller), ecx = 0..3 -> 0 or -1
+SYS_TICKS   equ 27          ;                       -> ticks since boot
+SYS_COUNT   equ 28
 
 SYS_ENOSYS  equ -1
 SYSCALL_VEC equ 0x80
@@ -51,6 +54,21 @@ syscall_isr:
     pushad
     call [syscall_table+eax*4]
     mov [esp+28], eax       ; overwrite saved eax so popad returns it
+    ; a slice that ran out during the call ends on the way back to a
+    ; loaded program (1.1; the timer alone rarely lands in program code
+    ; when a program makes many calls)
+    cmp dword [sched_left], 0
+    jg .ret
+    cmp byte [sched_on], 0
+    je .ret
+    mov eax, [esp+32]       ; return EIP
+    cmp eax, PROG_BASE
+    jb .ret
+    cmp eax, PROG_BASE+PROG_MAX
+    jae .ret
+    call proc_preempt
+    mov dword [sched_left], SLICE_TICKS
+.ret:
     popad
     iretd
 .bad:
@@ -83,6 +101,9 @@ syscall_table:
     dd sys_devfind
     dd sys_devread
     dd sys_devwrite
+    dd sys_sleep
+    dd sys_setprio
+    dd sys_ticks
 
 ; ---------- handlers: args in ebx/ecx/edx, result in eax ----------
 sys_putc:
@@ -121,6 +142,18 @@ sys_yield:
 
 sys_spawn:
     jmp proc_spawn
+
+sys_sleep:                      ; (1.1)
+    call proc_sleep
+    xor eax, eax
+    ret
+
+sys_setprio:
+    jmp proc_setprio
+
+sys_ticks:
+    mov eax, [ticks]
+    ret
 
 sys_exit:
     jmp proc_exit
