@@ -91,4 +91,5 @@ Documentation is active.
 - 1.8.0 object files: `obj_save` and `obj_load` (`releases/1.8.0.md`, `kernel/objects.md`)
 - 1.8.1 installer step I.6: `build/cd.iso`, a bootable CD image (`releases/1.8.1.md`, `guides/install.md`)
 - 1.8.2 objects: `objcat` prints a saved object after a reboot (`releases/1.8.2.md`, `kernel/objects.md`)
-- Next: 1.8 desktop entries as object files (`1.8-desktop` in `../TODO.md`, `../ROADMAP.md`)
+- 1.8.3 the desktop's entries are kept as object files in `/desktop` (`releases/1.8.3.md`, `apps/desktop.md`)
+- Next: 1.9, split into tasks in `../TODO.md` first (`../ROADMAP.md`)

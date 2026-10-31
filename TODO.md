@@ -222,7 +222,7 @@ Split from `documentation/plannedmilestones.md` once 1.7 was on `main`. Work top
   **Acceptance:** `objtest` saves a square of size 5, frees it, loads the file, and `perimeter` gives 20 again; it prints `obj store: PASS` and a regression check expects it. A file whose class is not recorded is refused.
 - [x] **1.8-store** — The saved object outlives a reboot. A shell command `objcat <file>` loads an object file and prints its class and fields.
   **Acceptance:** one check saves the object; a later check, in a new boot on the same data disk, runs `objcat` and reads the class and the field value. Checks `objstore` (saves `objtest.obj`) and `obj-persist` (`objcat objtest.obj` after a new boot).
-- [ ] **1.8-desktop** — The desktop keeps its entries as object files in `/desktop` on the data disk: it loads them when it starts, and writes the defaults there the first time.
+- [x] **1.8-desktop** — The desktop keeps its entries as object files in `/desktop` on the data disk: it loads them when it starts, and writes the defaults there the first time.
   **Acceptance:** after the first `desktop`, `ls /desktop` lists one file per entry; with one of them removed, the next desktop's list does not show that entry.
 
 ## 1.9 and after

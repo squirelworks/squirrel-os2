@@ -55,9 +55,15 @@ Enter on `files` runs the file browser in a window the same way. It writes throu
 The entries are objects (`../kernel/objects.md`). The desktop records two classes:
 
 - `DesktopObject`: field `name`; methods `name` (returns it) and `open` (opens nothing, returns −1).
-- `Program` under it: field `entry`, the program's routine; `open` passes the entry and the name to `dk_textwin`.
+- `Program` under it: field `entry`, the program's routine (since 1.8.3 its name, as text); `open` passes the entry and the name to `dk_textwin`.
 
 When the desktop starts it makes one `Program` per entry (files, calc, edit, vedit, draw) and sets both fields; the list shows what each one answers to `name`. Enter sends `open` to the selected one. When the desktop closes it frees them, so afterwards `objs` lists the two classes and no live objects (check `desktop-objs`).
+
+## Entries kept on disk (1.8.3)
+
+Since 1.8.3 the entries are object files in `/desktop` on the data disk (`../kernel/objects.md`, "Object files"). When the desktop starts and `/desktop` does not exist yet, it makes the directory and saves one `Program` per default entry as `/desktop/<name>.obj`: `files.obj`, `calc.obj`, `edit.obj`, `vedit.obj` and `draw.obj`. It then loads each of those files that is still there, in that order, and lists them. A removed file's entry is not listed. `entry` is now the program's name as text (`calc`), not the address of its routine, so a file stays valid when the kernel is rebuilt; `open` looks the name up among the programs the desktop knows and opens nothing for a name it does not know. After the desktop has run (so `Program` is recorded), `objcat /desktop/calc.obj` shows `class Program`, `name: calc` and `entry: calc`.
+
+Without a data disk, or with none of the files left, the desktop lists the built-in entries as before. Checks (on a data disk of their own): `dk-store` (`ls /desktop` after the first desktop lists the five files), `dk-store-cat`, `dk-store-rm` (with `draw.obj` removed, the next desktop does not list `draw`), `dk-store-left` (it still lists the others), `dk-store-open` (calc, now the second entry after `files`, still opens and computes).
 
 ## Booting into the desktop
 

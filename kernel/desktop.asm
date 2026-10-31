@@ -34,7 +34,7 @@ cmd_desktop_run:
     mov ebx, 4
     mov ecx, 16
     mov esi, dk_names
-    mov edx, DK_NAPPS
+    mov edx, [dk_n]
     call wg_list
     mov [dk_list], eax
     mov eax, [dk_win]
@@ -72,35 +72,127 @@ cmd_desktop_run:
 
 dk_mkobjs:
     pushad
+    xor eax, eax
+    mov [dk_n], eax
+    mov edi, dk_objs
+    mov ecx, DK_NAPPS
+    rep stosd
     mov esi, dk_c_dobj
     call obj_class
     mov esi, dk_c_prog
     call obj_class
+    cmp byte [fs_mounted], 0
+    je .builtin
+    mov esi, dk_dir             ; the first time: write the defaults (1.8.3)
+    call fs_mkdir
+    test eax, eax
+    jnz .load                   ; already there
     xor edi, edi
-.n:
+.w:
+    call dk_newprog
+    test eax, eax
+    jz .load
+    mov esi, [dk_apps+edi*4]
+    call dk_path
+    call obj_save
+    call obj_free
+    inc edi
+    cmp edi, DK_NAPPS
+    jb .w
+.load:                          ; an entry for each file still there
+    xor edi, edi
+.l:
+    mov esi, [dk_apps+edi*4]
+    call dk_path
+    call obj_load
+    jc .ln
+    call dk_add
+.ln:
+    inc edi
+    cmp edi, DK_NAPPS
+    jb .l
+    cmp dword [dk_n], 0
+    jne .out
+.builtin:                       ; no data disk, or nothing loaded
+    xor edi, edi
+.b:
+    call dk_newprog             ; 0 when no slot: the entry opens nothing
+    call dk_add
+    inc edi
+    cmp edi, DK_NAPPS
+    jb .b
+.out:
+    popad
+    ret
+
+; edi = default entry -> eax = a new Program for it, or 0
+dk_newprog:
+    push ebx
+    push ecx
     mov eax, dk_c_prog
     call obj_new
-    mov [dk_objs+edi*4], eax
     test eax, eax
-    jz .name                    ; no slot: the entry opens nothing
+    jz .r
     xor ebx, ebx
     mov ecx, [dk_apps+edi*4]
     call obj_set                ; name
     mov ebx, 1
-    mov ecx, [dk_run+edi*4]
-    call obj_set                ; entry
-.name:
-    mov ecx, [dk_apps+edi*4]    ; the list shows what name answers
+    call obj_set                ; entry: the program's name, as text
+.r:
+    pop ecx
+    pop ebx
+    ret
+
+; eax = object (or 0), edi = default entry: append it to the list, which
+; shows what the object answers to name
+dk_add:
+    pushad
+    mov edx, [dk_n]
+    cmp edx, DK_NAPPS
+    jae .r
+    mov [dk_objs+edx*4], eax
+    mov ecx, [dk_apps+edi*4]
     mov esi, dk_s_name
     call obj_send
     jc .keep
     mov ecx, eax
 .keep:
-    mov [dk_names+edi*4], ecx
-    inc edi
-    cmp edi, DK_NAPPS
-    jb .n
+    mov edx, [dk_n]
+    mov [dk_names+edx*4], ecx
+    inc dword [dk_n]
+.r:
     popad
+    ret
+
+; esi = an entry's name -> esi = "/desktop/<name>.obj" in dk_pbuf
+dk_path:
+    push eax
+    push edi
+    mov edi, dk_pbuf
+    push esi
+    mov esi, dk_dir
+.d:
+    lodsb
+    stosb
+    test al, al
+    jnz .d
+    mov byte [edi-1], '/'
+    pop esi
+.n:
+    lodsb
+    stosb
+    test al, al
+    jnz .n
+    dec edi
+    mov esi, dk_ext
+.e:
+    lodsb
+    stosb
+    test al, al
+    jnz .e
+    mov esi, dk_pbuf
+    pop edi
+    pop eax
     ret
 
 dk_freeobjs:
@@ -124,8 +216,23 @@ dk_dobj_open:
 dk_prog_open:                   ; dk_textwin(entry, name)
     push eax
     mov ebx, 1
-    call obj_get
-    mov edx, eax
+    call obj_get                ; the entry is a program's name (1.8.3)
+    xor ecx, ecx
+.f:
+    mov esi, eax
+    mov edi, [dk_apps+ecx*4]
+    push eax
+    call streq
+    pop eax
+    je .found
+    inc ecx
+    cmp ecx, DK_NAPPS
+    jb .f
+    pop eax                     ; no such program: nothing opens
+    mov eax, -1
+    ret
+.found:
+    mov edx, [dk_run+ecx*4]
     pop eax
     xor ebx, ebx
     call obj_get
@@ -255,15 +362,19 @@ dk_cn_dobj db 'DesktopObject', 0
 dk_cn_prog db 'Program', 0
 dk_s_name db 'name', 0
 dk_s_open db 'open', 0
+dk_dir db '/desktop', 0
+dk_ext db '.obj', 0
+dk_pbuf times 32 db 0
 dk_f_entry db 'entry', 0
 dk_nomem db 'desktop: no memory for graphics', 10, 0
 align 4
 dk_apps dd dk_a0, dk_a1, dk_a2, dk_a3, dk_a4
 dk_run dd fb_main, run_calc, run_edit, run_vedit, run_draw ; each Program's entry
 dk_objs times DK_NAPPS dd 0
+dk_n dd 0                       ; entries in the list (1.8.3)
 dk_names times DK_NAPPS dd 0
 dk_c_dobj dd dk_cn_dobj, 0, dk_dobj_m, dk_dobj_f, 1 ; name is text
-dk_c_prog dd dk_cn_prog, dk_c_dobj, dk_prog_m, dk_prog_f, 0
+dk_c_prog dd dk_cn_prog, dk_c_dobj, dk_prog_m, dk_prog_f, 1 ; entry is text
 dk_dobj_m dd dk_s_name, dk_dobj_name, dk_s_open, dk_dobj_open, 0
 dk_prog_m dd dk_s_open, dk_prog_open, 0
 dk_dobj_f dd dk_s_name, 0       ; field 0
