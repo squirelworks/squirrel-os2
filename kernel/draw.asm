@@ -526,8 +526,8 @@ dr_save:
     mov byte [dr_name], 0       ; the next save asks for another name
 .err:
     movzx eax, byte [fs_errno]
-    mov eax, [fs_errmsg+eax*4]
-    mov [ed_msgp], eax
+    call fs_errstr
+    mov [ed_msgp], esi
     popad
     ret
 

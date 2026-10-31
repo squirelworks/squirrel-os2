@@ -1154,13 +1154,17 @@ fs_report:
 ; prints the reason in fs_errno
 fs_why:
     movzx eax, byte [fs_errno]
-    cmp eax, FE_NOTFOUND
-    je .nf
-    mov esi, [fs_errmsg+eax*4]
-    jmp puts
-.nf:
-    mov esi, [lstr+LS_NOTFOUND*4]
+    call fs_errstr
     jmp lputs_nl
+
+; eax = FE_* code -> esi = its words in the current language, no newline
+; (localized in 1.0.5)
+fs_errstr:
+    push eax
+    movzx eax, byte [fs_errkey+eax]
+    mov esi, [lstr+eax*4]
+    pop eax
+    ret
 
 ; SYS_FSERROR (1.0.3): ebx = buffer, ecx = its size -> eax = fs_errno; the
 ; buffer gets the same words the shell prints for it, without the newline
@@ -1170,10 +1174,7 @@ fs_error_text:
     push ecx
     mov edi, ebx
     movzx eax, byte [fs_errno]
-    mov esi, [fs_errmsg+eax*4]
-    cmp eax, FE_NOTFOUND
-    jne .copy
-    mov esi, [lstr+LS_NOTFOUND*4]
+    call fs_errstr
 .copy:
     test ecx, ecx
     jz .out
@@ -1202,8 +1203,8 @@ fs_error_text:
 fs_need:
     cmp byte [fs_mounted], 0
     jne .ok
-    mov esi, fs_msg_nofs
-    call puts
+    mov esi, [lstr+LS_FE_NOFS*4]
+    call lputs_nl
     stc
     ret
 .ok:
@@ -1270,8 +1271,8 @@ cmd_ls_run:
     ret
 
 fs_no_dir:
-    mov esi, fs_m_nodir
-    jmp puts
+    mov esi, [lstr+LS_FE_NODIR*4]
+    jmp lputs_nl
 
 ; mkdir <dir>
 cmd_mkdir_run:
@@ -1487,7 +1488,6 @@ fs_base dd 0
 fs_pathbuf times FS_PATHMAX db 0
 fs_newname times FS_NAMELEN db 0
 fs_m_dir db '<dir>', 0
-fs_m_nodir db 'No such directory', 10, 0
 fs_cat_last db 0
 fs_total dd 0
 fs_xfer_total dd 0
@@ -1499,7 +1499,7 @@ ft_b db 'fstest.b', 0
 ft_pass db 'fstest: PASS', 10, 0
 ft_failmsg db 'fstest: FAIL', 10, 0
 fs_ok db 'ok', 10, 0
-; why a call failed (0.9.2): fs_errno indexes fs_errmsg
+; why a call failed (0.9.2): fs_errno indexes fs_errkey
 FE_ERR      equ 0
 FE_NOFS     equ 1
 FE_NAME     equ 2
@@ -1517,22 +1517,9 @@ FE_ISDIR    equ 13
 FE_NOFD     equ 14
 fs_errno db 0
 align 4
-fs_errmsg:
-    dd fs_err, fs_msg_nofs, fs_e_name, fs_e_exists, fs_m_nodir, fs_e_table
-    dd fs_err, fs_e_busy, fs_e_notempty, fs_e_cwd, fs_e_loop, fs_e_io
-    dd fs_e_full, fs_e_isdir, fs_e_nofd
-fs_err db 'error', 10, 0
-fs_e_name db 'Bad name: 1 to 15 characters, not . or ..', 10, 0
-fs_e_exists db 'Already exists', 10, 0
-fs_e_table db 'Directory table full (64 entries)', 10, 0
-fs_e_busy db 'File is open', 10, 0
-fs_e_notempty db 'Directory not empty', 10, 0
-fs_e_cwd db 'That is the current directory', 10, 0
-fs_e_loop db 'A directory cannot move into itself', 10, 0
-fs_e_io db 'Disk error', 10, 0
-fs_e_full db 'Disk full', 10, 0
-fs_e_isdir db 'Is a directory', 10, 0
-fs_e_nofd db 'Too many open files', 10, 0
+fs_errkey:                      ; FE_* code -> string key (1.0.5)
+    db LS_FE_ERROR, LS_FE_NOFS, LS_FE_NAME, LS_FE_EXISTS, LS_FE_NODIR, LS_FE_TABLE
+    db LS_NOTFOUND, LS_FE_BUSY, LS_FE_NOTEMPTY, LS_FE_CWD, LS_FE_LOOP, LS_FE_IO
+    db LS_FE_FULL, LS_FE_ISDIR, LS_FE_NOFD
 fs_msg_formatted db 'Data disk was blank: formatted SQFS and added the built-in files.', 10, 0
 fs_msg_foreign db 'Data disk is not SQFS; type format to erase it.', 10, 0
-fs_msg_nofs db 'No file system mounted (attach a data disk).', 10, 0

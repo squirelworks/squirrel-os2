@@ -157,6 +157,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - A zombie nobody can wait for is freed, and `spawn` reclaims the oldest zombie when the table is full (`kernel/processes.md`; `zombie`, `zombie-ps`). The "Zombies" limitation of 0.9.3 is gone.
 
+## 1.0.5
+
+- The shell's usage lines and every file-system error reason follow `lang` (`kernel/localization.md`; `l10n-*`). The same words reach the editors, `draw` and `SYS_FSERROR`.
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.
