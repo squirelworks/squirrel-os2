@@ -1,6 +1,6 @@
 # Installing Squirrel-OS/2 onto a disk
 
-Status: **in progress**. Steps I.1 to I.3 are done; I.4 to I.6 are open in `TODO.md`.
+Status: **in progress**. Steps I.1 to I.4 are done: a target disk can be made that boots on its own. I.5 and I.6 are open in `TODO.md`.
 
 ## Today
 
@@ -18,7 +18,7 @@ the medium can be removed afterwards. Each step is one pull request:
 | I.1-target | Find the target disk, refuse the boot and data disks, write an MBR with one partition | done |
 | I.2-format | Format SQFS inside that partition (SQFS learns a starting LBA) | done |
 | I.3-copy | Copy the kernel and the sample programs onto the target | done |
-| I.4-bootable | Write the boot code into the target's MBR so the PC boots from it alone | open |
+| I.4-bootable | Write the boot code into the target's MBR so the PC boots from it alone | done |
 | I.5-ui | A text-mode `install` program that walks through I.1 to I.4, with a confirm step, localized | open |
 | I.6-cd | Optional: a bootable CD image around `floppy.img` | open |
 
@@ -112,6 +112,33 @@ back.`). It asks y/n, then:
 
 The file system is switched to the target only for each write, as in I.2.
 
+## Step I.4: making it boot
+
+`install boot` needs the kernel on the target (I.3; else `Type install copy first.`) and the
+boot disk as an IDE disk. It asks y/n, then copies bytes 0 to 439 of the boot disk's sector 0
+(the boot code; `boot.asm` refuses to assemble past byte 440) over the target's, keeps the
+target's disk signature and partition table, marks partition 1 active (`80`), writes the
+sector and reads it back. The boot code is the same one the release images use: it loads
+sectors 1 to 192 and jumps to the kernel.
+
+**Running from the installed disk.** At boot, when no data disk is attached at all,
+`ins_mount_system` looks for the boot disk (found the same way as above) and, if its
+partition 1 holds SQFS, makes that the file system through `dev_sys`, a second partition
+device like `dev_inst`. The boot screen then says
+`File system: partition 1 of the boot disk (an installed system).` and `ls`, `cat`, `run` and
+the shell history use the partition. With a data disk attached, the data disk wins, as before.
+
+The whole run, from a blank disk:
+
+```
+install part      (y)
+install format    (y)
+install copy      (y)
+install boot      (y)
+```
+
+Then power off, remove the release disk, and boot the target.
+
 ## Trying it in QEMU
 
 Always use a scratch image as the target, never a real disk:
@@ -124,7 +151,8 @@ qemu-system-i386 -drive format=raw,file=build/os.img,index=0,media=disk \
                  -drive format=raw,file=build/target.img,index=2,media=disk
 ```
 
-Then type `install`, `install part`, `install format` and `install copy`, and after a reboot `install ls`. On the host, `fdisk -l build/target.img` shows the
+Then type `install`, `install part`, `install format`, `install copy` and `install boot`.
+To boot the result alone: `qemu-system-i386 -drive format=raw,file=build/target.img,index=0,media=disk`. On the host, `fdisk -l build/target.img` shows the
 new partition. `tools/regress.sh` does the same with a fresh 16 MiB image each run
 (`tools/qemu_screen.py --target`) and reads the table back on the host.
 

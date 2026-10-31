@@ -247,6 +247,8 @@ part  install-sqfs  'SQFS[]'
 check install-ls    '0 entries in the root of partition 1.'  'install ls' '<ret>'   # a new boot: it is on the disk
 check_all install-back 'help|memo1'        'install ls' '<ret>' ls '<ret>'   # the data disk is the file system again
 # installer I.3: the kernel to sectors 1 to 192 of the target, the data disk's root files into its SQFS
+check install-mkfile 'ok'                 'put instfile copied-ok' '<ret>'   # a file for the installed system to show
+check install-boot-nokernel 'Type install copy first.'  'install boot' '<ret>'
 check install-copy-esc 'Nothing was written.'  'install copy' '<ret>' '<esc>'
 copied() {  # copied NAME WANT: on the host, 'none' (sector 1 still blank) or 'same' (kernel and files match)
     got=$(python3 -c 'import subprocess, sys
@@ -268,6 +270,23 @@ copied install-copy-esc-blank 'none'
 check_all install-copy 'Kernel copied and read back.|help copied| files copied.'  'install copy' '<ret>' y '<pause>' '<pause>' '<pause>'
 copied install-copied 'same'
 check install-after-copy 'Target: disk 2.'  install '<ret>'   # a copy of the kernel is not the boot disk
+# installer I.4: the boot code and the active flag; then the target boots alone as the only disk
+bootsec() { # bootsec NAME 'blank' | 'boots': sector 0 of the target, on the host
+    got=$(python3 -c 'import sys
+t = open(sys.argv[1], "rb").read(512); o = open(sys.argv[2], "rb").read(512)
+if not any(t[:440]): print("blank")
+elif t[:440] == o[:440] and t[446] == 0x80 and t[450] == 0x7F and t[510:] == b"\x55\xaa": print("boots")
+else: print("wrong")' "$target" "$out/os.img")
+    if [ "$got" = "$2" ]; then echo "ok   $1"; else echo "FAIL $1 (expected: $2, got: $got)"; fail=1; fi
+}
+check install-boot-esc 'Nothing was written.'  'install boot' '<ret>' '<esc>'
+bootsec install-boot-esc-blank 'blank'
+check install-boot  'The disk now boots on its own.'  'install boot' '<ret>' y
+bootsec install-bootsec 'boots'
+saved_disk=$disk; boot=$target; disk=; target=
+check_all install-alone 'File system: partition 1 of the boot disk|copied-ok' 'cat instfile' '<ret>'
+check install-alone-boot 'boot disk, not touched'  install '<ret>'
+boot=; disk=$saved_disk; target=$out/target.img
 target=
 check install-none  'No target disk.'       'install part' '<ret>'
 # 1.3.0: graphics mode, one pixel written and read back, then text mode again

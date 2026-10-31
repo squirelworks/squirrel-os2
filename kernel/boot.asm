@@ -124,5 +124,8 @@ dap:
     dw 0x8000, 0x0000           ; offset, segment
     dq 1                        ; starting LBA
 
+%if $-$$ > 440
+%error the boot code must end before the disk signature and partition table (byte 440)
+%endif
 times 510-($-$$) db 0
 dw 0xAA55
