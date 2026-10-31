@@ -4,6 +4,7 @@
 ; The desktop command: graphics mode, a window listing the programs, keys
 ; to the window's widgets. Enter opens the chosen program in a window
 ; (calc since 1.6.1, draw since 1.6.3); Esc returns to the text shell.
+; Since 1.7.6 the entries are Program objects and Enter sends them open.
 ; See documentation/apps/desktop.md.
 
 DK_X equ 40                     ; the desktop's window
@@ -17,6 +18,7 @@ cmd_desktop_run:
     mov esi, dk_nomem
     jmp puts
 .ok:
+    call dk_mkobjs              ; the entries are objects (1.7.6)
     mov eax, DK_X
     mov ebx, DK_Y
     mov ecx, DK_W
@@ -31,7 +33,7 @@ cmd_desktop_run:
     mov eax, [dk_win]
     mov ebx, 4
     mov ecx, 16
-    mov esi, dk_apps
+    mov esi, dk_names
     mov edx, DK_NAPPS
     call wg_list
     mov [dk_list], eax
@@ -50,20 +52,88 @@ cmd_desktop_run:
     jnc .draw
     cmp al, 10
     jne .key
-    mov eax, [dk_list]          ; Enter: open the chosen program
+    mov eax, [dk_list]          ; Enter: send open to the chosen object
     call wg_selected
-    mov ebx, [dk_run+eax*4]
-    test ebx, ebx
-    jz .key                     ; not in a window yet
-    mov esi, [dk_apps+eax*4]
-    call dk_textwin
+    mov eax, [dk_objs+eax*4]
+    mov esi, dk_s_open
+    call obj_send
     jmp .draw
 .quit:
     mov eax, [dk_win]
     call wm_close
+    call dk_freeobjs
     call gfx_text
     mov esi, dk_bye
     jmp puts
+
+; ---------- desktop objects (1.7.6) ----------
+; DesktopObject: field name, methods name and open (nothing to open).
+; Program under it: field entry, and open runs the entry in a window.
+
+dk_mkobjs:
+    pushad
+    mov esi, dk_c_dobj
+    call obj_class
+    mov esi, dk_c_prog
+    call obj_class
+    xor edi, edi
+.n:
+    mov eax, dk_c_prog
+    call obj_new
+    mov [dk_objs+edi*4], eax
+    test eax, eax
+    jz .name                    ; no slot: the entry opens nothing
+    xor ebx, ebx
+    mov ecx, [dk_apps+edi*4]
+    call obj_set                ; name
+    mov ebx, 1
+    mov ecx, [dk_run+edi*4]
+    call obj_set                ; entry
+.name:
+    mov ecx, [dk_apps+edi*4]    ; the list shows what name answers
+    mov esi, dk_s_name
+    call obj_send
+    jc .keep
+    mov ecx, eax
+.keep:
+    mov [dk_names+edi*4], ecx
+    inc edi
+    cmp edi, DK_NAPPS
+    jb .n
+    popad
+    ret
+
+dk_freeobjs:
+    pushad
+    xor edi, edi
+.f:
+    mov eax, [dk_objs+edi*4]
+    call obj_free               ; refuses 0
+    inc edi
+    cmp edi, DK_NAPPS
+    jb .f
+    popad
+    ret
+
+dk_dobj_name:
+    xor ebx, ebx
+    jmp obj_get
+dk_dobj_open:
+    mov eax, -1
+    ret
+dk_prog_open:                   ; dk_textwin(entry, name)
+    push eax
+    mov ebx, 1
+    call obj_get
+    mov edx, eax
+    pop eax
+    xor ebx, ebx
+    call obj_get
+    mov esi, eax
+    mov ebx, edx
+    call dk_textwin
+    xor eax, eax
+    ret
 
 ; ebx = a text program's entry (as file_table runs it), esi = its name.
 ; Runs it in a window over the desktop: putc, cls and scroll_up write to a
@@ -181,10 +251,23 @@ dk_a2 db 'edit', 0
 dk_a3 db 'vedit', 0
 dk_a4 db 'draw', 0
 dk_bye db 'Desktop closed.', 10, 0
+dk_cn_dobj db 'DesktopObject', 0
+dk_cn_prog db 'Program', 0
+dk_s_name db 'name', 0
+dk_s_open db 'open', 0
+dk_f_entry db 'entry', 0
 dk_nomem db 'desktop: no memory for graphics', 10, 0
 align 4
 dk_apps dd dk_a0, dk_a1, dk_a2, dk_a3, dk_a4
-dk_run dd 0, run_calc, run_edit, run_vedit, run_draw ; what Enter runs in a window
+dk_run dd fb_main, run_calc, run_edit, run_vedit, run_draw ; each Program's entry
+dk_objs times DK_NAPPS dd 0
+dk_names times DK_NAPPS dd 0
+dk_c_dobj dd dk_cn_dobj, 0, dk_dobj_m, dk_dobj_f
+dk_c_prog dd dk_cn_prog, dk_c_dobj, dk_prog_m, dk_prog_f
+dk_dobj_m dd dk_s_name, dk_dobj_name, dk_s_open, dk_dobj_open, 0
+dk_prog_m dd dk_s_open, dk_prog_open, 0
+dk_dobj_f dd dk_s_name, 0       ; field 0
+dk_prog_f dd dk_f_entry, 0      ; field 1
 dk_win dd 0
 dk_list dd 0
 dk_twin dd 0

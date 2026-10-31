@@ -292,6 +292,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - Installer step I.4 (`guides/install.md`): `install boot` writes the boot code into the target's sector 0, keeping its partition table, and marks partition 1 active, after a y/n question. Booted with no data disk, the system uses partition 1 of the boot disk as its file system (`install-alone`).
 
+## 1.7.6
+
+- The desktop's entries are `Program` objects (under `DesktopObject`), made when the desktop starts and freed when it closes; the list shows what each answers to `name`, and Enter sends `open`, which runs the program in a window. `files` opens in a window too (`apps/desktop.md`; `desktop-files`, `desktop-files-back`, `desktop-objs`).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.
