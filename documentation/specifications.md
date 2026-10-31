@@ -131,7 +131,7 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 | Boot disk | `hd0` is never written. Without a data disk the system runs with no files. |
 | Editors | Files over 16 KB load truncated, with a warning. No undo or control-character display (tasks 1.0-edit-undo, 1.0-vedit-controls). Search is in since 1.0.9. |
 | Drawing | ASCII only, on a fixed 64 × 18 canvas. No pixel graphics (milestone 1.3 and 1.6-draw-pixels). |
-| Scaffolds | `graph` and `topo` print a scaffold message and return. The banner lists them as planned. `graph` waits for 1.3 and `topo` for 2.x. `diff` does derivatives (1.0.7) and integrals (1.0.8); an ODE stepper is the remaining 1.0-diff-ode task. |
+| Scaffolds | `graph` and `topo` print a scaffold message and return. The banner lists them as planned. `graph` waits for 1.3 and `topo` for 2.x. `diff` does derivatives (1.0.7), integrals (1.0.8) and ODEs by Euler's method (1.0.10). |
 | Localization | Most messages are still English literals. The boot-sector and CPU-check messages are English only by design, because they print before the string tables exist. |
 | Pipes | Stages run one after another, not concurrently. Output beyond 32 KB per stage is cut. There is no quoting and no separate error stream. |
 | Drivers | Polled I/O only, with no interrupt-driven ATA. Devices are fixed at boot, with no `/dev` namespace and no loadable drivers. |
@@ -176,6 +176,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 ## 1.0.9
 
 - `edit` and `vedit` search: Ctrl+F, then F3 to find the same text again (`apps/editors.md`; `ed-find*`).
+
+## 1.0.10
+
+- `diff` solves y′ = f(x, y) by Euler's method: `euler <f(x,y)> from <x0> to <x1> y0 <y0> step <h>` (`apps/calculators.md`; `diff-euler*`).
 
 ## Notes
 

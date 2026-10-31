@@ -89,7 +89,7 @@ Each item is its own patch release after 1.0.0 (its own release note). Independe
   Start after **1.0-diff-deriv** is on `main`. Trapezoid or Simpson, original code, same evaluator.
   **Acceptance:** integrating a constant `1` from 0 to 2 prints a value near 2. A regression check expects that. The calculator note describes it.
 
-- [ ] **1.0-diff-ode** — One ODE stepper in `diff`.
+- [x] **1.0-diff-ode** — One ODE stepper in `diff`.
   Start after **1.0-diff-integ** is on `main`. Euler is enough. Runge–Kutta can be a later task if Euler is in.
   **Acceptance:** one step of `y' = y` from `y(0) = 1` prints a value the check can match exactly for a stated step size. A regression check expects it. The note describes the method.
 

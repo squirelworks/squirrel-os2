@@ -126,17 +126,27 @@ diff> i sin(x) from 0 to pi
 = 2
 diff> i exp(x) from 0 to 1
 = 1.718281828
+diff> euler y from 0 to 0.1 y0 1 step 0.1
+= 1.1
+diff> euler y from 0 to 1 y0 1 step 0.001
+= 2.716923932
 ```
 
 - **Derivative** (1.0.7): `d <f(x)> at <x0>`. It uses the central difference (f(x0+h) − f(x0−h)) / 2h, with h = 10⁻⁵·max(1, |x0|). The method's error shrinks with h², and the FPU's 64-bit mantissa keeps rounding error far below the 10 digits that are printed. Polynomials up to degree 2 come out exact, and smooth functions are right to about 10 digits.
 - **Integral** (1.0.8): `i <f(x)> from <a> to <b>`. It uses the composite Simpson rule on 1000 panels, (h/3)·(f₀ + 4f₁ + 2f₂ + … + 4f₉₉₉ + f₁₀₀₀) with h = (b − a)/1000. Each sample point is computed as a + i·h, not as a running sum. The error shrinks with h⁴, so polynomials up to degree 3 come out exact, and smooth functions are right to the 10 printed digits. If `b < a`, the result is negative. There is no special handling for improper integrals: `i ln(x) from 0 to 1` samples ln(0) and reports `outside the function domain`.
-- `x0`, `a` and `b` are plain `sci` expressions (`pi / 2`, `sqrt(2)`), but it may not use `x`.
+- **ODE** (1.0.10): `euler <f(x,y)> from <x0> to <x1> y0 <y0> step <h>` solves y′ = f(x, y) with y(x0) = y0, and prints y(x1).
+  - It uses Euler's method, yₖ₊₁ = yₖ + h·f(xₖ, yₖ), with xₖ = x0 + k·h.
+  - It takes n = round(|x1 − x0| / h) steps, at least one when x1 ≠ x0. The step is then set to (x1 − x0)/n, so the last step lands exactly on x1. It can also run backwards, when x1 < x0.
+  - Euler is first order: its error shrinks with h, not h². The y′ = y example gives 2.716923932 for e = 2.718281828 with h = 0.001. One step of y′ = y from y(0) = 1 with h = 0.1 gives exactly 1.1.
+  - `step` must be greater than 0, and at most 100000 steps are allowed.
+  - `y` exists only inside `euler`. In `d` and `i` it is a syntax error.
+  - Runge–Kutta could be a later task.
+- `x0`, `x1`, `y0`, `h`, `a` and `b` are plain `sci` expressions (`pi / 2`, `sqrt(2)`), but it may not use `x`.
 - Angles are always radians in `diff`, whatever mode `sci` was left in.
-- Errors are the same as in `sci`. A sample point outside the domain gives `outside the function domain` (`d ln(x) at 0` samples −10⁻⁵). A missing `at`, `from` or `to` gives `syntax at column N`.
+- Errors are the same as in `sci`. A sample point outside the domain gives `outside the function domain` (`d ln(x) at 0` samples −10⁻⁵). A missing `at`, `from`, `to`, `y0` or `step` gives `syntax at column N`.
 - `x` is a syntax error in `sci` itself.
 - `q`, `quit` or Esc quits.
 
-Planned: one ODE stepper (task 1.0-diff-ode, Euler).
 
 ## Topology Calculator (`topo`)
 
