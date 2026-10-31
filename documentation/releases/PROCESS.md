@@ -79,6 +79,6 @@ This avoids retargeting chains and confirmation steps.
 
 ## Next planned release
 
-**1.0.0** — Release packaging: version bump, release note, the four apps + browser + persistent file system checked together.
+**1.0.0** — Release packaging: version bump, release note, the four apps + browser + persistent file system checked together (the `walk-1.0` check in `tools/regress.sh`, one boot).
 
 The forward plan and the PR-sized tasks for that release are [`../../ROADMAP.md`](../../ROADMAP.md) and [`../../TODO.md`](../../TODO.md).

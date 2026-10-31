@@ -45,7 +45,7 @@ Do these first. The release task is last, and only after the others are on `main
   These still send a reader back to 0.0.1 or to unfinished stubs: `kernel/README.md` (next step is a PIT handler), `documentation/architecture/overview.md` ("Current Stage (0.0.1)" and PIT/GDT as next targets), `documentation/apps/calculators.md` (command list still calls `sci` and `matrix` stubs), `documentation/kernel/processes.md` ("one address space", and `sci` listed as a stub), the 0.3.2 line in `documentation/plannedmilestones.md` (vedit numerics "still scaffolded"; `documentation/apps/editors.md` says they ship).
   **Acceptance:** each of those places describes 0.9.2 and points at `ROADMAP.md` for what is next. No code change. `tools/regress.sh` still passes.
 
-- [ ] **1.0-walk** — Exercise the 1.0 applications in one boot.
+- [x] **1.0-walk** — Exercise the 1.0 applications in one boot.
   Existing checks cover `calc`, `edit`, `draw`, and the browser in separate sessions. `documentation/releases/PROCESS.md` wants them checked together.
   **Acceptance:** one new `tools/regress.sh` check, in a single QEMU session, runs `calc` on `2 + 2` (screen contains `= 4`), saves a line from `edit`, quits, `cat`s that file back, opens `draw` and quits, opens `run files` and quits, and the shell still accepts `systest`. The check's expected string is present only if that whole walk happened.
 
