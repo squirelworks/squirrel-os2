@@ -11,11 +11,11 @@ python3 "$root/tools/mkstrings.py" --check || exit 1
 cat "$out/boot.bin" "$out/pm.bin" > "$out/os.img"
 dd if=/dev/zero of="$out/floppy.img" bs=1024 count=1440 2>/dev/null
 dd if="$out/os.img" of="$out/floppy.img" conv=notrunc 2>/dev/null
-for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie; do
+for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg; do
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
 done
 python3 "$root/tools/sqfs.py" "$out/progs.img" format 1024
-for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
+for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
 printf 'one two\nthree\n' > "$out/notes"
 python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/notes"
 printf '2 + 3\n6 * 7\n' > "$out/exprs"
@@ -104,6 +104,27 @@ check sci-negpow    '= -8'                  'run sci' '<ret>' '(-2) ^ 3' '<ret>'
 check sci-domain    'outside the function'  'run sci' '<ret>' 'sqrt(-1)' '<ret>'
 check sci-div0      'division by zero'      'run sci' '<ret>' '1 / 0' '<ret>'
 check sci-exit      'systest: PASS'         'run sci' '<ret>' q '<ret>' systest '<ret>'
+check sci-nox       'syntax at column 1'    'run sci' '<ret>' 'x + 1' '<ret>'
+# 1.0.7: diff derivatives (central difference on the sci evaluator)
+check diff-sin      $'= 1\ndiff>'           'run diff' '<ret>' 'd sin(x) at 0' '<ret>'
+check diff-poly     $'= 6\ndiff>'           'run diff' '<ret>' 'd x^2 at 3' '<ret>'
+check diff-exp      '= 2.718281829'         'run diff' '<ret>' 'd exp(x) at 1' '<ret>'
+check diff-rad      $'= 1\ndiff>'           'run sci' '<ret>' deg '<ret>' q '<ret>' 'run diff' '<ret>' 'd sin(x) at 0' '<ret>'
+check diff-domain   'outside the function'  'run diff' '<ret>' 'd ln(x) at 0' '<ret>'
+check diff-noat     'syntax at column 9'    'run diff' '<ret>' 'd sin(x)' '<ret>'
+# 1.0.8: diff integrals (composite Simpson)
+check diff-int1     $'= 2\ndiff>'           'run diff' '<ret>' 'i 1 from 0 to 2' '<ret>'
+check diff-intsin   $'= 2\ndiff>'           'run diff' '<ret>' 'i sin(x) from 0 to pi' '<ret>'
+check diff-intexp   '= 1.718281828'         'run diff' '<ret>' 'i exp(x) from 0 to 1' '<ret>'
+check diff-intrev   $'= -2\ndiff>'          'run diff' '<ret>' 'i x from 2 to 0' '<ret>'
+check diff-noto     'syntax at column 11'   'run diff' '<ret>' 'i x from 1' '<ret>'
+# 1.0.10: diff ODE stepper (Euler)
+check diff-euler1   $'= 1.1\ndiff>'         'run diff' '<ret>' 'euler y from 0 to 0.1 y0 1 step 0.1' '<ret>'
+check diff-euler    '= 2.716923932'         'run diff' '<ret>' 'euler y from 0 to 1 y0 1 step 0.001' '<ret>'
+check diff-eulerxy  $'= 1.25\ndiff>'        'run diff' '<ret>' 'euler x*y from 0 to 1 y0 1 step 0.5' '<ret>'
+check diff-eulerh   'step must be greater'  'run diff' '<ret>' 'euler y from 0 to 1 y0 1 step 0' '<ret>'
+check diff-noy      'syntax at column 3'    'run diff' '<ret>' 'i y from 0 to 1' '<ret>'
+check diff-exit     'systest: PASS'         'run diff' '<ret>' q '<ret>' systest '<ret>'
 check mx-mul        '43           50'       'run matrix' '<ret>' 'A = [1 2; 3 4]' '<ret>' 'A * [5 6; 7 8]' '<ret>'
 check mx-det        'ans = 24'              'run matrix' '<ret>' 'det [2 0 0; 0 3 0; 0 0 4]' '<ret>'
 check mx-inv        '1.5         -0.5'      'run matrix' '<ret>' 'inv [1 2; 3 4]' '<ret>'
@@ -133,6 +154,22 @@ check ed-vstatus    'L1 C4 off 3'           'run vedit' '<ret>' abc
 check ed-vaction    "Deleted 'c'"           'run vedit' '<ret>' abc '<backspace>'
 check ed-unsaved    'Unsaved changes'       'run edit' '<ret>' x '<esc>'
 check ed-saveas     'memo2'                 'run edit' '<ret>' hi '<f2>' memo2 '<ret>' '<esc>' ls '<ret>'
+# 1.0.9: Ctrl+F finds text, F3 finds it again (wrapping to the start)
+check ed-find       'Found zebra at line 1, column 9'  'put zfind one two zebra' '<ret>' 'run edit zfind' '<ret>' '<ctrl-f>' zebra '<ret>'
+check ed-find-at    'one two Xzebra'        'run edit zfind' '<ret>' '<ctrl-f>' zebra '<ret>' X
+check ed-find-again 'Found ab at line 2, column 1'  'run edit' '<ret>' 'ab ab' '<ret>' ab '<ctrl-f>' ab '<ret>' '<f3>' '<f3>'
+check ed-find-space 'Found b a at line 1'   'run vedit' '<ret>' 'ab ab' '<ctrl-f>' 'b a' '<ret>'
+check ed-find-none  'Not found: zz'         'run edit' '<ret>' abc '<ctrl-f>' zz '<ret>'
+# 1.0.11: one-level undo (Ctrl+Z)
+check_all ed-undo   $'ab\n~|Undone.'          'run edit' '<ret>' abc '<ctrl-z>'
+check_all ed-undo-once $'ab\n~|Nothing to undo.' 'run edit' '<ret>' abc '<ctrl-z>' '<ctrl-z>'
+check_all ed-undo-bs $'abc\n~|Undone.'        'run edit' '<ret>' abc '<backspace>' '<ctrl-z>'
+check_all ed-undo-tab 'L1 C3 off 2|Undone.' 'run vedit' '<ret>' ab '<tab>' '<ctrl-z>'
+check ed-undo-mem   '129912 KB free'        'run edit' '<ret>' x '<ctrl-z>' '<esc>' mem '<ret>'
+# 1.0.12: vedit Ctrl+T shows control characters; the buffer stays the same
+check_all ved-ctl   $'    1 ab$\n|5/16384|Control characters shown' 'run vedit' '<ret>' ab '<ret>' cd '<ctrl-t>'
+check_all ved-ctl-off $'    1 ab\n|Control characters hidden' 'run vedit' '<ret>' ab '<ret>' cd '<ctrl-t>' '<ctrl-t>'
+check ved-ctl-edit  'New buffer.'           'run edit' '<ret>' ab '<ctrl-t>'
 check fb-edit       'Loaded.'               'run files' '<ret>' '<home>' e
 # 0.9.0: the browser starts each 1.0 app and gets it back when it quits
 d6="<down> <down> <down> <down> <down> <down>"
@@ -181,8 +218,8 @@ check ed-path-r     'deep'                  'cat e1/long-name.txt' '<ret>'
 check fb-dir        'in /e1'                'cd e1' '<ret>' 'run files' '<ret>'
 check fb-dir-up     '[app]'                 'cd e1' '<ret>' 'run files' '<ret>' '<ret>'
 # 0.9.3: release readiness
-check ver-banner    'Squirrel-OS/2 1.0.5'   systest '<ret>'
-check ver-planned   '(planned: graph, diff, topo)'  systest '<ret>'
+check ver-banner    'Squirrel-OS/2 1.2.0'   systest '<ret>'
+check ver-planned   '(planned: graph, topo)'  systest '<ret>'
 check calc-hist-root '1 + 1 = 2'            'mkdir c1' '<ret>' 'cd c1' '<ret>' 'run calc' '<ret>' '1 + 1' '<ret>' '<esc>' 'cat /calc.hist' '<ret>'
 boot="--floppy $out/floppy.img"
 check floppy-boot   'systest: PASS'         '<pause>' '<pause>' systest '<ret>'
@@ -224,7 +261,13 @@ check seek          'seek: PASS'            'run seek' '<ret>' '<pause>'
 check devices       'hd1     block   ready 2048 sectors'  devices '<ret>'
 check devices-ro    '(read-only for programs)'  devices '<ret>'
 check devtest       'devtest: PASS'         'run devtest' '<ret>'
-check up-ls         '19 file(s)'             'run ls' '<ret>'
+check up-ls         '22 file(s)'             'run ls' '<ret>'
+# 1.2.0: message queues between processes
+check_all msg       'msg: queue full (-2)|msg: child got ping|msg: PASS'  'run msg' '<ret>' '<pause>'
+# 1.1.1: a spawn in the program's own image is a thread sharing its memory
+check thread        'thread: PASS'          'run thread' '<ret>'
+# 1.1.0: the timer preempts a program that spins without a system call
+check_all sched-preempt 'spin: second process ran|preempt: PASS' 'run spin' '<ret>' '<pause>'
 check up-ls-filter  '4 file(s)'             'run ls he' '<ret>'
 # 1.0.3: programs read why a file call failed (SYS_FSERROR), in the shell's words
 check errno-nf      'errno: Not found'      'run errno missing' '<ret>'
@@ -271,7 +314,12 @@ check l10n-hint-la  '(lineam tabulae addit)'  'lang la' '<ret>' put '<ret>'
 check l10n-fe-tlh   "tu'lu'pu'"             'lang tlh' '<ret>' 'mkdir t1' '<ret>' 'mkdir t1' '<ret>'
 check l10n-rm-tlh   "tu'lu'be'"             'lang tlh' '<ret>' 'rm nosuch' '<ret>'
 check lang-bad      'Unknown language (en la tlh)'  'lang fr' '<ret>'
-check lang-banner   'Sciurus-OS/2 1.0.5'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
+check lang-banner   'Sciurus-OS/2 1.2.0'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
+# 1.0.6: calc, edit and draw titles follow lang
+check l10n-calc-tlh "mI' De'wI' (Esc: mej)" 'lang tlh' '<ret>' 'run calc' '<ret>'
+check l10n-edit-tlh "üIâwI': (poé Huâ)" 'lang tlh' '<ret>' 'run edit' '<ret>'
+check l10n-draw-la  'Programma pingendi - ASCII canvas' 'lang la' '<ret>' 'run draw' '<ret>'
+check l10n-calc-en  'Basic Calculator (Esc to exit)' 'run calc' '<ret>'
 check lang-systest  'systest: PROBATUM'     'lang la' '<ret>' systest '<ret>'
 disk=$out/auto.img
 check bat-autoexec  'autoexec ran'

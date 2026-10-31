@@ -52,7 +52,7 @@ See `documentation/README.md` for the living documentation set.
 
 **1.0.0** — the usable minimal system: file system, browser, `edit`, `vedit`, `draw`, `calc`, `sci`, `matrix`.  
 Build and run with `tools/build.sh` and `tools/run.sh` (`documentation/guides/getting-started.md`).  
-Notes: `documentation/releases/1.0.0.md` (patches: `1.0.1.md`, `1.0.2.md`, `1.0.3.md`, `1.0.4.md`, `1.0.5.md`). Limits: `documentation/specifications.md`. What to do next: [TODO.md](TODO.md).
+Notes: `documentation/releases/1.0.0.md` (patches: `1.0.1.md`, `1.0.2.md`, `1.0.3.md`, `1.0.4.md`, `1.0.5.md`, `1.0.6.md`, `1.0.7.md`, `1.0.8.md`, `1.0.9.md`, `1.0.10.md`, `1.0.11.md`, `1.0.12.md`; 1.1: `1.1.0.md`, `1.1.1.md`; 1.2: `1.2.0.md`). Limits: `documentation/specifications.md`. What to do next: [TODO.md](TODO.md).
 
 ## Klingon font (joke branch)
 
@@ -70,11 +70,11 @@ Notes: `documentation/releases/1.0.0.md` (patches: `1.0.1.md`, `1.0.2.md`, `1.0.
   names such as `{echo}`) keeps its Latin letters.
 - The whole system speaks Klingon, not just the shell: the banner's command
   list, the loader and file-system messages, and the UI of calc, sci,
-  matrix, edit/vedit, draw and the file browser come from
+  matrix, diff, edit/vedit, draw and the file browser come from
   `localization/*/strings.txt` (`\n` in a value is a newline). Command
   words (`q`, `clear`, `det`, `y/n`) stay as they are. Latin has no
   translations for these yet and falls back to English. The built-in
-  `help`, `calc`, `sci` and `matrix` files keep their English text.
+  `help`, `calc`, `sci`, `matrix` and `diff` files keep their English text.
 - The kernel starts in Klingon. Build with `nasm -DDEFAULT_LANG_EN` to start
   in English; `tools/regress.sh` does, so its English checks still apply.
   `lang en` switches at run time (the letters stay alien).
@@ -95,7 +95,7 @@ git push --force-with-lease origin klingon-font
 The joke touches `kernel/klingon.asm`, `kernel/klingon-font.inc`,
 `tools/klingon-font.py`, a few lines in `kernel/pm.asm` (font load and
 default language), `tools/mkstrings.py` (digraphs, `{}` and `\n`), the
-`lang-tlh` check and `nasm -DDEFAULT_LANG_EN` in `tools/regress.sh`, this
+`lang-tlh`, `l10n-calc-tlh` and `l10n-edit-tlh` checks and `nasm -DDEFAULT_LANG_EN` in `tools/regress.sh`, this
 README, and the app texts: the keys after the "Klingon branch" comment in
 `localization/en` and `localization/tlh`, and the `[lstr+LS_...*4]`,
 `lset` and `lcmp` references that replaced the English `db` strings in

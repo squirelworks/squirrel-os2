@@ -1,13 +1,17 @@
 ; Squirrel-OS/2 — basic process model (0.1.2)
 ; Included from pm.asm. Original code.
 ;
-; Cooperative round-robin. Slot 0 is the kernel shell (pid 0), which
+; Round-robin. Kernel code switches cooperatively; since 1.1 the timer
+; also preempts a loaded program whose slice (SLICE_TICKS) has run out,
+; but only while the CPU is in the program area, because the kernel is not
+; reentrant. Slot 0 is the kernel shell (pid 0), which
 ; runs on the boot stack and never exits. Other slots get a private
 ; stack and start in proc_trampoline. See documentation/kernel/processes.md.
 
 PROC_MAX        equ 8
 PROC_STACK_BASE equ 0x70000     ; slot i stack top = base + i * size
 PROC_STACK_SIZE equ 0x2000
+SLICE_TICKS     equ 5           ; 50 ms at 100 Hz (1.1)
 
 ; states
 P_FREE          equ 0
@@ -78,6 +82,7 @@ proc_spawn:
     mov dword [edi+PCB_WAITPID], 0
     mov byte [edi+PCB_NAME], 0
     mov dword [edi+PCB_FPU], 0  ; starts with a freshly reset FPU
+    call msg_reset              ; and an empty message queue (1.2)
     mov ebx, [proc_cur]
     push eax
     mov eax, [ebx+PCB_AS]       ; runs in its parent's address space
@@ -322,6 +327,7 @@ proc_switch:
     call proc_fpu_swap
     mov [esi+PCB_ESP], esp
     mov dword [edi+PCB_STATE], P_RUNNING
+    mov dword [sched_left], SLICE_TICKS     ; a full slice for the next one
     mov [proc_cur], edi
     call vm_load
     mov esp, [edi+PCB_ESP]
@@ -354,6 +360,14 @@ proc_fpu_area:
     imul eax, FPU_SAVE
     add eax, proc_fpu
     ret
+
+; From the timer interrupt (1.1), when a loaded program has used up its
+; slice: the same round-robin switch as a yield. If nothing else is
+; READY the program keeps the CPU for another slice.
+proc_preempt:
+    mov dword [sched_left], SLICE_TICKS
+    inc dword [sched_preempts]
+    jmp proc_switch
 
 ; Let others run; if nobody else is READY, sleep until an interrupt.
 proc_idle:
@@ -537,6 +551,8 @@ kbd_getscan:
 proc_table times PROC_MAX*PCB_SIZE db 0
 proc_fpu times PROC_MAX*FPU_SAVE db 0     ; fnsave areas, one per slot (1.0.1)
 proc_cur dd 0
+sched_left dd SLICE_TICKS        ; ticks left in the running process's slice (1.1)
+sched_preempts dd 0             ; switches made by the timer
 proc_next_pid dd 0
 pt_pids times 3 dd 0
 

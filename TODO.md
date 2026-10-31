@@ -77,31 +77,31 @@ Each item is its own patch release after 1.0.0 (its own release note). Independe
   `documentation/kernel/localization.md`: most messages are still English literals. Keys already exist for some of them.
   **Acceptance:** `lang la` then a bare `mkdir`, and `lang tlh` then a failed `rm` of a missing name, show the Latin and Klingon strings from `localization/`. A regression check expects one of those translated strings. English boot behaviour is unchanged. `strings.inc` is regenerated.
 
-- [ ] **1.0-l10n-apps** — Use the existing `calc`, `edit`, and `draw` string keys.
+- [x] **1.0-l10n-apps** — Use the existing `calc`, `edit`, and `draw` string keys.
   `localization/README.md` marks those keys "(not yet)".
   **Acceptance:** `lang tlh` then `run calc` shows the Klingon title from the string table, and the same for `edit` and `draw`. A regression check expects one translated title. `strings.inc` is regenerated.
 
-- [ ] **1.0-diff-deriv** — Numerical derivative in `diff`.
+- [x] **1.0-diff-deriv** — Numerical derivative in `diff`.
   `diff` is a scaffold that says the numerical work is pending. Use finite differences on the existing scientific evaluator. No second math library, and no symbolic rules.
   **Acceptance:** `run diff` on a derivative of `sin(x)` at 0 prints a value near 1 (the check can accept `1.000`). The scaffold sentence is gone for this operation. `documentation/apps/calculators.md` describes the input. A regression check covers it.
 
-- [ ] **1.0-diff-integ** — Numerical integral in `diff`.
+- [x] **1.0-diff-integ** — Numerical integral in `diff`.
   Start after **1.0-diff-deriv** is on `main`. Trapezoid or Simpson, original code, same evaluator.
   **Acceptance:** integrating a constant `1` from 0 to 2 prints a value near 2. A regression check expects that. The calculator note describes it.
 
-- [ ] **1.0-diff-ode** — One ODE stepper in `diff`.
+- [x] **1.0-diff-ode** — One ODE stepper in `diff`.
   Start after **1.0-diff-integ** is on `main`. Euler is enough. Runge–Kutta can be a later task if Euler is in.
   **Acceptance:** one step of `y' = y` from `y(0) = 1` prints a value the check can match exactly for a stated step size. A regression check expects it. The note describes the method.
 
-- [ ] **1.0-edit-search** — Search in `edit` and `vedit`.
+- [x] **1.0-edit-search** — Search in `edit` and `vedit`.
   `documentation/apps/editors.md` lists search under "Not yet".
   **Acceptance:** a file containing `zebra` can be searched, the cursor lands on it, and the message line says so. A regression check expects that message. The "Not yet" line drops search.
 
-- [ ] **1.0-edit-undo** — One-level undo in the editors.
+- [x] **1.0-edit-undo** — One-level undo in the editors.
   Listed as not yet. One level, not a history stack.
   **Acceptance:** type a character, undo, and the character is gone. A second undo does not erase more. A regression check covers the first undo. The editors note says one-level undo is present.
 
-- [ ] **1.0-vedit-controls** — Show control characters in `vedit`.
+- [x] **1.0-vedit-controls** — Show control characters in `vedit`.
   Listed as not yet: a display toggle. The buffer contents do not change.
   **Acceptance:** a toggle shows a newline or tab as a visible token on screen, toggling again restores the normal glyph, and a regression check expects the token. The editors note describes the key.
 
@@ -111,16 +111,16 @@ Files larger than 16 KB stay truncated, with the existing warning. That cap belo
 
 Start only after **1.0-fpu** is on `main`. `yield` and `proctest` keep their current results.
 
-- [ ] **1.1-preempt** — Switch on a timer tick when another process is ready.
+- [x] **1.1-preempt** — Switch on a timer tick when another process is ready.
   **Acceptance:** a process that spins without calling `yield` does not block a second process from printing. A regression check expects the second process's line (and still expects `proctest`'s existing line). `documentation/kernel/processes.md` describes the tick path and drops "no preemption".
 
-- [ ] **1.1-thread** — Treat a same-address-space spawn as a thread, and test it.
+- [x] **1.1-thread** — Treat a same-address-space spawn as a thread, and test it.
   `proc_spawn` already shares the parent's address space until the loader builds a new one.
   **Acceptance:** a user program spawns an entry in its own image, both sides update one counter, and it prints `thread: PASS`. A regression check expects that. `processes.md` calls this the thread primitive. No second scheduler, and no priority field.
 
 ## 1.2 — Messages
 
-- [ ] **1.2-queue** — Send and receive a short message between two processes.
+- [x] **1.2-queue** — Send and receive a short message between two processes.
   **Acceptance:** a parent sends four bytes, the child prints them, and a regression check expects that text. A full queue returns a documented failure the check also covers. `SYS_GETC` is unchanged.
 
 - [ ] **1.2-key-event** — Post a key event as well as delivering `SYS_GETC`.

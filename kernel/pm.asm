@@ -249,13 +249,6 @@ run_graph:
     call puts
     ret
 
-run_diff:
-    mov esi, diff_banner
-    call puts
-    mov esi, diff_stub
-    call puts
-    ret
-
 run_topo:
     mov esi, topo_banner
     call puts
@@ -697,6 +690,19 @@ timer_isr:
     inc dword [ticks]
     mov al, 0x20
     out 0x20, al
+    ; preemption (1.1): once the slice is used up, the first tick that
+    ; lands in a loaded program's code switches to the next READY
+    ; process. Kernel code is never interrupted this way (it is not
+    ; reentrant), so the check waits for the next tick instead.
+    dec dword [sched_left]
+    jg .out
+    mov eax, [esp+4]            ; interrupted EIP
+    cmp eax, PROG_BASE
+    jb .out
+    cmp eax, PROG_BASE+PROG_MAX
+    jae .out
+    call proc_preempt
+.out:
     pop eax
     iretd
 
@@ -800,12 +806,12 @@ default_isr:
 
 ; ---------- data ----------
 banner db 'Squirrel-OS/2'          ; (the "help" file: the English banner)
-banner_rest db ' 1.0.5', 10   ; OS version: here only (see releases/PROCESS.md)
+banner_rest db ' 1.2.0', 10   ; OS version: here only (see releases/PROCESS.md)
        db 'Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>', 10
        db '          mv <f> <new> | mkdir <d> | cd <d> | pwd | echo | batch <f> | format', 10
        db '          ps | disk | mem | devices | lang <en|la|tlh>', 10
        db 'Tests: systest | proctest | blktest | fstest | memtest | keys', 10
-       db 'Apps: files, calc, sci, matrix, edit, vedit, draw   (planned: graph, diff, topo)', 10, 0
+       db 'Apps: files, calc, sci, matrix, diff, edit, vedit, draw   (planned: graph, topo)', 10, 0
 msg_partial db 'Warning: kernel image only partly loaded', 10, 0
 cmd_ls db 'ls', 0
 cmd_cat db 'cat ', 0
@@ -946,8 +952,6 @@ name_topo db 'topo', 0
 
 graph_banner db 'Graphing Calculator', 10, 0
 graph_stub db 'Scaffolded. Requires graphics primitives (milestone 1.3).', 10, 'See documentation/apps/calculators.md', 10, 0
-diff_banner db 'DiffEq / Calculus Calculator', 10, 0
-diff_stub db 'Scaffolded. Numerical derivatives, integrals, ODEs pending.', 10, 'See documentation/apps/calculators.md', 10, 0
 topo_banner db 'Topology Calculator', 10, 0
 topo_stub db 'Scaffolded. Simplicial homology sketches (long-term).', 10, 'See documentation/apps/calculators.md', 10, 0
 edit_sample db 'Hello from Squirrel-OS/2', 10, 0
@@ -970,8 +974,8 @@ file_table:
     dd mx_help
     dd mx_help_len
     db 'diff', 0, 0, 0, 0
-    dd diff_stub
-    dd 80
+    dd diff_help
+    dd diff_help_len
     db 'topo', 0, 0, 0, 0
     dd topo_stub
     dd 70
@@ -1061,6 +1065,7 @@ puthex:
 
 %include "syscall.asm"
 %include "proc.asm"
+%include "msg.asm"
 %include "ata.asm"
 %include "fs.asm"
 %include "shell.asm"
@@ -1080,6 +1085,7 @@ puthex:
 %include "loader.asm"
 %include "sci.asm"
 %include "matrix.asm"
+%include "diff.asm"
 
 align 8
 idt: times 256 dq 0

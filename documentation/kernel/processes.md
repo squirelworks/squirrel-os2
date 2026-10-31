@@ -4,8 +4,9 @@ Location: `../../kernel/proc.asm` (included from `kernel/pm.asm`)
 
 ## Model
 
-- Cooperative, round-robin. A process runs until it calls `yield`, `wait`, `exit`,
-  or blocks for input (`getc`, or an app waiting for a key).
+- Round-robin. A process runs until it calls `yield`, `wait`, `exit`,
+  or blocks for input (`getc`, or an app waiting for a key), or until the timer
+  preempts it (since 1.1, see "Preemption" below).
 - Up to `PROC_MAX` = 8 slots. Slot 0 is the kernel shell, **pid 0**, which runs on the
   boot stack (`0x9F000`) and never exits.
 - Slots 1–7 each own an 8 KB stack: slot *i* has its top at `0x70000 + i * 0x2000`
@@ -70,6 +71,14 @@ restores the incoming one's with `frstor`. A process whose state has never been 
 checks this: it keeps a value on the FPU stack while a second copy of itself fills all
 eight registers, then reads its own value back (`fpu: PASS`).
 
+## Threads (1.1)
+
+A thread is not a separate kind of object. **`SYS_SPAWN` with an entry inside the program's own image is the thread primitive:** `proc_spawn` gives the child the caller's address space and adds a reference (`memory.md`), so the new process runs the program's code on the program's data. It differs from the parent only in its slot: its own pid, its own 8 KB stack, its own FPU registers and its own exit code. The address space is freed when the last process using it is reaped.
+
+The scheduler treats a thread like any other process: round-robin, `yield`, and timer preemption of program code (above). There is no priority field and no second scheduler.
+
+Threads share memory without locks. A single instruction such as `inc dword [x]` cannot be split by a switch on this one-CPU system, but a read-modify-write over several instructions can. The `thread` program checks the primitive: it and a thread it spawns each add 1000 to one counter in the program's memory, yielding every 100 steps, and it prints `thread: PASS` when the counter ends at 2000 and the thread's exit code is 1000 (check `thread`).
+
 ## Zombies nobody waits for (1.0.4)
 
 A zombie keeps its slot so that its parent can still collect the exit code, but two rules stop
@@ -98,9 +107,23 @@ for (`zombie: PASS`), and afterwards `ps` shows only the shell.
   `worker 1 step 1, worker 2 step 1, worker 3 step 1, worker 1 step 2, …`.
   This restores the behaviour of the 0.1.0 two-task demo on top of the new model.
 
+## Preemption (1.1)
+
+The tick path, all in `timer_isr` (`kernel/pm.asm`) and `proc_preempt` (`kernel/proc.asm`):
+
+1. The PIT fires IRQ 0 at 100 Hz. `timer_isr` counts the tick and sends the EOI first.
+2. It decrements `sched_left`, the ticks left in the current slice. While the slice lasts, it returns.
+3. When the slice has run out, it looks at the interrupted EIP. Only if that EIP is inside the program area (`PROG_BASE` to `PROG_BASE + PROG_MAX`, `0x30000`–`0x3FFFF`) does it call `proc_preempt`. Otherwise it returns and tries again on the next tick.
+4. `proc_preempt` refills the slice, counts the switch in `sched_preempts`, and jumps to `proc_switch`, the same switch `yield` uses. The FPU registers and the address space follow as for any switch.
+5. When the preempted process is picked again, `proc_switch` returns into `timer_isr`, which pops its register and returns with `iretd` to where the program was.
+
+Every switch, cooperative or preempted, gives the incoming process a full slice: `SLICE_TICKS` = 5 ticks, 50 ms.
+
+The kernel is not reentrant: kernel code, including system calls a program makes, the shell and the built-in apps, is never preempted. Those still switch only at `yield`, `wait`, `exit` and blocking input, so `proctest` prints exactly what it did before. A program that spins in its own code without a system call no longer starves the others. `run spin` shows it: it spins until a second process it spawned has printed, and prints `preempt: PASS` (check `sched-preempt`).
+
 ## Limitations
 
-- No preemption (milestone 1.1 in [`../../ROADMAP.md`](../../ROADMAP.md)). A process that never yields starves everyone.
+- Kernel code is not preempted (see "Preemption" above). A built-in app or a long system call that never yields still holds the CPU.
 - Everything runs in ring 0. Since 0.6.1 each loaded program has its own address space for its 64 KB at `0x30000` (`memory.md`), but the kernel is mapped in every one and a program can still write over it.
 - Keyboard input goes to whichever process reads the ring first; with the shell waiting on
   a foreground app this is always the app.

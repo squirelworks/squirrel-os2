@@ -84,6 +84,16 @@ This avoids retargeting chains and confirmation steps.
 | 1.0.3   | 2026-10-31 | Programs read file-error reasons     |
 | 1.0.4   | 2026-10-31 | Zombies no longer fill the table     |
 | 1.0.5   | 2026-10-31 | Localized usage lines and FS errors  |
+| 1.0.6   | 2026-10-31 | App titles follow the language       |
+| 1.0.7   | 2026-10-31 | Numerical derivatives in diff        |
+| 1.0.8   | 2026-10-31 | Numerical integrals in diff          |
+| 1.0.9   | 2026-10-31 | Search in the editors                |
+| 1.0.10  | 2026-10-31 | Euler ODE stepper in diff            |
+| 1.0.11  | 2026-10-31 | One-level undo in the editors        |
+| 1.0.12  | 2026-10-31 | vedit shows control characters      |
+| 1.1.0   | 2026-10-31 | Timer preempts spinning programs     |
+| 1.1.1   | 2026-10-31 | Threads share a program's memory     |
+| 1.2.0   | 2026-10-31 | Message queues between processes     |
 
 ## Next planned release
 

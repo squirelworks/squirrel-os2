@@ -31,6 +31,7 @@ ed_main:
     mov dword [ed_want], -1
     mov byte [ed_mod], 0
     mov byte [ed_ins], 1
+    mov byte [ed_ctl], 0
     mov byte [kbd_ctrl], 0
     mov esi, run_arg
     mov edi, ed_name
@@ -38,6 +39,7 @@ ed_main:
     rep movsb
     mov byte [run_arg], 0
     call ed_load
+    call ed_undo_init
 .loop:
     call ed_draw
     call fb_waitkey
@@ -48,6 +50,8 @@ ed_main:
     je .quit
     cmp al, 0x3C                ; F2
     je .save
+    cmp al, 0x3D                ; F3: find the same text again
+    je .again
     cmp al, 0x48
     je .up
     cmp al, 0x50
@@ -75,6 +79,7 @@ ed_main:
     call kbd_ascii              ; Enter maps to 10
     test al, al
     jz .loop
+    call ed_snap
     call ed_type
     jmp .loop
 .ctrl:
@@ -82,6 +87,36 @@ ed_main:
     je .save
     cmp al, 0x10                ; Ctrl+Q
     je .quit
+    cmp al, 0x21                ; Ctrl+F
+    je .find
+    cmp al, 0x2C                ; Ctrl+Z
+    je .undo
+    cmp al, 0x14                ; Ctrl+T: control characters (vedit)
+    je .ctl
+    jmp .loop
+.ctl:
+    cmp byte [ed_verbose], 0
+    je .loop
+    xor byte [ed_ctl], 1
+    mov esi, [lstr+LS_ED_M_CTLON*4]
+    cmp byte [ed_ctl], 0
+    jne .cm
+    mov esi, [lstr+LS_ED_M_CTLOFF*4]
+.cm:
+    call ed_msg
+    jmp .loop
+.undo:
+    call ed_undo
+    jmp .loop
+.find:
+    mov esi, [lstr+LS_ED_M_FIND*4]
+    mov edi, ed_find
+    mov byte [ed_pany], 1       ; the text may contain spaces
+    call ed_prompt
+    mov byte [ed_pany], 0
+    jc .loop
+.again:
+    call ed_search
     jmp .loop
 .up:
     call ed_up
@@ -143,6 +178,7 @@ ed_main:
     mov eax, [ed_pos]
     test eax, eax
     jz .loop
+    call ed_snap
     dec eax
     mov [ed_pos], eax
     call ed_delete_at
@@ -151,9 +187,11 @@ ed_main:
     mov eax, [ed_pos]
     cmp eax, [ed_len]
     jae .loop
+    call ed_snap
     call ed_delete_at
     jmp .loop
 .tab:
+    call ed_snap                ; one undo takes back all four spaces
     mov ecx, 4
 .t:
     mov al, ' '
@@ -184,6 +222,7 @@ ed_main:
     cmp byte [ed_mod], 0
     jne .loop
 .bye:
+    call ed_undo_free
     call app_home
     xor eax, eax
     ret
@@ -485,7 +524,11 @@ ed_prompt:
     je .bs
     call kbd_ascii
     cmp al, ' '
-    jbe .l
+    ja .ch
+    jb .l
+    cmp byte [ed_pany], 0       ; a space only where the caller allows it
+    je .l
+.ch:
     cmp ecx, FS_PATHMAX-1
     jae .l
     mov [edi+ecx], al
@@ -504,6 +547,209 @@ ed_prompt:
 .esc:
     popad
     stc
+    ret
+
+; Finds ed_find after the cursor, wrapping to the start, and moves the
+; cursor there (1.0.9). Case-sensitive. The message line says where.
+ed_search:
+    pushad
+    mov esi, ed_find
+    xor ecx, ecx                ; ecx = length of the text
+.len:
+    cmp byte [esi+ecx], 0
+    je .gotlen
+    inc ecx
+    jmp .len
+.gotlen:
+    test ecx, ecx               ; F3 before any Ctrl+F
+    jz .none
+    mov edx, [ed_len]
+    sub edx, ecx                ; last start that fits
+    jl .notfound
+    mov ebx, [ed_pos]
+    xor ebp, ebp                ; starts tried
+.try:
+    inc ebx
+    cmp ebx, edx
+    jbe .cmp
+    xor ebx, ebx                ; wrap to the start of the buffer
+.cmp:
+    push ecx
+    lea edi, [ED_BUF+ebx]
+    mov esi, ed_find
+    repe cmpsb
+    pop ecx
+    je .found
+    inc ebp
+    cmp ebp, edx
+    jbe .try                    ; every start (edx+1 of them) tried once
+.notfound:
+    call sb_reset
+    mov esi, [lstr+LS_ED_M_NOTFOUND*4]
+    call sb_str
+    mov esi, ed_find
+    call sb_str
+    jmp .show
+.found:
+    mov [ed_pos], ebx
+    mov dword [ed_want], -1
+    call ed_where
+    call sb_reset
+    mov esi, [lstr+LS_ED_M_FOUND*4]
+    call sb_str
+    mov esi, ed_find
+    call sb_str
+    mov esi, [lstr+LS_ED_M_ATLINE*4]
+    call sb_str
+    mov eax, [ed_line]
+    inc eax
+    call sb_num
+    mov esi, [lstr+LS_ED_M_ATCOL*4]
+    call sb_str
+    mov eax, [ed_col]
+    inc eax
+    call sb_num
+.show:
+    mov esi, ed_sb
+    mov edi, ed_msgbuf
+    mov ecx, 80
+    rep movsb
+    mov dword [ed_msgp], ed_msgbuf
+    popad
+    ret
+.none:
+    lset ed_msgp, LS_ED_M_NOFIND
+    popad
+    ret
+
+; al = a control character -> al = the cell drawn for it. Normally '.';
+; with vedit's Ctrl+T on, a tab is '>' and any other control is '^'
+; (1.0.12). Line ends are drawn by ed_draw. The buffer never changes.
+ed_ctlglyph:
+    cmp byte [ed_ctl], 0
+    je .dot
+    cmp al, 9
+    mov al, '>'
+    je .r
+    mov al, '^'
+    ret
+.dot:
+    mov al, '.'
+.r:
+    ret
+
+; ---------- one-level undo (1.0.11) ----------
+; Before each edit (a typed key, Enter, Backspace, Delete, Tab) the whole
+; buffer is copied to ED_UNDO_PAGES pages from pg_alloc; Ctrl+Z copies it
+; back once. The pages are taken at start and given back on exit. Without
+; them, undo says so and the editor works as before.
+
+ED_UNDO_PAGES equ ED_CAP / 4096     ; (PAGE_SIZE: mm.asm comes later)
+
+ed_undo_init:
+    pushad
+    mov byte [ed_uok], 0
+    xor ebx, ebx
+.a:
+    call pg_alloc
+    mov [ed_upages+ebx*4], eax
+    test eax, eax
+    jz .fail
+    inc ebx
+    cmp ebx, ED_UNDO_PAGES
+    jb .a
+    popad
+    ret
+.fail:
+    popad
+    jmp ed_undo_free            ; frees what was taken; undo is off
+
+ed_undo_free:
+    pushad
+    xor ebx, ebx
+.f:
+    mov eax, [ed_upages+ebx*4]
+    mov dword [ed_upages+ebx*4], 0
+    test eax, eax
+    jz .n
+    call pg_free
+.n:
+    inc ebx
+    cmp ebx, ED_UNDO_PAGES
+    jb .f
+    popad
+    ret
+
+; Remembers the buffer, cursor and modified flag as they are now.
+ed_snap:
+    pushad
+    cmp dword [ed_upages+(ED_UNDO_PAGES-1)*4], 0
+    je .r
+    mov eax, [ed_len]
+    mov [ed_ulen], eax
+    mov eax, [ed_pos]
+    mov [ed_upos], eax
+    mov al, [ed_mod]
+    mov [ed_umod], al
+    mov byte [ed_uok], 1
+    xor edx, edx                ; 0: buffer -> pages
+    call ed_ucopy
+.r:
+    popad
+    ret
+
+; Ctrl+Z: puts back the state before the last edit. A second Ctrl+Z
+; finds nothing more to undo.
+ed_undo:
+    pushad
+    mov esi, [lstr+LS_ED_M_NOUNDO*4]
+    cmp dword [ed_upages+(ED_UNDO_PAGES-1)*4], 0
+    je .m
+    mov esi, [lstr+LS_ED_M_NOTHING*4]
+    cmp byte [ed_uok], 0
+    je .m
+    mov eax, [ed_ulen]
+    mov [ed_len], eax
+    mov eax, [ed_upos]
+    mov [ed_pos], eax
+    mov al, [ed_umod]
+    mov [ed_mod], al
+    mov byte [ed_uok], 0
+    mov dword [ed_want], -1
+    mov edx, 1                  ; pages -> buffer
+    call ed_ucopy
+    mov esi, [lstr+LS_ED_M_UNDONE*4]
+.m:
+    call ed_msg
+    popad
+    ret
+
+; Copies ed_ulen bytes between ED_BUF and the undo pages, page by page.
+; edx = 0: buffer to pages, 1: pages to buffer.
+ed_ucopy:
+    mov ebp, [ed_ulen]
+    xor ebx, ebx
+.page:
+    test ebp, ebp
+    jz .d
+    mov ecx, PAGE_SIZE
+    cmp ebp, ecx
+    jae .full
+    mov ecx, ebp
+.full:
+    sub ebp, ecx
+    mov esi, ebx
+    shl esi, 12
+    add esi, ED_BUF
+    mov edi, [ed_upages+ebx*4]
+    test edx, edx
+    jz .go
+    xchg esi, edi
+.go:
+    rep movsb
+    inc ebx
+    jmp .page
+.d:
     ret
 
 ; ---------- messages ----------
@@ -643,7 +889,7 @@ ed_draw:
     jecxz .chars                ; clipped on the right
     cmp al, ' '
     jae .pr
-    mov al, '.'                 ; control characters
+    call ed_ctlglyph            ; control characters
 .pr:
     mov ah, ATTR_TEXT
     stosw
@@ -651,6 +897,12 @@ ed_draw:
     jmp .chars
 .eol:
     inc esi
+    cmp byte [ed_ctl], 0        ; vedit Ctrl+T: show the line end as '$'
+    je .pad
+    jecxz .pad
+    mov ax, (ATTR_DIM<<8)|'$'
+    stosw
+    dec ecx
     jmp .pad
 .eof:
     mov byte [ed_more], 0
@@ -692,6 +944,10 @@ ed_status:
     call sb_char
     cmp byte [ed_verbose], 0
     jne .verbose
+    mov esi, [lstr+LS_EDIT*4]   ; title in the current language (1.0.6)
+    call sb_str
+    mov esi, ed_s_sep
+    call sb_str
     mov esi, ed_name
     cmp byte [esi], 0
     jne .n
@@ -703,7 +959,7 @@ ed_status:
     mov esi, [lstr+LS_ED_S_MOD*4]
     call sb_str
 .nm:
-    mov eax, 52
+    mov eax, 80-34              ; the key reminder ends at the last column
     call sb_pad
     mov esi, [lstr+LS_ED_S_KEYS*4]
     call sb_str
@@ -964,6 +1220,15 @@ sb_p dd ed_sb
 ed_name times FS_PATHMAX db 0
 ed_sb times 82 db 0
 ed_msgbuf times 82 db 0
+ed_find times FS_PATHMAX db 0   ; last Ctrl+F text, kept for F3
+ed_upages times ED_UNDO_PAGES dd 0   ; undo copy of the buffer
+ed_ulen dd 0
+ed_upos dd 0
+ed_umod db 0
+ed_ctl db 0                     ; 1: vedit shows control characters (Ctrl+T)
+ed_uok db 0                     ; 1: Ctrl+Z has something to undo
+ed_pany db 0                    ; 1: ed_prompt accepts spaces
+ed_s_sep db ': ', 0
 ed_s_line db 'L', 0
 ed_s_col db ' C', 0
 ed_s_off db ' off ', 0

@@ -538,6 +538,10 @@ dr_frame:
     pushad
     call cls
     call sb_reset
+    mov al, ' '
+    call sb_char
+    mov esi, [lstr+LS_DRAW*4]   ; title in the current language (1.0.6)
+    call sb_str
     mov esi, [lstr+LS_DR_TITLE*4]
     call sb_str
     xor ebx, ebx

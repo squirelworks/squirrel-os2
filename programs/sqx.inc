@@ -39,6 +39,8 @@ SYS_DEVREAD equ 23
 SYS_DEVWRITE equ 24
 SYS_SEEK    equ 25
 SYS_FSERROR equ 26
+SYS_SEND    equ 27
+SYS_RECV    equ 28
 
 O_CREATE    equ 1
 O_TRUNC     equ 2

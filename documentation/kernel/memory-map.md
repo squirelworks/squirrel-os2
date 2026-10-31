@@ -37,7 +37,7 @@ Scratch layout inside `KSCRATCH`:
 | `0x2000` | 1300 | `fstest` pattern buffer |
 | `0x2800` | 2048 | Shell history: 16 lines × 128 bytes (0.5.1) |
 | `0x3000` | 4096 | Batch script text (0.5.2) |
-| `0x4000` | 16384 | Editor text buffer (`edit`/`vedit`) |
+| `0x4000` | 16384 | Editor text buffer (`edit`/`vedit`). Its undo copy lives in four allocator pages, not here (1.0.11) |
 | `0x8000` | 1152 | `draw` canvas (64 × 18) |
 | `0x9000` | 20480 | `draw` flood-fill stack |
 | `0xE000` | 1170 | `draw` load/save buffer |

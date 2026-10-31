@@ -81,7 +81,7 @@ This is a natural end-of-day point. Next session can resume at either:
   - Scientific (`sci`): floating-point + transcendentals — done in 0.3.4 (`kernel/sci.asm`, x87 FPU)
   - Graphing (`graph`): function plots — scaffolded (needs graphics)
   - Matrix (`matrix`): linear algebra — done in 0.3.4 (add, multiply, scale, det, transpose, inverse; `kernel/matrix.asm`)
-  - DiffEq / Calculus (`diff`): numerical derivatives, integrals, ODEs — scaffolded
+  - DiffEq / Calculus (`diff`): numerical derivatives (1.0.7), integrals (1.0.8) and Euler ODEs (1.0.10) done in `kernel/diff.asm`
   - Topology (`topo`): simplicial homology sketches — scaffolded (long-term)
   - Design: `documentation/apps/calculators.md`
 - **0.3.2** — Text editor project (done — full-screen `edit`/`vedit` with load/save, `apps/editors.md`)
