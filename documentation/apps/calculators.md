@@ -53,7 +53,7 @@ For engineering and scientific work. Implemented in `kernel/sci.asm` (0.3.4), ru
 
 Arithmetic is double/extended precision on the x87 FPU, which the kernel enables at boot (`fpu_init`: CR0.MP and NE set, EM and TS clear, all FPU exceptions masked).
 Transcendentals use the FPU's own instructions (`fsin`, `fcos`, `fptan`, `fpatan`, `fyl2x`, `f2xm1`, `fscale`), composed by original code.
-The FPU state is not saved on a process switch, so only one process should use floating point at a time. Today that is `sci` or `matrix`.
+Since 1.0.1 every process has its own x87 registers: the kernel saves them on each process switch (`processes.md`), so `sci`, `matrix` and programs can all use floating point at once.
 
 | Input | Meaning | Example → result |
 |-------|---------|------------------|

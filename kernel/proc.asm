@@ -28,6 +28,8 @@ PCB_PARENT      equ 28
 PCB_AS          equ 32          ; address space record, 0 = the kernel's
 PCB_NAME        equ 40          ; 16 bytes: program or app name (0.8.2)
 PROC_NAMELEN    equ 16
+PCB_FPU         equ 60          ; 1 once its x87 state has been saved (1.0.1)
+FPU_SAVE        equ 108         ; bytes per fnsave area
 PCB_SIZE        equ 64
 
 proc_init:
@@ -71,6 +73,7 @@ proc_spawn:
     mov dword [edi+PCB_CODE], 0
     mov dword [edi+PCB_WAITPID], 0
     mov byte [edi+PCB_NAME], 0
+    mov dword [edi+PCB_FPU], 0  ; starts with a freshly reset FPU
     mov ebx, [proc_cur]
     push eax
     mov eax, [ebx+PCB_AS]       ; runs in its parent's address space
@@ -239,6 +242,7 @@ proc_switch:
     jne .keep
     mov dword [esi+PCB_STATE], P_READY
 .keep:
+    call proc_fpu_swap
     mov [esi+PCB_ESP], esp
     mov dword [edi+PCB_STATE], P_RUNNING
     mov [proc_cur], edi
@@ -247,6 +251,31 @@ proc_switch:
     popad
     popfd
     clc
+    ret
+
+; esi = outgoing PCB, edi = incoming: gives each process its own x87
+; registers (a freshly reset FPU for one that never had them saved)
+proc_fpu_swap:
+    mov eax, esi
+    call proc_fpu_area
+    fnsave [eax]
+    mov dword [esi+PCB_FPU], 1
+    mov eax, edi
+    call proc_fpu_area
+    cmp dword [edi+PCB_FPU], 0
+    je .fresh
+    frstor [eax]
+    ret
+.fresh:
+    fninit
+    ret
+
+; eax = PCB -> eax = its FPU save area
+proc_fpu_area:
+    sub eax, proc_table
+    shr eax, 6                  ; / PCB_SIZE
+    imul eax, FPU_SAVE
+    add eax, proc_fpu
     ret
 
 ; Let others run; if nobody else is READY, sleep until an interrupt.
@@ -428,6 +457,7 @@ kbd_getscan:
     ret
 
 proc_table times PROC_MAX*PCB_SIZE db 0
+proc_fpu times PROC_MAX*FPU_SAVE db 0     ; fnsave areas, one per slot (1.0.1)
 proc_cur dd 0
 proc_next_pid dd 0
 pt_pids times 3 dd 0

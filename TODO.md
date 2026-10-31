@@ -65,7 +65,7 @@ Each item is its own patch release after 1.0.0 (its own release note). Independe
   Syscalls return −1. The shell prints the reason via `fs_why` (`Not found` is the localized string, not the `error` slot in `fs_errmsg`).
   **Acceptance:** a user program opens a missing name and prints `Not found`, the same words `cat missing` prints. A regression check covers it. `SYS_OPEN` of a directory prints the same reason the shell prints (`Is a directory`). Design note updated.
 
-- [ ] **1.0-fpu** — Save and restore the x87 state on a process switch.
+- [x] **1.0-fpu** — Save and restore the x87 state on a process switch.
   `documentation/apps/calculators.md`: the FPU is not saved, so only one of `sci` or `matrix` may run at a time. Required before preemption.
   **Acceptance:** a program loads a known floating-point value, switches to another process that uses the FPU, switches back, and prints `fpu: PASS` only if the value survived. A regression check expects `fpu: PASS`. The calculator note drops the "only one process" warning.
 

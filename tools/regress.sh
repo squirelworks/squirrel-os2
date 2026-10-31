@@ -11,11 +11,11 @@ python3 "$root/tools/mkstrings.py" --check || exit 1
 cat "$out/boot.bin" "$out/pm.bin" > "$out/os.img"
 dd if=/dev/zero of="$out/floppy.img" bs=1024 count=1440 2>/dev/null
 dd if="$out/os.img" of="$out/floppy.img" conv=notrunc 2>/dev/null
-for prog in hello wc elfhello ls cat nest crash heap devtest; do
+for prog in hello wc elfhello ls cat nest crash heap devtest fpu; do
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
 done
 python3 "$root/tools/sqfs.py" "$out/progs.img" format 1024
-for prog in hello wc elfhello ls cat nest crash heap devtest; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
+for prog in hello wc elfhello ls cat nest crash heap devtest fpu; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
 printf 'one two\nthree\n' > "$out/notes"
 python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/notes"
 printf '2 + 3\n6 * 7\n' > "$out/exprs"
@@ -181,7 +181,7 @@ check ed-path-r     'deep'                  'cat e1/long-name.txt' '<ret>'
 check fb-dir        'in /e1'                'cd e1' '<ret>' 'run files' '<ret>'
 check fb-dir-up     '[app]'                 'cd e1' '<ret>' 'run files' '<ret>' '<ret>'
 # 0.9.3: release readiness
-check ver-banner    'Squirrel-OS/2 1.0.0'   systest '<ret>'
+check ver-banner    'Squirrel-OS/2 1.0.1'   systest '<ret>'
 check ver-planned   '(planned: graph, diff, topo)'  systest '<ret>'
 check calc-hist-root '1 + 1 = 2'            'mkdir c1' '<ret>' 'cd c1' '<ret>' 'run calc' '<ret>' '1 + 1' '<ret>' '<esc>' 'cat /calc.hist' '<ret>'
 boot="--floppy $out/floppy.img"
@@ -217,10 +217,12 @@ check vm-ps         'kernel'                ps '<ret>'
 check heap          'heap: PASS (1024 KB)'  'run heap' '<ret>'
 check heap-limit-after 'Program ended: pid'  'run heap after' '<ret>'
 check heap-keep-leak '129912 KB free'       'run heap keep' '<ret>' 'run heap after' '<ret>' mem '<ret>'
+# 1.0.1: each process keeps its own x87 registers across a switch
+check fpu-switch    'fpu: PASS'             'run fpu' '<ret>' '<pause>'
 check devices       'hd1     block   ready 2048 sectors'  devices '<ret>'
 check devices-ro    '(read-only for programs)'  devices '<ret>'
 check devtest       'devtest: PASS'         'run devtest' '<ret>'
-check up-ls         '15 file(s)'             'run ls' '<ret>'
+check up-ls         '16 file(s)'             'run ls' '<ret>'
 check up-ls-filter  '4 file(s)'             'run ls he' '<ret>'
 check up-cat        'three'                 'run cat notes' '<ret>'
 check up-cat-missing 'not found: zip'       'run cat zip notes' '<ret>'
@@ -254,7 +256,7 @@ check lang-show     'Language: en (en la tlh)'  lang '<ret>'
 check lang-la       'Tabulae:'              'lang la' '<ret>' ls '<ret>'
 check lang-tlh      "ra' tlhaQ"             'lang tlh' '<ret>' xyz '<ret>'
 check lang-bad      'Unknown language (en la tlh)'  'lang fr' '<ret>'
-check lang-banner   'Sciurus-OS/2 1.0.0'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
+check lang-banner   'Sciurus-OS/2 1.0.1'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
 check lang-systest  'systest: PROBATUM'     'lang la' '<ret>' systest '<ret>'
 disk=$out/auto.img
 check bat-autoexec  'autoexec ran'
