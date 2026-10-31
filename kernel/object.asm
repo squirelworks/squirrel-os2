@@ -331,6 +331,8 @@ obj_send:
 ; ---------- object files (1.8.0) ----------
 ; 'SQOB', the class name in 16 bytes (zero-padded), the field count (byte),
 ; then each field: 0 and a dword, or 1, a length byte and that much text.
+; objcat (1.8-store): load a file and print its class and fields; if the
+; class is not recorded yet, print from the file so a reboot still shows it.
 OBJ_FMAX    equ 256
 OBJ_TEXTMAX equ 31
 OBJ_POOL    equ 512
@@ -554,6 +556,219 @@ obj_load:
 .no:
     popad
     mov eax, -1
+    stc
+    ret
+
+; objcat <file> (1.8-store): load the object file and print its class and
+; fields. esi = the path (may have leading spaces). When the class is not
+; recorded (e.g. after a reboot, before objtest), still print the class
+; name and the field values from the file so the contents can be checked.
+cmd_objcat_run:
+    call sh_trim
+    cmp byte [esi], 0
+    je .usage
+    push esi
+    call obj_load
+    pop esi
+    jc .fromfile                ; class missing or bad file: try the file text
+    ; eax = object: print class and named fields, then free it
+    mov [os_obj], eax
+    mov edi, [eax+OBJ_CLASS]
+    mov esi, oc_class
+    call puts
+    mov esi, [edi+CLS_NAME]
+    call puts
+    mov al, 10
+    call putc
+    mov eax, edi
+    call obj_nfields
+    mov [os_n], eax
+    xor ebx, ebx
+.lf:
+    cmp ebx, [os_n]
+    jae .ldone
+    mov eax, [os_obj]
+    mov eax, [eax+OBJ_CLASS]
+    call obj_fname              ; -> esi = field name
+    jc .lidx
+    call puts
+    jmp .lval
+.lidx:
+    mov eax, ebx
+    call itoa
+    mov esi, num_buf
+    call puts
+.lval:
+    mov esi, os_colon
+    call puts
+    mov eax, [os_obj]
+    call obj_get
+    push ebx
+    mov edx, eax
+    mov eax, [os_obj]
+    mov eax, [eax+OBJ_CLASS]
+    call obj_istext
+    pop ebx
+    jc .ltxt
+    mov eax, edx
+    call itoa
+    mov esi, num_buf
+    call puts
+    jmp .lnl
+.ltxt:
+    test edx, edx
+    jz .lnl
+    mov esi, edx
+    call puts
+.lnl:
+    mov al, 10
+    call putc
+    inc ebx
+    jmp .lf
+.ldone:
+    mov eax, [os_obj]
+    call obj_free
+    ret
+.fromfile:
+    ; Parse the SQOB file without needing the class recorded.
+    cmp byte [fs_mounted], 0
+    je .missing
+    xor ecx, ecx
+    call fs_open
+    cmp eax, -1
+    je .missing
+    mov ebx, eax
+    mov edi, obj_fbuf
+    mov ecx, OBJ_FMAX
+    call fs_read
+    mov edx, eax
+    call fs_close
+    cmp edx, 21
+    jl .bad
+    add edx, obj_fbuf
+    mov [os_end], edx
+    cmp dword [obj_fbuf], 'SQOB'
+    jne .bad
+    mov byte [obj_fbuf+19], 0
+    mov esi, oc_class
+    call puts
+    mov esi, obj_fbuf+4
+    call puts
+    mov al, 10
+    call putc
+    movzx eax, byte [obj_fbuf+20]
+    mov [os_n], eax
+    mov esi, obj_fbuf+21
+    xor ebx, ebx
+.ff:
+    cmp ebx, [os_n]
+    jae .ok
+    cmp esi, [os_end]
+    jae .bad
+    mov eax, ebx
+    push esi
+    call itoa
+    mov esi, num_buf
+    call puts
+    mov esi, os_colon
+    call puts
+    pop esi
+    lodsb
+    cmp al, 1
+    je .ftxt
+    test al, al
+    jne .bad
+    lea eax, [esi+4]
+    cmp eax, [os_end]
+    ja .bad
+    lodsd
+    push esi
+    call itoa
+    mov esi, num_buf
+    call puts
+    pop esi
+    jmp .fnl
+.ftxt:
+    cmp esi, [os_end]
+    jae .bad
+    movzx ecx, byte [esi]
+    inc esi
+    cmp ecx, OBJ_TEXTMAX
+    ja .bad
+    lea eax, [esi+ecx]
+    cmp eax, [os_end]
+    ja .bad
+    jecxz .fnl
+.tc:
+    lodsb
+    call putc
+    loop .tc
+.fnl:
+    mov al, 10
+    call putc
+    inc ebx
+    jmp .ff
+.ok:
+    ret
+.bad:
+    mov esi, oc_bad
+    jmp puts
+.missing:
+    mov esi, oc_miss
+    jmp puts
+.usage:
+    mov esi, oc_usage
+    jmp puts
+
+; eax = class, ebx = field index -> esi = its name, CF clear; or CF set.
+obj_fname:
+    push eax
+    push ebx
+    push ecx
+    push edx
+    push edi
+    mov edi, eax
+    mov edx, ebx                ; remaining index
+.walk:
+    test edi, edi
+    jz .none
+    mov eax, [edi+CLS_PARENT]
+    call obj_nfields            ; parent's count
+    cmp edx, eax
+    jae .here                   ; index is in this class's own fields
+    mov edi, [edi+CLS_PARENT]
+    jmp .walk
+.here:
+    sub edx, eax                ; index within this class's own list
+    mov esi, [edi+CLS_FIELDS]
+    test esi, esi
+    jz .none
+    xor ecx, ecx
+.f:
+    cmp ecx, edx
+    je .got
+    cmp dword [esi], 0
+    je .none
+    add esi, 4
+    inc ecx
+    jmp .f
+.got:
+    mov esi, [esi]
+    test esi, esi
+    jz .none
+    pop edi
+    pop edx
+    pop ecx
+    pop ebx
+    pop eax
+    clc
+    ret
+.none:
+    pop edi
+    pop edx
+    pop ecx
+    pop ebx
+    pop eax
     stc
     ret
 
@@ -919,6 +1134,10 @@ ot_blue db 'blue', 0
 ot_bfile db 'blue.obj', 0
 ot_spass db 'obj store: PASS', 10, 0
 ot_sfail db 'obj store: FAIL', 10, 0
+oc_class db 'class ', 0
+oc_usage db 'Usage: objcat <file>', 10, 0
+oc_miss db 'objcat: not found', 10, 0
+oc_bad db 'objcat: bad object file', 10, 0
 ot_n_square db 'Square', 0
 ot_s_name db 'name', 0
 ot_s_area db 'area', 0

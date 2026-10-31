@@ -121,6 +121,7 @@ This avoids retargeting chains and confirmation steps.
 | 1.7.7   | 2026-10-31 | Installer: run install               |
 | 1.8.0   | 2026-10-31 | Object files                         |
 | 1.8.1   | 2026-10-31 | Installer: bootable CD image         |
+| 1.8.2   | 2026-10-31 | Objects: objcat across reboot        |
 
 ## Next planned release
 

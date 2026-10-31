@@ -90,4 +90,5 @@ Documentation is active.
 - 1.7.7 installer step I.5: `run install`, the localized install program (`releases/1.7.7.md`, `guides/install.md`)
 - 1.8.0 object files: `obj_save` and `obj_load` (`releases/1.8.0.md`, `kernel/objects.md`)
 - 1.8.1 installer step I.6: `build/cd.iso`, a bootable CD image (`releases/1.8.1.md`, `guides/install.md`)
-- Next: 1.8 `objcat`, an object that outlives a reboot (`1.8-store` in `../TODO.md`, `../ROADMAP.md`)
+- 1.8.2 objects: `objcat` prints a saved object after a reboot (`releases/1.8.2.md`, `kernel/objects.md`)
+- Next: 1.8 desktop entries as object files (`1.8-desktop` in `../TODO.md`, `../ROADMAP.md`)
