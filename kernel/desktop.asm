@@ -262,8 +262,8 @@ dk_apps dd dk_a0, dk_a1, dk_a2, dk_a3, dk_a4
 dk_run dd fb_main, run_calc, run_edit, run_vedit, run_draw ; each Program's entry
 dk_objs times DK_NAPPS dd 0
 dk_names times DK_NAPPS dd 0
-dk_c_dobj dd dk_cn_dobj, 0, dk_dobj_m, dk_dobj_f
-dk_c_prog dd dk_cn_prog, dk_c_dobj, dk_prog_m, dk_prog_f
+dk_c_dobj dd dk_cn_dobj, 0, dk_dobj_m, dk_dobj_f, 1 ; name is text
+dk_c_prog dd dk_cn_prog, dk_c_dobj, dk_prog_m, dk_prog_f, 0
 dk_dobj_m dd dk_s_name, dk_dobj_name, dk_s_open, dk_dobj_open, 0
 dk_prog_m dd dk_s_open, dk_prog_open, 0
 dk_dobj_f dd dk_s_name, 0       ; field 0

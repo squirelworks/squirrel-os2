@@ -87,4 +87,5 @@ Documentation is active.
 - 1.7.4 installer step I.3: `install copy` puts the kernel and the data disk's files on the target (`releases/1.7.4.md`, `guides/install.md`)
 - 1.7.5 installer step I.4: `install boot`; an installed disk boots and uses its own partition (`releases/1.7.5.md`, `guides/install.md`)
 - 1.7.6 the desktop's entries are objects, and `files` opens in a window (`releases/1.7.6.md`, `apps/desktop.md`)
-- Next: 1.8, split into tasks in `../TODO.md` first (`../ROADMAP.md`)
+- 1.8.0 object files: `obj_save` and `obj_load` (`releases/1.8.0.md`, `kernel/objects.md`)
+- Next: 1.8 `objcat`, an object that outlives a reboot (`1.8-store` in `../TODO.md`, `../ROADMAP.md`)

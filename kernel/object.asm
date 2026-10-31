@@ -12,7 +12,8 @@ CLS_NAME    equ 0
 CLS_PARENT  equ 4
 CLS_METHODS equ 8
 CLS_FIELDS  equ 12                  ; this class's own field names (1.7.1)
-CLS_SIZE    equ 16
+CLS_TEXT    equ 16                  ; bit i: own field i holds text (1.8.0)
+CLS_SIZE    equ 20
 
 OBJ_CLASS   equ 0
 OBJ_FIELD0  equ 4                   ; the fields follow the class pointer
@@ -327,14 +328,303 @@ obj_send:
     stc
     ret
 
+; ---------- object files (1.8.0) ----------
+; 'SQOB', the class name in 16 bytes (zero-padded), the field count (byte),
+; then each field: 0 and a dword, or 1, a length byte and that much text.
+OBJ_FMAX    equ 256
+OBJ_TEXTMAX equ 31
+OBJ_POOL    equ 512
+
+; eax = class, ebx = field index -> CF set if that field holds text
+obj_istext:
+    pushad
+    mov edi, eax
+.c:
+    test edi, edi
+    jz .no
+    mov eax, [edi+CLS_PARENT]
+    call obj_nfields            ; the parents' fields come first
+    cmp ebx, eax
+    jb .up
+    sub ebx, eax
+    mov eax, [edi+CLS_TEXT]
+    bt eax, ebx
+    jc .yes
+    jmp .no
+.up:
+    mov edi, [edi+CLS_PARENT]
+    jmp .c
+.yes:
+    popad
+    stc
+    ret
+.no:
+    popad
+    clc
+    ret
+
+; eax = object, esi = path -> CF set if it could not be written
+obj_save:
+    pushad
+    mov [os_obj], eax
+    mov [os_path], esi
+    mov edi, obj_fbuf
+    mov eax, 'SQOB'
+    stosd
+    push edi
+    xor eax, eax
+    mov ecx, 4
+    rep stosd
+    pop edi
+    mov ebx, [os_obj]
+    mov ebx, [ebx+OBJ_CLASS]
+    mov esi, [ebx+CLS_NAME]
+    push edi
+    mov ecx, 15
+.n:
+    lodsb
+    test al, al
+    jz .nd
+    stosb
+    loop .n
+.nd:
+    pop edi
+    add edi, 16
+    mov eax, ebx
+    call obj_nfields
+    mov [os_n], eax
+    stosb
+    xor ebx, ebx
+.f:
+    cmp ebx, [os_n]
+    jae .write
+    mov eax, [os_obj]
+    mov eax, [eax+OBJ_CLASS]
+    call obj_istext
+    jc .text
+    mov al, 0
+    stosb
+    mov eax, [os_obj]
+    mov eax, [eax+OBJ_FIELD0+ebx*4]
+    stosd
+    jmp .nx
+.text:
+    mov al, 1
+    stosb
+    mov esi, [os_obj]
+    mov esi, [esi+OBJ_FIELD0+ebx*4]
+    mov edx, edi                ; the length byte
+    inc edi
+    xor ecx, ecx
+    test esi, esi
+    jz .tend
+.tl:
+    cmp ecx, OBJ_TEXTMAX
+    jae .tend
+    lodsb
+    test al, al
+    jz .tend
+    stosb
+    inc ecx
+    jmp .tl
+.tend:
+    mov [edx], cl
+.nx:
+    inc ebx
+    jmp .f
+.write:
+    sub edi, obj_fbuf
+    mov [os_len], edi
+    cmp byte [fs_mounted], 0
+    je .no
+    mov esi, [os_path]
+    mov ecx, O_CREATE|O_TRUNC
+    call fs_open
+    cmp eax, -1
+    je .no
+    mov ebx, eax
+    mov esi, obj_fbuf
+    mov ecx, [os_len]
+    call fs_write
+    mov edx, eax
+    call fs_close
+    cmp edx, [os_len]
+    jne .no
+    popad
+    clc
+    ret
+.no:
+    popad
+    stc
+    ret
+
+; esi = path -> eax = a new object read from it, CF clear; or CF set if
+; the file is missing or malformed, its class is not recorded or has
+; another number of fields, or no slot is free.
+obj_load:
+    pushad
+    cmp byte [fs_mounted], 0
+    je .no
+    xor ecx, ecx
+    call fs_open
+    cmp eax, -1
+    je .no
+    mov ebx, eax
+    mov edi, obj_fbuf
+    mov ecx, OBJ_FMAX
+    call fs_read
+    mov edx, eax
+    call fs_close
+    cmp edx, 21
+    jl .no
+    add edx, obj_fbuf
+    mov [os_end], edx
+    cmp dword [obj_fbuf], 'SQOB'
+    jne .no
+    mov byte [obj_fbuf+19], 0
+    xor ecx, ecx
+.c:
+    cmp ecx, [obj_ncls]
+    jae .no
+    mov edi, [obj_classes+ecx*4]
+    mov edi, [edi+CLS_NAME]
+    mov esi, obj_fbuf+4
+    call streq
+    je .found
+    inc ecx
+    jmp .c
+.found:
+    mov ebx, [obj_classes+ecx*4]
+    mov eax, ebx
+    call obj_nfields
+    movzx edx, byte [obj_fbuf+20]
+    cmp eax, edx
+    jne .no
+    mov [os_n], eax
+    mov eax, ebx
+    call obj_new
+    test eax, eax
+    jz .no
+    mov [os_obj], eax
+    mov esi, obj_fbuf+21
+    xor ebx, ebx
+.f:
+    cmp ebx, [os_n]
+    jae .ok
+    cmp esi, [os_end]
+    jae .bad
+    lodsb
+    cmp al, 1
+    je .tx
+    test al, al
+    jne .bad
+    lea eax, [esi+4]
+    cmp eax, [os_end]
+    ja .bad
+    lodsd
+    mov ecx, eax
+    jmp .set
+.tx:
+    cmp esi, [os_end]
+    jae .bad
+    movzx ecx, byte [esi]
+    inc esi
+    cmp ecx, OBJ_TEXTMAX
+    ja .bad
+    lea eax, [esi+ecx]
+    cmp eax, [os_end]
+    ja .bad
+    call obj_intern
+    jc .bad
+    mov ecx, eax
+.set:
+    mov eax, [os_obj]
+    call obj_set
+    inc ebx
+    jmp .f
+.ok:
+    mov eax, [os_obj]
+    mov [esp+28], eax           ; popad's eax
+    popad
+    clc
+    ret
+.bad:
+    mov eax, [os_obj]
+    call obj_free
+.no:
+    popad
+    mov eax, -1
+    stc
+    ret
+
+; esi = text, ecx = its length (at most OBJ_TEXTMAX) -> eax = the same text
+; in the object text pool, which keeps one copy of each; esi moves past it.
+; CF set when the pool is full.
+obj_intern:
+    push ecx
+    push edx
+    push edi
+    mov edi, obj_tmp
+    rep movsb
+    mov byte [edi], 0
+    mov edx, obj_pool
+.s:
+    cmp edx, [obj_poolp]
+    jae .add
+    push esi
+    mov esi, obj_tmp
+    mov edi, edx
+    call streq
+    pop esi
+    je .hit
+.sk:
+    inc edx
+    cmp byte [edx-1], 0
+    jne .sk
+    jmp .s
+.hit:
+    mov eax, edx
+    clc
+    jmp .out
+.add:
+    push esi
+    mov esi, obj_tmp
+    call strlen                 ; eax = length
+    pop esi
+    mov edx, [obj_poolp]
+    lea ecx, [edx+eax+1]
+    cmp ecx, obj_pool + OBJ_POOL
+    ja .full
+    push esi
+    mov esi, obj_tmp
+    mov edi, edx
+    lea ecx, [eax+1]
+    rep movsb
+    pop esi
+    mov [obj_poolp], edi
+    mov eax, edx
+    clc
+    jmp .out
+.full:
+    stc
+.out:
+    pop edi
+    pop edx
+    pop ecx
+    ret
+
 ; ---------- objtest ----------
 ; Shape: name -> "shape", area -> 0, describe -> 100 + (area sent to self).
 ; Square under Shape overrides area only: ebx * ebx.
 
 ot_shape:
-    dd ot_n_shape, 0, ot_shape_m, ot_shape_f
+    dd ot_n_shape, 0, ot_shape_m, ot_shape_f, 0
 ot_square:
-    dd ot_n_square, ot_shape, ot_square_m, ot_square_f
+    dd ot_n_square, ot_shape, ot_square_m, ot_square_f, 1  ; colour is text
+ot_ghost:                       ; never recorded: its file must not load
+    dd ot_n_ghost, 0, ot_ghost_m, 0, 0
+ot_ghost_m:
+    dd 0
 ot_shape_m:
     dd ot_s_name, ot_shape_name
     dd ot_s_area, ot_shape_area
@@ -513,15 +803,122 @@ cmd_objtest_run:
 .fr4:
     mov esi, ot_fpass
     cmp byte [ot_ok], 1
-    je .say
+    je .fsay
     mov esi, ot_ffail
-    jmp .say
+.fsay:
+    call puts
+    jmp ot_storetest
 .fail:
     mov esi, ot_fail
 .say:
     jmp puts
 
+; 1.8.0: a square saved, freed and loaded back; a Ghost's file refused
+ot_storetest:
+    mov byte [ot_ok], 1
+    mov eax, ot_square
+    call obj_new
+    test eax, eax
+    jz .bad
+    mov [ot_sq], eax
+    mov esi, ot_s_resize
+    mov ebx, 5
+    call obj_send
+    mov eax, [ot_sq]
+    mov ebx, 1
+    mov ecx, ot_red
+    call obj_set                ; colour: text
+    mov eax, [ot_sq]
+    mov esi, ot_file
+    call obj_save
+    jc .bad
+    mov eax, [ot_sq]
+    call obj_free
+    mov esi, ot_file
+    call obj_load
+    jc .bad
+    mov [ot_sq], eax
+    mov esi, ot_s_perimeter
+    call obj_send
+    cmp eax, 20
+    jne .badf
+    mov eax, ot_square          ; a second file, loaded over the first's
+    call obj_new                ; read buffer: the first keeps its text
+    test eax, eax
+    jz .badf
+    mov ebx, 1
+    mov ecx, ot_blue
+    call obj_set
+    mov esi, ot_bfile
+    call obj_save
+    pushf
+    call obj_free
+    popf
+    jc .badf
+    mov esi, ot_bfile
+    call obj_load
+    jc .badf
+    mov ebx, 1
+    push eax
+    call obj_get
+    mov esi, eax
+    mov edi, ot_blue
+    call streq
+    pop eax
+    pushf
+    call obj_free
+    popf
+    jne .badf
+    mov eax, [ot_sq]
+    mov ebx, 1
+    call obj_get
+    cmp eax, ot_red
+    je .badf                    ; must be a copy of the text, not the address
+    mov esi, eax
+    mov edi, ot_red
+    call streq
+    jne .badf
+    mov eax, [ot_sq]
+    call obj_free
+    mov eax, ot_ghost
+    call obj_new
+    test eax, eax
+    jz .bad
+    mov [ot_sh], eax
+    mov esi, ot_gfile
+    call obj_save
+    pushf
+    mov eax, [ot_sh]
+    call obj_free
+    popf
+    jc .bad
+    mov esi, ot_gfile
+    call obj_load
+    jc .say
+    call obj_free
+    jmp .bad
+.badf:
+    mov eax, [ot_sq]
+    call obj_free
+.bad:
+    mov byte [ot_ok], 0
+.say:
+    mov esi, ot_spass
+    cmp byte [ot_ok], 1
+    je .p
+    mov esi, ot_sfail
+.p:
+    jmp puts
+
 ot_n_shape db 'Shape', 0
+ot_n_ghost db 'Ghost', 0
+ot_red db 'red', 0
+ot_file db 'objtest.obj', 0
+ot_gfile db 'ghost.obj', 0
+ot_blue db 'blue', 0
+ot_bfile db 'blue.obj', 0
+ot_spass db 'obj store: PASS', 10, 0
+ot_sfail db 'obj store: FAIL', 10, 0
 ot_n_square db 'Square', 0
 ot_s_name db 'name', 0
 ot_s_area db 'area', 0
@@ -547,5 +944,14 @@ ot_sh dd 0
 ot_ok db 0
 align 4
 obj_ncls dd 0
+os_obj dd 0
+os_path dd 0
+os_n dd 0
+os_len dd 0
+os_end dd 0
+obj_poolp dd obj_pool
+obj_fbuf times OBJ_FMAX db 0
+obj_tmp times OBJ_TEXTMAX + 1 db 0
+obj_pool times OBJ_POOL db 0
 obj_classes times OBJ_CLASSMAX dd 0
 obj_table times OBJ_MAX * OBJ_SIZE db 0
