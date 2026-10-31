@@ -112,6 +112,7 @@ This avoids retargeting chains and confirmation steps.
 | 1.6.4   | 2026-10-31 | Desktop: edit and vedit in windows   |
 | 1.6.5   | 2026-10-31 | Pixel drawing in draw                |
 | 1.7.0   | 2026-10-31 | Objects: classes and messages        |
+| 1.7.1   | 2026-10-31 | Objects: instance fields             |
 
 ## Next planned release
 

@@ -207,7 +207,7 @@ Split from `documentation/plannedmilestones.md` once 1.6 was on `main`. Work top
 
 - [x] **1.7-class** — Classes and messages: a class has a name, a parent and a method table; an object points at its class; sending a message looks the selector up in the class and then up the parent chain. Kernel routines `obj_class`, `obj_new`, `obj_send` (`kernel/object.asm`). No desktop objects in this PR.
   **Acceptance:** a test command `objtest` defines `Shape` with `name` and `area`, and `Square` under it overriding only `area`; sending `name` to a square runs the inherited method, `area` runs the override, and an unknown selector returns an error instead of crashing. It prints `obj: PASS` and a regression check expects it.
-- [ ] **1.7-fields** — Instance fields: a class lists its fields by name after its parent's, so a subclass keeps the parent's layout. `obj_get` / `obj_set` by field index, and a lookup by name.
+- [x] **1.7-fields** — Instance fields: a class lists its fields by name after its parent's, so a subclass keeps the parent's layout. `obj_get` / `obj_set` by field index, and a lookup by name.
   **Acceptance:** `objtest` sets a field through the parent's method and reads it through the subclass's; it prints `obj fields: PASS` and a regression check expects it.
 - [ ] **1.7-objs** — A shell command `objs` that lists the classes with their parents and the live objects with their classes. Objects are freed with `obj_free`, and the count goes back down.
   **Acceptance:** a check reads the class tree off the screen, and `mem` shows the same free memory before and after `objtest`.
