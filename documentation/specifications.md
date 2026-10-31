@@ -149,6 +149,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - `SYS_SEEK` (25) moves a file descriptor's position within the file (`kernel/filesystem.md`; `seek`). The "No seek" limitation of 0.9.3 is gone; 26 system calls (0–25).
 
+## 1.0.3
+
+- `SYS_FSERROR` (26) tells a program why its last file call failed, in the words the shell prints (`kernel/filesystem.md`; `errno-*`). 27 system calls (0–26).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.

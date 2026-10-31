@@ -1162,6 +1162,42 @@ fs_why:
     mov esi, [lstr+LS_NOTFOUND*4]
     jmp lputs_nl
 
+; SYS_FSERROR (1.0.3): ebx = buffer, ecx = its size -> eax = fs_errno; the
+; buffer gets the same words the shell prints for it, without the newline
+fs_error_text:
+    push esi
+    push edi
+    push ecx
+    mov edi, ebx
+    movzx eax, byte [fs_errno]
+    mov esi, [fs_errmsg+eax*4]
+    cmp eax, FE_NOTFOUND
+    jne .copy
+    mov esi, [lstr+LS_NOTFOUND*4]
+.copy:
+    test ecx, ecx
+    jz .out
+    dec ecx                     ; room for the terminating zero
+.c:
+    jecxz .end
+    mov dl, [esi]
+    test dl, dl
+    jz .end
+    cmp dl, 10
+    je .end
+    mov [edi], dl
+    inc esi
+    inc edi
+    dec ecx
+    jmp .c
+.end:
+    mov byte [edi], 0
+.out:
+    pop ecx
+    pop edi
+    pop esi
+    ret
+
 ; Most commands need a mounted FS
 fs_need:
     cmp byte [fs_mounted], 0

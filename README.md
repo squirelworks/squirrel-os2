@@ -43,4 +43,4 @@ See `documentation/README.md` for the living documentation set.
 
 **1.0.0** — the usable minimal system: file system, browser, `edit`, `vedit`, `draw`, `calc`, `sci`, `matrix`.  
 Build and run with `tools/build.sh` and `tools/run.sh` (`documentation/guides/getting-started.md`).  
-Notes: `documentation/releases/1.0.0.md` (patches: `1.0.1.md`, `1.0.2.md`). Limits: `documentation/specifications.md`. What to do next: [TODO.md](TODO.md).
+Notes: `documentation/releases/1.0.0.md` (patches: `1.0.1.md`, `1.0.2.md`, `1.0.3.md`). Limits: `documentation/specifications.md`. What to do next: [TODO.md](TODO.md).

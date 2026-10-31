@@ -61,7 +61,7 @@ Each item is its own patch release after 1.0.0 (its own release note). Independe
   `documentation/kernel/filesystem.md` lists "no seek" as a limit. Reads and writes stay sequential apart from this call.
   **Acceptance:** a program writes `abcd`, seeks to the second byte, reads `bcd`, and prints `seek: PASS`. A `tools/regress.sh` check expects that string. The filesystem note describes the call and drops the "no seek" limit.
 
-- [ ] **1.0-errno** — Let a program read why a file call failed.
+- [x] **1.0-errno** — Let a program read why a file call failed.
   Syscalls return −1. The shell prints the reason via `fs_why` (`Not found` is the localized string, not the `error` slot in `fs_errmsg`).
   **Acceptance:** a user program opens a missing name and prints `Not found`, the same words `cat missing` prints. A regression check covers it. `SYS_OPEN` of a directory prints the same reason the shell prints (`Is a directory`). Design note updated.
 
