@@ -100,6 +100,8 @@ pm:
 .whole:
     call fs_mount_boot
     call hist_load
+    sti                         ; autoexec.bat may run apps that need keys
+    call bat_autoexec
     call sh_prompt
     sti
 
@@ -364,7 +366,16 @@ run_simple:
     add ebx, 8
     jmp .rfind
 .rnone:
-    ; not built in: load it from the data disk (0.3.0 program loader)
+    ; a .bat file is queued as a batch script (0.5.2)
+    call strlen
+    cmp eax, 4
+    jbe .notbat
+    cmp dword [esi+eax-4], '.bat'
+    jne .notbat
+    call bat_start
+    jmp .empty
+.notbat:
+    ; not built in: load it from the data disk (0.4.0 program loader)
     mov ebx, esi
     mov ecx, [run_rest]
     mov eax, SYS_EXEC
@@ -698,12 +709,14 @@ cmd_mk db 'mk ', 0
 cmd_rm db 'rm ', 0
 cmd_mv db 'mv ', 0
 cmd_echo db 'echo ', 0
+cmd_batch db 'batch ', 0
 arg_cmds:
     dd cmd_put, cmd_put_run
     dd cmd_mk, cmd_mk_run
     dd cmd_rm, cmd_rm_run
     dd cmd_mv, cmd_mv_run
     dd cmd_echo, cmd_echo_run
+    dd cmd_batch, cmd_batch_run
     dd 0, 0
 cmd_disk db 'disk', 0
 cmd_blktest db 'blktest', 0
@@ -888,6 +901,7 @@ exc_at db ' at EIP 0x', 0
 %include "fs.asm"
 %include "shell.asm"
 %include "lineedit.asm"
+%include "batch.asm"
 %include "browser.asm"
 %include "calc.asm"
 %include "editor.asm"

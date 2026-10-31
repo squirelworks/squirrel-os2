@@ -35,4 +35,5 @@ Documentation is active.
 - 0.3.4 scientific and matrix calculators (`apps/calculators.md`, `releases/0.3.4.md`)
 - 0.5.0 pipes and redirection (`kernel/shell.md`, `releases/0.5.0.md`)
 - 0.5.1 line editing and command history (`kernel/shell.md`, `releases/0.5.1.md`)
-- Next: 0.5.2 batch files, then 0.6.x–0.8.x
+- 0.5.2 batch files (`kernel/shell.md`, `releases/0.5.2.md`)
+- Next: 0.6.x memory management, then 0.7.x–0.8.x

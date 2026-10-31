@@ -1,4 +1,4 @@
-# Physical Memory Map (as of 0.5.1)
+# Physical Memory Map (as of 0.5.2)
 
 | Range | Use |
 |-------|-----|
@@ -28,6 +28,7 @@ Scratch layout inside `KSCRATCH`:
 | `0x1800` | 256 | `cat` buffer |
 | `0x2000` | 2048 | `fstest` pattern buffers |
 | `0x2800` | 2048 | Shell history: 16 lines × 128 bytes (0.5.1) |
+| `0x3000` | 4096 | Batch script text (0.5.2) |
 | `0x4000` | 16384 | Editor text buffer (`edit`/`vedit`) |
 | `0x8000` | 1152 | `draw` canvas (64 × 18) |
 | `0x9000` | 20480 | `draw` flood-fill stack |

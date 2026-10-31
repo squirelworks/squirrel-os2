@@ -97,7 +97,7 @@ This is a natural end-of-day point. Next session can resume at either:
 ### 0.5.x — Shell & command environment
 - **0.5.0** — Pipes and redirection (done — `|`, `>`, `>>`, `<`, `echo`; `kernel/shell.md`)
 - **0.5.1** — Command history and line editing (done — arrows, Home/End, Delete, Esc, 16-line history in `shell.hist`; kernel image grows to 64 KB)
-- **0.5.2** — Batch files run line by line
+- **0.5.2** — Batch files run line by line (done — `batch <file>`, `run x.bat`, `#` comments, `@` quiet lines, Esc stops, `autoexec.bat` at boot)
 
 ### 0.6.x — Memory management
 - **0.6.0** — Physical page allocator with free lists
