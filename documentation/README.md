@@ -55,4 +55,5 @@ Documentation is active.
 - 1.0.5 shell usage lines and file-system errors localized (`releases/1.0.5.md`, `kernel/localization.md`)
 - 1.0.6 calc, edit and draw titles follow `lang` (`releases/1.0.6.md`, `kernel/localization.md`)
 - 1.0.7 numerical derivatives in `diff` (`releases/1.0.7.md`, `apps/calculators.md`)
+- 1.0.8 numerical integrals in `diff` (`releases/1.0.8.md`, `apps/calculators.md`)
 - Next: 1.0.x patch releases, then 1.1 preemption (`../ROADMAP.md`, tasks in `../TODO.md`)
