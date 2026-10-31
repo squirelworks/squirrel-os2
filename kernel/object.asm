@@ -192,6 +192,97 @@ obj_new:
     pop ecx
     ret
 
+; eax = object -> CF set if it is not a live object in the table (1.7.3).
+; Its slot is free for obj_new again.
+obj_free:
+    push eax
+    sub eax, obj_table
+    jb .bad
+    cmp eax, OBJ_MAX * OBJ_SIZE
+    jae .bad
+    test eax, OBJ_SIZE - 1
+    jnz .bad
+    pop eax
+    cmp dword [eax+OBJ_CLASS], 0
+    je .bad2
+    mov dword [eax+OBJ_CLASS], 0
+    clc
+    ret
+.bad:
+    pop eax
+.bad2:
+    stc
+    ret
+
+; objs: the classes with their parents, then the live objects (1.7.3)
+cmd_objs_run:
+    mov esi, os_classes
+    call puts
+    xor ecx, ecx
+.c:
+    cmp ecx, [obj_ncls]
+    jae .objs
+    mov edi, [obj_classes+ecx*4]
+    mov esi, os_indent
+    call puts
+    mov esi, [edi+CLS_NAME]
+    call puts
+    mov edi, [edi+CLS_PARENT]
+    test edi, edi
+    jz .cn
+    mov esi, os_under
+    call puts
+    mov esi, [edi+CLS_NAME]
+    call puts
+.cn:
+    mov al, 10
+    call putc
+    inc ecx
+    jmp .c
+.objs:
+    mov esi, os_objects
+    call puts
+    xor ecx, ecx                ; slot
+    xor edx, edx                ; live ones
+.o:
+    cmp ecx, OBJ_MAX
+    jae .count
+    mov edi, ecx
+    imul edi, OBJ_SIZE
+    add edi, obj_table
+    mov edi, [edi+OBJ_CLASS]
+    test edi, edi
+    jz .on
+    inc edx
+    mov esi, os_indent
+    call puts
+    mov eax, ecx
+    push ecx
+    push edx
+    push edi
+    call itoa                   ; (uses edi)
+    pop edi
+    pop edx
+    pop ecx
+    mov esi, num_buf
+    call puts
+    mov esi, os_colon
+    call puts
+    mov esi, [edi+CLS_NAME]
+    call puts
+    mov al, 10
+    call putc
+.on:
+    inc ecx
+    jmp .o
+.count:
+    mov eax, edx
+    call itoa
+    mov esi, num_buf
+    call puts
+    mov esi, os_live
+    jmp puts
+
 ; eax = object, esi = selector; ebx, ecx, edx are the arguments.
 ; The method runs with eax = the object (self) and the arguments as given;
 ; what it returns in eax comes back. CF set and eax = -1 when no class in
@@ -405,10 +496,21 @@ cmd_objtest_run:
 .f5bad:
     mov byte [ot_ok], 0
 .f6:
-    mov eax, [ot_sq]            ; give the slots back
-    mov dword [eax+OBJ_CLASS], 0
+    mov eax, [ot_sq]            ; give the slots back (1.7.3: obj_free)
+    call obj_free
+    jnc .fr2
+    mov byte [ot_ok], 0
+.fr2:
     mov eax, [ot_sh]
-    mov dword [eax+OBJ_CLASS], 0
+    call obj_free
+    jnc .fr3
+    mov byte [ot_ok], 0
+.fr3:
+    mov eax, [ot_sh]            ; a second free is refused
+    call obj_free
+    jc .fr4
+    mov byte [ot_ok], 0
+.fr4:
     mov esi, ot_fpass
     cmp byte [ot_ok], 1
     je .say
@@ -429,6 +531,12 @@ ot_s_resize db 'resize', 0
 ot_s_perimeter db 'perimeter', 0
 ot_f_size db 'size', 0
 ot_f_colour db 'colour', 0
+os_classes db 'Classes:', 10, 0
+os_objects db 'Objects:', 10, 0
+os_indent db '  ', 0
+os_under db ' < ', 0
+os_colon db ': ', 0
+os_live db ' live', 10, 0
 ot_pass db 'obj: PASS', 10, 0
 ot_fail db 'obj: FAIL', 10, 0
 ot_fpass db 'obj fields: PASS', 10, 0
