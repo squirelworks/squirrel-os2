@@ -332,6 +332,26 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - A network layer with a loopback interface: frames of 1 to 1514 bytes, 8 waiting per interface, one page each while queued (`kernel/network.md`; `nettest`, `nettest-mem`).
 
+## 1.9.4
+
+- An NE2000 card on the ISA bus at I/O 0x300, polled, with no IRQ handler: a receive ring of 58 pages of 256 bytes and one transmit buffer, on the card. `devices` lists it as `ne0` with its MAC address (`kernel/network.md`; `nic-devices`, `nic-absent`, `nic-test`).
+
+## 1.9.5
+
+- Ethernet framing and ARP. The guest address is 10.0.2.15. `arp <ip>` prints the Ethernet address from a table of eight, or `No reply` after two seconds (`kernel/network.md`; `arp-gw`, `arp-self`, `arp-none`, `arp-bad`, `arp-nonic`).
+
+## 1.9.6
+
+- IPv4 with a 20-byte header, no options and no fragments. The guest is 10.0.2.15/24, gateway 10.0.2.2. `ping <ip>` sends four ICMP echoes and prints how many replies came back. 127.0.0.1 stays on loopback (`kernel/network.md`; `ping-lo`, `ping-gw`, `ping-bad`).
+
+## 1.9.7
+
+- UDP. `net_sendto` (30) and `net_recvfrom` (31) share four sockets; a port already bound to another process is refused. A datagram is at most 256 bytes. `run udptest` sends one to 127.0.0.1 and reads it back (`kernel/network.md`, `kernel/syscalls.md`; `udp`).
+
+## 1.9.8
+
+- One TCP connection: connect, send, receive and close. Data is accepted in order, and a segment is sent again once when nothing comes back. `fetch <ip> <port> <path>` prints the HTTP/1.0 reply (`kernel/network.md`; `fetch-hello`).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.

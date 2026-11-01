@@ -170,7 +170,12 @@ cmd_nettest_run:
     je .p
     mov esi, nt_fail
 .p:
-    jmp puts
+    call puts
+    cmp byte [ne_up], 0         ; 1.9.4: and the card, when there is one
+    je .nonic
+    jmp ne_selftest
+.nonic:
+    ret
 
 ; ebp = frame number, ecx = length: nt_out[i] = i * 7 + frame number * 31
 nt_fill:

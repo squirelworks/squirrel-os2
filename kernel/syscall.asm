@@ -36,7 +36,9 @@ SYS_FSERROR equ 26          ; ebx = buf, ecx = size -> why the last file call fa
 SYS_SEND    equ 27          ; ebx = pid, ecx = message dword -> 0, -1 no such process, -2 queue full (1.2)
 SYS_RECV    equ 28          ; -> the oldest message in the caller's queue; waits while it is empty (1.2)
 SYS_KEYEVENTS equ 29        ; ebx = 1 on / 0 off: keys also arrive as MSG_KEY | ASCII messages (1.2.1)
-SYS_COUNT   equ 30
+SYS_NETSENDTO equ 30        ; ebx = block -> bytes, or -1 (1.9.7)
+SYS_NETRECVFROM equ 31      ; ebx = block -> bytes, -1 port taken, -2 nothing (1.9.7)
+SYS_COUNT   equ 32
 
 SYS_ENOSYS  equ -1
 SYSCALL_VEC equ 0x80
@@ -93,6 +95,8 @@ syscall_table:
     dd sys_send
     dd sys_recv
     dd sys_keyevents
+    dd sys_netsendto
+    dd sys_netrecvfrom
 
 ; ---------- handlers: args in ebx/ecx/edx, result in eax ----------
 sys_putc:

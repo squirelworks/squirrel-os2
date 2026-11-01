@@ -46,3 +46,6 @@ inst_fail=defecit
 inst_done=Installatum. Discum emissionis remove et computatrum iterum incipe.
 inst_failed=Installatio constitit. Discus destinatus fortasse imperfectus est.
 inst_anykey=Preme clavem quamlibet.
+net_noreply=Nullum responsum
+net_badaddr=Inscriptio mala
+net_of4= ex 4
