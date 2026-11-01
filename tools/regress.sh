@@ -464,7 +464,7 @@ check dk-rename-esc 'gfx: notes' \
                    desktop '<ret>' '<pause>' '<down>' '<down>' r '<backspace>' x '<esc>' '<pause>' '<gfx>'
 check dk-delete-ask 'gfx: Delete notes? y: yes' desktop '<ret>' '<pause>' '<down>' '<down>' '<delete>' '<pause>' '<gfx>'
 check dk-delete-no  'gfx: notes'            desktop '<ret>' '<pause>' '<down>' '<down>' '<delete>' n '<pause>' '<gfx>'
-check_none dk-delete 'edit.obj' 'calc.obj' \
+check_none dk-delete "${nl}edit.obj" 'calc.obj' \
                    desktop '<ret>' '<pause>' '<down>' '<down>' '<delete>' y '<pause>' '<esc>' 'ls /desktop' '<ret>'
 check dk-delete-full 'gfx: Not empty' \
                    desktop '<ret>' '<pause>' '<down>' m '<down>' '<down>' '<down>' '<ret>' '<pause>' p '<backspace>' '<pause>' '<down>' '<down>' '<down>' '<delete>' '<pause>' '<gfx>'
