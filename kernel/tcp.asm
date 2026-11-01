@@ -528,12 +528,28 @@ cmd_fetch_run:
     call tcp_close
     cmp dword [tcp_len], 0
     je .none
-    mov eax, [tcp_len]
-    cmp eax, TCP_BUF
-    jb .term
-    mov eax, TCP_BUF - 1
+    mov esi, tcp_buf
+    mov edi, tcp_buf
+    mov ecx, [tcp_len]
+    cmp ecx, TCP_BUF
+    jb .cr
+    mov ecx, TCP_BUF
+.cr:
+    mov al, [esi]
+    inc esi
+    cmp al, 13                  ; HTTP ends lines with CR LF
+    je .crnext
+    stosb
+.crnext:
+    loop .cr
+    cmp edi, tcp_buf
+    je .none
+    cmp byte [edi - 1], 10
+    je .term
+    mov byte [edi], 10
+    inc edi
 .term:
-    mov byte [tcp_buf + eax], 0
+    mov byte [edi], 0
     mov esi, tcp_buf
     jmp puts
 .none_close:
