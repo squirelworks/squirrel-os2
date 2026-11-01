@@ -408,6 +408,9 @@ run_simple:
     mov edi, cmd_mousetest      ; 1.9.10
     call streq
     je .mousetest
+    mov edi, cmd_ifconfig       ; 1.9.11 bare
+    call streq
+    je .ifconfig
     mov edi, cmd_objs           ; 1.7.2
     call streq
     je .objs
@@ -632,6 +635,9 @@ run_simple:
     jmp .empty
 .mousetest:
     call cmd_mousetest_run
+    jmp .empty
+.ifconfig:
+    call cmd_ifconfig_show
     jmp .empty
 .objs:
     call cmd_objs_run
@@ -950,7 +956,7 @@ default_isr:
 
 ; ---------- data ----------
 banner db 'Squirrel-OS/2'          ; (the "help" file: the English banner)
-banner_rest db ' 1.9.10', 10  ; OS version: here only (see releases/PROCESS.md)
+banner_rest db ' 1.9.11', 10  ; OS version: here only (see releases/PROCESS.md)
        db 'Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>', 10
        db '          mv <f> <new> | mkdir <d> | cd <d> | pwd | echo | batch <f> | format', 10
        db '          ps | disk | mem | devices | lang <en|la|tlh> | desktop | install', 10
@@ -1084,6 +1090,7 @@ arg_cmds:
     dd cmd_arp, cmd_arp_run
     dd cmd_ping, cmd_ping_run
     dd cmd_fetch, cmd_fetch_run
+    dd cmd_ifconfig_arg, cmd_ifconfig_run
     dd 0, 0
 cmd_disk db 'disk', 0
 cmd_blktest db 'blktest', 0
@@ -1101,11 +1108,13 @@ cmd_drawpx db 'drawpx', 0
 cmd_objtest db 'objtest', 0
 cmd_nettest db 'nettest', 0
 cmd_mousetest db 'mousetest', 0
+cmd_ifconfig db 'ifconfig', 0
 cmd_objs db 'objs', 0
 cmd_objcat db 'objcat ', 0
 cmd_arp db 'arp ', 0
 cmd_ping db 'ping ', 0
 cmd_fetch db 'fetch ', 0
+cmd_ifconfig_arg db 'ifconfig ', 0
 cmd_desktop db 'desktop', 0
 cmd_proctest db 'proctest', 0
 proc_full db 'Too many processes', 10, 0

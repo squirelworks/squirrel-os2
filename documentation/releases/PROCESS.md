@@ -134,9 +134,10 @@ This avoids retargeting chains and confirmation steps.
 | 1.9.8   | 2026-11-01 | A small TCP client                   |
 | 1.9.9   | 2026-11-01 | Priority scheduling                  |
 | 1.9.10  | 2026-11-01 | Polled PS/2 mouse                    |
+| 1.9.11  | 2026-11-01 | Configurable network addresses       |
 
 ## Next planned release
 
-**1.9.11** — Configurable network addresses (Warp gaps in `../../TODO.md`). Then 1.9.12 run-time devices, and **2.0.0** once the owner says so.
+**1.9.12** — Devices registered at run time (Warp gaps in `../../TODO.md`). Then **2.0.0** once the owner says so.
 
 The forward plan and the PR-sized tasks are [`../../ROADMAP.md`](../../ROADMAP.md) and [`../../TODO.md`](../../TODO.md).

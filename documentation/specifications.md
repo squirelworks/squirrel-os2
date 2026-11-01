@@ -360,6 +360,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - A polled PS/2 mouse with a soft cursor on the desktop; a left click selects a list row and a second click opens it. `mousetest` prints `mouse: PASS` (`kernel/mouse.md`; `mousetest`).
 
+## 1.9.11
+
+- `ifconfig` shows and sets the guest inet address, mask and gateway; IPv4 routing uses the mask (`kernel/network.md`; `ifconfig`, `ifconfig-set`).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.

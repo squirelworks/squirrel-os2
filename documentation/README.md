@@ -103,4 +103,5 @@ Documentation is active.
 - 1.9.8 a small TCP client; `fetch <ip> <port> <path>` (`releases/1.9.8.md`, `kernel/network.md`)
 - 1.9.9 priority scheduling; `run priotest` (`releases/1.9.9.md`, `kernel/processes.md`)
 - 1.9.10 polled PS/2 mouse on the desktop; `mousetest` (`releases/1.9.10.md`, `kernel/mouse.md`)
-- Next: Warp gaps 1.9.11–1.9.12, then 2.0.0 once the owner says so (`../TODO.md`, `../ROADMAP.md`).
+- 1.9.11 `ifconfig` for inet / mask / gw (`releases/1.9.11.md`, `kernel/network.md`)
+- Next: Warp gap 1.9.12, then 2.0.0 once the owner says so (`../TODO.md`, `../ROADMAP.md`).

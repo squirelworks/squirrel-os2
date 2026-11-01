@@ -53,9 +53,11 @@ The shell command `arp <ip>` prints that address as `52:55:0a:00:02:02`, or `No 
 
 ## IPv4 and ping
 
-Since 1.9.6 `kernel/ip.asm` sends and receives IPv4. The header is 20 bytes: version 4, no options, and a fragment is dropped. The checksum covers the header only. The guest's network is 10.0.2.15 with mask 255.255.255.0 and gateway 10.0.2.2, which is QEMU's user network.
+Since 1.9.6 `kernel/ip.asm` sends and receives IPv4. The header is 20 bytes: version 4, no options, and a fragment is dropped. The checksum covers the header only. The guest's network defaults to 10.0.2.15 with mask 255.255.255.0 and gateway 10.0.2.2, which is QEMU's user network. Since 1.9.11 those three values are kept in `net_our_ip`, `net_netmask` and `net_gw_ip` and can be changed.
 
-`ip_output` chooses the wire. 127.0.0.0/8 and 10.0.2.15 itself go out on loopback, with 127.0.0.1 as the source when the destination is on 127.0.0.0/8. Another address in 10.0.2.0/24 is asked of ARP and sent on `ne0`. Anything else is sent to the gateway's Ethernet address, still addressed to the real destination. An address learned from a received frame is kept in the ARP table.
+`ip_output` chooses the wire. 127.0.0.0/8 and the guest's own address go out on loopback, with 127.0.0.1 as the source when the destination is on 127.0.0.0/8. Another address on the same network (matched with the mask) is asked of ARP and sent on `ne0`. Anything else is sent to the gateway's Ethernet address, still addressed to the real destination. An address learned from a received frame is kept in the ARP table.
+
+`ifconfig` prints `inet`, `mask` and `gw`. `ifconfig <ip> <mask> <gw>` sets them (checks `ifconfig`, `ifconfig-set`).
 
 ICMP echo (type 8) to us, or to 127.0.0.1, is answered with an echo reply (type 0). `ping <ip>` sends four requests, waits up to a second for each matching reply, and prints how many came back, as `4 of 4`. `ping 10.0.2.2` is the gateway. `ping 127.0.0.1` does not need the card (checks `ping-lo`, `ping-gw`, `ping-bad`).
 
