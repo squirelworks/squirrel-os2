@@ -49,7 +49,9 @@ LS_INST_FAIL equ 44
 LS_INST_DONE equ 45
 LS_INST_FAILED equ 46
 LS_INST_ANYKEY equ 47
-LS_COUNT equ 48
+LS_NET_NOREPLY equ 48
+LS_NET_BADADDR equ 49
+LS_COUNT equ 50
 LANG_COUNT equ 3
 
 align 4
@@ -107,6 +109,8 @@ ls_en:
     dd ls_en_inst_done
     dd ls_en_inst_failed
     dd ls_en_inst_anykey
+    dd ls_en_net_noreply
+    dd ls_en_net_badaddr
 ls_la:
     dd ls_la_banner
     dd ls_la_prompt
@@ -156,6 +160,8 @@ ls_la:
     dd ls_la_inst_done
     dd ls_la_inst_failed
     dd ls_la_inst_anykey
+    dd ls_la_net_noreply
+    dd ls_la_net_badaddr
 ls_tlh:
     dd ls_tlh_banner
     dd ls_tlh_prompt
@@ -205,6 +211,8 @@ ls_tlh:
     dd ls_tlh_inst_done
     dd ls_tlh_inst_failed
     dd ls_tlh_inst_anykey
+    dd ls_tlh_net_noreply
+    dd ls_tlh_net_badaddr
 ls_en_banner db 'Squirrel-OS/2', 0
 ls_en_prompt db '> ', 0
 ls_en_files db 'Files:', 0
@@ -253,6 +261,8 @@ ls_en_inst_fail db 'failed', 0
 ls_en_inst_done db 'Installed. Remove the release disk and restart the computer.', 0
 ls_en_inst_failed db 'The installation stopped. The target disk may be incomplete.', 0
 ls_en_inst_anykey db 'Press any key.', 0
+ls_en_net_noreply db 'No reply', 0
+ls_en_net_badaddr db 'Bad address', 0
 ls_la_banner db 'Sciurus-OS/2', 0
 ls_la_prompt db '> ', 0
 ls_la_files db 'Tabulae:', 0
@@ -301,6 +311,8 @@ ls_la_inst_fail db 'defecit', 0
 ls_la_inst_done db 'Installatum. Discum emissionis remove et computatrum iterum incipe.', 0
 ls_la_inst_failed db 'Installatio constitit. Discus destinatus fortasse imperfectus est.', 0
 ls_la_inst_anykey db 'Preme clavem quamlibet.', 0
+ls_la_net_noreply db 'Nullum responsum', 0
+ls_la_net_badaddr db 'Inscriptio mala', 0
 ls_tlh_banner db 'Squirrel-OS/2', 0
 ls_tlh_prompt db '> ', 0
 ls_tlh_files db "tebwI':", 0
@@ -349,3 +361,5 @@ ls_tlh_inst_fail db 'luj', 0
 ls_tlh_inst_done db "jompu'. Hap yIteq, De'wI' yItaghqa'.", 0
 ls_tlh_inst_failed db "jom mevpu'. Hap naQbe' net Sov.", 0
 ls_tlh_inst_anykey db 'leQ yIbach.', 0
+ls_tlh_net_noreply db "jang tu'lu'be'", 0
+ls_tlh_net_badaddr db 'ngoq QIH', 0

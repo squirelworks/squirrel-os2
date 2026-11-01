@@ -336,6 +336,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - An NE2000 card on the ISA bus at I/O 0x300, polled, with no IRQ handler: a receive ring of 58 pages of 256 bytes and one transmit buffer, on the card. `devices` lists it as `ne0` with its MAC address (`kernel/network.md`; `nic-devices`, `nic-absent`, `nic-test`).
 
+## 1.9.5
+
+- Ethernet framing and ARP. The guest address is 10.0.2.15. `arp <ip>` prints the Ethernet address from a table of eight, or `No reply` after two seconds (`kernel/network.md`; `arp-gw`, `arp-self`, `arp-none`, `arp-bad`, `arp-nonic`).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.

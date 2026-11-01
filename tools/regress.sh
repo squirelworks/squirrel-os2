@@ -436,7 +436,13 @@ check nic-absent    'ne0     net     absent' devices '<ret>'
 nic=1
 check nic-devices   'ne0     net     ready 52:54:00:12:34:56' devices '<ret>'
 check nic-test      'nic: PASS'             nettest '<ret>'
+# 1.9.5: ARP. The gateway answers; an address with nobody there does not.
+check arp-self      '52:54:00:12:34:56'     'arp 10.0.2.15' '<ret>'
+check arp-gw        '52:55:0a:00:02:02'     'arp 10.0.2.2' '<ret>' '<pause>'
+check arp-none      'No reply'              'arp 10.0.2.99' '<ret>' '<pause>' '<pause>' '<pause>'
+check arp-bad       'Bad address'           'arp nope' '<ret>'
 nic=
+check arp-nonic     'No reply'              'arp 10.0.2.2' '<ret>'
 # 1.8.2: objtest.obj outlives a reboot; objcat prints class and fields (no classes registered yet)
 check_all obj-persist 'class Square|0: 5|1: red' 'objcat objtest.obj' '<ret>'
 # 1.7.6: the desktop's entries are Program objects; Enter sends open (files too)
@@ -534,7 +540,7 @@ check ed-path-r     'deep'                  'cat e1/long-name.txt' '<ret>'
 check fb-dir        'in /e1'                'cd e1' '<ret>' 'run files' '<ret>'
 check fb-dir-up     '[app]'                 'cd e1' '<ret>' 'run files' '<ret>' '<ret>'
 # 0.9.3: release readiness
-check ver-banner    'Squirrel-OS/2 1.9.4'   systest '<ret>'
+check ver-banner    'Squirrel-OS/2 1.9.5'   systest '<ret>'
 check ver-planned   '(planned: topo)'  systest '<ret>'
 check calc-hist-root '1 + 1 = 2'            'mkdir c1' '<ret>' 'cd c1' '<ret>' 'run calc' '<ret>' '1 + 1' '<ret>' '<esc>' 'cat /calc.hist' '<ret>'
 boot="--floppy $out/floppy.img"
@@ -639,7 +645,7 @@ check l10n-hint-la  '(lineam tabulae addit)'  'lang la' '<ret>' put '<ret>'
 check l10n-fe-tlh   "tu'lu'pu'"             'lang tlh' '<ret>' 'mkdir t1' '<ret>' 'mkdir t1' '<ret>'
 check l10n-rm-tlh   "tu'lu'be'"             'lang tlh' '<ret>' 'rm nosuch' '<ret>'
 check lang-bad      'Unknown language (en la tlh)'  'lang fr' '<ret>'
-check lang-banner   'Sciurus-OS/2 1.9.4'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
+check lang-banner   'Sciurus-OS/2 1.9.5'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
 # 1.0.6: calc, edit and draw titles follow lang
 check l10n-calc-tlh "mI' De'wI' (Esc to exit)" 'lang tlh' '<ret>' 'run calc' '<ret>'
 check l10n-edit-tlh "ghItlhwI': (untitled)" 'lang tlh' '<ret>' 'run edit' '<ret>'

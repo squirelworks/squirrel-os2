@@ -46,3 +46,5 @@ inst_fail=failed
 inst_done=Installed. Remove the release disk and restart the computer.
 inst_failed=The installation stopped. The target disk may be incomplete.
 inst_anykey=Press any key.
+net_noreply=No reply
+net_badaddr=Bad address

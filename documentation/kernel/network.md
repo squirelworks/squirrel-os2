@@ -1,6 +1,6 @@
 # Network
 
-Since 1.9.3 the kernel has a small network layer: interfaces with a receive queue, and a loopback interface. It is the base for the 2.0 networking boxes in `../../TODO.md`. These are an NE2000 driver, ARP, IPv4 with ping, UDP for programs, and a small TCP client. The code is `kernel/net.asm`.
+Since 1.9.3 the kernel has a small network layer: interfaces with a receive queue, and a loopback interface. It is the base for the 2.0 networking boxes in `../../TODO.md`. These are an NE2000 driver, ARP, IPv4 with ping, UDP for programs, and a small TCP client. The code is `kernel/net.asm`, `kernel/ne2k.asm` and `kernel/arp.asm`.
 
 ## Interfaces
 
@@ -40,3 +40,13 @@ Since 1.9.4 `kernel/ne2k.asm` drives an NE2000 on the ISA bus at I/O 0x300, the 
 - **Receive filter**: frames to the card's own address, and broadcasts.
 
 `devices` lists the card as `ne0     net     ready 52:54:00:12:34:56`, or `absent` without one (checks `nic-devices`, `nic-absent`). With the card, `nettest` also sends an ARP request for 10.0.2.2 and waits up to two seconds for an ARP reply, which QEMU's user network sends. It then prints `nic: PASS`, or `nic: FAIL` (check `nic-test`).
+
+## Ethernet and ARP
+
+Since 1.9.5 the guest has the address 10.0.2.15, which is the address QEMU's user network gives a guest. `net_pump` polls the card and takes every waiting frame off `ne0` and off loopback. A frame whose type is ARP (bytes `08 06`) is handled; anything else is dropped until IPv4 arrives.
+
+An ARP frame is the 14-byte Ethernet header plus 28 bytes: Ethernet and IPv4, address lengths 6 and 4, then a request (`00 01`) or a reply (`00 02`), then the sender's Ethernet address and IP address and the target's. The kernel keeps eight of these in a table. A repeat of an address replaces its row; a ninth address replaces the oldest.
+
+`arp_resolve` returns the Ethernet address for an IP address. 10.0.2.15 is the card's own address and is not asked for. Any other address is looked up, and on a miss a broadcast request is sent and the card is polled for two seconds (200 ticks). The reply's sender is stored. No card, or no reply, is a failure.
+
+The shell command `arp <ip>` prints that address as `52:55:0a:00:02:02`, or `No reply`, or `Bad address` when the text is not four numbers. `arp 10.0.2.2` is the gateway QEMU answers, whose address is `52:55:0a:00:02:02` (checks `arp-gw`, `arp-self`, `arp-none`, `arp-bad`, `arp-nonic`). A request for our own address is answered, so the gateway can find us later.

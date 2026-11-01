@@ -244,7 +244,7 @@ Split from `ROADMAP.md` once 1.9 was on `main`. Original code. The card is the N
   **Acceptance:** `nettest` prints `net: PASS`; with the queue made one frame long, it prints FAIL. Checks `nettest`, `nettest-mem`.
 - [x] **2.0-nic** — An NE2000 driver behind the same interface. `devices` lists the card with its MAC address. Frames are sent and received by polling, with no IRQ handler.
   **Acceptance:** with the card attached (a `--nic` option for `tools/qemu_screen.py`), `devices` shows `52:54:00:12:34:56`; without a card, nothing changes and every existing check passes. Checks `nic-absent`, `nic-devices`, `nic-test`.
-- [ ] **2.0-arp** — Ethernet framing and ARP over the card, with the guest at 10.0.2.15 and a small ARP table. A shell command `arp <ip>` asks for an address and prints the answer.
+- [x] **2.0-arp** — Ethernet framing and ARP over the card, with the guest at 10.0.2.15 and a small ARP table. A shell command `arp <ip>` asks for an address and prints the answer.
   **Acceptance:** `arp 10.0.2.2` prints the gateway's MAC `52:55:0a:00:02:02`, and an address nobody answers times out with a message.
 - [ ] **2.0-ping** — IPv4 (no fragments, no options) and ICMP echo. A shell command `ping <ip>` sends four requests and counts the replies.
   **Acceptance:** `ping 10.0.2.2` reports 4 of 4 replies, and a ping to 127.0.0.1 goes over loopback.

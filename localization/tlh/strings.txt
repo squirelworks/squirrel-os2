@@ -46,3 +46,5 @@ inst_fail=luj
 inst_done=jompu'. Hap yIteq, De'wI' yItaghqa'.
 inst_failed=jom mevpu'. Hap naQbe' net Sov.
 inst_anykey=leQ yIbach.
+net_noreply=jang tu'lu'be'
+net_badaddr=ngoq QIH
