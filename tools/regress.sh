@@ -13,11 +13,11 @@ cat "$out/boot.bin" "$out/pm.bin" > "$out/os.img"
 dd if=/dev/zero of="$out/floppy.img" bs=1024 count=1440 2>/dev/null
 dd if="$out/os.img" of="$out/floppy.img" conv=notrunc 2>/dev/null
 python3 "$root/tools/mkiso.py" "$out/floppy.img" "$out/cd.iso"    # installer I.6
-for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest; do
+for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest; do
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
 done
 python3 "$root/tools/sqfs.py" "$out/progs.img" format 1024
-for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
+for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
 printf 'one two\nthree\n' > "$out/notes"
 python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/notes"
 printf '2 + 3\n6 * 7\n' > "$out/exprs"
@@ -551,7 +551,7 @@ check ed-path-r     'deep'                  'cat e1/long-name.txt' '<ret>'
 check fb-dir        'in /e1'                'cd e1' '<ret>' 'run files' '<ret>'
 check fb-dir-up     '[app]'                 'cd e1' '<ret>' 'run files' '<ret>' '<ret>'
 # 0.9.3: release readiness
-check ver-banner    'Squirrel-OS/2 1.9.11'  systest '<ret>'
+check ver-banner    'Squirrel-OS/2 1.9.12'  systest '<ret>'
 check ver-planned   '(planned: topo)'  systest '<ret>'
 check calc-hist-root '1 + 1 = 2'            'mkdir c1' '<ret>' 'cd c1' '<ret>' 'run calc' '<ret>' '1 + 1' '<ret>' '<esc>' 'cat /calc.hist' '<ret>'
 boot="--floppy $out/floppy.img"
@@ -598,7 +598,7 @@ check seek          'seek: PASS'            'run seek' '<ret>' '<pause>'
 check devices       'hd1     block   ready 2048 sectors'  devices '<ret>'
 check devices-ro    '(read-only for programs)'  devices '<ret>'
 check devtest       'devtest: PASS'         'run devtest' '<ret>'
-check up-ls         '27 file(s)'             'run ls' '<ret>'
+check up-ls         '28 file(s)'             'run ls' '<ret>'
 # 1.2.1: a key arrives as a queue event as well as through SYS_GETC
 check_all keyev     'keyev: queue q getc q|keyev: PASS'  'run keyev' '<ret>' '<pause>' q '<pause>'
 check_all keyev-shift 'keyev: queue Q getc Q|keyev: PASS'  'run keyev' '<ret>' '<pause>' Q '<pause>'
@@ -658,7 +658,7 @@ check l10n-hint-la  '(lineam tabulae addit)'  'lang la' '<ret>' put '<ret>'
 check l10n-fe-tlh   "tu'lu'pu'"             'lang tlh' '<ret>' 'mkdir t1' '<ret>' 'mkdir t1' '<ret>'
 check l10n-rm-tlh   "tu'lu'be'"             'lang tlh' '<ret>' 'rm nosuch' '<ret>'
 check lang-bad      'Unknown language (en la tlh)'  'lang fr' '<ret>'
-check lang-banner   'Sciurus-OS/2 1.9.11'   'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
+check lang-banner   'Sciurus-OS/2 1.9.12'   'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
 # 1.9.9: higher priority keeps a lower-priority child from running
 check prio          'prio: PASS'            'run priotest' '<ret>' '<pause>'
 # 1.9.10: polled mouse sees motion from the QEMU monitor
@@ -666,6 +666,9 @@ check mousetest     'mouse: PASS'           mousetest '<ret>' '<pause>' '<mouse-
 # 1.9.11: show and set the guest address
 check ifconfig      'inet 10.0.2.15'        ifconfig '<ret>'
 check_all ifconfig-set 'inet 10.0.2.20|mask 255.255.255.0|gw 10.0.2.2' 'ifconfig 10.0.2.20 255.255.255.0 10.0.2.2' '<ret>'
+# 1.9.12: register a null device at run time
+check drv           'drv: PASS'             'run drvtest' '<ret>'
+check drv-devices   'null    char    ready' 'run drvtest' '<ret>' devices '<ret>'
 # 1.0.6: calc, edit and draw titles follow lang
 check l10n-calc-tlh "mI' De'wI' (Esc to exit)" 'lang tlh' '<ret>' 'run calc' '<ret>'
 check l10n-edit-tlh "ghItlhwI': (untitled)" 'lang tlh' '<ret>' 'run edit' '<ret>'

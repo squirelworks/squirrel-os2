@@ -121,7 +121,7 @@ These exist in the tree as scaffolds or notes. They are not milestones on the wa
 - Foreign personalities F.1–F.10 (`documentation/plannedmilestones.md`, `documentation/architecture/foreign-compatibility.md`). Optional, and not before 2.0. First PR of that era is F.1.
 - A full kernel on AArch64 or RISC-V. Early banners already exist (`documentation/architecture/early-kernel.md`). The working kernel stays x86 PC until a later roadmap says otherwise.
 - Firmware-independence experiments (`documentation/architecture/firmware-independence.md`). Not a 1.0 requirement.
-- Interrupt-driven ATA, a `/dev` tree, and loading drivers from programs (`documentation/kernel/drivers.md`). The polled IDE driver is enough for current QEMU.
+- Interrupt-driven ATA, a `/dev` tree, and loading driver *code* from programs (`documentation/kernel/drivers.md`). Run-time registration of a null char device is in 1.9.12; the polled IDE driver is enough for current QEMU.
 - virtio-blk. `documentation/kernel/block-device.md` says the default IDE controller is enough.
 - Journaling, long file names, SMP, UEFI, Wi-Fi, and a package manager. They belong to the 2.x / 3.0 table.
 - Binary compatibility with classic OS/2 (SOM, MVDM, WIN-OS/2). Out of scope.

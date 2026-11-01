@@ -53,6 +53,7 @@ add its `SYS_*` constant, bump `SYS_COUNT`.
 | 30 | `SYS_NETSENDTO` | `ebx` = 16-byte block | bytes sent, or −1 | Added in 1.9.7: UDP send, see `network.md` |
 | 31 | `SYS_NETRECVFROM` | `ebx` = 20-byte block | bytes, −1 port taken, −2 nothing | Added in 1.9.7: UDP receive, see `network.md` |
 | 32 | `SYS_SETPRIO` | `ebx` = 0..3 | 0, or −1 | Added in 1.9.9: set the caller's scheduling priority, see `processes.md` |
+| 33 | `SYS_DEVREG` | `ebx` = name | 0, or −1 | Added in 1.9.12: register a null char device, see `drivers.md` |
 
 Example:
 

@@ -135,9 +135,10 @@ This avoids retargeting chains and confirmation steps.
 | 1.9.9   | 2026-11-01 | Priority scheduling                  |
 | 1.9.10  | 2026-11-01 | Polled PS/2 mouse                    |
 | 1.9.11  | 2026-11-01 | Configurable network addresses       |
+| 1.9.12  | 2026-11-01 | Devices registered at run time       |
 
 ## Next planned release
 
-**1.9.12** — Devices registered at run time (Warp gaps in `../../TODO.md`). Then **2.0.0** once the owner says so.
+**2.0.0** — Warp-style release tag once the owner says so (`../../TODO.md`). Modern hardware (H.1–H.6) follows.
 
 The forward plan and the PR-sized tasks are [`../../ROADMAP.md`](../../ROADMAP.md) and [`../../TODO.md`](../../TODO.md).
