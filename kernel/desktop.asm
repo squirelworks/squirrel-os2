@@ -434,13 +434,16 @@ dk_delete:
     mov eax, [dk_objs+edx*4]    ; the object goes, and the lists close up
     call obj_free
 .sh:
+    lea eax, [edx+1]            ; only the slots in use move (checked first)
+    cmp eax, [dk_n]
+    jae .last
     mov eax, [dk_objs+edx*4+4]
     mov [dk_objs+edx*4], eax
     mov eax, [dk_files+edx*4+4]
     mov [dk_files+edx*4], eax
     inc edx
-    cmp edx, DK_NDEF - 1
-    jb .sh
+    jmp .sh
+.last:                          ; edx = the last slot in use
     mov dword [dk_objs+edx*4], 0
     mov dword [dk_files+edx*4], 0
     dec dword [dk_n]

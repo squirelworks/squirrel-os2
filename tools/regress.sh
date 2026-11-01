@@ -468,6 +468,13 @@ check_none dk-delete "${nl}edit.obj" 'calc.obj' \
                    desktop '<ret>' '<pause>' '<down>' '<down>' '<delete>' y '<pause>' '<esc>' 'ls /desktop' '<ret>'
 check dk-delete-full 'gfx: Not empty' \
                    desktop '<ret>' '<pause>' '<down>' m '<down>' '<down>' '<down>' '<ret>' '<pause>' p '<backspace>' '<pause>' '<down>' '<down>' '<down>' '<delete>' '<pause>' '<gfx>'
+# deleting the last slot (the empty Tools folder on a fresh desktop)
+dd if=/dev/zero of="$out/dkdel.img" bs=1024 count=1024 2>/dev/null
+disk=$out/dkdel.img
+check_all dk-delete-last 'gfx: files|gfx: calc|gfx: edit|gfx: vedit|gfx: draw|gfx: Esc: shell' \
+                   desktop '<ret>' '<pause>' '<down>' '<down>' '<down>' '<down>' '<down>' '<delete>' y '<pause>' '<gfx>'
+check_none dk-delete-last-ls "${nl}Tools.obj" 'draw.obj' 'ls /desktop' '<ret>'
+check_all dk-delete-last-again 'gfx: draw|gfx: Squirrel-OS/2 Desktop' desktop '<ret>' '<pause>' '<gfx>'
 disk=$out/data.img
 check gfx-read-list 'gfx: Dogwood'         listtest '<ret>' '<pause>' '<gfx>'
 check topo-stub     'Scaffolded. Simplicial homology'  'run topo' '<ret>'
