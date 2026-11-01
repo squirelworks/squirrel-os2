@@ -58,6 +58,10 @@ cmd_desktop_run:
     je .pick
     cmp al, 'p'
     je .drop
+    cmp al, 'r'
+    je .rename
+    cmp al, WK_DEL
+    je .delete
     call wg_key
     jnc .draw
     cmp al, 10
@@ -97,6 +101,16 @@ cmd_desktop_run:
     cmp dword [dk_held], 0
     je .key
     call dk_drop
+    jmp .draw
+.rename:                        ; r: rename the chosen object (1.9.2)
+    call dk_chosen
+    jc .key
+    call dk_rename
+    jmp .draw
+.delete:                        ; Delete: remove it after a confirm step
+    call dk_chosen
+    jc .key
+    call dk_delete
     jmp .draw
 .up:                            ; Backspace: from a folder to the top
     cmp dword [dk_cur], 0
@@ -245,6 +259,210 @@ dk_drop:
     call dk_relist
 .r:
     popad
+    ret
+
+; ---------- rename and delete (1.9.2) ----------
+
+; -> eax = the chosen object's index in dk_objs, CF clear; CF set while
+; an object is held or the list is empty
+dk_chosen:
+    cmp dword [dk_held], 0
+    jne .no
+    cmp dword [dk_nvis], 0
+    je .no
+    mov eax, [dk_list]
+    call wg_selected
+    mov eax, [dk_vis+eax*4]
+    clc
+    ret
+.no:
+    stc
+    ret
+
+; eax = index: a small window with the name in a field; Enter keeps the
+; new name (saved; a folder's contents follow it), Esc leaves it as it was
+dk_rename:
+    pushad
+    mov [dk_k], eax
+    mov eax, [dk_objs+eax*4]
+    xor ebx, ebx
+    call obj_get
+    mov esi, eax
+    mov edi, dk_rbuf
+    mov ecx, DK_NAMEMAX
+    call dk_cpy
+    mov eax, DK_X + 20
+    mov ebx, DK_Y + 50
+    mov ecx, DK_W - 40
+    mov edx, 34
+    mov esi, dk_rtitle
+    call wm_create
+    cmp eax, -1
+    je .r
+    mov [dk_rwin], eax
+    mov ebx, 4
+    mov ecx, 4
+    mov esi, dk_rbuf
+    mov edx, DK_NAMEMAX
+    call wg_field
+.k:
+    call wm_redraw
+    call wg_getkey
+    cmp al, 27
+    je .close
+    cmp al, 10
+    je .ok
+    call wg_key
+    jmp .k
+.ok:
+    mov esi, dk_rbuf
+    call strlen
+    test eax, eax
+    jz .close                   ; an empty name: nothing changes
+    mov ecx, eax
+    call obj_intern             ; a copy that lasts
+    jc .close
+    mov ecx, eax                ; ecx = the new name
+    mov edx, [dk_k]
+    mov eax, [dk_objs+edx*4]
+    xor ebx, ebx
+    push eax
+    call obj_get
+    mov ebp, eax                ; ebp = the old name
+    pop eax
+    call obj_set
+    call dk_save
+    cmp dword [eax+OBJ_CLASS], dk_c_fold
+    jne .close
+    xor edx, edx                ; a folder: what was in it moves with it
+.f:
+    cmp edx, [dk_n]
+    jae .close
+    mov eax, [dk_objs+edx*4]
+    push ecx
+    mov ebx, 1
+    call obj_get
+    mov esi, eax
+    mov edi, ebp
+    call streq
+    pop ecx
+    jne .fn
+    mov eax, [dk_objs+edx*4]
+    mov ebx, 1
+    call obj_set
+    call dk_save
+.fn:
+    inc edx
+    jmp .f
+.close:
+    mov eax, [dk_rwin]
+    call wm_close
+    call dk_relist
+.r:
+    popad
+    ret
+
+; eax = object, edx = its index: save it to its file, if it has one
+dk_save:
+    pushad
+    mov esi, [dk_files+edx*4]
+    test esi, esi
+    jz .r
+    call dk_path
+    call obj_save
+.r:
+    popad
+    ret
+
+; eax = index: ask on the help row; y deletes the object and its file. A
+; folder with something in it is refused.
+dk_delete:
+    pushad
+    mov [dk_k], eax
+    mov eax, [dk_objs+eax*4]
+    cmp dword [eax+OBJ_CLASS], dk_c_fold
+    jne .ask
+    xor ebx, ebx
+    call obj_get
+    mov ebp, eax                ; the folder's name
+    xor edx, edx
+.f:
+    cmp edx, [dk_n]
+    jae .ask
+    mov eax, [dk_objs+edx*4]
+    mov ebx, 1
+    call obj_get
+    mov esi, eax
+    mov edi, ebp
+    call streq
+    je .full
+    inc edx
+    jmp .f
+.full:
+    mov esi, dk_dfull
+    jmp .tell
+.ask:
+    mov eax, [dk_k]
+    mov eax, [dk_objs+eax*4]
+    mov esi, dk_s_name
+    call obj_send
+    mov esi, eax
+    mov edi, dk_hbuf
+    push esi
+    mov esi, dk_d1
+    mov ecx, 15
+    call dk_cpy
+    pop esi
+    mov ecx, DK_NAMEMAX
+    call dk_cpy
+    mov esi, dk_d2
+    mov ecx, 31
+    call dk_cpy
+    mov esi, dk_hbuf
+    call dk_help_to
+    call wm_redraw
+    call wg_getkey
+    cmp al, 'y'
+    jne .back
+    mov edx, [dk_k]             ; the file goes
+    mov esi, [dk_files+edx*4]
+    test esi, esi
+    jz .gone
+    call dk_path
+    call fs_delete
+.gone:
+    mov eax, [dk_objs+edx*4]    ; the object goes, and the lists close up
+    call obj_free
+.sh:
+    mov eax, [dk_objs+edx*4+4]
+    mov [dk_objs+edx*4], eax
+    mov eax, [dk_files+edx*4+4]
+    mov [dk_files+edx*4], eax
+    inc edx
+    cmp edx, DK_NDEF - 1
+    jb .sh
+    mov dword [dk_objs+edx*4], 0
+    mov dword [dk_files+edx*4], 0
+    dec dword [dk_n]
+    jmp .back
+.tell:
+    call dk_help_to
+    call wm_redraw
+    call wg_getkey              ; any key
+.back:
+    mov esi, dk_help
+    call dk_help_to
+    call dk_relist
+    popad
+    ret
+
+; esi = the help row's text
+dk_help_to:
+    push eax
+    mov eax, [dk_hlp]
+    imul eax, WG_SIZE
+    mov [wg_table+eax+WG_TEXT], esi
+    pop eax
     ret
 
 ; ---------- desktop objects (1.7.6) ----------
@@ -550,6 +768,9 @@ wg_getkey:
     mov ah, WK_DOWN
     cmp al, 0x50
     je .r
+    mov ah, WK_DEL              ; Delete (1.9.2)
+    cmp al, 0x53
+    je .r
     call kbd_ascii
     mov ah, al
     test al, al
@@ -608,6 +829,14 @@ dk_hlp dd 0                     ; the help row's widget
 dk_h1 db 'Held: ', 0
 dk_h2 db '  p: drop  Esc: back', 0
 dk_hbuf times 48 db 0
+DK_NAMEMAX equ 15
+dk_k dd 0                       ; the object being renamed or deleted (1.9.2)
+dk_rwin dd 0
+dk_rbuf times DK_NAMEMAX + 1 db 0
+dk_rtitle db 'Rename', 0
+dk_d1 db 'Delete ', 0
+dk_d2 db '? y: yes', 0
+dk_dfull db 'Not empty: move its contents out', 0
 dk_wrote db 0
 dk_win dd 0
 dk_list dd 0

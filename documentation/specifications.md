@@ -324,6 +324,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - On the desktop, `m` picks up an object, `p` drops it into the folder shown (its `in` field is set and its file saved), and Esc puts it back; folders are dropped only at the top level (`apps/desktop.md`; `dk-hold`, `dk-hold-esc`, `dk-move`, `dk-move-top`, `dk-move-cat`, `dk-move-open`, `dk-move-fold`).
 
+## 1.9.2
+
+- On the desktop, `r` renames the chosen object (saved; a folder's contents follow it) and Delete removes it and its file after `y`; a non-empty folder is refused (`apps/desktop.md`; `dk-rename-win`, `dk-rename`, `dk-rename-esc`, `dk-delete-ask`, `dk-delete-no`, `dk-delete`, `dk-delete-full`).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.
