@@ -9,6 +9,7 @@ Squirrel-OS/2 uses a simple `major.minor.patch` scheme for early development:
 - **0.2.x** — minimal kernel services (console, memory map, basic interrupts)
 - **0.3.x–0.9.x** — applications, loader, shell, memory, drivers, directories, integration
 - **1.0.0** — the usable minimal system; **1.0.x** patch releases, then **1.x** minor releases toward 2.0 (`../../ROADMAP.md`)
+- **2.0.0** — Warp-style system; modern hardware (H.1–H.6) and 2.x / 3.0 follow
 
 ## What belongs in a release
 
@@ -136,9 +137,12 @@ This avoids retargeting chains and confirmation steps.
 | 1.9.10  | 2026-11-01 | Polled PS/2 mouse                    |
 | 1.9.11  | 2026-11-01 | Configurable network addresses       |
 | 1.9.12  | 2026-11-01 | Devices registered at run time       |
+| 2.0.0   | 2026-11-01 | Warp-style system                    |
 
 ## Next planned release
 
-**2.0.0** — Warp-style release tag once the owner says so (`../../TODO.md`). Modern hardware (H.1–H.6) follows.
+**H.1–H.6** — modern hardware (UEFI, GOP, AHCI, NVMe, USB), then the 2.x / 3.0 vision in `plannedmilestones.md`.
+
+2.0.0 is the Warp-style tag of the 1.9.12 system (`2.0.0.md`). Owner tags after merge (`../../TODO.md`).
 
 The forward plan and the PR-sized tasks are [`../../ROADMAP.md`](../../ROADMAP.md) and [`../../TODO.md`](../../TODO.md).

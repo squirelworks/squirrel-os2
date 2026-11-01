@@ -17,8 +17,9 @@ The code in this tree is project-native. Early releases are not described as OS/
 | **2.0.0** | The first release that can honestly be called Warp-like: preemptive scheduling, an original windowing system, an object desktop. Original concepts, not binary compatibility with classic OS/2. |
 | **3.0.0** | A 64-bit system with the same character, aimed at everyday use. Optional foreign personalities (Linux, Windows, Darwin, Unix) stay out of the core. |
 
-1.0.0 is released (2026-10-31, `documentation/releases/1.0.0.md`). Next are the
-1.0.x patch releases and milestone 1.1 below.
+1.0.0 is released (2026-10-31, `documentation/releases/1.0.0.md`).
+**2.0.0** is released (2026-11-01, `documentation/releases/2.0.0.md`).
+Next are modern hardware H.1–H.6, then the 2.x / 3.0 vision.
 
 ## Principles
 
@@ -102,13 +103,13 @@ Assumptions the installer keeps: BIOS boot (Legacy/CSM), an IDE/ATA target disk 
 
 Preemptive threads, the windowing system, the object desktop, the hierarchical file system with a graphical browser, the 1.0 applications as desktop objects, a native shell, and basic networking. Original code. No classic OS/2 ABI.
 
-1.9 is on `main`, and networking is split into boxes in `TODO.md`: a loopback interface, an NE2000 driver, ARP, IPv4 with ping, UDP for programs, and a small TCP client. The 2.0.0 release follows them, and the owner is asked before it is tagged.
+1.9 is on `main`, and networking through the small TCP client shipped in 1.9.3–1.9.8. Warp gaps 1.9.9–1.9.12 are on `main`. **2.0.0** tags that system (`documentation/releases/2.0.0.md`); the owner tags after merge.
 
 ### 2.x and 3.0.0
 
 Kept in `documentation/plannedmilestones.md`: 64-bit bring-up, multi-core, UEFI, modern storage and USB, a 64-bit userland, the desktop ported forward, a fuller network, a package manager, then a 3.0.0 system aimed at daily use. User mode (ring 3) and growing stacks land in this era, as `documentation/kernel/memory.md` already says.
 
-Do not break 2.x or 3.0 into tasks until 2.0.0's prerequisites above are on `main`.
+2.0.0's prerequisites are on `main`. Modern hardware H.1–H.6 may proceed; break further 2.x / 3.0 work into tasks as needed.
 
 ### Modern hardware (H.1–H.6) — unscheduled
 
