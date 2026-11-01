@@ -105,4 +105,5 @@ Documentation is active.
 - 1.9.10 polled PS/2 mouse on the desktop; `mousetest` (`releases/1.9.10.md`, `kernel/mouse.md`)
 - 1.9.11 `ifconfig` for inet / mask / gw (`releases/1.9.11.md`, `kernel/network.md`)
 - 1.9.12 devices registered at run time; `run drvtest` (`releases/1.9.12.md`, `kernel/drivers.md`)
-- Next: 2.0.0 once the owner says so (`../TODO.md`, `../ROADMAP.md`).
+- **2.0.0 released** — Warp-style system (`releases/2.0.0.md`, `specifications.md`, `../ROADMAP.md`)
+- Next: modern hardware H.1–H.6 (`../TODO.md`, `../ROADMAP.md`).

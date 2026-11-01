@@ -368,6 +368,11 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - `SYS_DEVREG` registers a null character device at run time. `run drvtest` prints `drv: PASS` and `devices` lists `null` (`kernel/drivers.md`; `drv`, `drv-devices`).
 
+## 2.0.0
+
+- Warp-style release of the 1.9.12 system: preemptive threads, windowing, object desktop, hierarchical SQFS with a graphical browser, 1.0 apps as desktop objects, native shell, and basic networking (loopback through a small TCP client), plus the Warp-gap boxes (priority, mouse, `ifconfig`, run-time null devices). Original code; no classic OS/2 ABI (`releases/2.0.0.md`; `ver-banner`, `lang-banner`).
+- Limits of 1.9.12 still apply. Modern hardware (H.1–H.6) and foreign personalities are not part of 2.0.0.
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.
