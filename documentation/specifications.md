@@ -344,6 +344,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - IPv4 with a 20-byte header, no options and no fragments. The guest is 10.0.2.15/24, gateway 10.0.2.2. `ping <ip>` sends four ICMP echoes and prints how many replies came back. 127.0.0.1 stays on loopback (`kernel/network.md`; `ping-lo`, `ping-gw`, `ping-bad`).
 
+## 1.9.7
+
+- UDP. `net_sendto` (30) and `net_recvfrom` (31) share four sockets; a port already bound to another process is refused. A datagram is at most 256 bytes. `run udptest` sends one to 127.0.0.1 and reads it back (`kernel/network.md`, `kernel/syscalls.md`; `udp`).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.

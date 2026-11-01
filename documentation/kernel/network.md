@@ -58,3 +58,34 @@ Since 1.9.6 `kernel/ip.asm` sends and receives IPv4. The header is 20 bytes: ver
 `ip_output` chooses the wire. 127.0.0.0/8 and 10.0.2.15 itself go out on loopback, with 127.0.0.1 as the source when the destination is on 127.0.0.0/8. Another address in 10.0.2.0/24 is asked of ARP and sent on `ne0`. Anything else is sent to the gateway's Ethernet address, still addressed to the real destination. An address learned from a received frame is kept in the ARP table.
 
 ICMP echo (type 8) to us, or to 127.0.0.1, is answered with an echo reply (type 0). `ping <ip>` sends four requests, waits up to a second for each matching reply, and prints how many came back, as `4 of 4`. `ping 10.0.2.2` is the gateway. `ping 127.0.0.1` does not need the card (checks `ping-lo`, `ping-gw`, `ping-bad`).
+
+## UDP
+
+Since 1.9.7 a program can send and receive UDP. There are four sockets. Each bound port belongs to one process; when that process is gone the port is free again. A datagram carries at most 256 bytes, and four may wait on a socket. The checksum covers the pseudo-header and the datagram. A received checksum of zero is accepted as "not computed".
+
+`net_sendto` (`SYS_NETSENDTO`, 30) takes a block in `ebx`:
+
+| Offset | Size | Meaning |
+|--------|------|---------|
+| 0 | 4 | destination address, first octet in the low byte |
+| 4 | 2 | destination port |
+| 6 | 2 | local port, or 0 to pick one from 4096 up |
+| 8 | 4 | the bytes |
+| 12 | 4 | how many |
+
+It returns how many bytes were sent, or −1 if the local port is taken or the datagram cannot be sent.
+
+`net_recvfrom` (`SYS_NETRECVFROM`, 31) takes a block in `ebx`:
+
+| Offset | Size | Meaning |
+|--------|------|---------|
+| 0 | 2 | local port to bind |
+| 2 | 2 | source port, written on return |
+| 4 | 4 | buffer |
+| 8 | 4 | size of the buffer (a longer datagram is cut) |
+| 12 | 4 | source address, written on return |
+| 16 | 4 | ticks to wait, or 0 to return at once |
+
+It returns the datagram's length, −1 if another process already has the port, or −2 if nothing arrived. The buffer receives only as many bytes as fit. Binding and receiving are the same call: the first call with nothing waiting still keeps the port.
+
+`programs/udptest.asm` binds port 5000, sends `udpok` to 127.0.0.1:5000, reads it back, and a second process is refused that port. It prints `udp: PASS` (check `udp`).

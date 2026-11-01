@@ -99,4 +99,5 @@ Documentation is active.
 - 1.9.4 NE2000 network card, polled; `devices` shows its MAC address (`releases/1.9.4.md`, `kernel/network.md`)
 - 1.9.5 Ethernet framing and ARP; `arp <ip>` (`releases/1.9.5.md`, `kernel/network.md`)
 - 1.9.6 IPv4 and ICMP echo; `ping <ip>` (`releases/1.9.6.md`, `kernel/network.md`)
-- Next: 2.0 UDP (`2.0-udp` in `../TODO.md`, `../ROADMAP.md`)
+- 1.9.7 UDP; `net_sendto` and `net_recvfrom`; `run udptest` (`releases/1.9.7.md`, `kernel/network.md`)
+- Next: 2.0 a small TCP client (`2.0-tcp` in `../TODO.md`, `../ROADMAP.md`)

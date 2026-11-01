@@ -21,6 +21,7 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `waitcycle.asm` | SQX | Waits for the shell, and closes a cycle of waits with a thread; the wait that closes a cycle must return −1, not hang the kernel (`run waitcycle`, KB-16) |
 | `stackover.asm` | SQX | Starts a thread that overflows its stack; the kernel must end only that thread, and the program's own memory and stack must be intact (`run stackover`, KB-17) |
 | `devtest.asm` | SQX | Uses devices by name: writes through `con`, reads `hd1`, checks `hd0` refuses writes (0.7.x) |
+| `udptest.asm` | SQX | Sends a UDP datagram to 127.0.0.1 and reads it back; a second process is refused that port (`run udptest`, 1.9.7) |
 | `sqx.inc` | — | SQX header macro and syscall numbers |
 
 Build and install:
