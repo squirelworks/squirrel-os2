@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Boot the Squirrel-OS/2 image in headless QEMU, type keys, print the screen.
 
-Usage: qemu_screen.py [--disk DATA_IMAGE] [--target DISK] [--floppy|--cdrom] IMAGE [KEYS...]
+Usage: qemu_screen.py [--disk DATA_IMAGE] [--target DISK] [--nic] [--floppy|--cdrom] IMAGE [KEYS...]
 Each KEYS argument is typed as text; a token like "<ret>", "<esc>",
 "<backspace>" or "<up>" is sent as that single QEMU key name, and
 "<pause>" waits a second before the next key, and "<gfx>" reads the text
@@ -98,6 +98,10 @@ def main():
     if args[:1] == ['--target']:        # installer I.1: the disk to install to
         drives += ['-drive', f'format=raw,file={args[1]},index=2,media=disk']
         args = args[2:]
+    if args[:1] == ['--nic']:           # 1.9.4: an NE2000 on QEMU's user network
+        drives += ['-netdev', 'user,id=n0',
+                   '-device', 'ne2k_isa,netdev=n0,iobase=0x300,irq=9']
+        args = args[1:]
     boot = []
     if args[:1] == ['--floppy']:            # boot IMAGE as a floppy (0.9.3)
         boot = ['-boot', 'a']

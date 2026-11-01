@@ -96,4 +96,5 @@ Documentation is active.
 - 1.9.1 pick up, move and drop on the desktop: `m`, `p`, Esc (`releases/1.9.1.md`, `apps/desktop.md`)
 - 1.9.2 rename and delete on the desktop: `r`, Delete (`releases/1.9.2.md`, `apps/desktop.md`)
 - 1.9.3 network layer: interfaces, packet queues and loopback; `nettest` (`releases/1.9.3.md`, `kernel/network.md`)
-- Next: 2.0 an NE2000 driver (`2.0-nic` in `../TODO.md`, `../ROADMAP.md`)
+- 1.9.4 NE2000 network card, polled; `devices` shows its MAC address (`releases/1.9.4.md`, `kernel/network.md`)
+- Next: 2.0 Ethernet and ARP (`2.0-arp` in `../TODO.md`, `../ROADMAP.md`)
