@@ -96,7 +96,7 @@ The system still boots to the shell prompt. To boot into the desktop, put a line
 
 ## Keys for widgets
 
-`wg_getkey` waits for a key and returns it the way `wg_key` takes it: ASCII, 8 for Backspace, 27 for Esc, and `WK_UP` / `WK_DOWN` for the arrows. The desktop uses it, and later programs in windows can too.
+`wg_getkey` waits for a key and returns it the way `wg_key` takes it: ASCII, 8 for Backspace, 27 for Esc, `WK_UP` / `WK_DOWN` for the arrows, and `WK_DEL` for Delete (1.9.2). The desktop uses it, and later programs in windows can too.
 
 ## Testing
 
