@@ -332,6 +332,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - A network layer with a loopback interface: frames of 1 to 1514 bytes, 8 waiting per interface, one page each while queued (`kernel/network.md`; `nettest`, `nettest-mem`).
 
+## 1.9.4
+
+- An NE2000 card on the ISA bus at I/O 0x300, polled, with no IRQ handler: a receive ring of 58 pages of 256 bytes and one transmit buffer, on the card. `devices` lists it as `ne0` with its MAC address (`kernel/network.md`; `nic-devices`, `nic-absent`, `nic-test`).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.

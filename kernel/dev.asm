@@ -23,6 +23,7 @@ DEV_DESC    equ 40
 
 DEV_CHAR    equ 1
 DEV_BLOCK   equ 2
+DEV_NET     equ 3                   ; network cards (1.9.4)
 DEVF_UP     equ 1                   ; probed and present
 DEVF_RO     equ 2                   ; programs may not write it
 
@@ -238,7 +239,12 @@ cmd_devices_run:
     mov esi, dev_m_char
     cmp dword [ebx+DEV_TYPE], DEV_CHAR
     je .t
+    cmp dword [ebx+DEV_TYPE], DEV_BLOCK
+    jne .tn
     mov esi, dev_m_block
+    jmp .t
+.tn:
+    mov esi, dev_m_net
 .t:
     call puts
     mov al, 16
@@ -251,6 +257,11 @@ cmd_devices_run:
     call puts
     test dword [ebx+DEV_FLAGS], DEVF_UP
     jz .eol
+    cmp dword [ebx+DEV_TYPE], DEV_NET
+    jne .blk
+    call dev_put_mac
+    jmp .eol
+.blk:
     cmp dword [ebx+DEV_TYPE], DEV_BLOCK
     jne .ro
     mov al, ' '
@@ -274,12 +285,55 @@ cmd_devices_run:
 .r:
     ret
 
+; ebx = a network card's descriptor: prints ' ' and its MAC address,
+; which its driver keeps at [DEV_UNIT]
+dev_put_mac:
+    push eax
+    push ecx
+    push esi
+    mov esi, [ebx+DEV_UNIT]
+    mov ecx, 6
+.b:
+    mov al, ':'
+    cmp ecx, 6
+    jne .sep
+    mov al, ' '
+.sep:
+    call putc
+    lodsb
+    call dev_hex2
+    loop .b
+    pop esi
+    pop ecx
+    pop eax
+    ret
+
+; al -> two lower-case hex digits
+dev_hex2:
+    push eax
+    shr al, 4
+    call .d
+    pop eax
+    and al, 15
+.d:
+    push eax
+    and al, 15
+    add al, '0'
+    cmp al, '9'
+    jbe .p
+    add al, 'a' - '9' - 1
+.p:
+    call putc
+    pop eax
+    ret
+
 ; the built-in drivers' devices, in registration order
-dev_builtin dd dev_con, dev_kbd, dev_hd0, dev_hd1, 0
+dev_builtin dd dev_con, dev_kbd, dev_hd0, dev_hd1, dev_ne0, 0
 
 dev_m_head db 'NAME    TYPE    STATUS', 10, 0
 dev_m_char db 'char', 0
 dev_m_block db 'block', 0
+dev_m_net db 'net', 0
 dev_m_up db 'ready', 0
 dev_m_absent db 'absent', 0
 dev_m_sectors db ' sectors', 0

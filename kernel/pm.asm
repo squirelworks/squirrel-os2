@@ -943,7 +943,7 @@ default_isr:
 
 ; ---------- data ----------
 banner db 'Squirrel-OS/2'          ; (the "help" file: the English banner)
-banner_rest db ' 1.9.3', 10   ; OS version: here only (see releases/PROCESS.md)
+banner_rest db ' 1.9.4', 10   ; OS version: here only (see releases/PROCESS.md)
        db 'Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>', 10
        db '          mv <f> <new> | mkdir <d> | cd <d> | pwd | echo | batch <f> | format', 10
        db '          ps | disk | mem | devices | lang <en|la|tlh> | desktop | install', 10
@@ -1262,6 +1262,7 @@ puthex:
 %include "desktop.asm"
 %include "object.asm"
 %include "net.asm"
+%include "ne2k.asm"
 
 align 8
 idt: times 256 dq 0

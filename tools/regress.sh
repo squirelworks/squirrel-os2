@@ -41,7 +41,7 @@ disk=$out/data.img              # data disk attached as primary slave
 nl=$(printf '\n_'); nl=${nl%_}  # a newline, for expected text that spans two lines (POSIX sh has no $'\n')
 check() {   # check NAME EXPECTED KEYS...
     name=$1; want=$2; shift 2
-    screen=$(python3 "$root/tools/qemu_screen.py" ${disk:+--disk "$disk"} ${target:+--target "$target"} ${boot:-"$out/os.img"} "$@")
+    screen=$(python3 "$root/tools/qemu_screen.py" ${disk:+--disk "$disk"} ${target:+--target "$target"} ${nic:+--nic} ${boot:-"$out/os.img"} "$@")
     case $screen in
         *"$want"*) echo "ok   $name" ;;
         *) echo "FAIL $name (expected: $want)"; fail=1 ;;
@@ -49,7 +49,7 @@ check() {   # check NAME EXPECTED KEYS...
 }
 check_all() {   # check_all NAME 'WANT1|WANT2|...' KEYS...: every WANT must be on the screen
     name=$1; wants=$2; shift 2
-    screen=$(python3 "$root/tools/qemu_screen.py" ${disk:+--disk "$disk"} ${target:+--target "$target"} ${boot:-"$out/os.img"} "$@")
+    screen=$(python3 "$root/tools/qemu_screen.py" ${disk:+--disk "$disk"} ${target:+--target "$target"} ${nic:+--nic} ${boot:-"$out/os.img"} "$@")
     missing=
     oldifs=$IFS; IFS='|'
     for want in $wants; do
@@ -60,7 +60,7 @@ check_all() {   # check_all NAME 'WANT1|WANT2|...' KEYS...: every WANT must be o
 }
 check_none() {   # check_none NAME UNWANTED SEEN KEYS...: UNWANTED must not be on the screen, SEEN must
     name=$1; unwanted=$2; seen=$3; shift 3
-    screen=$(python3 "$root/tools/qemu_screen.py" ${disk:+--disk "$disk"} ${target:+--target "$target"} ${boot:-"$out/os.img"} "$@")
+    screen=$(python3 "$root/tools/qemu_screen.py" ${disk:+--disk "$disk"} ${target:+--target "$target"} ${nic:+--nic} ${boot:-"$out/os.img"} "$@")
     case $screen in
         *"$unwanted"*) echo "FAIL $name (unexpected: $unwanted)"; fail=1 ;;
         *"$seen"*) echo "ok   $name" ;;
@@ -80,7 +80,7 @@ count_occ() {
 }
 check_once() {   # check_once NAME 'WANT1|WANT2|...' KEYS...: each WANT appears exactly once
     name=$1; wants=$2; shift 2
-    screen=$(python3 "$root/tools/qemu_screen.py" ${disk:+--disk "$disk"} ${target:+--target "$target"} ${boot:-"$out/os.img"} "$@")
+    screen=$(python3 "$root/tools/qemu_screen.py" ${disk:+--disk "$disk"} ${target:+--target "$target"} ${nic:+--nic} ${boot:-"$out/os.img"} "$@")
     bad=
     oldifs=$IFS; IFS='|'
     for want in $wants; do
@@ -431,6 +431,12 @@ check objstore      'obj store: PASS'       objtest '<ret>'
 # 1.9.3: the network layer's loopback; frames' pages are given back
 check nettest       'net: PASS'             nettest '<ret>'
 check nettest-mem   '129912 KB free'        nettest '<ret>' nettest '<ret>' mem '<ret>'
+# 1.9.4: an NE2000 card on QEMU's user network
+check nic-absent    'ne0     net     absent' devices '<ret>'
+nic=1
+check nic-devices   'ne0     net     ready 52:54:00:12:34:56' devices '<ret>'
+check nic-test      'nic: PASS'             nettest '<ret>'
+nic=
 # 1.8.2: objtest.obj outlives a reboot; objcat prints class and fields (no classes registered yet)
 check_all obj-persist 'class Square|0: 5|1: red' 'objcat objtest.obj' '<ret>'
 # 1.7.6: the desktop's entries are Program objects; Enter sends open (files too)
@@ -528,7 +534,7 @@ check ed-path-r     'deep'                  'cat e1/long-name.txt' '<ret>'
 check fb-dir        'in /e1'                'cd e1' '<ret>' 'run files' '<ret>'
 check fb-dir-up     '[app]'                 'cd e1' '<ret>' 'run files' '<ret>' '<ret>'
 # 0.9.3: release readiness
-check ver-banner    'Squirrel-OS/2 1.9.3'   systest '<ret>'
+check ver-banner    'Squirrel-OS/2 1.9.4'   systest '<ret>'
 check ver-planned   '(planned: topo)'  systest '<ret>'
 check calc-hist-root '1 + 1 = 2'            'mkdir c1' '<ret>' 'cd c1' '<ret>' 'run calc' '<ret>' '1 + 1' '<ret>' '<esc>' 'cat /calc.hist' '<ret>'
 boot="--floppy $out/floppy.img"
@@ -633,7 +639,7 @@ check l10n-hint-la  '(lineam tabulae addit)'  'lang la' '<ret>' put '<ret>'
 check l10n-fe-tlh   "tu'lu'pu'"             'lang tlh' '<ret>' 'mkdir t1' '<ret>' 'mkdir t1' '<ret>'
 check l10n-rm-tlh   "tu'lu'be'"             'lang tlh' '<ret>' 'rm nosuch' '<ret>'
 check lang-bad      'Unknown language (en la tlh)'  'lang fr' '<ret>'
-check lang-banner   'Sciurus-OS/2 1.9.3'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
+check lang-banner   'Sciurus-OS/2 1.9.4'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
 # 1.0.6: calc, edit and draw titles follow lang
 check l10n-calc-tlh "mI' De'wI' (Esc to exit)" 'lang tlh' '<ret>' 'run calc' '<ret>'
 check l10n-edit-tlh "ghItlhwI': (untitled)" 'lang tlh' '<ret>' 'run edit' '<ret>'
