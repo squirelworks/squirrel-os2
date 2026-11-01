@@ -23,6 +23,8 @@
 | Backspace | in a folder: back to the top level (1.9.0) |
 | m | pick up the chosen object (1.9.1) |
 | p | drop the held object into the folder shown (1.9.1) |
+| r | rename the chosen object (1.9.2) |
+| Delete | delete the chosen object, after `y` (1.9.2) |
 | Esc | put a held object back (1.9.1); otherwise close the desktop, return to text mode and the shell prompt (`Desktop closed.`) |
 
 ## Programs in windows
@@ -80,13 +82,21 @@ The first time, `/desktop` also gets `Tools.obj`, an empty folder, after the fiv
 
 Checks (on a data disk of their own): `dk-hold` (the help row names `calc`), `dk-hold-esc` (Esc puts it back: the desktop is still open, and `calc.obj`'s `in` is still empty), `dk-move` (pick up `calc`, open `Tools`, drop: `Tools` lists `calc`), `dk-move-top` (after a reboot the top level does not list `calc`), `dk-move-cat` (`objcat` shows `in: Tools`, the object's new parent), `dk-move-open` (`calc`, opened from `Tools`, computes `2 + 2`), `dk-move-fold` (`Tools` cannot be dropped into itself).
 
+## Rename and delete (1.9.2)
+
+`r` opens a small window titled `Rename` with the chosen object's name in a field (at most 15 characters). Enter keeps the new name: it is set in the object's `name` field and saved to its file, and the list shows it. The file keeps its name (`edit.obj` still holds the program renamed `notes`, whose `entry` is still `edit`). When a folder is renamed, the objects inside it are moved to the new name and saved too. Esc, or an empty name, leaves the name as it was. After a rename the list's selection goes back to the first entry.
+
+Delete asks on the help row (`Delete notes? y: yes`). `y` deletes the object's file and the object, and any other key keeps it. A folder with something in it is refused (`Not empty: move its contents out`, until a key is pressed). Neither key works while an object is held. If every file in `/desktop` is deleted, the next desktop writes the defaults again.
+
+Checks (on a data disk of their own): `dk-rename-win`, `dk-rename` (`edit` becomes `notes` on the desktop and in `objcat`), `dk-rename-esc`, `dk-delete-ask`, `dk-delete-no`, `dk-delete` (`ls /desktop` no longer lists `edit.obj`), `dk-delete-full`.
+
 ## Booting into the desktop
 
 The system still boots to the shell prompt. To boot into the desktop, put a line `desktop` in `autoexec.bat` on the data disk (`../kernel/shell.md`); Esc then reaches the shell as usual.
 
 ## Keys for widgets
 
-`wg_getkey` waits for a key and returns it the way `wg_key` takes it: ASCII, 8 for Backspace, 27 for Esc, and `WK_UP` / `WK_DOWN` for the arrows. The desktop uses it, and later programs in windows can too.
+`wg_getkey` waits for a key and returns it the way `wg_key` takes it: ASCII, 8 for Backspace, 27 for Esc, `WK_UP` / `WK_DOWN` for the arrows, and `WK_DEL` for Delete (1.9.2). The desktop uses it, and later programs in windows can too.
 
 ## Testing
 

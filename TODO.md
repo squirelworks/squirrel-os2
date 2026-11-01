@@ -233,7 +233,7 @@ Split from `ROADMAP.md` once 1.8 was on `main`. Keyboard only: a mouse is not pa
   **Acceptance:** the first desktop lists `Tools` with the five programs; Enter on it shows an empty list titled `Tools`, and Backspace shows the five programs again. `objcat /desktop/calc.obj` shows an empty `in`.
 - [x] **1.9-move** — Pick up, move and drop. `m` picks up the selected object (the help row says what is held); moving into and out of folders keeps it held; `p` drops it into the folder being shown, which sets its `in` field and saves its file; Esc while holding puts it back where it was.
   **Acceptance:** pick up `calc`, open `Tools`, drop: the top level no longer lists `calc`, `Tools` does, and after a reboot `objcat /desktop/calc.obj` shows `in: Tools` (the object's new parent). Esc while holding changes nothing on disk.
-- [ ] **1.9-actions** — Two object actions from the keyboard: `r` renames the selected object (a field widget in the window; the new name is saved and listed) and Delete removes it after a confirm step (its file goes; a folder must be empty).
+- [x] **1.9-actions** — Two object actions from the keyboard: `r` renames the selected object (a field widget in the window; the new name is saved and listed) and Delete removes it after a confirm step (its file goes; a folder must be empty).
   **Acceptance:** a check renames `edit` to `notes` and reads the new name off the desktop and in `objcat`; another deletes it and `ls /desktop` no longer lists its file; deleting a non-empty folder is refused.
 
 ## 2.0 and after
