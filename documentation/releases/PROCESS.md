@@ -132,11 +132,10 @@ This avoids retargeting chains and confirmation steps.
 | 1.9.6   | 2026-11-01 | IPv4 and ICMP echo                   |
 | 1.9.7   | 2026-11-01 | UDP for programs                     |
 | 1.9.8   | 2026-11-01 | A small TCP client                   |
+| 1.9.9   | 2026-11-01 | Priority scheduling                  |
 
 ## Next planned release
 
-**1.0.x** — Patch releases for the holes the docs already name (seek, error reasons for programs, FPU save, zombies, localization, `diff`, editor search and undo), then **1.1** — preemptive scheduler and threads.
-
-1.0.0 is released (`1.0.0.md`). Milestone 1.1 (1.0.1 through 1.1.1) is summarized for its tag in `1.1.md`. Its applications are checked together in one boot by `walk-1.0` in `tools/regress.sh`.
+**1.9.10** — Polled PS/2 mouse (Warp gaps in `../../TODO.md`). Then 1.9.11 ifconfig, 1.9.12 run-time devices, and **2.0.0** once the owner says so.
 
 The forward plan and the PR-sized tasks are [`../../ROADMAP.md`](../../ROADMAP.md) and [`../../TODO.md`](../../TODO.md).

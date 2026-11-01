@@ -13,11 +13,11 @@ cat "$out/boot.bin" "$out/pm.bin" > "$out/os.img"
 dd if=/dev/zero of="$out/floppy.img" bs=1024 count=1440 2>/dev/null
 dd if="$out/os.img" of="$out/floppy.img" conv=notrunc 2>/dev/null
 python3 "$root/tools/mkiso.py" "$out/floppy.img" "$out/cd.iso"    # installer I.6
-for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest; do
+for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest; do
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
 done
 python3 "$root/tools/sqfs.py" "$out/progs.img" format 1024
-for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
+for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
 printf 'one two\nthree\n' > "$out/notes"
 python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/notes"
 printf '2 + 3\n6 * 7\n' > "$out/exprs"
@@ -551,7 +551,7 @@ check ed-path-r     'deep'                  'cat e1/long-name.txt' '<ret>'
 check fb-dir        'in /e1'                'cd e1' '<ret>' 'run files' '<ret>'
 check fb-dir-up     '[app]'                 'cd e1' '<ret>' 'run files' '<ret>' '<ret>'
 # 0.9.3: release readiness
-check ver-banner    'Squirrel-OS/2 1.9.8'   systest '<ret>'
+check ver-banner    'Squirrel-OS/2 1.9.9'   systest '<ret>'
 check ver-planned   '(planned: topo)'  systest '<ret>'
 check calc-hist-root '1 + 1 = 2'            'mkdir c1' '<ret>' 'cd c1' '<ret>' 'run calc' '<ret>' '1 + 1' '<ret>' '<esc>' 'cat /calc.hist' '<ret>'
 boot="--floppy $out/floppy.img"
@@ -578,7 +578,7 @@ check ld-big        'too big'               'run huge' '<ret>'
 check ld-missing    'Unknown command or program'    'run nothere' '<ret>'
 check ld-again      'Argument: 2'           'run hello 1' '<ret>' 'run hello 2' '<ret>'
 check ld-browser    'Hello from a loaded'   'run files' '<ret>' '<home>' '<ret>'
-check ld-host-ls    'elfhello'              ls '<ret>'
+check ld-host-ls    'elfhello'              'run ls elf' '<ret>'
 check vm-nest       'own memory intact'     'run nest' '<ret>'
 check vm-nest-child 'Argument: from nest'   'run nest' '<ret>'
 check vm-crash      'Program ended: pid'    'run crash' '<ret>'
@@ -598,7 +598,7 @@ check seek          'seek: PASS'            'run seek' '<ret>' '<pause>'
 check devices       'hd1     block   ready 2048 sectors'  devices '<ret>'
 check devices-ro    '(read-only for programs)'  devices '<ret>'
 check devtest       'devtest: PASS'         'run devtest' '<ret>'
-check up-ls         '26 file(s)'             'run ls' '<ret>'
+check up-ls         '27 file(s)'             'run ls' '<ret>'
 # 1.2.1: a key arrives as a queue event as well as through SYS_GETC
 check_all keyev     'keyev: queue q getc q|keyev: PASS'  'run keyev' '<ret>' '<pause>' q '<pause>'
 check_all keyev-shift 'keyev: queue Q getc Q|keyev: PASS'  'run keyev' '<ret>' '<pause>' Q '<pause>'
@@ -619,7 +619,7 @@ check errno-nf      'errno: Not found'      'run errno missing' '<ret>'
 check errno-dir     'errno: Is a directory' 'mkdir edir' '<ret>' 'run errno edir' '<ret>'
 # 1.0.4: zombies nobody waits for do not fill the process table
 check zombie        'zombie: PASS'          'run zombie' '<ret>' '<pause>'
-check zombie-ps     '2 8 86'                'run zombie' '<ret>' '<pause>' 'ps | run wc' '<ret>'   # header + shell only
+check zombie-ps     '2 10 93'               'run zombie' '<ret>' '<pause>' 'ps | run wc' '<ret>'   # header + shell only (prio column)
 check errno-la      'errno: Non inventum'   'lang la' '<ret>' 'run errno missing' '<ret>'
 check up-cat        'three'                 'run cat notes' '<ret>'
 check up-cat-missing 'not found: zip'       'run cat zip notes' '<ret>'
@@ -658,7 +658,9 @@ check l10n-hint-la  '(lineam tabulae addit)'  'lang la' '<ret>' put '<ret>'
 check l10n-fe-tlh   "tu'lu'pu'"             'lang tlh' '<ret>' 'mkdir t1' '<ret>' 'mkdir t1' '<ret>'
 check l10n-rm-tlh   "tu'lu'be'"             'lang tlh' '<ret>' 'rm nosuch' '<ret>'
 check lang-bad      'Unknown language (en la tlh)'  'lang fr' '<ret>'
-check lang-banner   'Sciurus-OS/2 1.9.8'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
+check lang-banner   'Sciurus-OS/2 1.9.9'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
+# 1.9.9: higher priority keeps a lower-priority child from running
+check prio          'prio: PASS'            'run priotest' '<ret>' '<pause>'
 # 1.0.6: calc, edit and draw titles follow lang
 check l10n-calc-tlh "mI' De'wI' (Esc to exit)" 'lang tlh' '<ret>' 'run calc' '<ret>'
 check l10n-edit-tlh "ghItlhwI': (untitled)" 'lang tlh' '<ret>' 'run edit' '<ret>'
