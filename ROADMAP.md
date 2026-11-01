@@ -131,7 +131,6 @@ These exist in the tree as scaffolds or notes. They are not milestones on the wa
 Not tasks. Do not build these unless a later edit to this file promotes them.
 
 - A text-mode `graph` before milestone 1.3. The design mentions text-mode plots, and the running stub refuses to plot until graphics primitives exist. Follow the stub.
-- A mouse, for drag-and-drop or for windows. 1.9 is keyboard-driven.
 - Symbolic algebra for `diff` or `topo`. `diff` is numerical. `topo` stays a scaffold until 2.x.
 
-Priority scheduling is **1.9.9** (see `TODO.md` Warp gaps). Mouse, ifconfig, and run-time devices follow as 1.9.10–1.9.12.
+Promoted into **1.9.9–1.9.12** (see `TODO.md` Warp gaps): priority scheduling, a polled mouse on the desktop, configurable IP addresses, and devices registered at run time.

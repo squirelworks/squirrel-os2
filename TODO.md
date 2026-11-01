@@ -259,7 +259,7 @@ Split from `ROADMAP.md` once 1.9 was on `main`. Original code. The card is the N
 The owner asked for the remaining Warp-table holes after 1.9.8, as patch releases before tagging 2.0.0. Each box is one version bump; land them in order.
 
 - [x] **W.1-prio** — Priority field on each process (`0..3`); the scheduler runs the highest READY priority. `SYS_SETPRIO`, `ps` shows `prio N`, `run priotest` → `prio: PASS`.
-- [ ] **W.2-mouse** — Polled PS/2 mouse, soft cursor on the desktop, click selects / opens. `mousetest` → `mouse: PASS`.
+- [x] **W.2-mouse** — Polled PS/2 mouse, soft cursor on the desktop, click selects / opens. `mousetest` → `mouse: PASS`.
 - [ ] **W.3-ifconfig** — `ifconfig` shows and sets inet / mask / gw; IPv4 routing uses the mask. Defaults stay QEMU's.
 - [ ] **W.4-devreg** — `SYS_DEVREG` registers a null char device at run time. `run drvtest` → `drv: PASS`; `devices` lists it.
 
@@ -286,7 +286,6 @@ Kept here so they are not added as tasks by accident. Reasons are in `ROADMAP.md
 
 - `topo` before 2.x.
 - Text-mode `graph` ahead of **1.3-graph**.
-- A mouse.
 - Foreign personalities (F.1 is the first PR of that era, and not before 2.0).
 - Porting the full kernel off x86.
 - virtio-blk, ATA IRQ, a `/dev` directory, loadable drivers.
