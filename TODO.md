@@ -240,8 +240,8 @@ Split from `ROADMAP.md` once 1.8 was on `main`. Keyboard only: a mouse is not pa
 
 Split from `ROADMAP.md` once 1.9 was on `main`. Original code. The card is the NE2000 that QEMU emulates on the ISA bus (`-netdev user,id=n0 -device ne2k_isa,netdev=n0,iobase=0x300,irq=9`). It is driven with port I/O only, with no bus mastering and no PCI set-up, so it fits the polled style of the ATA driver. QEMU's user network (slirp) gives a gateway at 10.0.2.2 that answers ARP and ping and forwards TCP to the host, so the regression run needs no network outside the machine. Each box is one PR; work top to bottom. Design notes go in `documentation/kernel/network.md` with the first box.
 
-- [ ] **2.0-loop** — A network layer with packet buffers and a loopback interface: `net_send` queues a frame on an interface and `net_recv` takes the next one off. A shell test `nettest` sends three frames of different lengths on loopback and reads them back in order.
-  **Acceptance:** `nettest` prints `net: PASS`; with the queue made one frame long, it prints FAIL.
+- [x] **2.0-loop** — A network layer with packet buffers and a loopback interface: `net_send` queues a frame on an interface and `net_recv` takes the next one off. A shell test `nettest` sends three frames of different lengths on loopback and reads them back in order.
+  **Acceptance:** `nettest` prints `net: PASS`; with the queue made one frame long, it prints FAIL. Checks `nettest`, `nettest-mem`.
 - [ ] **2.0-nic** — An NE2000 driver behind the same interface. `devices` lists the card with its MAC address. Frames are sent and received by polling, with no IRQ handler.
   **Acceptance:** with the card attached (a `--nic` option for `tools/qemu_screen.py`), `devices` shows `52:54:00:12:34:56`; without a card, nothing changes and every existing check passes.
 - [ ] **2.0-arp** — Ethernet framing and ARP over the card, with the guest at 10.0.2.15 and a small ARP table. A shell command `arp <ip>` asks for an address and prints the answer.
