@@ -67,6 +67,29 @@ check_none() {   # check_none NAME UNWANTED SEEN KEYS...: UNWANTED must not be o
         *) echo "FAIL $name (expected: $seen)"; fail=1 ;;
     esac
 }
+# Count non-overlapping occurrences of needle in haystack (POSIX sh).
+count_occ() {
+    _s=$1; _n=$2; _c=0
+    while :; do
+        case $_s in
+            *"$_n"*) _c=$((_c + 1)); _s=${_s#*"$_n"} ;;
+            *) break ;;
+        esac
+    done
+    echo "$_c"
+}
+check_once() {   # check_once NAME 'WANT1|WANT2|...' KEYS...: each WANT appears exactly once
+    name=$1; wants=$2; shift 2
+    screen=$(python3 "$root/tools/qemu_screen.py" ${disk:+--disk "$disk"} ${target:+--target "$target"} ${boot:-"$out/os.img"} "$@")
+    bad=
+    oldifs=$IFS; IFS='|'
+    for want in $wants; do
+        n=$(count_occ "$screen" "$want")
+        if [ "$n" -ne 1 ]; then bad="$bad [$want x$n]"; fi
+    done
+    IFS=$oldifs
+    if [ -z "$bad" ]; then echo "ok   $name"; else echo "FAIL $name (want exactly 1 each:$bad)"; fail=1; fi
+}
 
 check fs-format     'formatted SQFS'        ls '<ret>'   # must run first: blank disk
 check systest      'systest: PASS'          systest '<ret>'
@@ -413,6 +436,12 @@ check desktop-files 'gfx: Arrows PgUp/PgDn Home/End' \
 check desktop-files-back 'gfx: Squirrel-OS/2 Desktop' \
                    desktop '<ret>' '<pause>' '<ret>' '<pause>' '<esc>' '<pause>' '<gfx>'
 check_all desktop-objs 'Program < DesktopObject|0 live' desktop '<ret>' '<pause>' '<esc>' objs '<ret>'
+# Opening the desktop twice must not re-register DesktopObject/Program (obj_class is idempotent).
+# check_once counts: a non-idempotent obj_class would print each class line twice and fail.
+# "  DesktopObject" is the root class line (two spaces); it is not a substring of
+# "Program < DesktopObject" (one space after "<").
+check_once desktop-objs-2 'Program < DesktopObject|  DesktopObject|0 live' \
+                   desktop '<ret>' '<pause>' '<esc>' desktop '<ret>' '<pause>' '<esc>' objs '<ret>'
 # 1.8.3: the desktop's entries are object files in /desktop, written the
 # first time; a removed file's entry is gone. A disk of their own, so the
 # other desktop checks keep all five entries.
