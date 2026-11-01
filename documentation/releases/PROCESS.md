@@ -126,6 +126,7 @@ This avoids retargeting chains and confirmation steps.
 | 1.9.0   | 2026-11-01 | Desktop folders                      |
 | 1.9.1   | 2026-11-01 | Pick up, move and drop               |
 | 1.9.2   | 2026-11-01 | Rename and delete on the desktop     |
+| 1.9.3   | 2026-11-01 | Network layer and loopback           |
 
 ## Next planned release
 

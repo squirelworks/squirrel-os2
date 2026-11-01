@@ -328,6 +328,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - On the desktop, `r` renames the chosen object (saved; a folder's contents follow it) and Delete removes it and its file after `y`; a non-empty folder is refused (`apps/desktop.md`; `dk-rename-win`, `dk-rename`, `dk-rename-esc`, `dk-delete-ask`, `dk-delete-no`, `dk-delete`, `dk-delete-full`).
 
+## 1.9.3
+
+- A network layer with a loopback interface: frames of 1 to 1514 bytes, 8 waiting per interface, one page each while queued (`kernel/network.md`; `nettest`, `nettest-mem`).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.

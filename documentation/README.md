@@ -95,4 +95,5 @@ Documentation is active.
 - 1.9.0 desktop folders: a `Tools` folder that Enter opens and Backspace leaves (`releases/1.9.0.md`, `apps/desktop.md`)
 - 1.9.1 pick up, move and drop on the desktop: `m`, `p`, Esc (`releases/1.9.1.md`, `apps/desktop.md`)
 - 1.9.2 rename and delete on the desktop: `r`, Delete (`releases/1.9.2.md`, `apps/desktop.md`)
-- Next: 2.0, networking split into tasks in `../TODO.md` first (`2.0-net`, `../ROADMAP.md`)
+- 1.9.3 network layer: interfaces, packet queues and loopback; `nettest` (`releases/1.9.3.md`, `kernel/network.md`)
+- Next: 2.0 an NE2000 driver (`2.0-nic` in `../TODO.md`, `../ROADMAP.md`)
