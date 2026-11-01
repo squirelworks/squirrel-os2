@@ -4,9 +4,10 @@ Location: `../../kernel/proc.asm` (included from `kernel/pm.asm`)
 
 ## Model
 
-- Round-robin. A process runs until it calls `yield`, `wait`, `exit`,
+- Priority round-robin (1.9.9). A process runs until it calls `yield`, `wait`, `exit`,
   or blocks for input (`getc`, or an app waiting for a key), or until the timer
-  preempts it (since 1.1, see "Preemption" below).
+  preempts it (since 1.1, see "Preemption" below). Among READY processes the
+  highest `PCB_PRIO` (`0..3`, default 1) runs; equals take turns.
 - Up to `PROC_MAX` = 8 slots. Slot 0 is the kernel shell, **pid 0**, which runs on the
   boot stack (`0x9F000`) and never exits.
 - Slots 1–7 each own an 8 KB stack: slot *i* has its top at `0x7C000 + i * 0x3000`
@@ -29,6 +30,7 @@ Location: `../../kernel/proc.asm` (included from `kernel/pm.asm`)
 | 28 | `parent` | Pid of the creator |
 | 32 | `as` | Address space record, 0 = the kernel's (0.6.1, `memory.md`); loaded into CR3 on every switch |
 | 40 | `name` | 16 bytes: `shell`, the app or program name (0.8.2), shown by `ps` and in crash reports |
+| 56 | `prio` | `0..3`; higher runs first (1.9.9). Default 1. `SYS_SETPRIO` changes it. |
 | 60 | `fpu` | 1 once its x87 registers have been saved (1.0.1); 0 means it starts with a reset FPU |
 
 ## Lifecycle
@@ -47,11 +49,13 @@ Location: `../../kernel/proc.asm` (included from `kernel/pm.asm`)
 
 ## Context switch
 
-`proc_switch` does `pushfd; cli; pushad`, saves `esp` in the current PCB, scans forward
-for the next `ready` slot, loads its `esp`, then `popad; popfd; ret`.
-If nothing else is ready and the caller is still `running` it returns with CF set
+`proc_switch` does `pushfd; cli; pushad`, saves `esp` in the current PCB, picks the
+`ready` slot with the highest priority (round-robin among equals, scanning forward from
+the current one), loads its `esp`, then `popad; popfd; ret`.
+If nothing else at that priority is ready and the caller is still `running` it returns with CF set
 (nothing happened). If the caller cannot continue (waiting/zombie) and nothing is ready,
-the kernel prints `*** kernel panic: no runnable process` and halts.
+the kernel prints `*** kernel panic: no runnable process` and halts. `run priotest` checks
+that a lower-priority child does not run until the parent drops its priority (`prio: PASS`).
 
 `proc_idle` = switch if possible, otherwise `sti; hlt`. The shell's idle loop, `yield`,
 `getc` and app key waits all use it, so a waiting process never spins.
@@ -80,7 +84,7 @@ eight registers, then reads its own value back (`fpu: PASS`).
 
 A thread is not a separate kind of object. **`SYS_SPAWN` with an entry inside the program's own image is the thread primitive:** `proc_spawn` gives the child the caller's address space and adds a reference (`memory.md`), so the new process runs the program's code on the program's data. It differs from the parent only in its slot: its own pid, its own 8 KB stack, its own FPU registers and its own exit code. The address space is freed when the last process using it is reaped.
 
-The scheduler treats a thread like any other process: round-robin, `yield`, and timer preemption of program code (above). There is no priority field and no second scheduler.
+The scheduler treats a thread like any other process: priority round-robin (1.9.9), `yield`, and timer preemption of program code (above). There is no second scheduler.
 
 Threads share memory without locks. A single instruction such as `inc dword [x]` cannot be split by a switch on this one-CPU system, but a read-modify-write over several instructions can. The `thread` program checks the primitive: it and a thread it spawns each add 1000 to one counter in the program's memory, yielding every 100 steps, and it prints `thread: PASS` when the counter ends at 2000 and the thread's exit code is 1000 (check `thread`).
 

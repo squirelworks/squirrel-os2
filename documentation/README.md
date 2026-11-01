@@ -101,4 +101,8 @@ Documentation is active.
 - 1.9.6 IPv4 and ICMP echo; `ping <ip>` (`releases/1.9.6.md`, `kernel/network.md`)
 - 1.9.7 UDP; `net_sendto` and `net_recvfrom`; `run udptest` (`releases/1.9.7.md`, `kernel/network.md`)
 - 1.9.8 a small TCP client; `fetch <ip> <port> <path>` (`releases/1.9.8.md`, `kernel/network.md`)
-- Next: 2.0.0 once its prerequisites are on `main` (`../TODO.md`, `../ROADMAP.md`). The owner is asked before it is tagged.
+- 1.9.9 priority scheduling; `run priotest` (`releases/1.9.9.md`, `kernel/processes.md`)
+- 1.9.10 polled PS/2 mouse on the desktop; `mousetest` (`releases/1.9.10.md`, `kernel/mouse.md`)
+- 1.9.11 `ifconfig` for inet / mask / gw (`releases/1.9.11.md`, `kernel/network.md`)
+- 1.9.12 devices registered at run time; `run drvtest` (`releases/1.9.12.md`, `kernel/drivers.md`)
+- Next: 2.0.0 once the owner says so (`../TODO.md`, `../ROADMAP.md`).
