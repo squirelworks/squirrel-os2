@@ -440,6 +440,24 @@ check_all dk-folder-cat "class Folder|name: Tools|class Program|in:${nl}entry: c
                    desktop '<ret>' '<pause>' '<esc>' 'objcat /desktop/Tools.obj' '<ret>' 'objcat /desktop/calc.obj' '<ret>'
 check dk-folder-quit 'systest: PASS' \
                    desktop '<ret>' '<pause>' '<down>' '<down>' '<down>' '<down>' '<down>' '<ret>' '<pause>' '<esc>' systest '<ret>'
+# 1.9.1: pick up calc (m), open Tools, drop (p); Esc while holding writes nothing.
+dd if=/dev/zero of="$out/dkmove.img" bs=1024 count=1024 2>/dev/null
+disk=$out/dkmove.img
+check_all dk-move-hold 'gfx: Holding: calc|gfx: p: drop' \
+                   desktop '<ret>' '<pause>' '<down>' m '<pause>' '<gfx>'
+check_all dk-move 'gfx: Tools|gfx: calc' \
+                   desktop '<ret>' '<pause>' '<down>' m '<pause>' \
+                   '<down>' '<down>' '<down>' '<down>' '<ret>' '<pause>' \
+                   p '<pause>' '<gfx>'
+check_none dk-move-top 'gfx: calc' 'gfx: files' \
+                   desktop '<ret>' '<pause>' '<gfx>'
+check_all dk-move-persist 'in: Tools' \
+                   desktop '<ret>' '<pause>' '<esc>' 'objcat /desktop/calc.obj' '<ret>'
+dd if=/dev/zero of="$out/dkmove2.img" bs=1024 count=1024 2>/dev/null
+disk=$out/dkmove2.img
+check_all dk-move-esc "in:${nl}entry: calc" \
+                   desktop '<ret>' '<pause>' '<down>' m '<esc>' '<esc>' \
+                   'objcat /desktop/calc.obj' '<ret>'
 disk=$out/data.img
 check gfx-read-list 'gfx: Dogwood'         listtest '<ret>' '<pause>' '<gfx>'
 check topo-stub     'Scaffolded. Simplicial homology'  'run topo' '<ret>'
@@ -461,7 +479,7 @@ check ed-path-r     'deep'                  'cat e1/long-name.txt' '<ret>'
 check fb-dir        'in /e1'                'cd e1' '<ret>' 'run files' '<ret>'
 check fb-dir-up     '[app]'                 'cd e1' '<ret>' 'run files' '<ret>' '<ret>'
 # 0.9.3: release readiness
-check ver-banner    'Squirrel-OS/2 1.9.0'   systest '<ret>'
+check ver-banner    'Squirrel-OS/2 1.9.1'   systest '<ret>'
 check ver-planned   '(planned: topo)'  systest '<ret>'
 check calc-hist-root '1 + 1 = 2'            'mkdir c1' '<ret>' 'cd c1' '<ret>' 'run calc' '<ret>' '1 + 1' '<ret>' '<esc>' 'cat /calc.hist' '<ret>'
 boot="--floppy $out/floppy.img"
@@ -566,7 +584,7 @@ check l10n-hint-la  '(lineam tabulae addit)'  'lang la' '<ret>' put '<ret>'
 check l10n-fe-tlh   "tu'lu'pu'"             'lang tlh' '<ret>' 'mkdir t1' '<ret>' 'mkdir t1' '<ret>'
 check l10n-rm-tlh   "tu'lu'be'"             'lang tlh' '<ret>' 'rm nosuch' '<ret>'
 check lang-bad      'Unknown language (en la tlh)'  'lang fr' '<ret>'
-check lang-banner   'Sciurus-OS/2 1.9.0'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
+check lang-banner   'Sciurus-OS/2 1.9.1'    'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
 # 1.0.6: calc, edit and draw titles follow lang
 check l10n-calc-tlh "mI' De'wI' (Esc to exit)" 'lang tlh' '<ret>' 'run calc' '<ret>'
 check l10n-edit-tlh "ghItlhwI': (untitled)" 'lang tlh' '<ret>' 'run edit' '<ret>'

@@ -5,6 +5,8 @@
 ; to the window's widgets. Enter opens the chosen program in a window
 ; (calc since 1.6.1, draw since 1.6.3); Esc returns to the text shell.
 ; Since 1.7.6 the entries are Program objects and Enter sends them open.
+; Since 1.9.1, m picks one up, p drops it into the folder being shown, and
+; Esc while holding puts it back (nothing written until p).
 ; See documentation/apps/desktop.md.
 
 DK_X equ 40                     ; the desktop's window
@@ -20,6 +22,7 @@ cmd_desktop_run:
 .ok:
     call dk_mkobjs              ; the entries are objects (1.7.6)
     mov dword [dk_cur], 0       ; the top level (1.9.0)
+    mov dword [dk_held], 0      ; nothing held (1.9.1)
     mov eax, DK_X
     mov ebx, DK_Y
     mov ecx, DK_W
@@ -43,17 +46,22 @@ cmd_desktop_run:
     mov ecx, DK_H - WM_TITLE_H - 2 - GFX_CELL_H - 4
     mov esi, dk_help
     call wg_label
+    mov [dk_help_w], eax
     call dk_relist
 .draw:
     call wm_redraw
 .key:
     call wg_getkey
     cmp al, 27
-    je .quit
+    je .esc
     cmp al, 8
     je .up
     call wg_key
     jnc .draw
+    cmp al, 'm'
+    je .pick
+    cmp al, 'p'
+    je .drop
     cmp al, 10
     jne .key
     cmp dword [dk_nvis], 0
@@ -67,12 +75,54 @@ cmd_desktop_run:
     call obj_send
     cmp byte [dk_opened], 0      ; a folder was opened
     je .draw
+    call dk_help_upd            ; keep the held line if any
     call dk_relist
     jmp .draw
 .up:                            ; Backspace: from a folder to the top
     cmp dword [dk_cur], 0
     je .key
     mov dword [dk_cur], 0
+    call dk_help_upd
+    call dk_relist
+    jmp .draw
+.esc:                           ; Esc while holding: put back (1.9.1)
+    cmp dword [dk_held], 0
+    je .quit
+    mov dword [dk_held], 0
+    call dk_help_upd
+    call dk_relist
+    jmp .draw
+.pick:                          ; m: pick up the selected object
+    cmp dword [dk_nvis], 0
+    je .key
+    mov eax, [dk_list]
+    call wg_selected
+    mov eax, [dk_vis+eax*4]
+    mov eax, [dk_objs+eax*4]
+    mov [dk_held], eax
+    call dk_help_upd
+    call dk_relist
+    jmp .draw
+.drop:                          ; p: drop into the folder being shown
+    cmp dword [dk_held], 0
+    je .key
+    mov eax, [dk_held]
+    mov ebx, 1                  ; in
+    mov ecx, [dk_cur]
+    test ecx, ecx
+    jnz .din
+    mov ecx, dk_empty
+.din:
+    call obj_set
+    mov eax, [dk_held]
+    xor ebx, ebx
+    call obj_get                ; name -> path
+    mov esi, eax
+    call dk_path
+    mov eax, [dk_held]
+    call obj_save
+    mov dword [dk_held], 0
+    call dk_help_upd
     call dk_relist
     jmp .draw
 .quit:
@@ -84,7 +134,8 @@ cmd_desktop_run:
     jmp puts
 
 ; List the objects whose `in` is the folder shown ([dk_cur], 0 for the
-; top level), and name the window after that folder (1.9.0).
+; top level), and name the window after that folder (1.9.0). The held
+; object is left out until it is dropped or put back (1.9.1).
 dk_relist:
     pushad
     xor ebx, ebx                ; objects
@@ -95,6 +146,8 @@ dk_relist:
     mov eax, [dk_objs+ebx*4]
     test eax, eax
     jz .no
+    cmp eax, [dk_held]
+    je .no
     push ebx
     mov ebx, 1
     call obj_get                ; in
@@ -138,6 +191,52 @@ dk_relist:
     mov eax, [dk_win]
     imul eax, WIN_SIZE
     mov [wm_table+eax+WIN_TITLE], esi
+    popad
+    ret
+
+; Help row: the usual keys, or "Holding: <name> ..." while an object is held.
+dk_help_upd:
+    pushad
+    cmp dword [dk_held], 0
+    jne .hold
+    mov esi, dk_help
+    jmp .set
+.hold:
+    mov edi, dk_holdbuf
+    mov esi, dk_holdpre
+.p:
+    lodsb
+    stosb
+    test al, al
+    jnz .p
+    dec edi
+    mov eax, [dk_held]
+    xor ebx, ebx
+    call obj_get
+    mov esi, eax
+    test esi, esi
+    jz .post
+.n:
+    lodsb
+    stosb
+    test al, al
+    jnz .n
+    dec edi
+.post:
+    mov esi, dk_holdpost
+.q:
+    lodsb
+    stosb
+    test al, al
+    jnz .q
+    mov esi, dk_holdbuf
+.set:
+    mov eax, [dk_help_w]
+    cmp eax, -1
+    je .out
+    imul eax, WG_SIZE
+    mov [wg_table+eax+WG_TEXT], esi
+.out:
     popad
     ret
 
@@ -449,7 +548,10 @@ DK_NAPPS equ 5                  ; programs
 DK_NDEF equ DK_NAPPS + 1        ; and the Tools folder (1.9.0)
 dk_title db 'Squirrel-OS/2 Desktop', 0
 dk_heading db 'Programs:', 0
-dk_help db 'Enter: open  Bksp: up  Esc: shell', 0
+dk_help db 'm: take  Enter: open  Bksp: up  Esc', 0
+dk_holdpre db 'Holding: ', 0
+dk_holdpost db '  p: drop  Esc: back', 0
+dk_holdbuf times 40 db 0
 dk_a0 db 'files', 0
 dk_a1 db 'calc', 0
 dk_a2 db 'edit', 0
@@ -479,6 +581,8 @@ dk_vis times DK_NDEF dd 0       ; the objects listed, by their index (1.9.0)
 dk_nvis dd 0
 dk_names times DK_NDEF dd 0
 dk_cur dd 0                     ; the folder shown: its name, or 0 for the top
+dk_held dd 0                    ; object being moved, or 0 (1.9.1)
+dk_help_w dd -1                 ; the help label widget
 dk_c_dobj dd dk_cn_dobj, 0, dk_dobj_m, dk_dobj_f, 3 ; name and in are text
 dk_c_prog dd dk_cn_prog, dk_c_dobj, dk_prog_m, dk_prog_f, 1 ; entry is text
 dk_c_fold dd dk_cn_fold, dk_c_dobj, dk_fold_m, 0, 0

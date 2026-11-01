@@ -320,6 +320,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - Desktop folders: a `Folder` class and a text field `in` on `DesktopObject`; the desktop shows one folder at a time (Enter opens, Backspace returns to the top level); `/desktop/Tools.obj` is an empty folder written with the defaults (`apps/desktop.md`; `dk-folder`, `dk-folder-open`, `dk-folder-back`, `dk-folder-cat`, `dk-folder-quit`).
 
+## 1.9.1
+
+- Desktop move: `m` picks up an object, `p` drops it into the folder being shown (sets `in` and saves), Esc while holding puts it back without writing (`apps/desktop.md`; `dk-move-hold`, `dk-move`, `dk-move-top`, `dk-move-persist`, `dk-move-esc`).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.

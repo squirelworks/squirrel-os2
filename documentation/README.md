@@ -93,4 +93,5 @@ Documentation is active.
 - 1.8.2 objects: `objcat` prints a saved object after a reboot (`releases/1.8.2.md`, `kernel/objects.md`)
 - 1.8.3 the desktop's entries are kept as object files in `/desktop` (`releases/1.8.3.md`, `apps/desktop.md`)
 - 1.9.0 desktop folders: a `Tools` folder that Enter opens and Backspace leaves (`releases/1.9.0.md`, `apps/desktop.md`)
-- Next: 1.9 pick up, move and drop (`1.9-move` in `../TODO.md`, `../ROADMAP.md`)
+- 1.9.1 desktop move: `m` pick up, `p` drop, Esc puts back (`releases/1.9.1.md`, `apps/desktop.md`)
+- Next: 1.9 rename and delete (`1.9-actions` in `../TODO.md`, `../ROADMAP.md`)
