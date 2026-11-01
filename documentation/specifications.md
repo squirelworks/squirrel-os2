@@ -356,6 +356,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - Each process has a priority `0..3` (default 1). The scheduler runs the highest READY priority; equals take turns. `SYS_SETPRIO` sets it; `ps` prints `prio N`. `run priotest` prints `prio: PASS` (`kernel/processes.md`; `prio`).
 
+## 1.9.10
+
+- A polled PS/2 mouse with a soft cursor on the desktop; a left click selects a list row and a second click opens it. `mousetest` prints `mouse: PASS` (`kernel/mouse.md`; `mousetest`).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.

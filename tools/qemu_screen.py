@@ -144,6 +144,14 @@ def main():
                 time.sleep(0.2)
                 gfx += gfx_text(shot)
                 continue
+            # 1.9.10: inject relative mouse motion or a button bitmask
+            if chunk.startswith('<mouse-move:') and chunk.endswith('>'):
+                dx, dy = chunk[len('<mouse-move:'):-1].split(',')
+                monitor(sock, f'mouse_move {int(dx)} {int(dy)}')
+                continue
+            if chunk.startswith('<mouse-btn:') and chunk.endswith('>'):
+                monitor(sock, 'mouse_button ' + chunk[len('<mouse-btn:'):-1])
+                continue
             if chunk.startswith('<') and chunk.endswith('>') and len(chunk) > 2:
                 monitor(sock, 'sendkey ' + chunk[1:-1])
                 continue

@@ -5,6 +5,7 @@
 ; to the window's widgets. Enter opens the chosen program in a window
 ; (calc since 1.6.1, draw since 1.6.3); Esc returns to the text shell.
 ; Since 1.7.6 the entries are Program objects and Enter sends them open.
+; Since 1.9.10 a mouse click selects a row (a second click opens it).
 ; See documentation/apps/desktop.md.
 
 DK_X equ 40                     ; the desktop's window
@@ -46,10 +47,19 @@ cmd_desktop_run:
     mov [dk_hlp], eax
     mov dword [dk_held], 0
     call dk_relist
+    mov dword [dk_mclicks], 0
+    mov eax, [mouse_clicks]
+    mov [dk_mclicks], eax
 .draw:
     call wm_redraw
+    call dk_ptr
 .key:
-    call wg_getkey
+    call mouse_poll
+    call dk_ptr
+    call dk_mouse               ; CF clear: open the selection
+    jnc .open
+    call dk_trykey              ; CF clear, al = key
+    jc .key
     cmp al, 27
     je .esc
     cmp al, 8
@@ -66,9 +76,10 @@ cmd_desktop_run:
     jnc .draw
     cmp al, 10
     jne .key
+.open:
     cmp dword [dk_nvis], 0
     je .key
-    mov eax, [dk_list]          ; Enter: send open to the chosen object
+    mov eax, [dk_list]          ; Enter / second click: send open
     call wg_selected
     mov eax, [dk_vis+eax*4]
     mov eax, [dk_objs+eax*4]
@@ -751,6 +762,115 @@ dk_refresh:
 .r:
     ret
 
+; Soft mouse pointer: a white plus at mouse_x, mouse_y (1.9.10)
+dk_ptr:
+    cmp byte [mouse_up], 0
+    je .r
+    pushad
+    mov eax, [mouse_x]
+    mov ebx, [mouse_y]
+    mov cl, 0x0F
+    push eax
+    push ebx
+    call gfx_putpixel
+    pop ebx
+    pop eax
+    push eax
+    inc ebx
+    call gfx_putpixel
+    pop eax
+    mov ebx, [mouse_y]
+    dec eax
+    call gfx_putpixel
+    mov eax, [mouse_x]
+    inc eax
+    mov ebx, [mouse_y]
+    call gfx_putpixel
+    popad
+.r:
+    ret
+
+; Left-click on a list row: select it; a click on the already selected
+; row opens (CF clear). CF set if nothing to do.
+dk_mouse:
+    cmp byte [mouse_up], 0
+    je .no
+    mov eax, [mouse_clicks]
+    cmp eax, [dk_mclicks]
+    je .no
+    mov [dk_mclicks], eax
+    cmp dword [dk_nvis], 0
+    je .no
+    ; screen → list row
+    mov eax, [mouse_x]
+    sub eax, DK_X + 1 + 4
+    js .no
+    cmp eax, DK_W - 2 - 4
+    jae .no
+    mov eax, [mouse_y]
+    sub eax, DK_Y + 1 + WM_TITLE_H + 16
+    js .no
+    xor edx, edx
+    mov ebx, GFX_CELL_H
+    div ebx
+    cmp eax, [dk_nvis]
+    jae .no
+    mov ebx, eax                ; row
+    mov eax, [dk_list]
+    call wg_selected
+    cmp eax, ebx
+    je .open                    ; second click on the same row
+    mov eax, [dk_list]
+    call wg_setsel
+    call wm_redraw
+    call dk_ptr
+    stc
+    ret
+.open:
+    clc
+    ret
+.no:
+    stc
+    ret
+
+; Non-blocking key for the desktop loop -> al, CF clear; or CF set.
+dk_trykey:
+    cli
+    call kbd_dequeue
+    sti
+    jc .none
+    call kbd_shift_track
+    je dk_trykey
+    cmp al, 0x80
+    jae dk_trykey
+    mov ah, 27
+    cmp al, 0x01
+    je .got
+    mov ah, 8
+    cmp al, 0x0E
+    je .got
+    mov ah, WK_UP
+    cmp al, 0x48
+    je .got
+    mov ah, WK_DOWN
+    cmp al, 0x50
+    je .got
+    mov ah, WK_DEL
+    cmp al, 0x53
+    je .got
+    call kbd_ascii
+    mov ah, al
+    test al, al
+    jz dk_trykey
+.got:
+    mov al, ah
+    clc
+    ret
+.none:
+    call proc_idle
+    stc
+    ret
+
 ; Waits for a key -> al = what wg_key takes: ASCII, 8 for Backspace,
 ; 27 for Esc, WK_UP and WK_DOWN for the arrows.
 wg_getkey:
@@ -847,5 +967,6 @@ dk_twin dd 0
 dk_prog dd 0
 dk_name dd 0
 dk_page dd 0
+dk_mclicks dd 0                 ; mouse_clicks already handled (1.9.10)
 dk_oldbase dd 0
 dk_oldcur dd 0

@@ -144,6 +144,18 @@ wg_selected:
     mov eax, [wg_table+eax+WG_SEL]
     ret
 
+; eax = a list's widget id, ebx = item index: sets the selection if in range
+wg_setsel:
+    push edi
+    imul edi, eax, WG_SIZE
+    add edi, wg_table
+    cmp ebx, [edi+WG_CODE]
+    jae .r
+    mov [edi+WG_SEL], ebx
+.r:
+    pop edi
+    ret
+
 ; al = ASCII of a key (8 for Backspace, WK_UP and WK_DOWN for the arrows) -> CF clear if a widget used it,
 ; CF set if not (the caller can use it itself). The key goes to the first
 ; widget of the focused window that takes keys:
