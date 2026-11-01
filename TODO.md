@@ -260,7 +260,7 @@ The owner asked for the remaining Warp-table holes after 1.9.8, as patch release
 
 - [x] **W.1-prio** — Priority field on each process (`0..3`); the scheduler runs the highest READY priority. `SYS_SETPRIO`, `ps` shows `prio N`, `run priotest` → `prio: PASS`.
 - [x] **W.2-mouse** — Polled PS/2 mouse, soft cursor on the desktop, click selects / opens. `mousetest` → `mouse: PASS`.
-- [ ] **W.3-ifconfig** — `ifconfig` shows and sets inet / mask / gw; IPv4 routing uses the mask. Defaults stay QEMU's.
+- [x] **W.3-ifconfig** — `ifconfig` shows and sets inet / mask / gw; IPv4 routing uses the mask. Defaults stay QEMU's.
 - [ ] **W.4-devreg** — `SYS_DEVREG` registers a null char device at run time. `run drvtest` → `drv: PASS`; `devices` lists it.
 
 ## Installer (unscheduled)

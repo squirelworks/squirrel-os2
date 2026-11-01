@@ -74,7 +74,7 @@ ip_output:
     je .bad
     mov ebx, eax
     xor ebx, [net_our_ip]
-    test ebx, 0x00FFFFFF        ; same 10.0.2.0/24 network?
+    and ebx, [net_netmask]      ; same network? (1.9.11)
     jnz .gw
     call arp_resolve
     jc .bad
@@ -353,8 +353,97 @@ cmd_ping_run:
     mov esi, [lstr + LS_NET_BADADDR * 4]
     jmp lputs_nl
 
+; ifconfig [ip mask gw] — show or set the guest address (1.9.11)
+cmd_ifconfig_run:
+    cmp byte [esi], 0
+    je .show
+    call next_word              ; esi = ip, edi = rest
+    push edi
+    call ip_aton
+    pop esi
+    jc .bad
+    mov [ifc_ip], eax
+    cmp byte [esi], 0
+    je .bad
+    call next_word
+    push edi
+    call ip_aton
+    pop esi
+    jc .bad
+    mov [ifc_mask], eax
+    cmp byte [esi], 0
+    je .bad
+    call next_word
+    call ip_aton
+    jc .bad
+    mov [net_gw_ip], eax
+    mov eax, [ifc_ip]
+    mov [net_our_ip], eax
+    mov eax, [ifc_mask]
+    mov [net_netmask], eax
+.show:
+    mov esi, ifc_lab_ip
+    call puts
+    mov eax, [net_our_ip]
+    call ip_ntoa
+    mov al, 10
+    call putc
+    mov esi, ifc_lab_mask
+    call puts
+    mov eax, [net_netmask]
+    call ip_ntoa
+    mov al, 10
+    call putc
+    mov esi, ifc_lab_gw
+    call puts
+    mov eax, [net_gw_ip]
+    call ip_ntoa
+    mov al, 10
+    jmp putc
+.bad:
+    mov esi, [lstr + LS_NET_BADADDR * 4]
+    jmp lputs_nl
+
+; eax = address: print dotted quad (no newline)
+ip_ntoa:
+    push eax
+    push ebx
+    push ecx
+    mov ebx, eax
+    mov ecx, 4
+.o:
+    movzx eax, bl
+    shr ebx, 8
+    call itoa
+    mov esi, num_buf
+    call puts
+    dec ecx
+    jz .d
+    mov al, '.'
+    call putc
+    jmp .o
+.d:
+    pop ecx
+    pop ebx
+    pop eax
+    ret
+
+; bare ifconfig (no arguments): same as show
+cmd_ifconfig_show:
+    mov esi, ifc_empty
+    jmp cmd_ifconfig_run
+
+ifc_empty db 0
+ifc_lab_ip db 'inet ', 0
+ifc_lab_mask db 'mask ', 0
+ifc_lab_gw db 'gw ', 0
+align 4
+ifc_ip dd 0
+ifc_mask dd 0
+
 net_lo_ip   db 127, 0, 0, 1
 net_gw_ip   db 10, 0, 2, 2
+net_netmask db 255, 255, 255, 0
 ip_zmac     times 6 db 0
 ip_dmac     times 6 db 0
 ip_proto    db 0
