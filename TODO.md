@@ -261,7 +261,7 @@ The owner asked for the remaining Warp-table holes after 1.9.8, as patch release
 - [x] **W.1-prio** — Priority field on each process (`0..3`); the scheduler runs the highest READY priority. `SYS_SETPRIO`, `ps` shows `prio N`, `run priotest` → `prio: PASS`.
 - [x] **W.2-mouse** — Polled PS/2 mouse, soft cursor on the desktop, click selects / opens. `mousetest` → `mouse: PASS`.
 - [x] **W.3-ifconfig** — `ifconfig` shows and sets inet / mask / gw; IPv4 routing uses the mask. Defaults stay QEMU's.
-- [ ] **W.4-devreg** — `SYS_DEVREG` registers a null char device at run time. `run drvtest` → `drv: PASS`; `devices` lists it.
+- [x] **W.4-devreg** — `SYS_DEVREG` registers a null char device at run time. `run drvtest` → `drv: PASS`; `devices` lists it.
 
 ## Installer (unscheduled)
 
@@ -288,7 +288,7 @@ Kept here so they are not added as tasks by accident. Reasons are in `ROADMAP.md
 - Text-mode `graph` ahead of **1.3-graph**.
 - Foreign personalities (F.1 is the first PR of that era, and not before 2.0).
 - Porting the full kernel off x86.
-- virtio-blk, ATA IRQ, a `/dev` directory, loadable drivers.
+- virtio-blk, ATA IRQ, a `/dev` directory, loading driver code from disk (1.9.12 registers a null device at run time only).
 - Ring 3 and growing stacks (2.x, per `documentation/kernel/memory.md`).
 - Classic OS/2 binary compatibility.
 
