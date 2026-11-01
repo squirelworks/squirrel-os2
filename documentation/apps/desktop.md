@@ -21,7 +21,9 @@
 | Up, Down | choose a program in the list |
 | Enter | send `open` to the chosen entry, which runs the program in a window (`calc` since 1.6.1, `draw` 1.6.3, `edit` and `vedit` 1.6.4, `files` 1.7.6) |
 | Backspace | in a folder: back to the top level (1.9.0) |
-| Esc | close the desktop, return to text mode and the shell prompt (`Desktop closed.`) |
+| m | pick up the chosen object (1.9.1) |
+| p | drop the held object into the folder shown (1.9.1) |
+| Esc | put a held object back (1.9.1); otherwise close the desktop, return to text mode and the shell prompt (`Desktop closed.`) |
 
 ## Programs in windows
 
@@ -71,6 +73,12 @@ Without a data disk, or with none of the files left, the desktop lists the built
 `DesktopObject` has a second text field, `in`: the name of the folder that holds the object, empty for the top level. A `Folder` class under `DesktopObject` has no fields of its own; its `open` makes the desktop show that folder. The desktop lists only the objects whose `in` is the folder being shown, and the window title is the folder's name (`Squirrel-OS/2 Desktop` at the top level). Backspace goes back to the top level. With nothing in the folder, the list is empty and Enter does nothing.
 
 The first time, `/desktop` also gets `Tools.obj`, an empty folder, after the five programs. A `Program`'s fields are now `name`, `in` and `entry`, one more than in 1.8, so 1.8's files are refused when they load. When none of the files load, the desktop writes the defaults again, so a 1.8 disk gets all six entries back. Checks (on a data disk of their own): `dk-folder` (the top level lists `draw` and `Tools`), `dk-folder-open` (Enter on `Tools` shows a list without `calc`, titled `Tools`), `dk-folder-back` (Backspace shows the programs again), `dk-folder-cat` (`objcat` shows `class Folder` and a `Program`'s empty `in`), `dk-folder-quit`.
+
+## Pick up, move and drop (1.9.1)
+
+`m` picks up the chosen object, and the help row then reads `Held: <name>  p: drop  Esc: back`. The object stays held while Enter and Backspace move between the top level and a folder. `p` drops it into the folder being shown. That sets its `in` field to the folder's name (empty at the top level) and saves its file in `/desktop`, so the move outlives a reboot. The lists are redrawn, and the help row goes back to normal. Esc while holding puts the object back where it was and writes nothing. A second Esc closes the desktop as before. A folder can be dropped only at the top level, because folders do not nest. Inside a folder, `p` is refused and the folder stays held.
+
+Checks (on a data disk of their own): `dk-hold` (the help row names `calc`), `dk-hold-esc` (Esc puts it back: the desktop is still open, and `calc.obj`'s `in` is still empty), `dk-move` (pick up `calc`, open `Tools`, drop: `Tools` lists `calc`), `dk-move-top` (after a reboot the top level does not list `calc`), `dk-move-cat` (`objcat` shows `in: Tools`, the object's new parent), `dk-move-open` (`calc`, opened from `Tools`, computes `2 + 2`), `dk-move-fold` (`Tools` cannot be dropped into itself).
 
 ## Booting into the desktop
 
