@@ -1,10 +1,11 @@
 ; Squirrel-OS/2 — basic process model (0.1.2)
 ; Included from pm.asm. Original code.
 ;
-; Round-robin. Kernel code switches cooperatively; since 1.1 the timer
-; also preempts a loaded program whose slice (SLICE_TICKS) has run out,
-; but only while the CPU is in the program area, because the kernel is not
-; reentrant. Slot 0 is the kernel shell (pid 0), which
+; Priority round-robin (1.9.9). Kernel code switches cooperatively; since
+; 1.1 the timer also preempts a loaded program whose slice (SLICE_TICKS)
+; has run out, but only while the CPU is in the program area, because the
+; kernel is not reentrant. Among READY processes the highest PCB_PRIO
+; runs; equals take turns. Slot 0 is the kernel shell (pid 0), which
 ; runs on the boot stack and never exits. Other slots get a private
 ; stack and start in proc_trampoline. See documentation/kernel/processes.md.
 
@@ -17,6 +18,9 @@ PROC_STACK_BASE equ 0x7C000     ; slot i stack top = base + i * size
 PROC_STACK_SIZE equ 0x3000
 PROC_GUARDS     equ PROC_MAX    ; guard pages, one under every stack
 SLICE_TICKS     equ 5           ; 50 ms at 100 Hz (1.1)
+PRIO_MIN        equ 0
+PRIO_NORM       equ 1
+PRIO_MAX        equ 3
 
 ; states
 P_FREE          equ 0
@@ -37,6 +41,7 @@ PCB_PARENT      equ 28
 PCB_AS          equ 32          ; address space record, 0 = the kernel's
 PCB_NAME        equ 40          ; 16 bytes: program or app name (0.8.2)
 PROC_NAMELEN    equ 16
+PCB_PRIO        equ 56          ; 0..3; higher runs first (1.9.9)
 PCB_FPU         equ 60          ; 1 once its x87 state has been saved (1.0.1)
 FPU_SAVE        equ 108         ; bytes per fnsave area
 PCB_SIZE        equ 64
@@ -47,6 +52,7 @@ proc_init:
     xor eax, eax
     rep stosd
     mov dword [proc_table+PCB_STATE], P_RUNNING     ; pid 0 = shell
+    mov dword [proc_table+PCB_PRIO], PRIO_NORM
     mov esi, proc_shell_name
     mov edi, proc_table
     call proc_set_name
@@ -86,6 +92,7 @@ proc_spawn:
     mov dword [edi+PCB_CODE], 0
     mov dword [edi+PCB_WAITPID], 0
     mov byte [edi+PCB_NAME], 0
+    mov dword [edi+PCB_PRIO], PRIO_NORM
     mov dword [edi+PCB_FPU], 0  ; starts with a freshly reset FPU
     call msg_reset              ; and an empty message queue (1.2)
     mov ebx, [proc_cur]
@@ -326,16 +333,38 @@ proc_find:
     pop ecx
     ret
 
-; Switches to the next READY process after the current one, round-robin.
-; Returns (in the caller's context) when this process is scheduled again.
-; If nothing else is READY and the caller can keep running, returns at
-; once with CF set; a caller that cannot run (waiting/zombie) with
-; nobody READY is a deadlock and panics.
+; Switches to a READY process: the highest PCB_PRIO, round-robin among
+; equals (1.9.9). Returns (in the caller's context) when this process is
+; scheduled again. If nothing else at that priority is READY and the
+; caller can keep running, returns at once with CF set; a caller that
+; cannot run (waiting/zombie) with nobody READY is a deadlock and panics.
 proc_switch:
     pushfd
     cli
     pushad
     mov esi, [proc_cur]
+    ; highest priority among READY slots, and the current if RUNNING
+    mov ebx, -1
+    mov edi, proc_table
+    mov ecx, PROC_MAX
+.findmax:
+    mov eax, [edi+PCB_STATE]
+    cmp eax, P_READY
+    je .cand
+    cmp eax, P_RUNNING
+    jne .nmax
+    cmp edi, esi
+    jne .nmax
+.cand:
+    mov eax, [edi+PCB_PRIO]
+    cmp eax, ebx
+    jle .nmax
+    mov ebx, eax
+.nmax:
+    add edi, PCB_SIZE
+    loop .findmax
+    cmp ebx, -1
+    je proc_panic
     mov edi, esi
     mov ecx, PROC_MAX
 .scan:
@@ -347,7 +376,10 @@ proc_switch:
     cmp edi, esi
     je .none
     cmp dword [edi+PCB_STATE], P_READY
+    jne .next
+    cmp [edi+PCB_PRIO], ebx
     je .go
+.next:
     loop .scan
 .none:
     cmp dword [esi+PCB_STATE], P_RUNNING
@@ -399,8 +431,8 @@ proc_fpu_area:
     ret
 
 ; From the timer interrupt (1.1), when a loaded program has used up its
-; slice: the same round-robin switch as a yield. If nothing else is
-; READY the program keeps the CPU for another slice.
+; slice: the same priority switch as a yield. If nothing else at its
+; priority is READY the program keeps the CPU for another slice.
 proc_preempt:
     mov dword [sched_left], SLICE_TICKS
     inc dword [sched_preempts]
@@ -470,6 +502,12 @@ cmd_ps_run:
     mov esi, ps_kernel
     call puts
 .eol:
+    mov esi, ps_prio
+    call puts
+    mov eax, [ebx+PCB_PRIO]
+    call itoa
+    mov esi, num_buf
+    call puts
     mov al, 10
     call putc
     pop ecx
@@ -477,6 +515,18 @@ cmd_ps_run:
     add ebx, PCB_SIZE
     dec ecx
     jnz .row
+    ret
+
+; ebx = 0..PRIO_MAX -> sets the caller's priority; eax = 0, or -1 if out of range
+proc_setprio:
+    cmp ebx, PRIO_MAX
+    ja .bad
+    mov eax, [proc_cur]
+    mov [eax+PCB_PRIO], ebx
+    xor eax, eax
+    ret
+.bad:
+    mov eax, -1
     ret
 
 ; prints spaces until the cursor column is >= al
@@ -609,6 +659,7 @@ ps_none db '-', 0
 proc_shell_name db 'shell', 0
 ps_kb db ' KB', 0
 ps_kernel db 'kernel', 0
+ps_prio db ' prio ', 0
 pt_msg db 'worker ', 0
 pt_step db ' step ', 0
 pt_reaped db 'reaped pid ', 0

@@ -352,6 +352,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - One TCP connection: connect, send, receive and close. Data is accepted in order, and a segment is sent again once when nothing comes back. `fetch <ip> <port> <path>` prints the HTTP/1.0 reply (`kernel/network.md`; `fetch-hello`).
 
+## 1.9.9
+
+- Each process has a priority `0..3` (default 1). The scheduler runs the highest READY priority; equals take turns. `SYS_SETPRIO` sets it; `ps` prints `prio N`. `run priotest` prints `prio: PASS` (`kernel/processes.md`; `prio`).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.

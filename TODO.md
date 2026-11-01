@@ -254,6 +254,15 @@ Split from `ROADMAP.md` once 1.9 was on `main`. Original code. The card is the N
   **Acceptance:** the regression run starts a file server on the host; `fetch 10.0.2.2 <port> /hello.txt` prints the file's text through slirp's forwarding.
 - [ ] **2.0.0** — The release. Every 2.0 prerequisite in `ROADMAP.md` is on `main`: release note `documentation/releases/2.0.0.md`, banner `2.0.0`, PROCESS table, README, `documentation/plannedmilestones.md`, spec section. **Ask the owner before tagging.**
 
+## Warp gaps (1.9.9–1.9.12)
+
+The owner asked for the remaining Warp-table holes after 1.9.8, as patch releases before tagging 2.0.0. Each box is one version bump; land them in order.
+
+- [x] **W.1-prio** — Priority field on each process (`0..3`); the scheduler runs the highest READY priority. `SYS_SETPRIO`, `ps` shows `prio N`, `run priotest` → `prio: PASS`.
+- [ ] **W.2-mouse** — Polled PS/2 mouse, soft cursor on the desktop, click selects / opens. `mousetest` → `mouse: PASS`.
+- [ ] **W.3-ifconfig** — `ifconfig` shows and sets inet / mask / gw; IPv4 routing uses the mask. Defaults stay QEMU's.
+- [ ] **W.4-devreg** — `SYS_DEVREG` registers a null char device at run time. `run drvtest` → `drv: PASS`; `devices` lists it.
+
 ## Installer (unscheduled)
 
 The author lifted the old gate ("not before the 1.5 and 1.6 boxes above are closed") on 2026-10-31: these boxes now run alongside the 1.x work, and stay out of the desktop and editor files. Each PR carries the OS version it ships in, like any other release (I.1 and I.2 shipped in 1.7.2). Each box is one PR. Design notes go in `documentation/guides/install.md` with the first box. The target is an IDE/ATA disk in BIOS mode; the regression run uses a blank QEMU disk as the target.
@@ -277,7 +286,6 @@ Kept here so they are not added as tasks by accident. Reasons are in `ROADMAP.md
 
 - `topo` before 2.x.
 - Text-mode `graph` ahead of **1.3-graph**.
-- Priority levels inside 1.1.
 - A mouse.
 - Foreign personalities (F.1 is the first PR of that era, and not before 2.0).
 - Porting the full kernel off x86.
