@@ -1,9 +1,9 @@
 # Squirrel-OS/2
 
-> **Joke branch: `klingon-font`.** An alien world where the PC never had
-> ASCII. The kernel writes real pIqaD glyphs over the VGA font's letters
-> and digits and boots in Klingon (`lang tlh`), so the whole system reads
-> in Klingon script. Not for merging into `main`; see
+> **Joke branch: `klingon-font` (rebased to 2.0.0).** An alien world where
+> the PC never had ASCII. The kernel writes real pIqaD glyphs over the VGA
+> font's letters and digits and boots in Klingon (`lang tlh`), so the whole
+> system reads in Klingon script. See
 > [Klingon font](#klingon-font-joke-branch) below. The matching firmware
 > joke is SquirrelBIOS's `klingon-font` branch.
 >
@@ -50,9 +50,10 @@ See `documentation/README.md` for the living documentation set.
 
 ## Current release
 
-**1.0.0** — the usable minimal system: file system, browser, `edit`, `vedit`, `draw`, `calc`, `sci`, `matrix`.  
+**2.0.0** — Warp-style system: preemption, windowing, object desktop, networking.  
 Build and run with `tools/build.sh` and `tools/run.sh` (`documentation/guides/getting-started.md`).  
-Notes: `documentation/releases/1.0.0.md` (patches: `1.0.1.md`, `1.0.2.md`, `1.0.3.md`, `1.0.4.md`, `1.0.5.md`, `1.0.6.md`, `1.0.7.md`, `1.0.8.md`, `1.0.9.md`, `1.0.10.md`, `1.0.11.md`, `1.0.12.md`; 1.1: `1.1.0.md`, `1.1.1.md`; 1.2: `1.2.0.md`). Limits: `documentation/specifications.md`. What to do next: [TODO.md](TODO.md).
+Notes: `documentation/releases/2.0.0.md` (1.0: `1.0.0.md` … `1.0.12.md`; 1.1–1.9 through `1.9.12.md`). Limits: `documentation/specifications.md`. What to do next: [TODO.md](TODO.md).  
+Font: lowercase `q` now has a straight stem with a right-hand tail on its descender, so it no longer reads as `9`.
 
 ## Klingon font (joke branch)
 
@@ -70,11 +71,11 @@ Notes: `documentation/releases/1.0.0.md` (patches: `1.0.1.md`, `1.0.2.md`, `1.0.
   names such as `{echo}`) keeps its Latin letters.
 - The whole system speaks Klingon, not just the shell: the banner's command
   list, the loader and file-system messages, and the UI of calc, sci,
-  matrix, diff, edit/vedit, draw and the file browser come from
+  matrix, edit/vedit, draw and the file browser come from
   `localization/*/strings.txt` (`\n` in a value is a newline). Command
   words (`q`, `clear`, `det`, `y/n`) stay as they are. Latin has no
   translations for these yet and falls back to English. The built-in
-  `help`, `calc`, `sci`, `matrix` and `diff` files keep their English text.
+  `help`, `calc`, `sci` and `matrix` files keep their English text.
 - The kernel starts in Klingon. Build with `nasm -DDEFAULT_LANG_EN` to start
   in English; `tools/regress.sh` does, so its English checks still apply.
   `lang en` switches at run time (the letters stay alien).
@@ -86,7 +87,7 @@ As Squirrel-OS/2 grows, rebase the joke onto `main`:
 ```bash
 git fetch origin main
 git checkout klingon-font
-git rebase origin/main
+git rebase origin/main   # or the 2.0.0 release tip
 python3 tools/mkstrings.py      # conflicts in kernel/strings.inc: just regenerate
 tools/build.sh && tools/regress.sh
 git push --force-with-lease origin klingon-font
@@ -95,7 +96,7 @@ git push --force-with-lease origin klingon-font
 The joke touches `kernel/klingon.asm`, `kernel/klingon-font.inc`,
 `tools/klingon-font.py`, a few lines in `kernel/pm.asm` (font load and
 default language), `tools/mkstrings.py` (digraphs, `{}` and `\n`), the
-`lang-tlh`, `l10n-calc-tlh` and `l10n-edit-tlh` checks and `nasm -DDEFAULT_LANG_EN` in `tools/regress.sh`, this
+`lang-tlh` check and `nasm -DDEFAULT_LANG_EN` in `tools/regress.sh`, this
 README, and the app texts: the keys after the "Klingon branch" comment in
 `localization/en` and `localization/tlh`, and the `[lstr+LS_...*4]`,
 `lset` and `lcmp` references that replaced the English `db` strings in

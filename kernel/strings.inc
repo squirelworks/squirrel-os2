@@ -33,105 +33,109 @@ LS_FE_IO equ 28
 LS_FE_FULL equ 29
 LS_FE_ISDIR equ 30
 LS_FE_NOFD equ 31
-LS_CALC_BANNER equ 32
-LS_CALC_HELP equ 33
-LS_CALC_ERRPRE equ 34
-LS_CALC_E_SYNTAX equ 35
-LS_CALC_E_OVERFLOW equ 36
-LS_CALC_E_LARGE equ 37
-LS_CALC_E_DIV0 equ 38
-LS_CALC_CLEARED equ 39
-LS_SCI_BANNER equ 40
-LS_SCI_HELP equ 41
-LS_SCI_E_DOMAIN equ 42
-LS_MX_BANNER equ 43
-LS_MX_HELP equ 44
-LS_MX_M_NONE equ 45
-LS_MX_E_SIZE equ 46
-LS_MX_E_SQUARE equ 47
-LS_MX_E_SINGULAR equ 48
-LS_MX_E_RAGGED equ 49
-LS_MX_E_BIG equ 50
-LS_MX_E_COMPLEX equ 51
-LS_MX_E_UNDEF equ 52
-LS_ED_S_NONAME equ 53
-LS_ED_S_MOD equ 54
-LS_ED_S_KEYS equ 55
-LS_ED_M_NEW equ 56
-LS_ED_M_NEWFILE equ 57
-LS_ED_M_LOADED equ 58
-LS_ED_M_TRUNCATED equ 59
-LS_ED_M_NODISK equ 60
-LS_ED_M_IOERR equ 61
-LS_ED_M_SAVED equ 62
-LS_ED_M_SAVEAS equ 63
-LS_ED_M_CANCEL equ 64
-LS_ED_M_UNSAVED equ 65
-LS_ED_M_FULL equ 66
-LS_ED_M_MOVED equ 67
-LS_ED_M_INS equ 68
-LS_ED_M_OVR equ 69
-LS_ED_M_TYPED equ 70
-LS_ED_M_DELETED equ 71
-LS_DR_TITLE equ 72
-LS_DR_KEYS1 equ 73
-LS_DR_KEYS2 equ 74
-LS_DR_S_POS equ 75
-LS_DR_S_BRUSH equ 76
-LS_DR_S_PENUP equ 77
-LS_DR_S_PENDOWN equ 78
-LS_DR_S_LINE equ 79
-LS_DR_S_RECT equ 80
-LS_DR_M_HELP equ 81
-LS_DR_M_PENUP equ 82
-LS_DR_M_PENDOWN equ 83
-LS_DR_M_BRUSH equ 84
-LS_DR_M_BRUSHSET equ 85
-LS_DR_M_MARK equ 86
-LS_DR_M_DRAWN equ 87
-LS_DR_M_FILLED equ 88
-LS_DR_M_CLEARED equ 89
-LS_FB_TITLE equ 90
-LS_FB_SRC_DISK equ 91
-LS_FB_SRC_ROM equ 92
-LS_FB_IN equ 93
-LS_FB_TAG_APP equ 94
-LS_FB_HELP equ 95
-LS_FB_NFILES equ 96
-LS_FB_ANYKEY equ 97
-LS_FB_CONFIRM equ 98
-LS_LD_M_ENOENT equ 99
-LS_LD_M_EFORMAT equ 100
-LS_LD_M_EBIG equ 101
-LS_LD_M_EBUSY equ 102
-LS_LD_M_EPROC equ 103
-LS_LD_M_ENOMEM equ 104
-LS_PROC_FULL equ 105
-LS_FS_MSG_FORMATTED equ 106
-LS_FS_MSG_FOREIGN equ 107
-LS_SH_M_REDIR equ 108
-LS_SH_M_PIPE equ 109
-LS_SH_M_NOFILE equ 110
-LS_SH_M_WFAIL equ 111
-LS_SH_M_TRUNC equ 112
-LS_BAT_M_STOPPED equ 113
-LS_COMMANDS equ 114
-LS_ED_M_FIND equ 115
-LS_ED_M_UNDONE equ 116
-LS_ED_M_CTLON equ 117
-LS_ED_M_CTLOFF equ 118
-LS_ED_M_NOTHING equ 119
-LS_ED_M_NOUNDO equ 120
-LS_ED_M_FOUND equ 121
-LS_ED_M_ATLINE equ 122
-LS_ED_M_ATCOL equ 123
-LS_ED_M_NOTFOUND equ 124
-LS_ED_M_NOFIND equ 125
-LS_DIFF_BANNER equ 126
-LS_DIFF_HELP equ 127
-LS_DIFF_E_STEP equ 128
-LS_DIFF_E_MANY equ 129
-LS_COUNT equ 130
+LS_INST_TITLE equ 32
+LS_INST_TARGET equ 33
+LS_INST_NOTARGET equ 34
+LS_INST_NOBOOT equ 35
+LS_INST_ERASE equ 36
+LS_INST_CONFIRM equ 37
+LS_INST_CANCEL equ 38
+LS_INST_PART equ 39
+LS_INST_FORMAT equ 40
+LS_INST_COPY equ 41
+LS_INST_BOOT equ 42
+LS_INST_OK equ 43
+LS_INST_FAIL equ 44
+LS_INST_DONE equ 45
+LS_INST_FAILED equ 46
+LS_INST_ANYKEY equ 47
+LS_NET_NOREPLY equ 48
+LS_NET_BADADDR equ 49
+LS_NET_OF4 equ 50
+LS_CALC_BANNER equ 51
+LS_CALC_HELP equ 52
+LS_CALC_ERRPRE equ 53
+LS_CALC_E_SYNTAX equ 54
+LS_CALC_E_OVERFLOW equ 55
+LS_CALC_E_LARGE equ 56
+LS_CALC_E_DIV0 equ 57
+LS_CALC_CLEARED equ 58
+LS_SCI_BANNER equ 59
+LS_SCI_HELP equ 60
+LS_SCI_E_DOMAIN equ 61
+LS_MX_BANNER equ 62
+LS_MX_HELP equ 63
+LS_MX_M_NONE equ 64
+LS_MX_E_SIZE equ 65
+LS_MX_E_SQUARE equ 66
+LS_MX_E_SINGULAR equ 67
+LS_MX_E_RAGGED equ 68
+LS_MX_E_BIG equ 69
+LS_MX_E_COMPLEX equ 70
+LS_MX_E_UNDEF equ 71
+LS_ED_S_NONAME equ 72
+LS_ED_S_MOD equ 73
+LS_ED_S_KEYS equ 74
+LS_ED_M_NEW equ 75
+LS_ED_M_NEWFILE equ 76
+LS_ED_M_LOADED equ 77
+LS_ED_M_TRUNCATED equ 78
+LS_ED_M_NODISK equ 79
+LS_ED_M_IOERR equ 80
+LS_ED_M_SAVED equ 81
+LS_ED_M_SAVEAS equ 82
+LS_ED_M_CANCEL equ 83
+LS_ED_M_UNSAVED equ 84
+LS_ED_M_FULL equ 85
+LS_ED_M_MOVED equ 86
+LS_ED_M_INS equ 87
+LS_ED_M_OVR equ 88
+LS_ED_M_TYPED equ 89
+LS_ED_M_DELETED equ 90
+LS_DR_TITLE equ 91
+LS_DR_KEYS1 equ 92
+LS_DR_KEYS2 equ 93
+LS_DR_S_POS equ 94
+LS_DR_S_BRUSH equ 95
+LS_DR_S_PENUP equ 96
+LS_DR_S_PENDOWN equ 97
+LS_DR_S_LINE equ 98
+LS_DR_S_RECT equ 99
+LS_DR_M_HELP equ 100
+LS_DR_M_PENUP equ 101
+LS_DR_M_PENDOWN equ 102
+LS_DR_M_BRUSH equ 103
+LS_DR_M_BRUSHSET equ 104
+LS_DR_M_MARK equ 105
+LS_DR_M_DRAWN equ 106
+LS_DR_M_FILLED equ 107
+LS_DR_M_CLEARED equ 108
+LS_FB_TITLE equ 109
+LS_FB_SRC_DISK equ 110
+LS_FB_SRC_ROM equ 111
+LS_FB_IN equ 112
+LS_FB_TAG_APP equ 113
+LS_FB_HELP equ 114
+LS_FB_NFILES equ 115
+LS_FB_ANYKEY equ 116
+LS_FB_CONFIRM equ 117
+LS_LD_M_ENOENT equ 118
+LS_LD_M_EFORMAT equ 119
+LS_LD_M_EBIG equ 120
+LS_LD_M_EBUSY equ 121
+LS_LD_M_EPROC equ 122
+LS_LD_M_ENOMEM equ 123
+LS_PROC_FULL equ 124
+LS_FS_MSG_FORMATTED equ 125
+LS_FS_MSG_FOREIGN equ 126
+LS_SH_M_REDIR equ 127
+LS_SH_M_PIPE equ 128
+LS_SH_M_NOFILE equ 129
+LS_SH_M_WFAIL equ 130
+LS_SH_M_TRUNC equ 131
+LS_BAT_M_STOPPED equ 132
+LS_COMMANDS equ 133
+LS_COUNT equ 134
 LANG_COUNT equ 3
 
 align 4
@@ -173,6 +177,25 @@ ls_en:
     dd ls_en_fe_full
     dd ls_en_fe_isdir
     dd ls_en_fe_nofd
+    dd ls_en_inst_title
+    dd ls_en_inst_target
+    dd ls_en_inst_notarget
+    dd ls_en_inst_noboot
+    dd ls_en_inst_erase
+    dd ls_en_inst_confirm
+    dd ls_en_inst_cancel
+    dd ls_en_inst_part
+    dd ls_en_inst_format
+    dd ls_en_inst_copy
+    dd ls_en_inst_boot
+    dd ls_en_inst_ok
+    dd ls_en_inst_fail
+    dd ls_en_inst_done
+    dd ls_en_inst_failed
+    dd ls_en_inst_anykey
+    dd ls_en_net_noreply
+    dd ls_en_net_badaddr
+    dd ls_en_net_of4
     dd ls_en_calc_banner
     dd ls_en_calc_help
     dd ls_en_calc_errpre
@@ -256,21 +279,6 @@ ls_en:
     dd ls_en_sh_m_trunc
     dd ls_en_bat_m_stopped
     dd ls_en_commands
-    dd ls_en_ed_m_find
-    dd ls_en_ed_m_undone
-    dd ls_en_ed_m_ctlon
-    dd ls_en_ed_m_ctloff
-    dd ls_en_ed_m_nothing
-    dd ls_en_ed_m_noundo
-    dd ls_en_ed_m_found
-    dd ls_en_ed_m_atline
-    dd ls_en_ed_m_atcol
-    dd ls_en_ed_m_notfound
-    dd ls_en_ed_m_nofind
-    dd ls_en_diff_banner
-    dd ls_en_diff_help
-    dd ls_en_diff_e_step
-    dd ls_en_diff_e_many
 ls_la:
     dd ls_la_banner
     dd ls_la_prompt
@@ -304,21 +312,25 @@ ls_la:
     dd ls_la_fe_full
     dd ls_la_fe_isdir
     dd ls_la_fe_nofd
-    dd 0
-    dd 0
-    dd 0
-    dd 0
-    dd 0
-    dd 0
-    dd 0
-    dd 0
-    dd 0
-    dd 0
-    dd 0
-    dd 0
-    dd 0
-    dd 0
-    dd 0
+    dd ls_la_inst_title
+    dd ls_la_inst_target
+    dd ls_la_inst_notarget
+    dd ls_la_inst_noboot
+    dd ls_la_inst_erase
+    dd ls_la_inst_confirm
+    dd ls_la_inst_cancel
+    dd ls_la_inst_part
+    dd ls_la_inst_format
+    dd ls_la_inst_copy
+    dd ls_la_inst_boot
+    dd ls_la_inst_ok
+    dd ls_la_inst_fail
+    dd ls_la_inst_done
+    dd ls_la_inst_failed
+    dd ls_la_inst_anykey
+    dd ls_la_net_noreply
+    dd ls_la_net_badaddr
+    dd ls_la_net_of4
     dd 0
     dd 0
     dd 0
@@ -435,6 +447,25 @@ ls_tlh:
     dd ls_tlh_fe_full
     dd ls_tlh_fe_isdir
     dd ls_tlh_fe_nofd
+    dd ls_tlh_inst_title
+    dd ls_tlh_inst_target
+    dd ls_tlh_inst_notarget
+    dd ls_tlh_inst_noboot
+    dd ls_tlh_inst_erase
+    dd ls_tlh_inst_confirm
+    dd ls_tlh_inst_cancel
+    dd ls_tlh_inst_part
+    dd ls_tlh_inst_format
+    dd ls_tlh_inst_copy
+    dd ls_tlh_inst_boot
+    dd ls_tlh_inst_ok
+    dd ls_tlh_inst_fail
+    dd ls_tlh_inst_done
+    dd ls_tlh_inst_failed
+    dd ls_tlh_inst_anykey
+    dd ls_tlh_net_noreply
+    dd ls_tlh_net_badaddr
+    dd ls_tlh_net_of4
     dd ls_tlh_calc_banner
     dd ls_tlh_calc_help
     dd ls_tlh_calc_errpre
@@ -518,21 +549,6 @@ ls_tlh:
     dd ls_tlh_sh_m_trunc
     dd ls_tlh_bat_m_stopped
     dd ls_tlh_commands
-    dd ls_tlh_ed_m_find
-    dd ls_tlh_ed_m_undone
-    dd ls_tlh_ed_m_ctlon
-    dd ls_tlh_ed_m_ctloff
-    dd ls_tlh_ed_m_nothing
-    dd ls_tlh_ed_m_noundo
-    dd ls_tlh_ed_m_found
-    dd ls_tlh_ed_m_atline
-    dd ls_tlh_ed_m_atcol
-    dd ls_tlh_ed_m_notfound
-    dd ls_tlh_ed_m_nofind
-    dd ls_tlh_diff_banner
-    dd ls_tlh_diff_help
-    dd ls_tlh_diff_e_step
-    dd ls_tlh_diff_e_many
 ls_en_banner db 'Squirrel-OS/2', 0
 ls_en_prompt db '> ', 0
 ls_en_files db 'Files:', 0
@@ -565,7 +581,26 @@ ls_en_fe_io db 'Disk error', 0
 ls_en_fe_full db 'Disk full', 0
 ls_en_fe_isdir db 'Is a directory', 0
 ls_en_fe_nofd db 'Too many open files', 0
-ls_en_calc_banner db 32, 40, 69, 115, 99, 32, 116, 111, 32, 101, 120, 105, 116, 41, 10, 0
+ls_en_inst_title db 'Squirrel-OS/2 Installer', 0
+ls_en_inst_target db 'Target disk:', 0
+ls_en_inst_notarget db 'No disk to install to. Attach a blank disk as secondary master or slave.', 0
+ls_en_inst_noboot db 'The boot disk is not an IDE disk, so the system cannot be copied from it.', 0
+ls_en_inst_erase db 'Everything on the target disk will be erased.', 0
+ls_en_inst_confirm db 'Enter: install    Esc: cancel', 0
+ls_en_inst_cancel db 'Cancelled. Nothing was written.', 0
+ls_en_inst_part db 'Partition table', 0
+ls_en_inst_format db 'File system', 0
+ls_en_inst_copy db 'Copying the system', 0
+ls_en_inst_boot db 'Boot code', 0
+ls_en_inst_ok db 'done', 0
+ls_en_inst_fail db 'failed', 0
+ls_en_inst_done db 'Installed. Remove the release disk and restart the computer.', 0
+ls_en_inst_failed db 'The installation stopped. The target disk may be incomplete.', 0
+ls_en_inst_anykey db 'Press any key.', 0
+ls_en_net_noreply db 'No reply', 0
+ls_en_net_badaddr db 'Bad address', 0
+ls_en_net_of4 db ' of 4', 0
+ls_en_calc_banner db 66, 97, 115, 105, 99, 32, 67, 97, 108, 99, 117, 108, 97, 116, 111, 114, 32, 40, 69, 115, 99, 32, 116, 111, 32, 101, 120, 105, 116, 41, 10, 0
 ls_en_calc_help db 73, 110, 116, 101, 103, 101, 114, 115, 58, 32, 43, 32, 45, 32, 42, 32, 47, 32, 40, 32, 41, 32, 32, 112, 101, 114, 99, 101, 110, 116, 58, 32, 49, 48, 48, 32, 43, 32, 49, 53, 37, 32, 32, 50, 48, 48, 32, 42, 32, 49, 53, 37, 32, 32, 50, 48, 48, 32, 37, 32, 49, 53, 10, 97, 110, 115, 32, 61, 32, 108, 97, 115, 116, 32, 114, 101, 115, 117, 108, 116, 59, 32, 115, 116, 97, 114, 116, 32, 119, 105, 116, 104, 32, 97, 110, 32, 111, 112, 101, 114, 97, 116, 111, 114, 32, 116, 111, 32, 99, 111, 110, 116, 105, 110, 117, 101, 32, 102, 114, 111, 109, 32, 105, 116, 32, 40, 42, 32, 50, 41, 10, 67, 111, 109, 109, 97, 110, 100, 115, 58, 32, 99, 108, 101, 97, 114, 32, 32, 104, 105, 115, 116, 32, 32, 113, 10, 0
 ls_en_calc_errpre db 'Error: ', 0
 ls_en_calc_e_syntax db 'syntax at column ', 0
@@ -606,7 +641,7 @@ ls_en_ed_m_ovr db 'Overwrite mode.', 0
 ls_en_ed_m_typed db 'Typed ', 0
 ls_en_ed_m_deleted db 'Deleted ', 0
 ls_en_dr_title db ' - ASCII canvas 64x18', 0
-ls_en_dr_keys1 db 'Arrows move  Space plot  x/Bksp erase  p pen up/down  b brush  c clear', 0
+ls_en_dr_keys1 db 'Arrows move  Space plot  x/Bksp erase  p pen  b brush  c clear  g pixels', 0
 ls_en_dr_keys2 db 'l line, r rectangle (press at both corners)  f fill  Ctrl+S/F2 save  Esc quit', 0
 ls_en_dr_s_pos db 'Pos ', 0
 ls_en_dr_s_brush db "  Brush '", 0
@@ -647,22 +682,7 @@ ls_en_sh_m_nofile db 'Cannot read ', 0
 ls_en_sh_m_wfail db 'Cannot write ', 0
 ls_en_sh_m_trunc db 40, 111, 117, 116, 112, 117, 116, 32, 99, 117, 116, 32, 97, 116, 32, 51, 50, 32, 75, 66, 41, 10, 0
 ls_en_bat_m_stopped db 66, 97, 116, 99, 104, 32, 115, 116, 111, 112, 112, 101, 100, 10, 0
-ls_en_commands db 67, 111, 109, 109, 97, 110, 100, 115, 58, 32, 108, 115, 32, 124, 32, 99, 97, 116, 32, 60, 102, 62, 32, 124, 32, 114, 117, 110, 32, 60, 97, 112, 112, 124, 102, 105, 108, 101, 62, 32, 124, 32, 112, 117, 116, 32, 60, 102, 62, 32, 60, 116, 101, 120, 116, 62, 32, 124, 32, 109, 107, 32, 60, 102, 62, 32, 124, 32, 114, 109, 32, 60, 102, 62, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 109, 118, 32, 60, 102, 62, 32, 60, 110, 101, 119, 62, 32, 124, 32, 109, 107, 100, 105, 114, 32, 60, 100, 62, 32, 124, 32, 99, 100, 32, 60, 100, 62, 32, 124, 32, 112, 119, 100, 32, 124, 32, 101, 99, 104, 111, 32, 124, 32, 98, 97, 116, 99, 104, 32, 60, 102, 62, 32, 124, 32, 102, 111, 114, 109, 97, 116, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 112, 115, 32, 124, 32, 100, 105, 115, 107, 32, 124, 32, 109, 101, 109, 32, 124, 32, 100, 101, 118, 105, 99, 101, 115, 32, 124, 32, 108, 97, 110, 103, 32, 60, 101, 110, 124, 108, 97, 124, 116, 108, 104, 62, 10, 84, 101, 115, 116, 115, 58, 32, 115, 121, 115, 116, 101, 115, 116, 32, 124, 32, 112, 114, 111, 99, 116, 101, 115, 116, 32, 124, 32, 98, 108, 107, 116, 101, 115, 116, 32, 124, 32, 102, 115, 116, 101, 115, 116, 32, 124, 32, 109, 101, 109, 116, 101, 115, 116, 32, 124, 32, 107, 101, 121, 115, 10, 65, 112, 112, 115, 58, 32, 102, 105, 108, 101, 115, 44, 32, 99, 97, 108, 99, 44, 32, 115, 99, 105, 44, 32, 109, 97, 116, 114, 105, 120, 44, 32, 100, 105, 102, 102, 44, 32, 101, 100, 105, 116, 44, 32, 118, 101, 100, 105, 116, 44, 32, 100, 114, 97, 119, 32, 32, 32, 40, 112, 108, 97, 110, 110, 101, 100, 58, 32, 103, 114, 97, 112, 104, 44, 32, 116, 111, 112, 111, 41, 10, 0
-ls_en_ed_m_find db 'Find (Esc cancels): ', 0
-ls_en_ed_m_undone db 'Undone.', 0
-ls_en_ed_m_ctlon db 'Control characters shown: $ line end, > tab, ^ other.', 0
-ls_en_ed_m_ctloff db 'Control characters hidden.', 0
-ls_en_ed_m_nothing db 'Nothing to undo.', 0
-ls_en_ed_m_noundo db 'Undo unavailable: no free memory.', 0
-ls_en_ed_m_found db 'Found ', 0
-ls_en_ed_m_atline db ' at line ', 0
-ls_en_ed_m_atcol db ', column ', 0
-ls_en_ed_m_notfound db 'Not found: ', 0
-ls_en_ed_m_nofind db 'Nothing to find again: Ctrl+F first', 0
-ls_en_diff_banner db 67, 97, 108, 99, 117, 108, 117, 115, 32, 67, 97, 108, 99, 117, 108, 97, 116, 111, 114, 32, 40, 69, 115, 99, 32, 116, 111, 32, 101, 120, 105, 116, 41, 10, 0
-ls_en_diff_help db 100, 32, 60, 102, 40, 120, 41, 62, 32, 97, 116, 32, 60, 120, 48, 62, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 100, 101, 114, 105, 118, 97, 116, 105, 118, 101, 44, 32, 101, 46, 103, 46, 32, 32, 100, 32, 115, 105, 110, 40, 120, 41, 32, 97, 116, 32, 48, 10, 105, 32, 60, 102, 40, 120, 41, 62, 32, 102, 114, 111, 109, 32, 60, 97, 62, 32, 116, 111, 32, 60, 98, 62, 32, 32, 32, 32, 105, 110, 116, 101, 103, 114, 97, 108, 44, 32, 32, 32, 101, 46, 103, 46, 32, 32, 105, 32, 120, 94, 50, 32, 102, 114, 111, 109, 32, 48, 32, 116, 111, 32, 51, 10, 101, 117, 108, 101, 114, 32, 60, 102, 40, 120, 44, 121, 41, 62, 32, 102, 114, 111, 109, 32, 60, 120, 48, 62, 32, 116, 111, 32, 60, 120, 49, 62, 32, 121, 48, 32, 60, 121, 62, 32, 115, 116, 101, 112, 32, 60, 104, 62, 32, 32, 32, 79, 68, 69, 32, 121, 39, 32, 61, 32, 102, 44, 32, 69, 117, 108, 101, 114, 10, 102, 32, 105, 115, 32, 97, 32, 115, 99, 105, 32, 101, 120, 112, 114, 101, 115, 115, 105, 111, 110, 32, 105, 110, 32, 120, 32, 40, 97, 110, 100, 32, 121, 41, 59, 32, 97, 110, 103, 108, 101, 115, 32, 97, 114, 101, 32, 114, 97, 100, 105, 97, 110, 115, 46, 32, 113, 32, 113, 117, 105, 116, 115, 10, 0
-ls_en_diff_e_step db 'step must be greater than 0', 0
-ls_en_diff_e_many db 'more than 100000 steps', 0
+ls_en_commands db 67, 111, 109, 109, 97, 110, 100, 115, 58, 32, 108, 115, 32, 124, 32, 99, 97, 116, 32, 60, 102, 62, 32, 124, 32, 114, 117, 110, 32, 60, 97, 112, 112, 124, 102, 105, 108, 101, 62, 32, 124, 32, 112, 117, 116, 32, 60, 102, 62, 32, 60, 116, 101, 120, 116, 62, 32, 124, 32, 109, 107, 32, 60, 102, 62, 32, 124, 32, 114, 109, 32, 60, 102, 62, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 109, 118, 32, 60, 102, 62, 32, 60, 110, 101, 119, 62, 32, 124, 32, 109, 107, 100, 105, 114, 32, 60, 100, 62, 32, 124, 32, 99, 100, 32, 60, 100, 62, 32, 124, 32, 112, 119, 100, 32, 124, 32, 101, 99, 104, 111, 32, 124, 32, 98, 97, 116, 99, 104, 32, 60, 102, 62, 32, 124, 32, 102, 111, 114, 109, 97, 116, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 112, 115, 32, 124, 32, 100, 105, 115, 107, 32, 124, 32, 109, 101, 109, 32, 124, 32, 100, 101, 118, 105, 99, 101, 115, 32, 124, 32, 108, 97, 110, 103, 32, 60, 101, 110, 124, 108, 97, 124, 116, 108, 104, 62, 32, 124, 32, 100, 101, 115, 107, 116, 111, 112, 32, 124, 32, 105, 110, 115, 116, 97, 108, 108, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 111, 98, 106, 99, 97, 116, 10, 84, 101, 115, 116, 115, 58, 32, 115, 121, 115, 116, 101, 115, 116, 32, 124, 32, 112, 114, 111, 99, 116, 101, 115, 116, 32, 124, 32, 98, 108, 107, 116, 101, 115, 116, 32, 124, 32, 102, 115, 116, 101, 115, 116, 32, 124, 32, 109, 101, 109, 116, 101, 115, 116, 32, 124, 32, 107, 101, 121, 115, 10, 32, 32, 32, 32, 32, 32, 32, 103, 102, 120, 116, 101, 115, 116, 32, 124, 32, 103, 102, 120, 112, 114, 105, 109, 32, 124, 32, 103, 102, 120, 116, 101, 120, 116, 32, 124, 32, 119, 105, 110, 116, 101, 115, 116, 32, 124, 32, 119, 105, 110, 109, 111, 118, 101, 32, 124, 32, 119, 105, 110, 102, 111, 99, 117, 115, 32, 124, 32, 110, 101, 116, 116, 101, 115, 116, 10, 32, 32, 32, 32, 32, 32, 32, 108, 97, 98, 101, 108, 116, 101, 115, 116, 32, 124, 32, 98, 117, 116, 116, 111, 110, 116, 101, 115, 116, 32, 124, 32, 102, 105, 101, 108, 100, 116, 101, 115, 116, 32, 124, 32, 108, 105, 115, 116, 116, 101, 115, 116, 32, 124, 32, 100, 114, 97, 119, 112, 120, 32, 124, 32, 111, 98, 106, 116, 101, 115, 116, 32, 124, 32, 111, 98, 106, 115, 10, 65, 112, 112, 115, 58, 32, 102, 105, 108, 101, 115, 44, 32, 99, 97, 108, 99, 44, 32, 115, 99, 105, 44, 32, 103, 114, 97, 112, 104, 44, 32, 109, 97, 116, 114, 105, 120, 44, 32, 100, 105, 102, 102, 44, 32, 101, 100, 105, 116, 44, 32, 118, 101, 100, 105, 116, 44, 32, 100, 114, 97, 119, 32, 32, 32, 40, 112, 108, 97, 110, 110, 101, 100, 58, 32, 116, 111, 112, 111, 41, 10, 0
 ls_la_banner db 'Sciurus-OS/2', 0
 ls_la_prompt db '> ', 0
 ls_la_files db 'Tabulae:', 0
@@ -695,6 +715,25 @@ ls_la_fe_io db 'Error disci', 0
 ls_la_fe_full db 'Discus plenus', 0
 ls_la_fe_isdir db 'Directorium est', 0
 ls_la_fe_nofd db 'Nimis multae tabulae apertae', 0
+ls_la_inst_title db 'Sciurus-OS/2: Installatio', 0
+ls_la_inst_target db 'Discus destinatus:', 0
+ls_la_inst_notarget db 'Nullus discus ad installandum. Adde discum vacuum in canali secundario.', 0
+ls_la_inst_noboot db 'Discus initialis non est discus IDE; systema inde exscribi non potest.', 0
+ls_la_inst_erase db 'Omnia in disco destinato delebuntur.', 0
+ls_la_inst_confirm db 'Enter: installa    Esc: abi', 0
+ls_la_inst_cancel db 'Abrogatum. Nihil scriptum est.', 0
+ls_la_inst_part db 'Tabula partitionum', 0
+ls_la_inst_format db 'Systema tabularum', 0
+ls_la_inst_copy db 'Systema exscribitur', 0
+ls_la_inst_boot db 'Codex initialis', 0
+ls_la_inst_ok db 'factum', 0
+ls_la_inst_fail db 'defecit', 0
+ls_la_inst_done db 'Installatum. Discum emissionis remove et computatrum iterum incipe.', 0
+ls_la_inst_failed db 'Installatio constitit. Discus destinatus fortasse imperfectus est.', 0
+ls_la_inst_anykey db 'Preme clavem quamlibet.', 0
+ls_la_net_noreply db 'Nullum responsum', 0
+ls_la_net_badaddr db 'Inscriptio mala', 0
+ls_la_net_of4 db ' ex 4', 0
 ls_tlh_banner db 'Squirrel-OS/2', 0
 ls_tlh_prompt db '> ', 0
 ls_tlh_files db "tebwI':", 0
@@ -727,7 +766,26 @@ ls_tlh_fe_io db 72, 101, 119, 32, 81, 97, 129, 0
 ls_tlh_fe_full db 'Hew teb', 0
 ls_tlh_fe_isdir db 129, 73, 131, 32, 112, 97, 39, 32, 39, 111, 72, 0
 ls_tlh_fe_nofd db 116, 101, 121, 119, 73, 39, 109, 101, 121, 32, 112, 111, 83, 109, 111, 72, 108, 117, 39, 98, 111, 129, 32, 108, 97, 119, 39, 113, 117, 39, 0
-ls_tlh_calc_banner db 32, 40, 69, 115, 99, 58, 32, 109, 101, 106, 41, 10, 0
+ls_tlh_inst_title db "Squirrel-OS/2 jomwI'", 0
+ls_tlh_inst_target db 72, 97, 112, 32, 130, 97, 83, 119, 73, 39, 58, 0
+ls_tlh_inst_notarget db 106, 111, 109, 109, 101, 72, 32, 72, 97, 112, 32, 116, 117, 39, 108, 117, 39, 98, 101, 39, 46, 32, 72, 97, 112, 32, 128, 73, 109, 32, 121, 73, 128, 101, 108, 46, 0
+ls_tlh_inst_noboot db 73, 68, 69, 32, 72, 97, 112, 32, 129, 97, 72, 98, 101, 39, 32, 116, 97, 129, 32, 72, 97, 112, 46, 32, 112, 97, 116, 32, 129, 111, 83, 108, 97, 72, 98, 101, 39, 46, 0
+ls_tlh_inst_erase db 72, 97, 112, 32, 130, 97, 83, 119, 73, 39, 32, 72, 111, 128, 32, 81, 97, 119, 39, 108, 117, 39, 46, 0
+ls_tlh_inst_confirm db 'Enter: yIjom    Esc: yImev', 0
+ls_tlh_inst_cancel db 109, 101, 118, 112, 117, 39, 46, 32, 112, 97, 129, 32, 129, 73, 131, 108, 117, 39, 112, 117, 39, 46, 0
+ls_tlh_inst_part db 72, 97, 112, 32, 116, 101, 131, 0
+ls_tlh_inst_format db "De' pat", 0
+ls_tlh_inst_copy db 112, 97, 116, 32, 108, 117, 129, 111, 83, 109, 111, 72, 0
+ls_tlh_inst_boot db 116, 97, 129, 32, 130, 111, 113, 0
+ls_tlh_inst_ok db "Qapla'", 0
+ls_tlh_inst_fail db 'luj', 0
+ls_tlh_inst_done db 106, 111, 109, 112, 117, 39, 46, 32, 72, 97, 112, 32, 121, 73, 116, 101, 113, 44, 32, 68, 101, 39, 119, 73, 39, 32, 121, 73, 116, 97, 129, 113, 97, 39, 46, 0
+ls_tlh_inst_failed db "jom mevpu'. Hap naQbe' net Sov.", 0
+ls_tlh_inst_anykey db 108, 101, 81, 32, 121, 73, 98, 97, 128, 46, 0
+ls_tlh_net_noreply db 106, 97, 130, 32, 116, 117, 39, 108, 117, 39, 98, 101, 39, 0
+ls_tlh_net_badaddr db 130, 111, 113, 32, 81, 73, 72, 0
+ls_tlh_net_of4 db " vo' 4", 0
+ls_tlh_calc_banner db 109, 73, 39, 32, 83, 73, 109, 119, 73, 39, 32, 40, 69, 115, 99, 58, 32, 109, 101, 106, 41, 10, 0
 ls_tlh_calc_help db 109, 73, 39, 109, 101, 121, 32, 110, 97, 81, 58, 32, 43, 32, 45, 32, 42, 32, 47, 32, 40, 32, 41, 32, 32, 118, 97, 131, 118, 73, 39, 58, 32, 49, 48, 48, 32, 43, 32, 49, 53, 37, 32, 32, 50, 48, 48, 32, 42, 32, 49, 53, 37, 32, 32, 50, 48, 48, 32, 37, 32, 49, 53, 10, 97, 110, 115, 58, 32, 109, 73, 39, 32, 81, 97, 118, 46, 32, 109, 73, 39, 32, 81, 97, 118, 32, 68, 97, 83, 73, 109, 32, 68, 97, 110, 101, 72, 128, 117, 129, 44, 32, 42, 32, 50, 32, 121, 73, 129, 73, 131, 10, 114, 97, 39, 109, 101, 121, 58, 32, 99, 108, 101, 97, 114, 32, 32, 104, 105, 115, 116, 32, 32, 113, 10, 0
 ls_tlh_calc_errpre db 81, 97, 129, 58, 32, 0
 ls_tlh_calc_e_syntax db 112, 97, 98, 32, 81, 97, 129, 44, 32, 130, 117, 131, 32, 0
@@ -750,7 +808,7 @@ ls_tlh_mx_e_complex db 131, 111, 121, 32, 81, 97, 131, 0
 ls_tlh_mx_e_undef db 109, 73, 39, 32, 129, 111, 109, 32, 83, 111, 118, 98, 101, 39, 108, 117, 39, 0
 ls_tlh_ed_s_noname db 40, 112, 111, 130, 32, 72, 117, 131, 41, 0
 ls_tlh_ed_s_mod db 32, 91, 128, 111, 72, 108, 117, 39, 112, 117, 39, 93, 0
-ls_tlh_ed_s_keys db 67, 116, 114, 108, 43, 70, 32, 110, 101, 106, 32, 32, 67, 116, 114, 108, 43, 83, 32, 128, 111, 113, 32, 32, 69, 115, 99, 32, 109, 101, 106, 0
+ls_tlh_ed_s_keys db 'Ctrl+F find  Ctrl+S save  Esc quit', 0
 ls_tlh_ed_m_new db 116, 101, 121, 119, 73, 39, 32, 128, 117, 39, 46, 32, 67, 116, 114, 108, 43, 83, 32, 112, 97, 129, 32, 70, 50, 58, 32, 128, 111, 113, 46, 32, 69, 115, 99, 58, 32, 109, 101, 106, 46, 0
 ls_tlh_ed_m_newfile db 116, 101, 121, 119, 73, 39, 32, 128, 117, 39, 32, 40, 72, 101, 119, 32, 68, 97, 113, 32, 116, 117, 39, 108, 117, 39, 98, 101, 39, 41, 46, 0
 ls_tlh_ed_m_loaded db "poSmoHlu'pu'.", 0
@@ -767,8 +825,8 @@ ls_tlh_ed_m_ins db 128, 101, 108, 32, 68, 111, 131, 46, 0
 ls_tlh_ed_m_ovr db 116, 97, 109, 32, 68, 111, 131, 46, 0
 ls_tlh_ed_m_typed db 129, 73, 131, 32, 0
 ls_tlh_ed_m_deleted db "Qaw' ", 0
-ls_tlh_dr_title db ' - ASCII 64x18', 0
-ls_tlh_dr_keys1 db 65, 114, 114, 111, 119, 115, 58, 32, 118, 73, 72, 32, 32, 83, 112, 97, 99, 101, 58, 32, 68, 97, 113, 32, 32, 120, 47, 66, 107, 115, 112, 58, 32, 81, 97, 119, 39, 32, 32, 112, 58, 32, 129, 73, 131, 119, 73, 39, 32, 68, 117, 130, 47, 98, 73, 130, 32, 32, 98, 58, 32, 130, 117, 131, 32, 32, 99, 58, 32, 83, 97, 121, 39, 109, 111, 72, 0
+ls_tlh_dr_title db ' - ASCII canvas 64x18', 0
+ls_tlh_dr_keys1 db 65, 114, 114, 111, 119, 115, 58, 32, 118, 73, 72, 32, 32, 83, 112, 97, 99, 101, 58, 32, 68, 97, 113, 32, 32, 120, 47, 66, 107, 115, 112, 58, 32, 81, 97, 119, 39, 32, 32, 112, 58, 32, 129, 73, 131, 119, 73, 39, 32, 68, 117, 130, 47, 98, 73, 130, 32, 32, 98, 58, 32, 130, 117, 131, 32, 32, 99, 58, 32, 83, 97, 121, 39, 109, 111, 72, 32, 32, 103, 32, 112, 105, 120, 101, 108, 115, 0
 ls_tlh_dr_keys2 db 108, 58, 32, 131, 101, 129, 32, 32, 114, 58, 32, 114, 101, 68, 32, 108, 111, 83, 32, 40, 128, 97, 39, 32, 68, 97, 113, 41, 32, 32, 102, 58, 32, 116, 101, 98, 32, 32, 67, 116, 114, 108, 43, 83, 47, 70, 50, 58, 32, 128, 111, 113, 32, 32, 69, 115, 99, 58, 32, 109, 101, 106, 0
 ls_tlh_dr_s_pos db 'Daq ', 0
 ls_tlh_dr_s_brush db 32, 32, 130, 117, 131, 32, 39, 0
@@ -809,19 +867,4 @@ ls_tlh_sh_m_nofile db "laDlaHbe'lu': ", 0
 ls_tlh_sh_m_wfail db 129, 73, 131, 108, 97, 72, 98, 101, 39, 108, 117, 39, 58, 32, 0
 ls_tlh_sh_m_trunc db 40, 51, 50, 32, 75, 66, 32, 68, 117, 130, 32, 112, 101, 39, 108, 117, 39, 41, 10, 0
 ls_tlh_bat_m_stopped db 114, 97, 39, 109, 101, 121, 32, 116, 101, 131, 32, 109, 101, 118, 10, 0
-ls_tlh_commands db 114, 97, 39, 109, 101, 121, 58, 32, 108, 115, 32, 124, 32, 99, 97, 116, 32, 60, 102, 62, 32, 124, 32, 114, 117, 110, 32, 60, 97, 112, 112, 124, 102, 105, 108, 101, 62, 32, 124, 32, 112, 117, 116, 32, 60, 102, 62, 32, 60, 116, 101, 120, 116, 62, 32, 124, 32, 109, 107, 32, 60, 102, 62, 32, 124, 32, 114, 109, 32, 60, 102, 62, 10, 32, 32, 32, 32, 32, 32, 32, 32, 109, 118, 32, 60, 102, 62, 32, 60, 110, 101, 119, 62, 32, 124, 32, 109, 107, 100, 105, 114, 32, 60, 100, 62, 32, 124, 32, 99, 100, 32, 60, 100, 62, 32, 124, 32, 112, 119, 100, 32, 124, 32, 101, 99, 104, 111, 32, 124, 32, 98, 97, 116, 99, 104, 32, 60, 102, 62, 32, 124, 32, 102, 111, 114, 109, 97, 116, 10, 32, 32, 32, 32, 32, 32, 32, 32, 112, 115, 32, 124, 32, 100, 105, 115, 107, 32, 124, 32, 109, 101, 109, 32, 124, 32, 100, 101, 118, 105, 99, 101, 115, 32, 124, 32, 108, 97, 110, 103, 32, 60, 101, 110, 124, 108, 97, 124, 116, 108, 104, 62, 10, 119, 97, 72, 109, 101, 121, 58, 32, 115, 121, 115, 116, 101, 115, 116, 32, 124, 32, 112, 114, 111, 99, 116, 101, 115, 116, 32, 124, 32, 98, 108, 107, 116, 101, 115, 116, 32, 124, 32, 102, 115, 116, 101, 115, 116, 32, 124, 32, 109, 101, 109, 116, 101, 115, 116, 32, 124, 32, 107, 101, 121, 115, 10, 129, 117, 110, 109, 101, 121, 58, 32, 102, 105, 108, 101, 115, 44, 32, 99, 97, 108, 99, 44, 32, 115, 99, 105, 44, 32, 109, 97, 116, 114, 105, 120, 44, 32, 100, 105, 102, 102, 44, 32, 101, 100, 105, 116, 44, 32, 118, 101, 100, 105, 116, 44, 32, 100, 114, 97, 119, 32, 32, 32, 40, 112, 73, 113, 58, 32, 103, 114, 97, 112, 104, 44, 32, 116, 111, 112, 111, 41, 10, 0
-ls_tlh_ed_m_find db 'yInej (Esc: qIl): ', 0
-ls_tlh_ed_m_undone db 128, 111, 72, 32, 81, 97, 119, 39, 108, 117, 39, 112, 117, 39, 46, 0
-ls_tlh_ed_m_ctlon db 83, 101, 72, 32, 130, 117, 131, 109, 101, 121, 32, 128, 97, 39, 108, 117, 39, 58, 32, 36, 32, 131, 101, 129, 32, 68, 111, 114, 44, 32, 62, 32, 116, 97, 98, 44, 32, 94, 32, 108, 97, 131, 46, 0
-ls_tlh_ed_m_ctloff db 83, 101, 72, 32, 130, 117, 131, 109, 101, 121, 32, 83, 111, 39, 108, 117, 39, 46, 0
-ls_tlh_ed_m_nothing db 81, 97, 119, 39, 109, 101, 72, 32, 128, 111, 72, 32, 116, 117, 39, 108, 117, 39, 98, 101, 39, 46, 0
-ls_tlh_ed_m_noundo db 128, 111, 72, 32, 81, 97, 119, 39, 108, 97, 72, 98, 101, 39, 108, 117, 39, 58, 32, 113, 97, 119, 72, 97, 113, 32, 121, 97, 112, 32, 116, 117, 39, 108, 117, 39, 98, 101, 39, 46, 0
-ls_tlh_ed_m_found db "tu'lu': ", 0
-ls_tlh_ed_m_atline db 32, 45, 32, 131, 101, 129, 32, 0
-ls_tlh_ed_m_atcol db 44, 32, 130, 117, 131, 32, 0
-ls_tlh_ed_m_notfound db "tu'lu'be': ", 0
-ls_tlh_ed_m_nofind db 110, 101, 106, 113, 97, 39, 109, 101, 72, 32, 112, 97, 129, 58, 32, 119, 97, 39, 68, 73, 128, 32, 67, 116, 114, 108, 43, 70, 32, 121, 73, 98, 97, 128, 0
-ls_tlh_diff_banner db 109, 73, 39, 32, 128, 111, 72, 32, 83, 73, 109, 119, 73, 39, 32, 40, 69, 115, 99, 58, 32, 109, 101, 106, 41, 10, 0
-ls_tlh_diff_help db 100, 32, 60, 102, 40, 120, 41, 62, 32, 97, 116, 32, 60, 120, 48, 62, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 128, 111, 72, 32, 109, 73, 39, 32, 32, 32, 32, 32, 32, 128, 111, 118, 110, 97, 131, 58, 32, 100, 32, 115, 105, 110, 40, 120, 41, 32, 97, 116, 32, 48, 10, 105, 32, 60, 102, 40, 120, 41, 62, 32, 102, 114, 111, 109, 32, 60, 97, 62, 32, 116, 111, 32, 60, 98, 62, 32, 32, 32, 32, 110, 97, 81, 32, 109, 73, 39, 32, 32, 32, 32, 32, 32, 32, 128, 111, 118, 110, 97, 131, 58, 32, 105, 32, 120, 94, 50, 32, 102, 114, 111, 109, 32, 48, 32, 116, 111, 32, 51, 10, 101, 117, 108, 101, 114, 32, 60, 102, 40, 120, 44, 121, 41, 62, 32, 102, 114, 111, 109, 32, 60, 120, 48, 62, 32, 116, 111, 32, 60, 120, 49, 62, 32, 121, 48, 32, 60, 121, 62, 32, 115, 116, 101, 112, 32, 60, 104, 62, 32, 32, 32, 121, 39, 32, 61, 32, 102, 44, 32, 69, 117, 108, 101, 114, 32, 109, 73, 119, 10, 102, 58, 32, 115, 99, 105, 32, 109, 117, 39, 131, 101, 129, 44, 32, 120, 32, 40, 121, 32, 106, 101, 41, 32, 108, 111, 39, 59, 32, 114, 97, 100, 105, 97, 110, 32, 110, 101, 72, 46, 32, 113, 58, 32, 109, 101, 106, 10, 0
-ls_tlh_diff_e_step db "step 0 tIn law' net poQ", 0
-ls_tlh_diff_e_many db 113, 97, 109, 109, 101, 121, 32, 49, 48, 48, 48, 48, 48, 32, 131, 111, 121, 32, 108, 97, 119, 39, 0
+ls_tlh_commands db 67, 111, 109, 109, 97, 110, 100, 115, 58, 32, 108, 115, 32, 124, 32, 99, 97, 116, 32, 60, 102, 62, 32, 124, 32, 114, 117, 110, 32, 60, 97, 112, 112, 124, 102, 105, 108, 101, 62, 32, 124, 32, 112, 117, 116, 32, 60, 102, 62, 32, 60, 116, 101, 120, 116, 62, 32, 124, 32, 109, 107, 32, 60, 102, 62, 32, 124, 32, 114, 109, 32, 60, 102, 62, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 109, 118, 32, 60, 102, 62, 32, 60, 110, 101, 119, 62, 32, 124, 32, 109, 107, 100, 105, 114, 32, 60, 100, 62, 32, 124, 32, 99, 100, 32, 60, 100, 62, 32, 124, 32, 112, 119, 100, 32, 124, 32, 101, 128, 111, 32, 124, 32, 98, 97, 116, 128, 32, 60, 102, 62, 32, 124, 32, 102, 111, 114, 109, 97, 116, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 112, 115, 32, 124, 32, 100, 105, 115, 107, 32, 124, 32, 109, 101, 109, 32, 124, 32, 100, 101, 118, 105, 99, 101, 115, 32, 124, 32, 108, 97, 130, 32, 60, 101, 110, 124, 108, 97, 124, 131, 62, 32, 124, 32, 100, 101, 115, 107, 116, 111, 112, 32, 124, 32, 105, 110, 115, 116, 97, 108, 108, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 111, 98, 106, 99, 97, 116, 10, 84, 101, 115, 116, 115, 58, 32, 115, 121, 115, 116, 101, 115, 116, 32, 124, 32, 112, 114, 111, 99, 116, 101, 115, 116, 32, 124, 32, 98, 108, 107, 116, 101, 115, 116, 32, 124, 32, 102, 115, 116, 101, 115, 116, 32, 124, 32, 109, 101, 109, 116, 101, 115, 116, 32, 124, 32, 107, 101, 121, 115, 10, 32, 32, 32, 32, 32, 32, 32, 103, 102, 120, 116, 101, 115, 116, 32, 124, 32, 103, 102, 120, 112, 114, 105, 109, 32, 124, 32, 103, 102, 120, 116, 101, 120, 116, 32, 124, 32, 119, 105, 110, 116, 101, 115, 116, 32, 124, 32, 119, 105, 110, 109, 111, 118, 101, 32, 124, 32, 119, 105, 110, 102, 111, 99, 117, 115, 32, 124, 32, 110, 101, 116, 116, 101, 115, 116, 10, 32, 32, 32, 32, 32, 32, 32, 108, 97, 98, 101, 108, 116, 101, 115, 116, 32, 124, 32, 98, 117, 116, 116, 111, 110, 116, 101, 115, 116, 32, 124, 32, 102, 105, 101, 108, 100, 116, 101, 115, 116, 32, 124, 32, 108, 105, 115, 116, 116, 101, 115, 116, 32, 124, 32, 100, 114, 97, 119, 112, 120, 32, 124, 32, 111, 98, 106, 116, 101, 115, 116, 32, 124, 32, 111, 98, 106, 115, 10, 65, 112, 112, 115, 58, 32, 102, 105, 108, 101, 115, 44, 32, 99, 97, 108, 99, 44, 32, 115, 99, 105, 44, 32, 103, 114, 97, 112, 104, 44, 32, 109, 97, 116, 114, 105, 120, 44, 32, 100, 105, 102, 102, 44, 32, 101, 100, 105, 116, 44, 32, 118, 101, 100, 105, 116, 44, 32, 100, 114, 97, 119, 32, 32, 32, 40, 112, 108, 97, 110, 110, 101, 100, 58, 32, 116, 111, 112, 111, 41, 10, 0

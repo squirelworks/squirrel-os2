@@ -83,6 +83,10 @@ gdt:
     dq 0
     dw 0xFFFF,0,0x9A00,0x00CF
     dw 0xFFFF,0,0x9200,0x00CF
+gdt_tss_main:                   ; 0x18: the TSS of everything that normally runs
+    dw TSS_SIZE-1,0,0x8900,0    ; (base filled in by tss_init, KB-17)
+gdt_tss_df:                     ; 0x20: the double-fault task
+    dw TSS_SIZE-1,0,0x8900,0
 gdt_desc:
     dw $-gdt-1
     dd gdt
@@ -127,7 +131,9 @@ pm:
     call proc_init
     call mm_init
     call vm_init
+    call tss_init               ; double faults get their own stack (KB-17)
     call ata_init
+    call mouse_init             ; polled PS/2 mouse (1.9.10)
     call dev_init
 
     ; PIC + PIT
@@ -171,6 +177,7 @@ pm:
     call puts
 .whole:
     call fs_mount_boot
+    call ins_mount_system       ; no data disk: an installed system's partition (I.4)
     call hist_load
     mov byte [shell_up], 1      ; from here a crash can restart the shell
     sti                         ; autoexec.bat may run apps that need keys
@@ -242,13 +249,6 @@ rom_find:                     ; esi = name, returns eax = entry or 0
     ret
 
 ; ---------- apps ----------
-run_graph:
-    mov esi, graph_banner
-    call puts
-    mov esi, graph_stub
-    call puts
-    ret
-
 run_topo:
     mov esi, topo_banner
     call puts
@@ -351,14 +351,92 @@ run_simple:
     jne .notrap
     ud2
 .notrap:
+    ; overflow (diagnostic: the shell runs off its own stack, KB-17)
+    mov edi, cmd_overflow
+    call streq
+    jne .nooverflow
+.recurse:
+    call .recurse
+.nooverflow:
     ; disk
     mov edi, cmd_disk
     call streq
     je .disk
+    ; install, install part / format / ls (installer I.1, I.2)
+    mov edi, cmd_install
+    call streq
+    je .install
+    mov edi, cmd_install_part
+    call streq
+    je .install_part
+    mov edi, cmd_install_format
+    call streq
+    je .install_format
+    mov edi, cmd_install_ls
+    call streq
+    je .install_ls
+    mov edi, cmd_install_copy
+    call streq
+    je .install_copy
+    mov edi, cmd_install_boot
+    call streq
+    je .install_boot
     ; blktest
     mov edi, cmd_blktest
     call streq
     je .blktest
+    ; gfxtest (1.3)
+    mov edi, cmd_gfxtest
+    call streq
+    je .gfxtest
+    mov edi, cmd_gfxprim
+    call streq
+    je .gfxprim
+    mov edi, cmd_gfxtext
+    call streq
+    je .gfxtext
+    mov edi, cmd_desktop
+    call streq
+    je .desktop
+    mov edi, cmd_listtest
+    call streq
+    je .listtest
+    mov edi, cmd_drawpx         ; 1.6.5
+    call streq
+    je .drawpx
+    mov edi, cmd_objtest        ; 1.7.0
+    call streq
+    je .objtest
+    mov edi, cmd_nettest        ; 1.9.3
+    call streq
+    je .nettest
+    mov edi, cmd_mousetest      ; 1.9.10
+    call streq
+    je .mousetest
+    mov edi, cmd_ifconfig       ; 1.9.11 bare
+    call streq
+    je .ifconfig
+    mov edi, cmd_objs           ; 1.7.2
+    call streq
+    je .objs
+    mov edi, cmd_fieldtest
+    call streq
+    je .fieldtest
+    mov edi, cmd_buttontest
+    call streq
+    je .buttontest
+    mov edi, cmd_labeltest
+    call streq
+    je .labeltest
+    mov edi, cmd_winfocus
+    call streq
+    je .winfocus
+    mov edi, cmd_winmove
+    call streq
+    je .winmove
+    mov edi, cmd_wintest
+    call streq
+    je .wintest
     ; format
     mov edi, cmd_format
     call streq
@@ -518,8 +596,77 @@ run_simple:
 .disk:
     call cmd_disk_run
     jmp .empty
+.install:
+    call cmd_install_run
+    jmp .empty
+.install_part:
+    call cmd_install_part_run
+    jmp .empty
+.install_format:
+    call cmd_install_format_run
+    jmp .empty
+.install_ls:
+    call cmd_install_ls_run
+    jmp .empty
+.install_copy:
+    call cmd_install_copy_run
+    jmp .empty
+.install_boot:
+    call cmd_install_boot_run
+    jmp .empty
 .blktest:
     call cmd_blktest_run
+    jmp .empty
+.gfxtest:
+    call cmd_gfxtest_run
+    jmp .empty
+.gfxprim:
+    call cmd_gfxprim_run
+    jmp .empty
+.gfxtext:
+    call cmd_gfxtext_run
+    jmp .empty
+.desktop:
+    call cmd_desktop_run
+    jmp .empty
+.drawpx:
+    call cmd_drawpx_run
+    jmp .empty
+.objtest:
+    call cmd_objtest_run
+    jmp .empty
+.nettest:
+    call cmd_nettest_run
+    jmp .empty
+.mousetest:
+    call cmd_mousetest_run
+    jmp .empty
+.ifconfig:
+    call cmd_ifconfig_show
+    jmp .empty
+.objs:
+    call cmd_objs_run
+    jmp .empty
+.listtest:
+    call cmd_listtest_run
+    jmp .empty
+.fieldtest:
+    call cmd_fieldtest_run
+    jmp .empty
+.buttontest:
+    call cmd_buttontest_run
+    jmp .empty
+.labeltest:
+    call cmd_labeltest_run
+    jmp .empty
+.winfocus:
+    call cmd_winfocus_run
+    jmp .empty
+.winmove:
+    call cmd_winmove_run
+    jmp .empty
+.wintest:
+    call cmd_wintest_run
     jmp .empty
 .proctest:
     call cmd_proctest_run
@@ -584,11 +731,12 @@ set_gate:
 cls:
     cmp byte [cap_on], 0        ; keep the screen while output is redirected
     jne .r
-    mov edi, 0xB8000
+    mov edi, [txt_base]
     mov ecx, 80*25
     mov ax, 0x0720
     rep stosw
     mov dword [cur], 0
+    mov byte [txt_dirty], 1
     call cursor_sync
 .r:
     ret
@@ -614,7 +762,8 @@ putc:                         ; al = char; preserves all registers
     je .bs
     mov ebx, [cur]
     mov ah, 0x07
-    mov [0xB8000+ebx*2], ax
+    mov edx, [txt_base]
+    mov [edx+ebx*2], ax
     inc dword [cur]
     jmp .wrap
 .nl:
@@ -632,13 +781,15 @@ putc:                         ; al = char; preserves all registers
     jz .r
     dec ebx
     mov [cur], ebx
-    mov word [0xB8000+ebx*2], 0x0720
+    mov edx, [txt_base]
+    mov word [edx+ebx*2], 0x0720
     jmp .r
 .wrap:
     cmp dword [cur], 80*25
     jb .r
     call scroll_up
 .r:
+    mov byte [txt_dirty], 1
     call cursor_sync
     pop edx
     pop ebx
@@ -651,8 +802,8 @@ scroll_up:
     push ecx
     push esi
     push edi
-    mov esi, 0xB8000+160
-    mov edi, 0xB8000
+    mov edi, [txt_base]
+    lea esi, [edi+160]
     mov ecx, 80*24/2
     rep movsd
     mov eax, 0x07200720
@@ -706,7 +857,8 @@ timer_isr:
     pop eax
     iretd
 
-; IRQ1: queue the raw scancode (dropped if the ring is full)
+; IRQ1: queue the raw scancode (dropped if the ring is full), and post
+; a key event if a process asked for them (msg.asm)
 kbd_isr:
     push eax
     push ebx
@@ -720,6 +872,9 @@ kbd_isr:
     mov [kbd_ring+ebx], al
     mov [kbd_head], ecx
 .full:
+    pushad
+    call key_event              ; and a key event for SYS_KEYEVENTS (1.2.1)
+    popad
     mov al, 0x20
     out 0x20, al
     pop ecx
@@ -806,12 +961,7 @@ default_isr:
 
 ; ---------- data ----------
 banner db 'Squirrel-OS/2'          ; (the "help" file: the English banner)
-banner_rest db ' 1.2.0', 10   ; OS version: here only (see releases/PROCESS.md)
-       db 'Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>', 10
-       db '          mv <f> <new> | mkdir <d> | cd <d> | pwd | echo | batch <f> | format', 10
-       db '          ps | disk | mem | devices | lang <en|la|tlh>', 10
-       db 'Tests: systest | proctest | blktest | fstest | memtest | keys', 10
-       db 'Apps: files, calc, sci, matrix, diff, edit, vedit, draw   (planned: graph, topo)', 10, 0
+banner_rest db ' 2.0.0', 10  ; OS version: here only (see releases/PROCESS.md)
 msg_partial db 'Warning: kernel image only partly loaded', 10, 0
 cmd_ls db 'ls', 0
 cmd_cat db 'cat ', 0
@@ -819,6 +969,7 @@ cmd_run db 'run ', 0
 cmd_systest db 'systest', 0
 cmd_keys db 'keys', 0
 cmd_trap db 'trap', 0
+cmd_overflow db 'overflow', 0
 
 ; argument for the next app started with run (e.g. run edit notes)
 run_arg times 64 db 0           ; FS_PATHMAX
@@ -888,6 +1039,10 @@ sh_usage:
 usage_cmds:                     ; command, syntax, hint key or -1
     dd u_put, u_put_t, LS_USAGE_PUT, u_mk, u_mk_t, -1, u_rm, u_rm_t, -1
     dd u_mv, u_mv_t, -1, u_mkdir, u_mkdir_t, -1, u_cat, u_cat_t, -1
+    dd u_objcat, u_objcat_t, -1
+    dd u_arp, u_arp_t, -1
+    dd u_ping, u_ping_t, -1
+    dd u_fetch, u_fetch_t, -1
     dd u_run, u_run_t, LS_USAGE_RUN, u_batch, u_batch_t, -1, u_echo, u_echo_t, -1, 0
 u_put db 'put', 0
 u_mk db 'mk', 0
@@ -895,8 +1050,12 @@ u_rm db 'rm', 0
 u_mv db 'mv', 0
 u_mkdir db 'mkdir', 0
 u_cat db 'cat', 0
+u_objcat db 'objcat', 0
 u_run db 'run', 0
 u_batch db 'batch', 0
+u_arp db 'arp', 0
+u_ping db 'ping', 0
+u_fetch db 'fetch', 0
 u_echo db 'echo', 0
 u_put_t db 'put <file> <text>', 0
 u_mk_t db 'mk <file>', 0
@@ -904,8 +1063,12 @@ u_rm_t db 'rm <file|dir>', 0
 u_mv_t db 'mv <old> <new|dir>', 0
 u_mkdir_t db 'mkdir <dir>', 0
 u_cat_t db 'cat <file>', 0
+u_objcat_t db 'objcat <file>', 0
 u_run_t db 'run <app|file> [text]', 0
 u_batch_t db 'batch <file>', 0
+u_arp_t db 'arp <ip>', 0
+u_ping_t db 'ping <ip>', 0
+u_fetch_t db 'fetch <ip> <port> <path>', 0
 u_echo_t db 0
 u_gap db '   ', 0
 
@@ -920,9 +1083,36 @@ arg_cmds:
     dd cmd_lang_arg, cmd_lang_run
     dd cmd_echo, cmd_echo_run
     dd cmd_batch, cmd_batch_run
+    dd cmd_objcat, cmd_objcat_run
+    dd cmd_arp, cmd_arp_run
+    dd cmd_ping, cmd_ping_run
+    dd cmd_fetch, cmd_fetch_run
+    dd cmd_ifconfig_arg, cmd_ifconfig_run
     dd 0, 0
 cmd_disk db 'disk', 0
 cmd_blktest db 'blktest', 0
+cmd_gfxtest db 'gfxtest', 0
+cmd_gfxprim db 'gfxprim', 0
+cmd_gfxtext db 'gfxtext', 0
+cmd_wintest db 'wintest', 0
+cmd_winmove db 'winmove', 0
+cmd_winfocus db 'winfocus', 0
+cmd_labeltest db 'labeltest', 0
+cmd_buttontest db 'buttontest', 0
+cmd_fieldtest db 'fieldtest', 0
+cmd_listtest db 'listtest', 0
+cmd_drawpx db 'drawpx', 0
+cmd_objtest db 'objtest', 0
+cmd_nettest db 'nettest', 0
+cmd_mousetest db 'mousetest', 0
+cmd_ifconfig db 'ifconfig', 0
+cmd_objs db 'objs', 0
+cmd_objcat db 'objcat ', 0
+cmd_arp db 'arp ', 0
+cmd_ping db 'ping ', 0
+cmd_fetch db 'fetch ', 0
+cmd_ifconfig_arg db 'ifconfig ', 0
+cmd_desktop db 'desktop', 0
 cmd_proctest db 'proctest', 0
 
 ; run <name>: app start routines, each hosted in its own process
@@ -937,6 +1127,7 @@ run_table:
     dd name_vedit, run_vedit
     dd name_draw, run_draw
     dd name_files, fb_main
+    dd name_install, run_install    ; installer I.5
     dd 0, 0
 name_calc db 'calc', 0
 name_edit db 'edit', 0
@@ -949,9 +1140,8 @@ name_graph db 'graph', 0
 name_matrix db 'matrix', 0
 name_diff db 'diff', 0
 name_topo db 'topo', 0
+name_install db 'install', 0
 
-graph_banner db 'Graphing Calculator', 10, 0
-graph_stub db 'Scaffolded. Requires graphics primitives (milestone 1.3).', 10, 'See documentation/apps/calculators.md', 10, 0
 topo_banner db 'Topology Calculator', 10, 0
 topo_stub db 'Scaffolded. Simplicial homology sketches (long-term).', 10, 'See documentation/apps/calculators.md', 10, 0
 edit_sample db 'Hello from Squirrel-OS/2', 10, 0
@@ -968,8 +1158,8 @@ file_table:
     dd sci_help
     dd sci_help_len
     db 'graph', 0, 0, 0
-    dd graph_stub
-    dd 80
+    dd graph_help
+    dd graph_help_len
     db 'matrix', 0, 0
     dd mx_help
     dd mx_help_len
@@ -1003,6 +1193,12 @@ cmdline times 128 db 0         ; SH_LINE (shell.asm)
 cmdpos dd 0                     ; cursor position in cmdline
 scroll_count dd 0               ; rows scrolled so far (line editor)
 cur dd 0
+txt_base dd 0xB8000             ; the text screen putc, cls and scroll_up write
+                                ; (a window's buffer while the desktop runs a
+                                ; text program in it, 1.6.1)
+txt_dirty db 0                  ; set by every write there
+txt_cols dd 80                  ; columns and rows of it a program can see:
+txt_rows dd 25                  ; less in a desktop window (1.6.4)
 ticks dd 0
 num_buf times 16 db 0
 
@@ -1066,8 +1262,10 @@ puthex:
 %include "syscall.asm"
 %include "proc.asm"
 %include "msg.asm"
+%include "gfx.asm"
 %include "ata.asm"
 %include "fs.asm"
+%include "install.asm"
 %include "shell.asm"
 %include "lineedit.asm"
 %include "batch.asm"
@@ -1082,17 +1280,30 @@ puthex:
 %include "calc.asm"
 %include "editor.asm"
 %include "draw.asm"
+%include "drawpx.asm"
 %include "loader.asm"
 %include "sci.asm"
 %include "matrix.asm"
 %include "diff.asm"
+%include "graph.asm"
+%include "wm.asm"
+%include "widget.asm"
+%include "desktop.asm"
+%include "object.asm"
+%include "net.asm"
+%include "ne2k.asm"
+%include "arp.asm"
+%include "ip.asm"
+%include "udp.asm"
+%include "tcp.asm"
+%include "mouse.asm"
 
 align 8
 idt: times 256 dq 0
 idt_desc:
     dw 256*8-1
     dd idt
-KERNEL_SIZE equ 65536           ; boot.asm loads 128 sectors
+KERNEL_SIZE equ 98304           ; boot.asm loads 192 sectors (0x8000-0x1FFFF)
 KERNEL_SIG equ 0x4B4F3253       ; 'S2OK'
 %if $-$$ > KERNEL_SIZE-4
 %error kernel image is larger than KERNEL_SIZE

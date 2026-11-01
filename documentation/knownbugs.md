@@ -52,6 +52,18 @@ Found while checking release readiness (booting in other configurations and in B
 - **KB-15** `calc` wrote `calc.hist` into the current directory, so each directory got its own history. Resolved: it is kept at `/calc.hist`.
 - Also: `graph`, `diff` and `topo` were listed as apps but are scaffolds; the banner now lists them as planned.
 
+## 1.3.3
+
+Found by stress testing processes and threads:
+
+- **KB-16** A wait that closes a cycle of waits panicked the kernel (`*** kernel panic: no runnable process`): a program waiting for pid 0 while the shell waits for it, or a thread waiting for its program while the program waits for the thread. Resolved: `wait` returns −1 when the process it would wait for is already waiting, directly or through others, for the caller. Check `waitcycle`.
+
+## 1.4.1
+
+Found by stress testing processes and threads:
+
+- **KB-17** A stack overflow did not reset the machine, as the specification said it would. A thread that ran off its 8 KB stack silently wrote over the stack of the slot below it, so a different process crashed, and memory could be lost. Resolved: an unmapped guard page sits under every stack, and the double fault it causes goes through a task gate to a stack of its own, so it is reported (`*** stack overflow in pid N`) and ends only that process; the shell offers its usual restart. Checks `stackover`, `stack-shell`.
+
 ## Notes
 
 - Add an entry only when behavior contradicts `specifications.md` or a stated milestone goal.

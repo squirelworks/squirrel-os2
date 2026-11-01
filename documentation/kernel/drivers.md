@@ -65,12 +65,16 @@ A missing disk stays in the table as `absent`, and every call on it fails.
 NAME    TYPE    STATUS
 con     char    ready
 kbd     char    ready
-hd0     block   ready 129 sectors (read-only for programs)
+hd0     block   ready 193 sectors (read-only for programs)
 hd1     block   ready 2048 sectors
 ```
+
+## Devices at run time (1.9.12)
+
+`SYS_DEVREG` (`ebx` = ASCIIZ name, 1–7 characters) registers a ready null character device under that name. Reads fill the buffer with zeros; writes discard the bytes and report success. Up to four such devices fit beside the built-ins. A name already in the table (present or absent) is refused. `programs/drvtest.asm` registers `null`, writes and reads it, and prints `drv: PASS` (checks `drv`, `drv-devices`).
 
 ## Not yet
 
 - Interrupt-driven I/O. The ATA driver still polls.
-- Devices added at run time (by loaded programs).
+- Loading driver *code* from a file (ops today are the kernel's null routines).
 - A `/dev`-style namespace in the file system.

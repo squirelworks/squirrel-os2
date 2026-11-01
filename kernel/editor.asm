@@ -7,9 +7,8 @@
 
 ED_CAP      equ 16384
 ED_BUF      equ KSCRATCH+0x4000     ; 16 KB text buffer
-ED_ROWS     equ 23                  ; text rows; row 23 = status, row 24 = messages
-ED_STATUS   equ 23
-ED_MSGROW   equ 24
+; Text rows are txt_rows - 2; the status row and the message row follow.
+; In a desktop window txt_rows and txt_cols are smaller (1.6.4).
 ED_GUTTER   equ 6                   ; vedit line-number column width
 ATTR_TEXT   equ 0x07
 ATTR_DIM    equ 0x08
@@ -98,10 +97,10 @@ ed_main:
     cmp byte [ed_verbose], 0
     je .loop
     xor byte [ed_ctl], 1
-    mov esi, [lstr+LS_ED_M_CTLON*4]
+    mov esi, ed_m_ctlon
     cmp byte [ed_ctl], 0
     jne .cm
-    mov esi, [lstr+LS_ED_M_CTLOFF*4]
+    mov esi, ed_m_ctloff
 .cm:
     call ed_msg
     jmp .loop
@@ -109,7 +108,7 @@ ed_main:
     call ed_undo
     jmp .loop
 .find:
-    mov esi, [lstr+LS_ED_M_FIND*4]
+    mov esi, ed_m_find
     mov edi, ed_find
     mov byte [ed_pany], 1       ; the text may contain spaces
     call ed_prompt
@@ -150,13 +149,13 @@ ed_main:
     mov dword [ed_want], -1
     jmp .moved
 .pgup:
-    mov ecx, ED_ROWS
+    call ed_rows
 .pu:
     call ed_up
     loop .pu
     jmp .moved
 .pgdn:
-    mov ecx, ED_ROWS
+    call ed_rows
 .pd:
     call ed_down
     loop .pd
@@ -462,6 +461,7 @@ ed_save:
     cmp edx, [ed_len]
     jne .err
     mov byte [ed_mod], 0
+    mov byte [ed_umod], 1       ; the file now has the edit: undoing it is a change
     mov esi, [lstr+LS_ED_M_SAVED*4]
     call ed_msg
     popad
@@ -511,7 +511,8 @@ ed_prompt:
     call sb_str
     mov esi, [ed_pdst]
     call sb_str
-    mov ebx, ED_MSGROW
+    mov ebx, [txt_rows]
+    dec ebx                     ; the message row
     mov ah, ATTR_TEXT
     call sb_row
     pop esi
@@ -585,7 +586,7 @@ ed_search:
     jbe .try                    ; every start (edx+1 of them) tried once
 .notfound:
     call sb_reset
-    mov esi, [lstr+LS_ED_M_NOTFOUND*4]
+    mov esi, ed_m_notfound
     call sb_str
     mov esi, ed_find
     call sb_str
@@ -595,16 +596,16 @@ ed_search:
     mov dword [ed_want], -1
     call ed_where
     call sb_reset
-    mov esi, [lstr+LS_ED_M_FOUND*4]
+    mov esi, ed_m_found
     call sb_str
     mov esi, ed_find
     call sb_str
-    mov esi, [lstr+LS_ED_M_ATLINE*4]
+    mov esi, ed_m_atline
     call sb_str
     mov eax, [ed_line]
     inc eax
     call sb_num
-    mov esi, [lstr+LS_ED_M_ATCOL*4]
+    mov esi, ed_m_atcol
     call sb_str
     mov eax, [ed_col]
     inc eax
@@ -618,7 +619,7 @@ ed_search:
     popad
     ret
 .none:
-    lset ed_msgp, LS_ED_M_NOFIND
+    mov dword [ed_msgp], ed_m_nofind
     popad
     ret
 
@@ -702,10 +703,10 @@ ed_snap:
 ; finds nothing more to undo.
 ed_undo:
     pushad
-    mov esi, [lstr+LS_ED_M_NOUNDO*4]
+    mov esi, ed_m_noundo
     cmp dword [ed_upages+(ED_UNDO_PAGES-1)*4], 0
     je .m
-    mov esi, [lstr+LS_ED_M_NOTHING*4]
+    mov esi, ed_m_nothing
     cmp byte [ed_uok], 0
     je .m
     mov eax, [ed_ulen]
@@ -718,7 +719,7 @@ ed_undo:
     mov dword [ed_want], -1
     mov edx, 1                  ; pages -> buffer
     call ed_ucopy
-    mov esi, [lstr+LS_ED_M_UNDONE*4]
+    mov esi, ed_m_undone
 .m:
     call ed_msg
     popad
@@ -795,15 +796,17 @@ ed_draw:
     jae .t1
     mov [ed_top], eax
 .t1:
+    call ed_rows
     mov ebx, [ed_top]
-    add ebx, ED_ROWS
+    add ebx, ecx
     cmp eax, ebx
     jb .t2
-    sub eax, ED_ROWS-1
+    sub eax, ecx
+    inc eax
     mov [ed_top], eax
 .t2:
     ; text width and horizontal scroll
-    mov edx, 80
+    mov edx, [txt_cols]
     cmp byte [ed_verbose], 0
     je .w
     sub edx, ED_GUTTER
@@ -840,7 +843,7 @@ ed_draw:
 .row:
     mov edi, ebx
     imul edi, 160
-    add edi, 0xB8000
+    add edi, [txt_base]
     cmp byte [ed_verbose], 0
     je .text
     ; gutter: line number or blank
@@ -899,6 +902,8 @@ ed_draw:
     inc esi
     cmp byte [ed_ctl], 0        ; vedit Ctrl+T: show the line end as '$'
     je .pad
+    test edx, edx               ; the line ended before ed_hs: its end is
+    jnz .pad                    ; off the screen to the left
     jecxz .pad
     mov ax, (ATTR_DIM<<8)|'$'
     stosw
@@ -910,7 +915,8 @@ ed_draw:
     mov ax, (ATTR_TEXT<<8)|' '
     rep stosw
     inc ebx
-    cmp ebx, ED_ROWS
+    call ed_rows
+    cmp ebx, ecx
     jb .row
     call ed_status
     ; message row
@@ -920,7 +926,8 @@ ed_draw:
     jz .nomsg
     call sb_str
 .nomsg:
-    mov ebx, ED_MSGROW
+    mov ebx, [txt_rows]
+    dec ebx                     ; the message row
     mov ah, ATTR_TEXT
     call sb_row
     ; hardware cursor
@@ -935,6 +942,7 @@ ed_draw:
 .cur:
     mov [cur], eax
     call cursor_sync
+    mov byte [txt_dirty], 1     ; a desktop window shows the new screen
     popad
     ret
 
@@ -959,7 +967,12 @@ ed_status:
     mov esi, [lstr+LS_ED_S_MOD*4]
     call sb_str
 .nm:
-    mov eax, 80-34              ; the key reminder ends at the last column
+    mov eax, [txt_cols]
+    sub eax, 34                 ; the key reminder ends at the last column
+    mov ebx, [sb_p]
+    sub ebx, ed_sb
+    cmp ebx, eax
+    jae .out                    ; no room for it (a desktop window, 1.6.4)
     call sb_pad
     mov esi, [lstr+LS_ED_S_KEYS*4]
     call sb_str
@@ -1014,7 +1027,8 @@ ed_status:
     mov esi, ed_name
     call sb_str
 .out:
-    mov ebx, ED_STATUS
+    call ed_rows
+    mov ebx, ecx                ; the status row follows the text
     mov ah, ATTR_STATUS
     call sb_row
     ret
@@ -1169,15 +1183,22 @@ sb_charinfo:
     pop eax
     ret
 
-; ebx = screen row, ah = attribute: writes ed_sb padded to 80 columns
+; -> ecx = text rows on screen (txt_rows less the status and message rows)
+ed_rows:
+    mov ecx, [txt_rows]
+    sub ecx, 2
+    ret
+
+; ebx = screen row, ah = attribute: writes ed_sb padded to txt_cols columns
 sb_row:
     pushad
     mov edi, ebx
     imul edi, 160
-    add edi, 0xB8000
+    add edi, [txt_base]         ; the screen, or a desktop window's (1.6.3)
     mov esi, ed_sb
-    mov ecx, 80
+    mov ecx, [txt_cols]
     call vga_text
+    mov byte [txt_dirty], 1
     popad
     ret
 
@@ -1238,3 +1259,14 @@ ed_s_ins db ' INS', 0
 ed_s_ovr db ' OVR', 0
 ed_s_modv db ' MOD ', 0
 ed_s_clean db ' --- ', 0
+ed_m_find db 'Find (Esc cancels): ', 0
+ed_m_undone db 'Undone.', 0
+ed_m_ctlon db 'Control characters shown: $ line end, > tab, ^ other.', 0
+ed_m_ctloff db 'Control characters hidden.', 0
+ed_m_nothing db 'Nothing to undo.', 0
+ed_m_noundo db 'Undo unavailable: no free memory.', 0
+ed_m_found db 'Found ', 0
+ed_m_atline db ' at line ', 0
+ed_m_atcol db ', column ', 0
+ed_m_notfound db 'Not found: ', 0
+ed_m_nofind db 'Nothing to find again: Ctrl+F first', 0

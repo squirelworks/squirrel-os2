@@ -40,7 +40,22 @@ Process names (`PCB_NAME`, 16 bytes) are new in 0.8.2:
 
 Before 0.8.2, a fault anywhere but a loaded program halted the machine. The `trap` command (`ud2`) shows the shell case.
 
+## Stack overflows and double faults (KB-17)
+
+Every stack has an unmapped guard page under it (`processes.md`, `memory-map.md`). A process that runs off the bottom of its stack touches the guard page; the CPU then cannot push the page-fault frame on that same stack, and the fault becomes a double fault. Vector 8 is a task gate to a second task (`tss_df`, with its own stack below the first guard page), so the double fault is still reported:
+
+```
+*** stack overflow in pid 2
+    EIP=00030034 ESP=00080000 address=0007FFFC
+Program ended: pid 2
+```
+
+The headline says `stack overflow` when the fault address is in a guard page, and `CPU exception 8 (double fault)` otherwise. `df_report` then points the interrupted task at a fresh stack (the dying process's own stack top, or the shell's) and returns to it with `iretd`. What happens next is the same as for any other fault: the process ends with exit code −1, or the shell offers to restart. Nothing outside the faulting process's stack is written, so the process in the slot below keeps running. Check `stackover` (a thread overflows; its program carries on) and `stack-shell` (the hidden `overflow` command makes the shell overflow, and Enter restarts it).
+
+Before KB-17 there were no guard pages: a thread's overflow wrote over the next slot's stack and crashed a different process, and the shell's ran into the process stacks.
+
 ## Limits
 
-- Everything runs in ring 0 on the current stack. A stack overflow into unmapped memory becomes a double fault while the CPU pushes the frame, and the machine resets (triple fault). A separate fault stack needs a TSS (2.x).
+- Everything runs in ring 0. Only the double fault has a stack of its own; other faults are reported on the stack that faulted.
+- A guard page is one page. Code that moves `esp` down by more than 4 KB at once can jump over it.
 - Restarting the shell leaves any file descriptors the shell had open.

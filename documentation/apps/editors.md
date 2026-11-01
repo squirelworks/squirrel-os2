@@ -31,8 +31,8 @@ Both editors are implemented in `kernel/editor.asm` as one full-screen engine ru
 
 ### Shared behaviour
 
-- 16 KB buffer, drawn in place (rows 0–22 text, row 23 status, row 24 messages); vertical and horizontal scrolling keep the cursor visible.
-- Cursor: arrows, Home/End (line), PgUp/PgDn (23 lines); up/down remember the wanted column across short lines.
+- 16 KB buffer, drawn in place (rows 0–22 text, row 23 status, row 24 messages; in a desktop window, 18 text rows of 52 columns, then the status and message rows, `desktop.md`); vertical and horizontal scrolling keep the cursor visible.
+- Cursor: arrows, Home/End (line), PgUp/PgDn (a screenful of text rows: 23, or 18 in a window); up/down remember the wanted column across short lines.
 - Editing: printable keys (with Shift), Enter, Backspace, Delete, Tab (4 spaces), Insert toggles insert/overwrite.
 - Files: `run edit <file>` / `run vedit <file>` loads the file (or starts a new one with that name).
   The name may be a path of up to 63 characters (`run edit docs/notes.txt`; 0.9.2). A directory, or a
@@ -41,7 +41,7 @@ Both editors are implemented in `kernel/editor.asm` as one full-screen engine ru
 - Without a data disk the editors still work in memory and say that saving is unavailable.
 - A failed save shows why (`Disk full`, `Bad name: ...`, `Is a directory`, ...). When the name itself was the problem, the buffer becomes untitled so the next save asks for another one (0.9.2). `draw` does the same.
 - From the file browser, `e` opens the selected file in `edit`.
-- Undo (1.0.11): Ctrl+Z takes back the last edit, which is one typed key, Enter, Backspace, Delete, or Tab (all four spaces). It restores the text, the cursor, and the modified flag as they were before that edit, and says `Undone.` There is one level only: a second Ctrl+Z says `Nothing to undo.` The next edit makes a new undo point. How it works: before each edit, the whole buffer is copied to four pages from the page allocator. The editor takes them when it starts and gives them back when it exits. If no pages are free, Ctrl+Z says `Undo unavailable: no free memory.`
+- Undo (1.0.11): Ctrl+Z takes back the last edit, which is one typed key, Enter, Backspace, Delete, or Tab (all four spaces). It restores the text, the cursor, and the modified flag as they were before that edit, and says `Undone.` An undo after a save marks the buffer modified, since the file on disk still has the edit, so leaving asks `Unsaved changes` first. There is one level only: a second Ctrl+Z says `Nothing to undo.` The next edit makes a new undo point. How it works: before each edit, the whole buffer is copied to four pages from the page allocator. The editor takes them when it starts and gives them back when it exits. If no pages are free, Ctrl+Z says `Undo unavailable: no free memory.`
 - Search (1.0.9): Ctrl+F asks `Find (Esc cancels):` on the message line. The text may contain spaces. The search starts just after the cursor, wraps to the start of the buffer, and is case-sensitive. The cursor lands on the first character of the match, and the message line says `Found zebra at line 1, column 9`, or `Not found: zebra`. F3 finds the same text again. Before any Ctrl+F, F3 says `Nothing to find again: Ctrl+F first`.
 
 ### `edit` status line
@@ -52,7 +52,7 @@ Both editors are implemented in `kernel/editor.asm` as one full-screen engine ru
 
 - Line-number gutter on every line.
 - Status: `L<line> C<col> off <byte offset> '<char>' 0x<hex> (<dec>) INS|OVR MOD|--- <size>/<capacity> <name>`.
-- Ctrl+T (1.0.12) toggles the display of control characters. When it is on, a line end shows as a dim `$` after the last character, a tab as `>`, and any other control character as `^`. When it is off, line ends are invisible and control characters show as `.`, as before. The message line says which mode is on. Only the display changes: the buffer, its size and the cursor column stay the same. The display starts off each time `vedit` opens. In `edit`, Ctrl+T does nothing.
+- Ctrl+T (1.0.12) toggles the display of control characters. When it is on, a line end shows as a dim `$` after the last character (not drawn when the view is scrolled right past it), a tab as `>`, and any other control character as `^`. When it is off, line ends are invisible and control characters show as `.`, as before. The message line says which mode is on. Only the display changes: the buffer, its size and the cursor column stay the same. The display starts off each time `vedit` opens. In `edit`, Ctrl+T does nothing.
 - A message for every action: `Typed 'a' 0x61 (97)`, `Deleted '\n' 0x0A (10)`, `Moved.`, mode changes, load/save results.
 
 ### Not yet

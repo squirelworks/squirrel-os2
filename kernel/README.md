@@ -2,7 +2,7 @@
 
 Original bare-metal x86 kernel. It is not derived from osFree, Voyager, or any other external OS/2 source.
 
-The image is a 512-byte boot sector (`boot.asm`) followed by a flat 64 KB kernel (`pm.asm`), which is loaded at `0x8000`.
+The image is a 512-byte boot sector (`boot.asm`) followed by a flat 96 KB kernel (`pm.asm`, 192 sectors), which is loaded at `0x8000`.
 The other `.asm` files here are included from `pm.asm`.
 
 | File | What it is | Design note |

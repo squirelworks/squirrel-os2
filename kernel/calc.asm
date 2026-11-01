@@ -10,8 +10,6 @@ CALC_LINE     equ 60
 
 run_calc:
     call cls
-    mov esi, [lstr+LS_CALC*4]   ; title in the current language (1.0.6)
-    call puts
     mov esi, [lstr+LS_CALC_BANNER*4]
     call puts
     mov esi, [lstr+LS_CALC_HELP*4]

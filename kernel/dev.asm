@@ -23,6 +23,7 @@ DEV_DESC    equ 40
 
 DEV_CHAR    equ 1
 DEV_BLOCK   equ 2
+DEV_NET     equ 3                   ; network cards (1.9.4)
 DEVF_UP     equ 1                   ; probed and present
 DEVF_RO     equ 2                   ; programs may not write it
 
@@ -157,6 +158,97 @@ dev_probe_yes:
     clc
     ret
 
+; Null character device ops (1.9.12): reads fill with zero, writes discard
+dev_null_read:
+    push edi
+    push ecx
+    xor eax, eax
+    rep stosb
+    pop eax
+    pop edi
+    ret
+
+dev_null_write:
+    mov eax, ecx
+    ret
+
+; ebx = ASCIIZ name (1..7 chars): register a ready null char device.
+; eax = 0, or -1 if the name is bad, taken, or no free slot.
+dev_reg_null:
+    push ebx
+    push ecx
+    push edx
+    push esi
+    push edi
+    mov esi, ebx
+    call strlen
+    test eax, eax
+    jz .bad
+    cmp eax, 7
+    ja .bad
+    push esi
+    call dev_find               ; already present under that name?
+    pop esi
+    test ebx, ebx
+    jnz .bad
+    ; also refuse a name that matches an absent built-in
+    xor ecx, ecx
+.scan:
+    cmp ecx, [dev_count]
+    jae .slot
+    mov ebx, [dev_table+ecx*4]
+    lea edi, [ebx+DEV_NAME]
+    call streq
+    je .bad
+    inc ecx
+    jmp .scan
+.slot:
+    mov edx, [dev_dyn_used]
+    cmp edx, DEV_DYN_MAX
+    jae .bad
+    imul eax, edx, DEV_DESC
+    lea edi, [dev_dyn+eax]
+    push edi
+    mov ecx, DEV_DESC/4
+    xor eax, eax
+    rep stosd
+    pop edi
+    push edi
+    lea edi, [edi+DEV_NAME]
+    mov ecx, 8
+.cpy:
+    lodsb
+    test al, al
+    jz .pad
+    stosb
+    dec ecx
+    jnz .cpy
+    jmp .filled
+.pad:
+    xor al, al
+    rep stosb
+.filled:
+    pop edi
+    mov dword [edi+DEV_TYPE], DEV_CHAR
+    mov dword [edi+DEV_PROBE], dev_probe_yes
+    mov dword [edi+DEV_READ], dev_null_read
+    mov dword [edi+DEV_WRITE], dev_null_write
+    mov esi, edi
+    call dev_register
+    jc .bad
+    inc dword [dev_dyn_used]
+    xor eax, eax
+    jmp .out
+.bad:
+    mov eax, -1
+.out:
+    pop edi
+    pop esi
+    pop edx
+    pop ecx
+    pop ebx
+    ret
+
 ; ---------- syscalls ----------
 
 ; SYS_DEVFIND: ebx = name -> eax = handle (table index), or -1
@@ -238,7 +330,12 @@ cmd_devices_run:
     mov esi, dev_m_char
     cmp dword [ebx+DEV_TYPE], DEV_CHAR
     je .t
+    cmp dword [ebx+DEV_TYPE], DEV_BLOCK
+    jne .tn
     mov esi, dev_m_block
+    jmp .t
+.tn:
+    mov esi, dev_m_net
 .t:
     call puts
     mov al, 16
@@ -251,6 +348,11 @@ cmd_devices_run:
     call puts
     test dword [ebx+DEV_FLAGS], DEVF_UP
     jz .eol
+    cmp dword [ebx+DEV_TYPE], DEV_NET
+    jne .blk
+    call dev_put_mac
+    jmp .eol
+.blk:
     cmp dword [ebx+DEV_TYPE], DEV_BLOCK
     jne .ro
     mov al, ' '
@@ -274,17 +376,64 @@ cmd_devices_run:
 .r:
     ret
 
+; ebx = a network card's descriptor: prints ' ' and its MAC address,
+; which its driver keeps at [DEV_UNIT]
+dev_put_mac:
+    push eax
+    push ecx
+    push esi
+    mov esi, [ebx+DEV_UNIT]
+    mov ecx, 6
+.b:
+    mov al, ':'
+    cmp ecx, 6
+    jne .sep
+    mov al, ' '
+.sep:
+    call putc
+    lodsb
+    call dev_hex2
+    loop .b
+    pop esi
+    pop ecx
+    pop eax
+    ret
+
+; al -> two lower-case hex digits
+dev_hex2:
+    push eax
+    shr al, 4
+    call .d
+    pop eax
+    and al, 15
+.d:
+    push eax
+    and al, 15
+    add al, '0'
+    cmp al, '9'
+    jbe .p
+    add al, 'a' - '9' - 1
+.p:
+    call putc
+    pop eax
+    ret
+
 ; the built-in drivers' devices, in registration order
-dev_builtin dd dev_con, dev_kbd, dev_hd0, dev_hd1, 0
+dev_builtin dd dev_con, dev_kbd, dev_hd0, dev_hd1, dev_ne0, 0
 
 dev_m_head db 'NAME    TYPE    STATUS', 10, 0
 dev_m_char db 'char', 0
 dev_m_block db 'block', 0
+dev_m_net db 'net', 0
 dev_m_up db 'ready', 0
 dev_m_absent db 'absent', 0
 dev_m_sectors db ' sectors', 0
 dev_m_ro db ' (read-only for programs)', 0
 
+DEV_DYN_MAX equ 4                   ; run-time null devices (1.9.12)
+
 align 4
 dev_count dd 0
+dev_dyn_used dd 0
 dev_table times DEV_MAX dd 0
+dev_dyn times DEV_DYN_MAX*DEV_DESC db 0

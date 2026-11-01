@@ -17,8 +17,9 @@ The code in this tree is project-native. Early releases are not described as OS/
 | **2.0.0** | The first release that can honestly be called Warp-like: preemptive scheduling, an original windowing system, an object desktop. Original concepts, not binary compatibility with classic OS/2. |
 | **3.0.0** | A 64-bit system with the same character, aimed at everyday use. Optional foreign personalities (Linux, Windows, Darwin, Unix) stay out of the core. |
 
-1.0.0 is released (2026-10-31, `documentation/releases/1.0.0.md`). Next are the
-1.0.x patch releases and milestone 1.1 below.
+1.0.0 is released (2026-10-31, `documentation/releases/1.0.0.md`).
+**2.0.0** is released (2026-11-01, `documentation/releases/2.0.0.md`).
+Next are modern hardware H.1–H.6, then the 2.x / 3.0 vision.
 
 ## Principles
 
@@ -86,23 +87,33 @@ A shell that hosts `files`, `calc`, `edit`, `vedit`, and `draw` as windows and r
 
 ### 1.7–1.9 — Object desktop
 
-From `documentation/plannedmilestones.md`, still the plan, and not started until 1.6 is on `main`:
+From `documentation/plannedmilestones.md`. 1.7 and 1.8 are on `main` (classes and messages, instance fields, an `objs` listing, the desktop entries as objects; an object file format, `objcat` after a reboot, the desktop's entries kept in `/desktop`), and 1.9 is split into boxes in `TODO.md` (folders, pick up and drop, rename and delete):
 
 - **1.7** — A small object model (class, method, inheritance) sufficient for a desktop.
 - **1.8** — Objects stored in the file system and loaded back.
 - **1.9** — Pick up, move, and drop an object on the desktop. The keyboard does this. A mouse is not part of the plan.
 
+### Installer (I.1–I.6) — unscheduled
+
+Today the release images are the install: write `os.img` to a USB stick or `floppy.img` to a floppy, byte for byte, and boot it. A real installer boots from that media and copies the system onto the computer's own disk, so the stick can be removed. The boxes are in `TODO.md`. They run alongside the 1.6 desktop work (the author lifted the earlier gate on 2026-10-31), each ships in the next OS version, and none of them is a 2.0.0 requirement.
+
+Assumptions the installer keeps: BIOS boot (Legacy/CSM), an IDE/ATA target disk reached through the existing polled driver, and SQFS as the installed file system. UEFI, AHCI/NVMe, and USB mass storage stay in 2.x.
+
 ### 2.0.0 — Warp-style system
 
 Preemptive threads, the windowing system, the object desktop, the hierarchical file system with a graphical browser, the 1.0 applications as desktop objects, a native shell, and basic networking. Original code. No classic OS/2 ABI.
 
-When 1.9 is on `main`, split networking into its own tasks before calling a release 2.0.0. Do not start that split early.
+1.9 is on `main`, and networking through the small TCP client shipped in 1.9.3–1.9.8. Warp gaps 1.9.9–1.9.12 are on `main`. **2.0.0** tags that system (`documentation/releases/2.0.0.md`); the owner tags after merge.
 
 ### 2.x and 3.0.0
 
 Kept in `documentation/plannedmilestones.md`: 64-bit bring-up, multi-core, UEFI, modern storage and USB, a 64-bit userland, the desktop ported forward, a fuller network, a package manager, then a 3.0.0 system aimed at daily use. User mode (ring 3) and growing stacks land in this era, as `documentation/kernel/memory.md` already says.
 
-Do not break 2.x or 3.0 into tasks until 2.0.0's prerequisites above are on `main`.
+2.0.0's prerequisites are on `main`. Modern hardware H.1–H.6 may proceed; break further 2.x / 3.0 work into tasks as needed.
+
+### Modern hardware (H.1–H.6) — unscheduled
+
+Today the system boots the BIOS way and expects IDE/ATA disks, a PS/2-style keyboard, and VGA. Many new PCs have dropped Legacy/CSM boot, and their disks, keyboards, and displays sit behind controllers the kernel does not drive. This milestone is the concrete breakdown of 2.4 (UEFI) and 2.5 (modern storage and USB), plus a framebuffer display. The boxes are in `TODO.md`. None of them starts while a 1.x box is open; the BIOS path keeps working throughout.
 
 ## Explicitly later
 
@@ -111,7 +122,7 @@ These exist in the tree as scaffolds or notes. They are not milestones on the wa
 - Foreign personalities F.1–F.10 (`documentation/plannedmilestones.md`, `documentation/architecture/foreign-compatibility.md`). Optional, and not before 2.0. First PR of that era is F.1.
 - A full kernel on AArch64 or RISC-V. Early banners already exist (`documentation/architecture/early-kernel.md`). The working kernel stays x86 PC until a later roadmap says otherwise.
 - Firmware-independence experiments (`documentation/architecture/firmware-independence.md`). Not a 1.0 requirement.
-- Interrupt-driven ATA, a `/dev` tree, and loading drivers from programs (`documentation/kernel/drivers.md`). The polled IDE driver is enough for current QEMU.
+- Interrupt-driven ATA, a `/dev` tree, and loading driver *code* from programs (`documentation/kernel/drivers.md`). Run-time registration of a null char device is in 1.9.12; the polled IDE driver is enough for current QEMU.
 - virtio-blk. `documentation/kernel/block-device.md` says the default IDE controller is enough.
 - Journaling, long file names, SMP, UEFI, Wi-Fi, and a package manager. They belong to the 2.x / 3.0 table.
 - Binary compatibility with classic OS/2 (SOM, MVDM, WIN-OS/2). Out of scope.
@@ -121,6 +132,6 @@ These exist in the tree as scaffolds or notes. They are not milestones on the wa
 Not tasks. Do not build these unless a later edit to this file promotes them.
 
 - A text-mode `graph` before milestone 1.3. The design mentions text-mode plots, and the running stub refuses to plot until graphics primitives exist. Follow the stub.
-- A mouse, for drag-and-drop or for windows. 1.9 is keyboard-driven.
-- Priority scheduling inside 1.1. That is a 2.0 description of the scheduler, not the 1.1 milestone.
 - Symbolic algebra for `diff` or `topo`. `diff` is numerical. `topo` stays a scaffold until 2.x.
+
+Promoted into **1.9.9–1.9.12** (see `TODO.md` Warp gaps): priority scheduling, a polled mouse on the desktop, configurable IP addresses, and devices registered at run time.
