@@ -43,15 +43,21 @@ cmd_desktop_run:
     mov ecx, DK_H - WM_TITLE_H - 2 - GFX_CELL_H - 4
     mov esi, dk_help
     call wg_label
+    mov [dk_hlp], eax
+    mov dword [dk_held], 0
     call dk_relist
 .draw:
     call wm_redraw
 .key:
     call wg_getkey
     cmp al, 27
-    je .quit
+    je .esc
     cmp al, 8
     je .up
+    cmp al, 'm'
+    je .pick
+    cmp al, 'p'
+    je .drop
     call wg_key
     jnc .draw
     cmp al, 10
@@ -68,6 +74,29 @@ cmd_desktop_run:
     cmp byte [dk_opened], 0      ; a folder was opened
     je .draw
     call dk_relist
+    jmp .draw
+.esc:                           ; Esc: put a held object back, or quit
+    cmp dword [dk_held], 0
+    je .quit
+    call dk_unhold
+    jmp .draw
+.pick:                          ; m: pick up the chosen object (1.9.1)
+    cmp dword [dk_held], 0
+    jne .key
+    cmp dword [dk_nvis], 0
+    je .key
+    mov eax, [dk_list]
+    call wg_selected
+    mov eax, [dk_vis+eax*4]
+    mov [dk_heldk], eax
+    mov eax, [dk_objs+eax*4]
+    mov [dk_held], eax
+    call dk_holdhelp
+    jmp .draw
+.drop:                          ; p: drop it into the folder shown
+    cmp dword [dk_held], 0
+    je .key
+    call dk_drop
     jmp .draw
 .up:                            ; Backspace: from a folder to the top
     cmp dword [dk_cur], 0
@@ -141,6 +170,83 @@ dk_relist:
     popad
     ret
 
+; ---------- pick up and drop (1.9.1) ----------
+
+; The help row names the held object: "Held: <name>  p: drop  Esc: back"
+dk_holdhelp:
+    pushad
+    mov eax, [dk_held]
+    mov esi, dk_s_name
+    call obj_send
+    mov esi, eax
+    mov edi, dk_hbuf
+    push esi
+    mov esi, dk_h1
+    mov ecx, 15
+    call dk_cpy
+    pop esi
+    mov ecx, 15                 ; the name: at most 15 characters
+    call dk_cpy
+    mov esi, dk_h2
+    mov ecx, 31
+    call dk_cpy
+    mov esi, dk_hbuf
+    jmp dk_sethelp
+
+dk_unhold:
+    pushad
+    mov dword [dk_held], 0
+    mov esi, dk_help
+dk_sethelp:                     ; (inside pushad) esi = the help row's text
+    mov eax, [dk_hlp]
+    imul eax, WG_SIZE
+    mov [wg_table+eax+WG_TEXT], esi
+    popad
+    ret
+
+; esi = text, ecx = most characters -> copied to edi, edi at its 0
+dk_cpy:
+    push ecx
+.c:
+    lodsb
+    test al, al
+    jz .e
+    stosb
+    loop .c
+.e:
+    mov byte [edi], 0
+    pop ecx
+    ret
+
+; Drop the held object into the folder shown: set its in and save its file.
+; A folder can only be dropped at the top level (folders do not nest).
+dk_drop:
+    pushad
+    mov eax, [dk_held]
+    mov ecx, [dk_cur]
+    test ecx, ecx
+    jnz .infolder
+    mov ecx, dk_empty
+    jmp .set
+.infolder:
+    cmp dword [eax+OBJ_CLASS], dk_c_fold
+    je .r                       ; refused: still held
+.set:
+    mov ebx, 1
+    call obj_set                ; in
+    mov edx, [dk_heldk]
+    mov esi, [dk_files+edx*4]
+    test esi, esi
+    jz .nofile
+    call dk_path
+    call obj_save               ; (no data disk: kept until the desktop closes)
+.nofile:
+    call dk_unhold
+    call dk_relist
+.r:
+    popad
+    ret
+
 ; ---------- desktop objects (1.7.6) ----------
 ; DesktopObject: fields name and in (the folder holding it, 1.9.0);
 ; methods name and open (nothing to open).
@@ -152,6 +258,9 @@ dk_mkobjs:
     xor eax, eax
     mov [dk_n], eax
     mov edi, dk_objs
+    mov ecx, DK_NDEF
+    rep stosd
+    mov edi, dk_files
     mov ecx, DK_NDEF
     rep stosd
     mov esi, dk_c_dobj
@@ -239,7 +348,7 @@ dk_newobj:
     pop ebx
     ret
 
-; eax = object (or 0): keep it
+; eax = object (or 0), edi = default entry: keep it, with its file's name
 dk_add:
     test eax, eax
     jz .r
@@ -248,6 +357,10 @@ dk_add:
     cmp edx, DK_NDEF
     jae .full
     mov [dk_objs+edx*4], eax
+    push eax
+    mov eax, [dk_defs+edi*4]
+    mov [dk_files+edx*4], eax
+    pop eax
     inc dword [dk_n]
 .full:
     pop edx
@@ -475,6 +588,7 @@ dk_defs dd dk_a0, dk_a1, dk_a2, dk_a3, dk_a4, dk_a5 ; the files in /desktop
 dk_run dd fb_main, run_calc, run_edit, run_vedit, run_draw ; each Program's entry
 dk_objs times DK_NDEF dd 0
 dk_n dd 0                       ; objects loaded (1.8.3)
+dk_files times DK_NDEF dd 0     ; each object's file name, or 0 (1.9.1)
 dk_vis times DK_NDEF dd 0       ; the objects listed, by their index (1.9.0)
 dk_nvis dd 0
 dk_names times DK_NDEF dd 0
@@ -488,6 +602,12 @@ dk_fold_m dd dk_s_open, dk_fold_open, 0
 dk_dobj_f dd dk_s_name, dk_f_in, 0 ; fields 0 and 1
 dk_prog_f dd dk_f_entry, 0      ; field 2
 dk_opened db 0                  ; a folder's open ran
+dk_held dd 0                    ; the object picked up, or 0 (1.9.1)
+dk_heldk dd 0                   ; its index in dk_objs
+dk_hlp dd 0                     ; the help row's widget
+dk_h1 db 'Held: ', 0
+dk_h2 db '  p: drop  Esc: back', 0
+dk_hbuf times 48 db 0
 dk_wrote db 0
 dk_win dd 0
 dk_list dd 0
