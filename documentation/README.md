@@ -98,4 +98,5 @@ Documentation is active.
 - 1.9.3 network layer: interfaces, packet queues and loopback; `nettest` (`releases/1.9.3.md`, `kernel/network.md`)
 - 1.9.4 NE2000 network card, polled; `devices` shows its MAC address (`releases/1.9.4.md`, `kernel/network.md`)
 - 1.9.5 Ethernet framing and ARP; `arp <ip>` (`releases/1.9.5.md`, `kernel/network.md`)
-- Next: 2.0 IPv4 and ping (`2.0-ping` in `../TODO.md`, `../ROADMAP.md`)
+- 1.9.6 IPv4 and ICMP echo; `ping <ip>` (`releases/1.9.6.md`, `kernel/network.md`)
+- Next: 2.0 UDP (`2.0-udp` in `../TODO.md`, `../ROADMAP.md`)

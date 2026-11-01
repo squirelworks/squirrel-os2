@@ -129,6 +129,7 @@ This avoids retargeting chains and confirmation steps.
 | 1.9.3   | 2026-11-01 | Network layer and loopback           |
 | 1.9.4   | 2026-11-01 | NE2000 network card                  |
 | 1.9.5   | 2026-11-01 | Ethernet framing and ARP             |
+| 1.9.6   | 2026-11-01 | IPv4 and ICMP echo                   |
 
 ## Next planned release
 

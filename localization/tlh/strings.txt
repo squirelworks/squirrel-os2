@@ -48,3 +48,4 @@ inst_failed=jom mevpu'. Hap naQbe' net Sov.
 inst_anykey=leQ yIbach.
 net_noreply=jang tu'lu'be'
 net_badaddr=ngoq QIH
+net_of4= vo' 4

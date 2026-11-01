@@ -340,6 +340,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - Ethernet framing and ARP. The guest address is 10.0.2.15. `arp <ip>` prints the Ethernet address from a table of eight, or `No reply` after two seconds (`kernel/network.md`; `arp-gw`, `arp-self`, `arp-none`, `arp-bad`, `arp-nonic`).
 
+## 1.9.6
+
+- IPv4 with a 20-byte header, no options and no fragments. The guest is 10.0.2.15/24, gateway 10.0.2.2. `ping <ip>` sends four ICMP echoes and prints how many replies came back. 127.0.0.1 stays on loopback (`kernel/network.md`; `ping-lo`, `ping-gw`, `ping-bad`).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.

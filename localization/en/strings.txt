@@ -48,3 +48,4 @@ inst_failed=The installation stopped. The target disk may be incomplete.
 inst_anykey=Press any key.
 net_noreply=No reply
 net_badaddr=Bad address
+net_of4= of 4

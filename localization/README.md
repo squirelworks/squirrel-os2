@@ -59,6 +59,7 @@ localization/
 | fe_nofd | Too many open files | Nimis multae tabulae apertae | teywI'mey poSmoHlu'bogh law'qu' | file-system errors (shell, editors, `draw`, `SYS_FSERROR`) (1.0.5) |
 | net_noreply | No reply | Nullum responsum | jang tu'lu'be' | `arp` when nobody answers (1.9.5) |
 | net_badaddr | Bad address | Inscriptio mala | ngoq QIH | `arp` when the text is not an address (1.9.5) |
+| net_of4 |  of 4 |  ex 4 |  vo' 4 | `ping` reply count (1.9.6) |
 
 ## Runtime (0.8.1)
 

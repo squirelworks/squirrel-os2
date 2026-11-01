@@ -10,6 +10,7 @@ ARP_SLOTS   equ 8
 ARP_WAIT    equ 200                 ; ticks (two seconds) before giving up
 ETH_HDR     equ 14
 ETH_ARP     equ 0x0608              ; bytes 08 06, as a little-endian word
+ETH_IPV4    equ 0x0008              ; bytes 08 00
 ARP_ETH     equ 0x0100              ; hardware type: Ethernet (bytes 00 01)
 ARP_IP      equ 0x0008              ; protocol: IPv4 (bytes 08 00)
 ARP_REQ     equ 0x0100              ; operation: request
@@ -94,6 +95,9 @@ net_put_mac:
 ; Takes every frame the card has, and every frame waiting on loopback,
 ; and hands each one to net_demux.
 net_pump:
+    cmp byte [net_pumping], 0   ; a reply sent from inside here must not re-enter
+    jne .busy
+    mov byte [net_pumping], 1
     push ebx
     cmp byte [ne_up], 0
     je .lo
@@ -104,33 +108,47 @@ net_pump:
     mov ebx, net_lo
     call net_drain
     pop ebx
+    mov byte [net_pumping], 0
+.busy:
     ret
 
-; ebx = interface: net_demux each waiting frame
+; ebx = interface: net_demux each waiting frame. Handlers may reuse ebx.
 net_drain:
     push eax
     push ecx
     push edi
 .l:
+    push ebx
     mov edi, net_rx
     mov ecx, NET_MTU
     call net_recv
-    jc .d
+    jc .empty
     call net_demux
+    pop ebx
     jmp .l
-.d:
+.empty:
+    pop ebx
     pop edi
     pop ecx
     pop eax
     ret
 
-; eax = length, frame in net_rx
+; eax = length, frame in net_rx. ARP is handled here; IPv4 goes to ip_input.
 net_demux:
-    cmp eax, ETH_HDR + 28
+    cmp eax, ETH_HDR
     jb .r
     cmp word [net_rx+12], ETH_ARP
-    jne .r
+    jne .ip
+    cmp eax, ETH_HDR + 28
+    jb .r
     call arp_input
+    ret
+.ip:
+    cmp word [net_rx+12], ETH_IPV4
+    jne .r
+    cmp eax, ETH_HDR + 20
+    jb .r
+    call ip_input
 .r:
     ret
 
@@ -391,6 +409,7 @@ net_our_ip  db 10, 0, 2, 15
 align 4
 arp_who     dd 0
 arp_turn    db 0
+net_pumping db 0
 arp_used    times ARP_SLOTS db 0
 align 4
 arp_tab     times ARP_SLOTS * 12 db 0

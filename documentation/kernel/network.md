@@ -50,3 +50,11 @@ An ARP frame is the 14-byte Ethernet header plus 28 bytes: Ethernet and IPv4, ad
 `arp_resolve` returns the Ethernet address for an IP address. 10.0.2.15 is the card's own address and is not asked for. Any other address is looked up, and on a miss a broadcast request is sent and the card is polled for two seconds (200 ticks). The reply's sender is stored. No card, or no reply, is a failure.
 
 The shell command `arp <ip>` prints that address as `52:55:0a:00:02:02`, or `No reply`, or `Bad address` when the text is not four numbers. `arp 10.0.2.2` is the gateway QEMU answers, whose address is `52:55:0a:00:02:02` (checks `arp-gw`, `arp-self`, `arp-none`, `arp-bad`, `arp-nonic`). A request for our own address is answered, so the gateway can find us later.
+
+## IPv4 and ping
+
+Since 1.9.6 `kernel/ip.asm` sends and receives IPv4. The header is 20 bytes: version 4, no options, and a fragment is dropped. The checksum covers the header only. The guest's network is 10.0.2.15 with mask 255.255.255.0 and gateway 10.0.2.2, which is QEMU's user network.
+
+`ip_output` chooses the wire. 127.0.0.0/8 and 10.0.2.15 itself go out on loopback, with 127.0.0.1 as the source when the destination is on 127.0.0.0/8. Another address in 10.0.2.0/24 is asked of ARP and sent on `ne0`. Anything else is sent to the gateway's Ethernet address, still addressed to the real destination. An address learned from a received frame is kept in the ARP table.
+
+ICMP echo (type 8) to us, or to 127.0.0.1, is answered with an echo reply (type 0). `ping <ip>` sends four requests, waits up to a second for each matching reply, and prints how many came back, as `4 of 4`. `ping 10.0.2.2` is the gateway. `ping 127.0.0.1` does not need the card (checks `ping-lo`, `ping-gw`, `ping-bad`).
