@@ -326,8 +326,8 @@ ne_poll:
     in ax, dx
     mov [ne_hdr+2], ax
     call ne_dma_done
-    movzx ecx, word [ne_hdr+2]  ; the length counts the header and the CRC
-    sub ecx, 4 + 4
+    movzx ecx, word [ne_hdr+2]  ; the count includes the 4-byte header, not a CRC
+    sub ecx, 4
     jbe .skip
     cmp ecx, NET_MTU
     ja .skip

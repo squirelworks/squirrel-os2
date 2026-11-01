@@ -131,6 +131,7 @@ This avoids retargeting chains and confirmation steps.
 | 1.9.5   | 2026-11-01 | Ethernet framing and ARP             |
 | 1.9.6   | 2026-11-01 | IPv4 and ICMP echo                   |
 | 1.9.7   | 2026-11-01 | UDP for programs                     |
+| 1.9.8   | 2026-11-01 | A small TCP client                   |
 
 ## Next planned release
 

@@ -9,6 +9,7 @@
 IP_TTL      equ 64
 IP_ICMP     equ 1
 IP_UDP      equ 17
+IP_TCP      equ 6
 ICMP_MAX    equ 128
 PING_WAIT   equ 100                 ; one second, in ticks, for each reply
 PING_DATA   equ 8
@@ -204,8 +205,13 @@ ip_input:
     ret
 .udp:
     cmp byte [net_rx + ETH_HDR + 9], IP_UDP
-    jne .r
+    jne .tcp
     call udp_input
+    ret
+.tcp:
+    cmp byte [net_rx + ETH_HDR + 9], IP_TCP
+    jne .r
+    call tcp_input
 .r:
     ret
 

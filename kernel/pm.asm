@@ -943,7 +943,7 @@ default_isr:
 
 ; ---------- data ----------
 banner db 'Squirrel-OS/2'          ; (the "help" file: the English banner)
-banner_rest db ' 1.9.7', 10   ; OS version: here only (see releases/PROCESS.md)
+banner_rest db ' 1.9.8', 10   ; OS version: here only (see releases/PROCESS.md)
        db 'Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>', 10
        db '          mv <f> <new> | mkdir <d> | cd <d> | pwd | echo | batch <f> | format', 10
        db '          ps | disk | mem | devices | lang <en|la|tlh> | desktop | install', 10
@@ -1032,6 +1032,7 @@ usage_cmds:                     ; command, syntax, hint key or -1
     dd u_objcat, u_objcat_t, -1
     dd u_arp, u_arp_t, -1
     dd u_ping, u_ping_t, -1
+    dd u_fetch, u_fetch_t, -1
     dd u_run, u_run_t, LS_USAGE_RUN, u_batch, u_batch_t, -1, u_echo, u_echo_t, -1, 0
 u_put db 'put', 0
 u_mk db 'mk', 0
@@ -1044,6 +1045,7 @@ u_run db 'run', 0
 u_batch db 'batch', 0
 u_arp db 'arp', 0
 u_ping db 'ping', 0
+u_fetch db 'fetch', 0
 u_echo db 'echo', 0
 u_put_t db 'put <file> <text>', 0
 u_mk_t db 'mk <file>', 0
@@ -1056,6 +1058,7 @@ u_run_t db 'run <app|file> [text]', 0
 u_batch_t db 'batch <file>', 0
 u_arp_t db 'arp <ip>', 0
 u_ping_t db 'ping <ip>', 0
+u_fetch_t db 'fetch <ip> <port> <path>', 0
 u_echo_t db 0
 u_gap db '   ', 0
 
@@ -1073,6 +1076,7 @@ arg_cmds:
     dd cmd_objcat, cmd_objcat_run
     dd cmd_arp, cmd_arp_run
     dd cmd_ping, cmd_ping_run
+    dd cmd_fetch, cmd_fetch_run
     dd 0, 0
 cmd_disk db 'disk', 0
 cmd_blktest db 'blktest', 0
@@ -1093,6 +1097,7 @@ cmd_objs db 'objs', 0
 cmd_objcat db 'objcat ', 0
 cmd_arp db 'arp ', 0
 cmd_ping db 'ping ', 0
+cmd_fetch db 'fetch ', 0
 cmd_desktop db 'desktop', 0
 cmd_proctest db 'proctest', 0
 proc_full db 'Too many processes', 10, 0
@@ -1276,6 +1281,7 @@ puthex:
 %include "arp.asm"
 %include "ip.asm"
 %include "udp.asm"
+%include "tcp.asm"
 
 align 8
 idt: times 256 dq 0

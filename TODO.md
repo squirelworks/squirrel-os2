@@ -250,7 +250,7 @@ Split from `ROADMAP.md` once 1.9 was on `main`. Original code. The card is the N
   **Acceptance:** `ping 10.0.2.2` reports 4 of 4 replies, and a ping to 127.0.0.1 goes over loopback.
 - [x] **2.0-udp** — UDP and a system call pair (`net_sendto`, `net_recvfrom`) so programs can use the network. A sample program sends a datagram to itself on 127.0.0.1 and reads it back.
   **Acceptance:** `run udptest` prints `udp: PASS`; the call refuses a port that is already bound.
-- [ ] **2.0-tcp** — A small TCP client: one connection at a time, with connect, send, receive and close, in-order data only, and a retry when nothing comes back. A shell command `fetch <ip> <port> <path>` sends an HTTP/1.0 GET and prints the reply.
+- [x] **2.0-tcp** — A small TCP client: one connection at a time, with connect, send, receive and close, in-order data only, and a retry when nothing comes back. A shell command `fetch <ip> <port> <path>` sends an HTTP/1.0 GET and prints the reply.
   **Acceptance:** the regression run starts a file server on the host; `fetch 10.0.2.2 <port> /hello.txt` prints the file's text through slirp's forwarding.
 - [ ] **2.0.0** — The release. Every 2.0 prerequisite in `ROADMAP.md` is on `main`: release note `documentation/releases/2.0.0.md`, banner `2.0.0`, PROCESS table, README, `documentation/plannedmilestones.md`, spec section. **Ask the owner before tagging.**
 

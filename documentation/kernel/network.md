@@ -36,7 +36,7 @@ Since 1.9.4 `kernel/ne2k.asm` drives an NE2000 on the ISA bus at I/O 0x300, the 
 - **Probe** (`ne_init`, the `devices` entry `ne0`): reset the card, check that the command register reads back what was written (a missing card reads 0xFF), then read the MAC address from the card's address PROM. In word mode each PROM byte comes twice, so the low byte of each word is kept.
 - **Card memory**: 256-byte pages. Pages 0x40 to 0x45 hold one frame to send. Pages 0x46 to 0x7F are the receive ring. The card writes at `CURR`, and the driver reads from `BNRY` + 1.
 - **Send** (`ne_xmit`, the interface's transmit routine): pad to 60 bytes, copy the frame to page 0x40 by remote DMA, start the transmit and wait for it to end.
-- **Receive** (`ne_poll`): while `BNRY` + 1 is not `CURR`, read the frame's 4-byte header (status, next page, length with CRC), read the frame (in two parts when it wraps past the ring's end), queue it on `ne0` with `net_rxq`, and set `BNRY` behind the next page. It returns the number of frames moved.
+- **Receive** (`ne_poll`): while `BNRY` + 1 is not `CURR`, read the frame's 4-byte header (status, next page, byte count), read the frame (in two parts when it wraps past the ring's end), queue it on `ne0` with `net_rxq`, and set `BNRY` behind the next page. The byte count includes that header and the frame, not a CRC. It returns the number of frames moved.
 - **Receive filter**: frames to the card's own address, and broadcasts.
 
 `devices` lists the card as `ne0     net     ready 52:54:00:12:34:56`, or `absent` without one (checks `nic-devices`, `nic-absent`). With the card, `nettest` also sends an ARP request for 10.0.2.2 and waits up to two seconds for an ARP reply, which QEMU's user network sends. It then prints `nic: PASS`, or `nic: FAIL` (check `nic-test`).
@@ -89,3 +89,11 @@ It returns how many bytes were sent, or −1 if the local port is taken or the d
 It returns the datagram's length, −1 if another process already has the port, or −2 if nothing arrived. The buffer receives only as many bytes as fit. Binding and receiving are the same call: the first call with nothing waiting still keeps the port.
 
 `programs/udptest.asm` binds port 5000, sends `udpok` to 127.0.0.1:5000, reads it back, and a second process is refused that port. It prints `udp: PASS` (check `udp`).
+
+## TCP
+
+Since 1.9.8 the kernel can keep one TCP connection: connect, send, receive, close. Segments we send have no options. A segment we receive may, and those bytes are skipped. Data is kept only when its sequence number is the next one expected; anything else is acknowledged so the sender tries again. Each segment is sent a second time if nothing comes back within a second.
+
+`fetch <ip> <port> <path>` connects, sends `GET <path> HTTP/1.0` and a blank line, and prints whatever comes back until the server closes or the wait ends. `No reply` means the handshake or the request was not acknowledged.
+
+The regression listens on the host at 127.0.0.1:18080 (`tools/fileserve.py`). QEMU's user network delivers a guest connection to 10.0.2.2:18080 there. `fetch 10.0.2.2 18080 /hello.txt` prints the file (check `fetch-hello`).

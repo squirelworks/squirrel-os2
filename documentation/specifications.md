@@ -348,6 +348,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 - UDP. `net_sendto` (30) and `net_recvfrom` (31) share four sockets; a port already bound to another process is refused. A datagram is at most 256 bytes. `run udptest` sends one to 127.0.0.1 and reads it back (`kernel/network.md`, `kernel/syscalls.md`; `udp`).
 
+## 1.9.8
+
+- One TCP connection: connect, send, receive and close. Data is accepted in order, and a segment is sent again once when nothing comes back. `fetch <ip> <port> <path>` prints the HTTP/1.0 reply (`kernel/network.md`; `fetch-hello`).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.
