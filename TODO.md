@@ -236,11 +236,23 @@ Split from `ROADMAP.md` once 1.8 was on `main`. Keyboard only: a mouse is not pa
 - [x] **1.9-actions** — Two object actions from the keyboard: `r` renames the selected object (a field widget in the window; the new name is saved and listed) and Delete removes it after a confirm step (its file goes; a folder must be empty).
   **Acceptance:** a check renames `edit` to `notes` and reads the new name off the desktop and in `objcat`; another deletes it and `ls /desktop` no longer lists its file; deleting a non-empty folder is refused.
 
-## 2.0 and after
+## 2.0 — Basic networking
 
-Do not start this while any 1.9 box is open.
+Split from `ROADMAP.md` once 1.9 was on `main`. Original code. The card is the NE2000 that QEMU emulates on the ISA bus (`-netdev user,id=n0 -device ne2k_isa,netdev=n0,iobase=0x300,irq=9`). It is driven with port I/O only, with no bus mastering and no PCI set-up, so it fits the polled style of the ATA driver. QEMU's user network (slirp) gives a gateway at 10.0.2.2 that answers ARP and ping and forwards TCP to the host, so the regression run needs no network outside the machine. Each box is one PR; work top to bottom. Design notes go in `documentation/kernel/network.md` with the first box.
 
-- [ ] **2.0-net** — Only once 1.9 is on `main`: split basic networking into its own tasks in this file, then implement the first of them (a loopback that a test program can send on and read back).
+- [ ] **2.0-loop** — A network layer with packet buffers and a loopback interface: `net_send` queues a frame on an interface and `net_recv` takes the next one off. A shell test `nettest` sends three frames of different lengths on loopback and reads them back in order.
+  **Acceptance:** `nettest` prints `net: PASS`; with the queue made one frame long, it prints FAIL.
+- [ ] **2.0-nic** — An NE2000 driver behind the same interface. `devices` lists the card with its MAC address. Frames are sent and received by polling, with no IRQ handler.
+  **Acceptance:** with the card attached (a `--nic` option for `tools/qemu_screen.py`), `devices` shows `52:54:00:12:34:56`; without a card, nothing changes and every existing check passes.
+- [ ] **2.0-arp** — Ethernet framing and ARP over the card, with the guest at 10.0.2.15 and a small ARP table. A shell command `arp <ip>` asks for an address and prints the answer.
+  **Acceptance:** `arp 10.0.2.2` prints the gateway's MAC `52:55:0a:00:02:02`, and an address nobody answers times out with a message.
+- [ ] **2.0-ping** — IPv4 (no fragments, no options) and ICMP echo. A shell command `ping <ip>` sends four requests and counts the replies.
+  **Acceptance:** `ping 10.0.2.2` reports 4 of 4 replies, and a ping to 127.0.0.1 goes over loopback.
+- [ ] **2.0-udp** — UDP and a system call pair (`net_sendto`, `net_recvfrom`) so programs can use the network. A sample program sends a datagram to itself on 127.0.0.1 and reads it back.
+  **Acceptance:** `run udptest` prints `udp: PASS`; the call refuses a port that is already bound.
+- [ ] **2.0-tcp** — A small TCP client: one connection at a time, with connect, send, receive and close, in-order data only, and a retry when nothing comes back. A shell command `fetch <ip> <port> <path>` sends an HTTP/1.0 GET and prints the reply.
+  **Acceptance:** the regression run starts a file server on the host; `fetch 10.0.2.2 <port> /hello.txt` prints the file's text through slirp's forwarding.
+- [ ] **2.0.0** — The release. Every 2.0 prerequisite in `ROADMAP.md` is on `main`: release note `documentation/releases/2.0.0.md`, banner `2.0.0`, PROCESS table, README, `documentation/plannedmilestones.md`, spec section. **Ask the owner before tagging.**
 
 ## Installer (unscheduled)
 

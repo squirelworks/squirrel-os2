@@ -102,7 +102,7 @@ Assumptions the installer keeps: BIOS boot (Legacy/CSM), an IDE/ATA target disk 
 
 Preemptive threads, the windowing system, the object desktop, the hierarchical file system with a graphical browser, the 1.0 applications as desktop objects, a native shell, and basic networking. Original code. No classic OS/2 ABI.
 
-When 1.9 is on `main`, split networking into its own tasks before calling a release 2.0.0. Do not start that split early.
+1.9 is on `main`, and networking is split into boxes in `TODO.md`: a loopback interface, an NE2000 driver, ARP, IPv4 with ping, UDP for programs, and a small TCP client. The 2.0.0 release follows them, and the owner is asked before it is tagged.
 
 ### 2.x and 3.0.0
 
