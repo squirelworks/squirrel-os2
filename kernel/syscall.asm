@@ -35,7 +35,12 @@ SYS_SEEK    equ 25          ; ebx = fd, ecx = offset, edx = 0 set / 1 cur / 2 en
 SYS_FSERROR equ 26          ; ebx = buf, ecx = size -> why the last file call failed (FE_*), text in buf (1.0.3)
 SYS_SEND    equ 27          ; ebx = pid, ecx = message dword -> 0, -1 no such process, -2 queue full (1.2)
 SYS_RECV    equ 28          ; -> the oldest message in the caller's queue; waits while it is empty (1.2)
-SYS_COUNT   equ 29
+SYS_KEYEVENTS equ 29        ; ebx = 1 on / 0 off: keys also arrive as MSG_KEY | ASCII messages (1.2.1)
+SYS_NETSENDTO equ 30        ; ebx = block -> bytes, or -1 (1.9.7)
+SYS_NETRECVFROM equ 31      ; ebx = block -> bytes, -1 port taken, -2 nothing (1.9.7)
+SYS_SETPRIO equ 32          ; ebx = 0..3 -> 0, or -1 (1.9.9)
+SYS_DEVREG  equ 33          ; ebx = name -> register a null char device (1.9.12)
+SYS_COUNT   equ 34
 
 SYS_ENOSYS  equ -1
 SYSCALL_VEC equ 0x80
@@ -91,6 +96,11 @@ syscall_table:
     dd fs_error_text
     dd sys_send
     dd sys_recv
+    dd sys_keyevents
+    dd sys_netsendto
+    dd sys_netrecvfrom
+    dd sys_setprio
+    dd sys_devreg
 
 ; ---------- handlers: args in ebx/ecx/edx, result in eax ----------
 sys_putc:
@@ -140,6 +150,14 @@ sys_getpid:
     mov eax, [proc_cur]
     mov eax, [eax+PCB_PID]
     ret
+
+sys_setprio:
+    jmp proc_setprio
+
+; ebx = ASCIIZ name (up to 7 characters): registers a present null
+; character device under that name (1.9.12). eax = 0, or -1.
+sys_devreg:
+    jmp dev_reg_null
 
 ; Raw sector access. Writes are limited to the data disk (drive 1) so a
 ; program cannot overwrite the boot image.

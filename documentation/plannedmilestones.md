@@ -165,7 +165,7 @@ It does **not** target binary compatibility with existing OS/2 applications (tha
 - **1.8** — Persistent object store tied to the file system
 - **1.9** — Drag-and-drop and basic object actions on the desktop
 
-### 2.0 — Warp-style system
+### 2.0 — Warp-style system (released 2026-11-01 — `releases/2.0.0.md`; banner `2.0.0`)
 - Preemptive multitasking with threads
 - Original windowing system and widget set
 - Object-oriented desktop (Workplace Shell analogue)

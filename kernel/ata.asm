@@ -1,22 +1,36 @@
 ; Squirrel-OS/2 — ATA PIO block device driver (0.2.0)
 ; Included from pm.asm. Original code.
 ;
-; Primary channel only, LBA28, one 512-byte sector per call, polled.
+; LBA28, one 512-byte sector per call, polled.
 ; Since 0.7.2 the drives are registered as block devices hd0 and hd1
 ; (dev.asm); the file system and the block syscalls use those.
 ; Drive 0 = primary master (boot disk), drive 1 = primary slave (data disk).
+; Drives 2 and 3 (secondary master and slave) are probed too since
+; installer step I.1; only the installer (install.asm) uses them.
 ; See documentation/kernel/block-device.md.
 
-ATA_DATA     equ 0x1F0
-ATA_ERROR    equ 0x1F1
-ATA_COUNT    equ 0x1F2
-ATA_LBA0     equ 0x1F3
-ATA_LBA1     equ 0x1F4
-ATA_LBA2     equ 0x1F5
-ATA_DRIVE    equ 0x1F6
-ATA_STATUS   equ 0x1F7          ; read
-ATA_COMMAND  equ 0x1F7          ; write
-ATA_ALTSTAT  equ 0x3F6
+ATA_NDRIVES  equ 4
+ATA_IO_PRI   equ 0x1F0          ; command block of each channel
+ATA_IO_SEC   equ 0x170
+ATA_CTL_PRI  equ 0x3F6          ; alternate status of each channel
+ATA_CTL_SEC  equ 0x376
+
+; register offsets from the channel's command block (ata_io)
+ATA_DATA     equ 0
+ATA_ERROR    equ 1
+ATA_COUNT    equ 2
+ATA_LBA0     equ 3
+ATA_LBA1     equ 4
+ATA_LBA2     equ 5
+ATA_DRIVE    equ 6
+ATA_STATUS   equ 7              ; read
+ATA_COMMAND  equ 7              ; write
+
+; dx = the register %1 of the channel ata_chan picked
+%macro ATA_REG 1
+    mov dx, [ata_io]
+    add dx, %1
+%endmacro
 
 ATA_SR_ERR   equ 0x01
 ATA_SR_DRQ   equ 0x08
@@ -37,39 +51,53 @@ ata_idbuf    equ KSCRATCH
 blk_buf_out  equ KSCRATCH+0x200
 blk_buf_in   equ KSCRATCH+0x400
 
-; Probes both drives on the primary channel and records their size.
+; Probes the four drives on both channels and records their size.
 ata_init:
-    mov dword [ata_sectors], 0
-    mov dword [ata_sectors+4], 0
     xor ebx, ebx
+.d:
+    mov dword [ata_sectors+ebx*4], 0
     call ata_identify
-    mov ebx, 1
-    call ata_identify
+    inc ebx
+    cmp ebx, ATA_NDRIVES
+    jb .d
+    ret
+
+; ebx = drive (0-3): points ata_io and ata_ctl at its channel
+ata_chan:
+    mov word [ata_io], ATA_IO_PRI
+    mov word [ata_ctl], ATA_CTL_PRI
+    cmp ebx, 2
+    jb .r
+    mov word [ata_io], ATA_IO_SEC
+    mov word [ata_ctl], ATA_CTL_SEC
+.r:
     ret
 
 ; ebx = drive (0/1). Fills ata_sectors[drive] with the LBA28 sector
 ; count, or leaves 0 when there is no ATA disk (absent, or ATAPI).
 ata_identify:
     pushad
+    call ata_chan
     mov al, bl
+    and al, 1
     shl al, 4
     or al, 0xA0
-    mov dx, ATA_DRIVE
+    ATA_REG ATA_DRIVE
     out dx, al
     call ata_delay
     xor al, al
-    mov dx, ATA_COUNT
+    ATA_REG ATA_COUNT
     out dx, al
-    mov dx, ATA_LBA0
+    ATA_REG ATA_LBA0
     out dx, al
-    mov dx, ATA_LBA1
+    ATA_REG ATA_LBA1
     out dx, al
-    mov dx, ATA_LBA2
+    ATA_REG ATA_LBA2
     out dx, al
     mov al, ATA_CMD_IDENTIFY
-    mov dx, ATA_COMMAND
+    ATA_REG ATA_COMMAND
     out dx, al
-    mov dx, ATA_STATUS
+    ATA_REG ATA_STATUS
     in al, dx
     test al, al
     jz .none                    ; floating bus: nothing attached
@@ -77,10 +105,10 @@ ata_identify:
     je .none
     call ata_wait_bsy
     jc .none
-    mov dx, ATA_LBA1            ; ATAPI/SATA signatures are not plain disks
+    ATA_REG ATA_LBA1            ; ATAPI/SATA signatures are not plain disks
     in al, dx
     mov ah, al
-    mov dx, ATA_LBA2
+    ATA_REG ATA_LBA2
     in al, dx
     or al, ah
     jnz .none
@@ -88,7 +116,7 @@ ata_identify:
     jc .none
     mov edi, ata_idbuf
     mov ecx, 256
-    mov dx, ATA_DATA
+    ATA_REG ATA_DATA
     rep insw
     mov eax, [ata_idbuf+60*2]   ; words 60-61: LBA28 sector count
     mov [ata_sectors+ebx*4], eax
@@ -105,7 +133,7 @@ ata_read:
     call ata_wait_drq
     jc .fail
     mov ecx, 256
-    mov dx, ATA_DATA
+    ATA_REG ATA_DATA
     rep insw
     popad
     clc
@@ -124,13 +152,13 @@ ata_write:
     call ata_wait_drq
     jc .fail
     mov ecx, 256
-    mov dx, ATA_DATA
+    ATA_REG ATA_DATA
 .w:
     lodsw                       ; outsw is too fast for some controllers
     out dx, ax
     loop .w
     mov al, ATA_CMD_FLUSH
-    mov dx, ATA_COMMAND
+    ATA_REG ATA_COMMAND
     out dx, al
     call ata_wait_bsy
     jc .fail
@@ -145,11 +173,12 @@ ata_write:
 ; al = command, ebx = drive, ecx = LBA. Checks the drive exists and the
 ; LBA is in range, selects it and issues the command. CF set on error.
 ata_setup:
-    cmp ebx, 1
+    cmp ebx, ATA_NDRIVES-1
     ja .bad
     cmp ecx, [ata_sectors+ebx*4]
     jae .bad                    ; also rejects an absent drive (0 sectors)
     push eax
+    call ata_chan
     call ata_wait_bsy
     jc .busy
     mov eax, ecx
@@ -157,25 +186,26 @@ ata_setup:
     and al, 0x0F
     or al, 0xE0                 ; LBA mode
     mov ah, bl
+    and ah, 1
     shl ah, 4
     or al, ah
-    mov dx, ATA_DRIVE
+    ATA_REG ATA_DRIVE
     out dx, al
     call ata_delay
     mov al, 1
-    mov dx, ATA_COUNT
+    ATA_REG ATA_COUNT
     out dx, al
     mov eax, ecx
-    mov dx, ATA_LBA0
+    ATA_REG ATA_LBA0
     out dx, al
     shr eax, 8
-    mov dx, ATA_LBA1
+    ATA_REG ATA_LBA1
     out dx, al
     shr eax, 8
-    mov dx, ATA_LBA2
+    ATA_REG ATA_LBA2
     out dx, al
     pop eax
-    mov dx, ATA_COMMAND
+    ATA_REG ATA_COMMAND
     out dx, al
     clc
     ret
@@ -190,7 +220,7 @@ ata_wait_bsy:
     push ecx
     push edx
     mov ecx, ATA_TIMEOUT
-    mov dx, ATA_STATUS
+    ATA_REG ATA_STATUS
 .l:
     in al, dx
     test al, ATA_SR_BSY
@@ -215,7 +245,7 @@ ata_wait_drq:
     push ecx
     push edx
     mov ecx, ATA_TIMEOUT
-    mov dx, ATA_STATUS
+    ATA_REG ATA_STATUS
 .l:
     in al, dx
     test al, ATA_SR_ERR|ATA_SR_DF
@@ -241,7 +271,7 @@ ata_wait_drq:
 ata_delay:
     push eax
     push edx
-    mov dx, ATA_ALTSTAT
+    mov dx, [ata_ctl]
     in al, dx
     in al, dx
     in al, dx
@@ -284,7 +314,7 @@ cmd_disk_run:
     call puts
 .next:
     inc ebx
-    cmp ebx, 2
+    cmp ebx, ATA_NDRIVES
     jb .d
     ret
 
@@ -337,7 +367,9 @@ cmd_blktest_run:
     call puts
     ret
 
-ata_sectors dd 0, 0
+ata_sectors dd 0, 0, 0, 0
+ata_io dw ATA_IO_PRI
+ata_ctl dw ATA_CTL_PRI
 
 ; ---------- the driver's devices (0.7.2) ----------
 ; hd0 = primary master (boot disk, read-only for programs),

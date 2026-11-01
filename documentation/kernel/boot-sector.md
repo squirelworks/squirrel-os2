@@ -2,10 +2,13 @@
 
 ## boot.asm (current — 0.9.3)
 
-- Loads 128 sectors (LBA 1–128, the 64 KB `pm.asm` image) to `0x8000` and jumps to `0000:8000`.
+- Loads 192 sectors (LBA 1–192, the 96 KB `pm.asm` image) to `0x8000` and jumps to `0000:8000`.
+  Up to 1.7.2 it was 128 sectors (64 KB); `KERNEL_SIZE` in `pm.asm` grew when that was nearly full. The image ends at `0x1FFFF`,
+  just below `KSCRATCH`.
 - From a hard disk it uses the BIOS extended read (int 0x13, AH=0x42, disk address packet),
-  in two reads of 64 sectors (`0x0000:0x8000` and `0x1000:0x0000`), since some firmware caps
-  one read at 127 sectors. The firmware's boot drive (`dl`) is saved for the second read.
+  in three reads of 64 sectors (`0x0000:0x8000`, `0x1000:0x0000` and `0x1800:0x0000`), since some
+  firmware caps one read at 127 sectors. None of them crosses a 64 KB boundary. The firmware's
+  boot drive (`dl`) is saved for the later reads.
 - From a floppy (`dl` < 0x80), or when the extended read fails, it reads one sector at a time
   with AH=0x02. The geometry comes from AH=0x08, each LBA is converted to cylinder/head/sector,
   and every read gets up to three tries with a drive reset in between (0.9.3; before, a floppy

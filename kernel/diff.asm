@@ -14,9 +14,9 @@
 
 run_diff:
     call cls
-    mov esi, [lstr+LS_DIFF_BANNER*4]
+    mov esi, diff_banner
     call puts
-    mov esi, [lstr+LS_DIFF_HELP*4]
+    mov esi, diff_help
     call puts
 .prompt:
     mov esi, diff_prompt
@@ -269,11 +269,11 @@ diff_euler:
     fld qword [sci_y]
     jmp diff_status
 .badstep:
-    lset calc_errmsg, LS_DIFF_E_STEP
+    mov dword [calc_errmsg], diff_e_step
     stc
     ret
 .many:
-    lset calc_errmsg, LS_DIFF_E_MANY
+    mov dword [calc_errmsg], diff_e_many
     stc
 .r:
     ret
@@ -363,6 +363,7 @@ diff_status:
     clc
     ret
 
+diff_banner db 'Calculus Calculator (Esc to exit)', 10, 0
 diff_help db 'd <f(x)> at <x0>            derivative, e.g.  d sin(x) at 0', 10
           db 'i <f(x)> from <a> to <b>    integral,   e.g.  i x^2 from 0 to 3', 10
           db "euler <f(x,y)> from <x0> to <x1> y0 <y> step <h>   ODE y' = f, Euler", 10
@@ -377,6 +378,8 @@ diff_kw_to db 'to', 0
 diff_kw_euler db 'euler', 0
 diff_kw_y0 db 'y0', 0
 diff_kw_step db 'step', 0
+diff_e_step db 'step must be greater than 0', 0
+diff_e_many db 'more than 100000 steps', 0
 
 align 8
 diff_hrel dq 1.0e-5

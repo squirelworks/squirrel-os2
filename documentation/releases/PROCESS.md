@@ -9,6 +9,7 @@ Squirrel-OS/2 uses a simple `major.minor.patch` scheme for early development:
 - **0.2.x** — minimal kernel services (console, memory map, basic interrupts)
 - **0.3.x–0.9.x** — applications, loader, shell, memory, drivers, directories, integration
 - **1.0.0** — the usable minimal system; **1.0.x** patch releases, then **1.x** minor releases toward 2.0 (`../../ROADMAP.md`)
+- **2.0.0** — Warp-style system; modern hardware (H.1–H.6) and 2.x / 3.0 follow
 
 ## What belongs in a release
 
@@ -94,11 +95,54 @@ This avoids retargeting chains and confirmation steps.
 | 1.1.0   | 2026-10-31 | Timer preempts spinning programs     |
 | 1.1.1   | 2026-10-31 | Threads share a program's memory     |
 | 1.2.0   | 2026-10-31 | Message queues between processes     |
+| 1.2.1   | 2026-10-31 | Key events in the message queue      |
+| 1.3.0   | 2026-10-31 | Graphics mode and a pixel            |
+| 1.3.1   | 2026-10-31 | Lines and filled rectangles          |
+| 1.3.2   | 2026-10-31 | Text in graphics mode                |
+| 1.3.3   | 2026-10-31 | graph plots a function               |
+| 1.4.0   | 2026-10-31 | Windows: create and close            |
+| 1.4.1   | 2026-10-31 | Windows: move and resize             |
+| 1.4.2   | 2026-10-31 | Windows: z-order and focus           |
+| 1.5.0   | 2026-10-31 | Widgets: label                       |
+| 1.5.1   | 2026-10-31 | Widgets: button                      |
+| 1.5.2   | 2026-10-31 | Widgets: edit field                  |
+| 1.5.3   | 2026-10-31 | Widgets: list                        |
+| 1.6.0   | 2026-10-31 | Desktop: program list                |
+| 1.6.1   | 2026-10-31 | Desktop: calc in a window            |
+| 1.6.3   | 2026-10-31 | Desktop: draw in a window            |
+| 1.6.4   | 2026-10-31 | Desktop: edit and vedit in windows   |
+| 1.6.5   | 2026-10-31 | Pixel drawing in draw                |
+| 1.7.0   | 2026-10-31 | Objects: classes and messages        |
+| 1.7.1   | 2026-10-31 | Objects: instance fields             |
+| 1.7.2   | 2026-10-31 | Installer: target disk and SQFS      |
+| 1.7.3   | 2026-10-31 | Objects: objs listing and obj_free   |
+| 1.7.4   | 2026-10-31 | Installer: copy the system           |
+| 1.7.5   | 2026-10-31 | Installer: the target boots alone    |
+| 1.7.6   | 2026-10-31 | Desktop entries as objects           |
+| 1.7.7   | 2026-10-31 | Installer: run install               |
+| 1.8.0   | 2026-10-31 | Object files                         |
+| 1.8.1   | 2026-10-31 | Installer: bootable CD image         |
+| 1.8.2   | 2026-10-31 | Objects: objcat across reboot        |
+| 1.8.3   | 2026-10-31 | Desktop entries kept on disk         |
+| 1.9.0   | 2026-11-01 | Desktop folders                      |
+| 1.9.1   | 2026-11-01 | Pick up, move and drop               |
+| 1.9.2   | 2026-11-01 | Rename and delete on the desktop     |
+| 1.9.3   | 2026-11-01 | Network layer and loopback           |
+| 1.9.4   | 2026-11-01 | NE2000 network card                  |
+| 1.9.5   | 2026-11-01 | Ethernet framing and ARP             |
+| 1.9.6   | 2026-11-01 | IPv4 and ICMP echo                   |
+| 1.9.7   | 2026-11-01 | UDP for programs                     |
+| 1.9.8   | 2026-11-01 | A small TCP client                   |
+| 1.9.9   | 2026-11-01 | Priority scheduling                  |
+| 1.9.10  | 2026-11-01 | Polled PS/2 mouse                    |
+| 1.9.11  | 2026-11-01 | Configurable network addresses       |
+| 1.9.12  | 2026-11-01 | Devices registered at run time       |
+| 2.0.0   | 2026-11-01 | Warp-style system                    |
 
 ## Next planned release
 
-**1.0.x** — Patch releases for the holes the docs already name (seek, error reasons for programs, FPU save, zombies, localization, `diff`, editor search and undo), then **1.1** — preemptive scheduler and threads.
+**H.1–H.6** — modern hardware (UEFI, GOP, AHCI, NVMe, USB), then the 2.x / 3.0 vision in `plannedmilestones.md`.
 
-1.0.0 is released (`1.0.0.md`). Its applications are checked together in one boot by `walk-1.0` in `tools/regress.sh`.
+2.0.0 is the Warp-style tag of the 1.9.12 system (`2.0.0.md`). Owner tags after merge (`../../TODO.md`).
 
 The forward plan and the PR-sized tasks are [`../../ROADMAP.md`](../../ROADMAP.md) and [`../../TODO.md`](../../TODO.md).
