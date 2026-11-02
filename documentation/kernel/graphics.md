@@ -29,7 +29,7 @@ Since 1.3.3, `gfx_mode13` first saves both, in three pages from `pg_alloc`: the 
 
 ## Font (1.3.2)
 
-The graphics font is an original 5 × 7 design for the printable ASCII codes 0x20–0x7E. Its source is `tools/font5x7.txt`: one line per glyph, the code in hex and then seven rows of five `#` (ink) or `.` (background). `tools/mkfont.py` turns it into `kernel/font.inc` (seven bytes per glyph, bit 4 the leftmost column); `tools/mkfont.py --check`, run by `tools/regress.sh`, fails if the two disagree. A character outside the font draws as `?`.
+The graphics font is a 5 × 7 bitmap for codes 0x20–0x83 (0x7F blank; 0x80–0x83 Klingon digraph letters). Its source is `tools/font5x7.txt`: one line per glyph, the code in hex and then seven rows of five `#` (ink) or `.` (background). On the `klingon-font` joke branch, letters, digits, the apostrophe and digraphs are downsampled pIqaD from `tools/klingon-font.py` (`tools/mkklingon5x7.py`); punctuation keeps the Latin shapes. `tools/mkfont.py` turns the file into `kernel/font.inc` (seven bytes per glyph, bit 4 the leftmost column); `tools/mkfont.py --check`, run by `tools/regress.sh`, fails if the two disagree. A character outside the font draws as `?`.
 
 Each character fills a 6 × 8 cell: the glyph, then one column and one row of background, so a string reads as words on a solid band.
 

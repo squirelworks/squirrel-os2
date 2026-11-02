@@ -86,7 +86,7 @@ Checks (on a data disk of their own): `dk-hold` (the help row names `calc`), `dk
 
 `r` opens a small window titled `Rename` with the chosen object's name in a field (at most 15 characters). Enter keeps the new name: it is set in the object's `name` field and saved to its file, and the list shows it. The file keeps its name (`edit.obj` still holds the program renamed `notes`, whose `entry` is still `edit`). When a folder is renamed, the objects inside it are moved to the new name and saved too. Esc, or an empty name, leaves the name as it was. After a rename the list's selection goes back to the first entry.
 
-Delete asks on the help row (`Delete notes? y: yes`). `y` deletes the object's file and the object, and any other key keeps it. A folder with something in it is refused (`Not empty: move its contents out`, until a key is pressed). Neither key works while an object is held. If every file in `/desktop` is deleted, the next desktop writes the defaults again.
+Delete asks on the help row (`Delete notes? y: yes`). `y` deletes the object's file and the object, and any other key keeps it. A folder with something in it is refused (`Not empty`, until a key is pressed). Neither key works while an object is held. If every file in `/desktop` is deleted, the next desktop writes the defaults again.
 
 Checks (on a data disk of their own): `dk-rename-win`, `dk-rename` (`edit` becomes `notes` on the desktop and in `objcat`), `dk-rename-esc`, `dk-delete-ask`, `dk-delete-no`, `dk-delete` (`ls /desktop` no longer lists `edit.obj`), `dk-delete-full`.
 

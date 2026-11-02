@@ -5,9 +5,9 @@ Usage: qemu_screen.py [--disk DATA_IMAGE] [--target DISK] [--nic] [--floppy|--cd
 Each KEYS argument is typed as text; a token like "<ret>", "<esc>",
 "<backspace>" or "<up>" is sent as that single QEMU key name, and
 "<pause>" waits a second before the next key, and "<gfx>" reads the text
-drawn in graphics mode (the 5 x 7 font of tools/font5x7.txt, in 6 x 8
-cells at any pixel offset) and prints each line found as "gfx: <text>"
-after the text screen.
+drawn in graphics mode (the 5 x 7 font of tools/font5x7.txt; on the
+klingon-font branch, pIqaD letterforms; in 6 x 8 cells at any pixel
+offset) and prints each line found as "gfx: <text>" after the text screen.
 --disk attaches DATA_IMAGE as the primary slave (the kernel's data disk).
 --target attaches DISK as the secondary master (the installer's target;
 always a scratch image, never a real disk).
@@ -63,7 +63,20 @@ def gfx_text(path):
     spacing column and bottom row are all one colour (the background); its
     other pixels are ink where they differ from that colour."""
     import mkfont
-    font = {tuple(rows): chr(c) for c, rows in mkfont.read().items() if c != 0x20}
+    # Klingon 5x7: several Latin letters share one pIqaD shape (c/k→q, …).
+    # Prefer the orthography code for each bitmap; skip blank 0x7F filler.
+    glyphs = mkfont.read()
+    # Punctuation before digits: a mid-bar must stay '-' not '0' if they clash.
+    preferred = [ord(c) for c in "-./':+*"]
+    preferred += [ord(c) for c in "0123456789abDeHIjlmnopqQrStuvwy"]
+    preferred += [0x80, 0x81, 0x82, 0x83]
+    font = {}
+    for c in preferred + sorted(glyphs):
+        if c in (0x20, 0x7F) or c not in glyphs:
+            continue
+        rows = tuple(glyphs[c])
+        if any(rows):
+            font.setdefault(rows, chr(c))
     w, h, rgb = read_ppm(path)
     sx, sy = w // 320, h // 200
     px = [[rgb[((y * sy) * w + x * sx) * 3:((y * sy) * w + x * sx) * 3 + 3]

@@ -5,7 +5,8 @@
   tools/mkfont.py --check  exit 1 if kernel/font.inc is out of date
 
 Each glyph becomes seven bytes, one per row, top first; bit 4 is the
-leftmost column. The table covers codes 0x20 to 0x7E with no gaps.
+leftmost column. The table covers codes 0x20 to 0x83 with no gaps
+(0x7F is a blank filler; 0x80-0x83 are the Klingon digraph letters).
 """
 import os
 import sys
@@ -13,7 +14,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, 'tools', 'font5x7.txt')
 OUT = os.path.join(ROOT, 'kernel', 'font.inc')
-FIRST, LAST = 0x20, 0x7E
+FIRST, LAST = 0x20, 0x83
 
 
 def read():
