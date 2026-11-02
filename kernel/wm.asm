@@ -366,8 +366,8 @@ cmd_wintest_run:
     call wm_redraw
     mov dl, WM_FRAME            ; left edge, half way down
     call .probe
-    mov eax, WT_X + 4           ; the title's first glyph ('T' top row)
-    mov ebx, WT_Y + 2
+    mov eax, WT_X + 7           ; pIqaD 'T': top row ink is the rightmost column
+    mov ebx, WT_Y + 2           ; title text at (WT_X+3, WT_Y+2)
     call gfx_getpixel
     cmp cl, WM_BAR_TEXT
     jne .fail
