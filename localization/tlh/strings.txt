@@ -133,4 +133,7 @@ sh_m_nofile=laDlaHbe'lu':
 sh_m_wfail=ghItlhlaHbe'lu': 
 sh_m_trunc=(32 KB Dung pe'lu')\n
 bat_m_stopped=ra'mey tetlh mev\n
+desktop_title=Squirrel-OS/2 DeSwI'
+desktop_heading=ghunmey:
+desktop_help=Enter: poSmoH  Bksp: 'em  Esc: QumwI'
 commands=Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>\n          mv <f> <new> | mkdir <d> | cd <d> | pwd | echo | batch <f> | format\n          ps | disk | mem | devices | lang <en|la|tlh> | desktop | install\n          objcat\nTests: systest | proctest | blktest | fstest | memtest | keys\n       gfxtest | gfxprim | gfxtext | wintest | winmove | winfocus | nettest\n       labeltest | buttontest | fieldtest | listtest | drawpx | objtest | objs\nApps: files, calc, sci, graph, matrix, diff, edit, vedit, draw   (planned: topo)\n

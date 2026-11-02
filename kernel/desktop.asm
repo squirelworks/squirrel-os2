@@ -25,12 +25,12 @@ cmd_desktop_run:
     mov ebx, DK_Y
     mov ecx, DK_W
     mov edx, DK_H
-    mov esi, dk_title
+    mov esi, [lstr+LS_DESKTOP_TITLE*4]
     call wm_create
     mov [dk_win], eax
     mov ebx, 4
     mov ecx, 4
-    mov esi, dk_heading
+    mov esi, [lstr+LS_DESKTOP_HEADING*4]
     call wg_label
     mov eax, [dk_win]
     mov ebx, 4
@@ -42,7 +42,7 @@ cmd_desktop_run:
     mov eax, [dk_win]
     mov ebx, 4
     mov ecx, DK_H - WM_TITLE_H - 2 - GFX_CELL_H - 4
-    mov esi, dk_help
+    mov esi, [lstr+LS_DESKTOP_HELP*4]
     call wg_label
     mov [dk_hlp], eax
     mov dword [dk_held], 0
@@ -187,7 +187,7 @@ dk_relist:
     mov esi, [dk_cur]
     test esi, esi
     jnz .t
-    mov esi, dk_title
+    mov esi, [lstr+LS_DESKTOP_TITLE*4]
 .t:
     mov eax, [dk_win]
     imul eax, WIN_SIZE
@@ -221,7 +221,7 @@ dk_holdhelp:
 dk_unhold:
     pushad
     mov dword [dk_held], 0
-    mov esi, dk_help
+    mov esi, [lstr+LS_DESKTOP_HELP*4]
 dk_sethelp:                     ; (inside pushad) esi = the help row's text
     mov eax, [dk_hlp]
     imul eax, WG_SIZE
@@ -464,7 +464,7 @@ dk_delete:
     call wm_redraw
     call wg_getkey              ; any key
 .back:
-    mov esi, dk_help
+    mov esi, [lstr+LS_DESKTOP_HELP*4]
     call dk_help_to
     call dk_relist
     popad
@@ -904,9 +904,6 @@ wg_getkey:
 
 DK_NAPPS equ 5                  ; programs
 DK_NDEF equ DK_NAPPS + 1        ; and the Tools folder (1.9.0)
-dk_title db 'Squirrel-OS/2 Desktop', 0
-dk_heading db 'Programs:', 0
-dk_help db 'Enter: open  Bksp: up  Esc: shell', 0
 dk_a0 db 'files', 0
 dk_a1 db 'calc', 0
 dk_a2 db 'edit', 0
@@ -925,7 +922,7 @@ dk_dir db '/desktop', 0
 dk_ext db '.obj', 0
 dk_pbuf times 32 db 0
 dk_f_entry db 'entry', 0
-dk_nomem db 'desktop: no memory for graphics', 10, 0
+dk_nomem db 'desktop: no memory', 10, 0
 align 4
 dk_apps dd dk_a0, dk_a1, dk_a2, dk_a3, dk_a4
 dk_defs dd dk_a0, dk_a1, dk_a2, dk_a3, dk_a4, dk_a5 ; the files in /desktop
@@ -959,7 +956,7 @@ dk_rbuf times DK_NAMEMAX + 1 db 0
 dk_rtitle db 'Rename', 0
 dk_d1 db 'Delete ', 0
 dk_d2 db '? y: yes', 0
-dk_dfull db 'Not empty: move its contents out', 0
+dk_dfull db 'Not empty', 0
 dk_wrote db 0
 dk_win dd 0
 dk_list dd 0

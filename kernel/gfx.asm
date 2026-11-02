@@ -605,14 +605,14 @@ cmd_gfxtext_run:
 .say:
     jmp puts
 
-; 'S' is .#### / #.... / ... : its top row starts with background, then ink
+; Klingon pIqaD 'S' is #...# / .#.#. / ... : top-left ink, second column clear
 gfxx_expect:
-    dd GFXX_X + 1, GFXX_Y
-    db 0x0F                     ; ink: top row, second column of 'S'
-    dd GFXX_X, GFXX_Y + 1
-    db 0x0F                     ; ink: second row, first column
     dd GFXX_X, GFXX_Y
-    db 0x01                     ; background: top left corner of 'S'
+    db 0x0F                     ; ink: top-left of pIqaD 'S'
+    dd GFXX_X + 1, GFXX_Y + 1
+    db 0x0F                     ; ink: second row, second column
+    dd GFXX_X + 1, GFXX_Y
+    db 0x01                     ; background: top row, second column
     dd GFXX_X + FONT_W, GFXX_Y + 1
     db 0x01                     ; background: the spacing column
     dd GFXX_X - 1, GFXX_Y

@@ -556,9 +556,9 @@ cmd_labeltest_run:
     cmp eax, -1
     je .fail
     call wm_redraw
-    mov dl, WM_TEXT             ; 'N': ink in the top left corner
+    mov dl, WM_TEXT             ; pIqaD 'N': ink in the top left corner
     call .probe
-    mov eax, LT_PX + 1          ; ... and background next to it
+    mov eax, LT_PX + FONT_W     ; spacing column after the glyph: background
     mov ebx, LT_PY
     call gfx_getpixel
     cmp cl, WM_CLIENT
