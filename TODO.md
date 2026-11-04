@@ -263,6 +263,29 @@ The owner asked for the remaining Warp-table holes after 1.9.8, as patch release
 - [x] **W.3-ifconfig** — `ifconfig` shows and sets inet / mask / gw; IPv4 routing uses the mask. Defaults stay QEMU's.
 - [x] **W.4-devreg** — `SYS_DEVREG` registers a null char device at run time. `run drvtest` → `drv: PASS`; `devices` lists it.
 
+## 2.0.x — Clean up 2.0
+
+From the 2.0.0 → 4.x plan in `ROADMAP.md` (imported 2026-11-04). These are the follow-ups left by 1.9.10–1.9.12. Each box is one PR; 2.0.1 is the boxes marked 2.0.1, and the version moves to 2.0.1 with the first of them. Work top to bottom.
+
+- [ ] **2.0.1-irq12** — An interrupt-driven PS/2 mouse driver on IRQ 12 instead of polling. Mouse bytes are drained everywhere, so they never reach the keyboard path in the text shell.
+  **Acceptance:** `mousetest` still prints `mouse: PASS`; mouse packets sent while the text shell is up do not show up as typed characters.
+- [ ] **2.0.1-saveunder** — A save-under for the soft cursor: the pixels under it are kept and put back when it moves, so it leaves no trail.
+  **Acceptance:** a check moves the pointer over the desktop and reads the old position back as the original pixels.
+- [ ] **2.0.1-sign** — PS/2 X/Y sign and overflow bits handled, so moves to the left and up work and overflowed packets are dropped.
+  **Acceptance:** `mousetest` decodes fixed packets for each sign case and an overflow case.
+- [ ] **2.0.2-scroll** — A click in a scrolled list picks the row under the pointer, not the row at that position before scrolling.
+  **Acceptance:** a check scrolls a list, clicks, and reads the selected entry.
+- [ ] **2.0.2-aging** — Priority aging: a READY process that has waited long enough is run even if higher priorities stay busy.
+  **Acceptance:** `run priotest` still passes, and a priority-0 spinner makes progress beside a priority-3 spinner.
+- [ ] **2.0.2-devunreg** — `SYS_DEVUNREG` frees a slot `SYS_DEVREG` took.
+  **Acceptance:** `run drvtest` passes twice in one boot, and `devices` no longer lists the device afterwards.
+- [ ] **2.0.2-subnet** — `ifconfig` refuses a gateway that is not on the interface's subnet.
+  **Acceptance:** `ifconfig gw` with an off-subnet address prints an error and leaves the old gateway.
+
+## 2.1 and later
+
+The milestones after 2.0.x (GUI generations 2.1–4.x, ring 3 in 2.4, the 64-bit bridge 2.8–2.9, built-in apps A.1–A.7, games G.1–G.9, calculator suite C.1–C.9, Warp styling W.1–W.6, foreign programs P.1–P.12) are in `ROADMAP.md` and the epics #114–#119. Each one is split into boxes here, in a docs-only PR, when it comes up.
+
 ## Installer (unscheduled)
 
 The author lifted the old gate ("not before the 1.5 and 1.6 boxes above are closed") on 2026-10-31: these boxes now run alongside the 1.x work, and stay out of the desktop and editor files. Each PR carries the OS version it ships in, like any other release (I.1 and I.2 shipped in 1.7.2). Each box is one PR. Design notes go in `documentation/guides/install.md` with the first box. The target is an IDE/ATA disk in BIOS mode; the regression run uses a blank QEMU disk as the target.
@@ -284,17 +307,15 @@ The author lifted the old gate ("not before the 1.5 and 1.6 boxes above are clos
 
 Kept here so they are not added as tasks by accident. Reasons are in `ROADMAP.md`.
 
-- `topo` before 2.x.
-- Text-mode `graph` ahead of **1.3-graph**.
-- Foreign personalities (F.1 is the first PR of that era, and not before 2.0).
 - Porting the full kernel off x86.
 - virtio-blk, ATA IRQ, a `/dev` directory, loading driver code from disk (1.9.12 registers a null device at run time only).
-- Ring 3 and growing stacks (2.x, per `documentation/kernel/memory.md`).
-- Classic OS/2 binary compatibility.
+- Ring 3 and growing stacks ahead of milestone 2.4.
+- Classic OS/2 binary compatibility, except the optional late P.9 text-mode personality.
+- `topo` (C.9) and foreign personalities (P.1–P.12) are now on the plan in `ROADMAP.md`; they are split into boxes when they come up, not before.
 
-## Modern hardware (unscheduled)
+## Modern hardware (2.8–2.9)
 
-Not before 2.0.0's prerequisites are on `main` (see `ROADMAP.md`). Each box is one PR, and the BIOS boot path and its regression checks keep passing. QEMU covers each one: OVMF for UEFI, `-device ahci`, `-device nvme`, `-device qemu-xhci` with `usb-kbd` and `usb-storage`.
+Scheduled in the 64-bit bridge, 2.8–2.9 in `ROADMAP.md`. Each box is one PR, and the BIOS boot path and its regression checks keep passing. QEMU covers each one: OVMF for UEFI, `-device ahci`, `-device nvme`, `-device qemu-xhci` with `usb-kbd` and `usb-storage`.
 
 - [ ] **H.1-uefi** — A UEFI loader that reads the memory map, loads the kernel, and enters it with the same handoff as the BIOS path.
   **Acceptance:** QEMU with OVMF boots to the shell prompt.

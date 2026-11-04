@@ -197,6 +197,9 @@ Target: able to be considered alongside Linux, macOS, and Windows for general us
 | Foreign applications | Optional personality layers (Windows, Linux, Darwin, Unix, …) — see `architecture/foreign-compatibility.md` |
 
 ### 2.x — Bridge to 64-bit
+
+Superseded on 2026-11-04 by the 2.0.0 → 4.x plan in `../ROADMAP.md`, where this bridge is milestones 2.8–2.9 (after the 2.1–2.7 GUI generations and ring 3). Kept as written for the record.
+
 - **2.1** — 64-bit kernel bring-up (long mode, new GDT/IDT)
 - **2.2** — 64-bit memory management and paging
 - **2.3** — Multi-core scheduler
