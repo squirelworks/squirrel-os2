@@ -139,6 +139,7 @@ This avoids retargeting chains and confirmation steps.
 | 1.9.12  | 2026-11-01 | Devices registered at run time       |
 | 2.0.0   | 2026-11-01 | Warp-style system                    |
 | 2.0.1   | 2026-11-04 | Mouse on IRQ 12, no pointer trail    |
+| 2.0.2   | 2026-11-04 | 2.0 clean-up, part two               |
 
 ## Next planned release
 

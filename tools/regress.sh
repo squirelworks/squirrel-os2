@@ -551,7 +551,7 @@ check ed-path-r     'deep'                  'cat e1/long-name.txt' '<ret>'
 check fb-dir        'in /e1'                'cd e1' '<ret>' 'run files' '<ret>'
 check fb-dir-up     '[app]'                 'cd e1' '<ret>' 'run files' '<ret>' '<ret>'
 # 0.9.3: release readiness
-check ver-banner    'Squirrel-OS/2 2.0.1'  systest '<ret>'
+check ver-banner    'Squirrel-OS/2 2.0.2'  systest '<ret>'
 check ver-planned   '(planned: topo)'  systest '<ret>'
 check calc-hist-root '1 + 1 = 2'            'mkdir c1' '<ret>' 'cd c1' '<ret>' 'run calc' '<ret>' '1 + 1' '<ret>' '<esc>' 'cat /calc.hist' '<ret>'
 boot="--floppy $out/floppy.img"
@@ -658,7 +658,7 @@ check l10n-hint-la  '(lineam tabulae addit)'  'lang la' '<ret>' put '<ret>'
 check l10n-fe-tlh   "tu'lu'pu'"             'lang tlh' '<ret>' 'mkdir t1' '<ret>' 'mkdir t1' '<ret>'
 check l10n-rm-tlh   "tu'lu'be'"             'lang tlh' '<ret>' 'rm nosuch' '<ret>'
 check lang-bad      'Unknown language (en la tlh)'  'lang fr' '<ret>'
-check lang-banner   'Sciurus-OS/2 2.0.1'   'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
+check lang-banner   'Sciurus-OS/2 2.0.2'   'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
 # 1.9.9: higher priority keeps a lower-priority child from running
 check prio          'prio: PASS'            'run priotest' '<ret>' '<pause>'
 # 1.9.10: polled mouse sees motion from the QEMU monitor
@@ -677,6 +677,10 @@ check ptr-trail     'gfx: files'            desktop '<ret>' '<pause>' '<mouse-mo
 # 1.9.11: show and set the guest address
 check ifconfig      'inet 10.0.2.15'        ifconfig '<ret>'
 check_all ifconfig-set 'inet 10.0.2.20|mask 255.255.255.0|gw 10.0.2.2' 'ifconfig 10.0.2.20 255.255.255.0 10.0.2.2' '<ret>'
+# 2.0.2: a gateway off the subnet is refused and nothing changes
+check ifconfig-offnet 'Gateway is not on that subnet' 'ifconfig 10.0.2.20 255.255.255.0 192.168.1.1' '<ret>'
+check_all ifconfig-offnet-keep 'inet 10.0.2.15|gw 10.0.2.2' 'ifconfig 10.0.2.20 255.255.255.0 192.168.1.1' '<ret>' ifconfig '<ret>'
+check ifconfig-offnet-la 'Porta non est in hac subrete' 'lang la' '<ret>' 'ifconfig 10.0.2.20 255.255.255.0 192.168.1.1' '<ret>'
 # 1.9.12: register a null device at run time
 check drv           'drv: PASS'             'run drvtest' '<ret>'
 check drv-devices   'null    char    ready' 'run drvtest' '<ret>' devices '<ret>'

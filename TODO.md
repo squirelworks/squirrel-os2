@@ -279,8 +279,8 @@ From the 2.0.0 → 4.x plan in `ROADMAP.md` (imported 2026-11-04). These are the
   **Acceptance:** `run priotest` still passes, and a priority-0 spinner makes progress beside a priority-3 spinner.
 - [ ] **2.0.2-devunreg** — `SYS_DEVUNREG` frees a slot `SYS_DEVREG` took.
   **Acceptance:** `run drvtest` passes twice in one boot, and `devices` no longer lists the device afterwards.
-- [ ] **2.0.2-subnet** — `ifconfig` refuses a gateway that is not on the interface's subnet.
-  **Acceptance:** `ifconfig gw` with an off-subnet address prints an error and leaves the old gateway.
+- [x] **2.0.2-subnet** — `ifconfig` refuses a gateway that is not on the interface's subnet.
+  **Acceptance:** `ifconfig gw` with an off-subnet address prints an error and leaves the old gateway. Done in 2.0.2; checks `ifconfig-offnet`, `ifconfig-offnet-keep`, `ifconfig-offnet-la`.
 
 ## 2.1 and later
 

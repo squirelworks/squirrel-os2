@@ -379,6 +379,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 - Mouse packets are decoded as 9-bit motion with the sign bits, and overflowed packets move nothing (`kernel/mouse.md`; `mouse-decode`).
 - The desktop pointer keeps the pixels under it and leaves no trail (`kernel/mouse.md`; `ptrtest`, `ptr-trail`).
 
+## 2.0.2
+
+- `ifconfig` refuses a gateway that is not on the interface's subnet and keeps the old settings (`kernel/network.md`; `ifconfig-offnet`, `ifconfig-offnet-keep`).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.

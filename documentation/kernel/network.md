@@ -57,7 +57,7 @@ Since 1.9.6 `kernel/ip.asm` sends and receives IPv4. The header is 20 bytes: ver
 
 `ip_output` chooses the wire. 127.0.0.0/8 and the guest's own address go out on loopback, with 127.0.0.1 as the source when the destination is on 127.0.0.0/8. Another address on the same network (matched with the mask) is asked of ARP and sent on `ne0`. Anything else is sent to the gateway's Ethernet address, still addressed to the real destination. An address learned from a received frame is kept in the ARP table.
 
-`ifconfig` prints `inet`, `mask` and `gw`. `ifconfig <ip> <mask> <gw>` sets them (checks `ifconfig`, `ifconfig-set`).
+`ifconfig` prints `inet`, `mask` and `gw`. `ifconfig <ip> <mask> <gw>` sets them (checks `ifconfig`, `ifconfig-set`). Since 2.0.2 the gateway must be on the new subnet, meaning `(gw XOR ip) AND mask` is zero. Otherwise it prints "Gateway is not on that subnet" and changes nothing (checks `ifconfig-offnet`, `ifconfig-offnet-keep`, `ifconfig-offnet-la`).
 
 ICMP echo (type 8) to us, or to 127.0.0.1, is answered with an echo reply (type 0). `ping <ip>` sends four requests, waits up to a second for each matching reply, and prints how many came back, as `4 of 4`. `ping 10.0.2.2` is the gateway. `ping 127.0.0.1` does not need the card (checks `ping-lo`, `ping-gw`, `ping-bad`).
 
