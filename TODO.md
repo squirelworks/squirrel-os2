@@ -271,8 +271,8 @@ From the 2.0.0 → 4.x plan in `ROADMAP.md` (imported 2026-11-04). These are the
   **Acceptance:** `mousetest` still prints `mouse: PASS`; mouse packets sent while the text shell is up do not show up as typed characters. Done in 2.0.1 (`mouse_isr`, KB-18); checks `mousetest`, `mouse-still`, `mouse-shell`, `mouse-calc`.
 - [x] **2.0.1-saveunder** — A save-under for the soft cursor: the pixels under it are kept and put back when it moves, so it leaves no trail.
   **Acceptance:** a check moves the pointer over the desktop and reads the old position back as the original pixels. Done in 2.0.1 (`ptr_show` / `ptr_hide`); checks `ptrtest`, `ptr-trail`.
-- [ ] **2.0.1-sign** — PS/2 X/Y sign and overflow bits handled, so moves to the left and up work and overflowed packets are dropped.
-  **Acceptance:** `mousetest` decodes fixed packets for each sign case and an overflow case.
+- [x] **2.0.1-sign** — PS/2 X/Y sign and overflow bits handled, so moves to the left and up work and overflowed packets are dropped.
+  **Acceptance:** `mousetest` decodes fixed packets for each sign case and an overflow case. Done in 2.0.1 (`mouse_decode`); check `mouse-decode`.
 - [ ] **2.0.2-scroll** — A click in a scrolled list picks the row under the pointer, not the row at that position before scrolling.
   **Acceptance:** a check scrolls a list, clicks, and reads the selected entry.
 - [ ] **2.0.2-aging** — Priority aging: a READY process that has waited long enough is run even if higher priorities stay busy.
