@@ -30,7 +30,7 @@ Location: `../../kernel/proc.asm` (included from `kernel/pm.asm`)
 | 28 | `parent` | Pid of the creator |
 | 32 | `as` | Address space record, 0 = the kernel's (0.6.1, `memory.md`); loaded into CR3 on every switch |
 | 40 | `name` | 16 bytes: `shell`, the app or program name (0.8.2), shown by `ps` and in crash reports |
-| 56 | `prio` | `0..3`; higher runs first (1.9.9). Default 1. `SYS_SETPRIO` changes it. |
+| 56 | `prio` | `0..3`; higher runs first (1.9.9). Default 1. `SYS_SETPRIO` changes it. A ready process waiting 2 s outranks all (aging, 2.0.2). |
 | 60 | `fpu` | 1 once its x87 registers have been saved (1.0.1); 0 means it starts with a reset FPU |
 
 ## Lifecycle
@@ -56,6 +56,8 @@ If nothing else at that priority is ready and the caller is still `running` it r
 (nothing happened). If the caller cannot continue (waiting/zombie) and nothing is ready,
 the kernel prints `*** kernel panic: no runnable process` and halts. `run priotest` checks
 that a lower-priority child does not run until the parent drops its priority (`prio: PASS`).
+
+**Priority aging (2.0.2).** Strict priorities let a priority-0 process starve for as long as anything above it stays busy. Now each slot records in `proc_since` the tick at which it last got or gave up the CPU (and the tick it was spawned). A `ready` process that has waited `AGE_TICKS` (200 ticks, two seconds) since then counts as `PRIO_AGED`, which is one above `PRIO_MAX`. It then wins the next switch and runs for one slice, and the switch restamps it, so it waits again. A starved process therefore gets at least one slice every two seconds. A process that has waited less than that is not affected, so `priotest`'s high-priority spin (well under two seconds) still keeps its child out. `run agetest` spins at priority 3 beside a priority-0 child and prints `age: PASS` once the child has run (check `age`). A process waking from `wait` with an old stamp is aged at once, which gives it a small wake-up boost.
 
 `proc_idle` = switch if possible, otherwise `sti; hlt`. The shell's idle loop, `yield`,
 `getc` and app key waits all use it, so a waiting process never spins.

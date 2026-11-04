@@ -661,6 +661,8 @@ check lang-bad      'Unknown language (en la tlh)'  'lang fr' '<ret>'
 check lang-banner   'Sciurus-OS/2 2.0.1'   'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
 # 1.9.9: higher priority keeps a lower-priority child from running
 check prio          'prio: PASS'            'run priotest' '<ret>' '<pause>'
+# 2.0.2: aging lets a priority-0 child run beside a priority-3 spinner
+check age           'age: PASS'             'run agetest' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
 # 1.9.10: polled mouse sees motion from the QEMU monitor
 check mousetest     'mouse: PASS'           mousetest '<ret>' '<pause>' '<mouse-move:12,-8>' '<pause>'
 # 2.0.1: mousetest no longer polls, so a still mouse fails; motion and
