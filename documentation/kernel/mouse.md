@@ -20,11 +20,19 @@ Mouse bytes are drained everywhere, not only on the desktop. In 1.9.10 they were
 
 `mouse_init` enables the auxiliary device and streaming. The desktop draws a plus at the cursor and treats a left click on a list row as select; a second click on the same row opens it (`apps/desktop.md`).
 
+## Pointer save-under (2.0.1)
+
+The desktop's pointer is a small plus (centre, below, left, right) in colour `0x0F`, drawn by `ptr_show` in `kernel/mouse.asm`. Before drawing it, `ptr_show` reads the pixels it will cover into `ptr_save`. When the pointer moves, `ptr_hide` writes them back first, so it leaves no trail. Before 2.0.1 the old position was never restored, so a pointer that crossed the program list wiped out letters.
+
+`wm_redraw` clears `ptr_vis`. A full repaint has already painted over the pointer, so the saved pixels are stale and must not be written back. The next `ptr_show` saves the new pixels and draws the pointer again. Off-screen pixels are skipped (`gfx_putpixel` clips them, and `gfx_getpixel` returns 0 for them).
+
+`ptrtest` fills mode 13h with a pattern, shows the pointer, moves it, hides it, and checks that the pattern comes back each time. It prints `ptr: PASS` or `ptr: FAIL`.
+
 ## Shell
 
 `mousetest` waits up to two seconds for motion or a click and prints `mouse: PASS`, or `mouse: FAIL` / `mouse: none`. Since 2.0.1 it does not poll, so only the interrupt path can move the cursor while it waits: a PASS means IRQ 12 works.
 
-Regression checks: `mousetest`, `mouse-still` (no motion gives FAIL), `mouse-shell` (motion and a click, then `systest` still types), `mouse-calc` (motion inside `calc` does not disturb its input).
+Regression checks: `mousetest`, `mouse-still` (no motion gives FAIL), `mouse-shell` (motion and a click, then `systest` still types), `mouse-calc` (motion inside `calc` does not disturb its input), `ptrtest`, and `ptr-trail` (the pointer sweeps across the desktop list, and `files` still reads whole).
 
 ## Limits
 

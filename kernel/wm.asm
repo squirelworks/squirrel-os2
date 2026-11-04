@@ -248,6 +248,7 @@ wm_putc:
 ; Paints the desktop, then each open window.
 wm_redraw:
     pushad
+    mov byte [ptr_vis], 0       ; the repaint covers the pointer (2.0.1)
     xor eax, eax
     xor ebx, ebx
     mov ecx, GFX_W

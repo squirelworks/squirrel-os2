@@ -197,6 +197,209 @@ mouse_byte:
     popad
     ret
 
+; ---------- soft pointer with a save-under (2.0.1) ----------
+; The pointer is a small plus in mode 13h. ptr_show keeps the pixels it
+; covers in ptr_save and ptr_hide puts them back, so a moving pointer
+; leaves no trail. wm_redraw clears ptr_vis: a full repaint has already
+; covered the pointer, and the saved pixels are stale.
+PTR_N       equ 4
+PTR_COLOUR  equ 0x0F
+
+; Puts back the pixels under the pointer, if it is on screen.
+ptr_hide:
+    cmp byte [ptr_vis], 0
+    je .r
+    pushad
+    xor esi, esi
+.l:
+    mov eax, [ptr_px]
+    movsx edx, byte [ptr_dx+esi]
+    add eax, edx
+    mov ebx, [ptr_py]
+    movsx edx, byte [ptr_dy+esi]
+    add ebx, edx
+    mov cl, [ptr_save+esi]
+    call gfx_putpixel           ; clips off-screen pixels
+    inc esi
+    cmp esi, PTR_N
+    jb .l
+    mov byte [ptr_vis], 0
+    popad
+.r:
+    ret
+
+; Draws the pointer at mouse_x, mouse_y, first restoring it where it was.
+; Does nothing when it is already drawn there, or there is no mouse.
+ptr_show:
+    cmp byte [mouse_up], 0
+    je .r
+    pushad
+    pushfd
+    cli                         ; one consistent position from the ISR
+    mov edi, [mouse_x]
+    mov ebp, [mouse_y]
+    popfd
+    cmp byte [ptr_vis], 0
+    je .draw
+    cmp edi, [ptr_px]
+    jne .move
+    cmp ebp, [ptr_py]
+    je .done                    ; already there
+.move:
+    call ptr_hide
+.draw:
+    mov [ptr_px], edi
+    mov [ptr_py], ebp
+    xor esi, esi
+.l:
+    mov eax, edi
+    movsx edx, byte [ptr_dx+esi]
+    add eax, edx
+    mov ebx, ebp
+    movsx edx, byte [ptr_dy+esi]
+    add ebx, edx
+    call gfx_getpixel           ; cl = what is there (0 off screen)
+    mov [ptr_save+esi], cl
+    mov cl, PTR_COLOUR
+    call gfx_putpixel
+    inc esi
+    cmp esi, PTR_N
+    jb .l
+    mov byte [ptr_vis], 1
+.done:
+    popad
+.r:
+    ret
+
+; Shell: ptrtest — in mode 13h, fills the screen with a pattern, shows the
+; pointer at one place, moves it to another, then hides it, and checks the
+; pattern is back each time. Prints ptr: PASS or ptr: FAIL.
+PTRT_X0 equ 100
+PTRT_Y0 equ 100
+PTRT_X1 equ 150
+PTRT_Y1 equ 130
+
+cmd_ptrtest_run:
+    pushad
+    call gfx_mode13
+    ; pattern: colour (x + y) & 0xFF
+    mov edi, GFX_FB
+    xor ebx, ebx
+.row:
+    xor eax, eax
+.col:
+    lea ecx, [eax+ebx]
+    mov [edi], cl
+    inc edi
+    inc eax
+    cmp eax, GFX_W
+    jb .col
+    inc ebx
+    cmp ebx, GFX_H
+    jb .row
+    mov byte [ptrt_ok], 1
+    mov al, [mouse_up]
+    mov [ptrt_up], al
+    mov byte [mouse_up], 1      ; the test works without a mouse too
+    pushfd
+    cli
+    mov eax, [mouse_x]
+    mov [ptrt_mx], eax
+    mov eax, [mouse_y]
+    mov [ptrt_my], eax
+    mov dword [mouse_x], PTRT_X0
+    mov dword [mouse_y], PTRT_Y0
+    popfd
+    mov byte [ptr_vis], 0
+    call ptr_show
+    mov eax, PTRT_X0
+    mov ebx, PTRT_Y0
+    call .is_ptr
+    ; move: the old place shows the pattern again, the new one the pointer
+    pushfd
+    cli
+    mov dword [mouse_x], PTRT_X1
+    mov dword [mouse_y], PTRT_Y1
+    popfd
+    call ptr_show
+    mov eax, PTRT_X0
+    mov ebx, PTRT_Y0
+    call .is_pat
+    mov eax, PTRT_X1
+    mov ebx, PTRT_Y1
+    call .is_ptr
+    call ptr_hide
+    mov eax, PTRT_X1
+    mov ebx, PTRT_Y1
+    call .is_pat
+    ; put things back
+    pushfd
+    cli
+    mov eax, [ptrt_mx]
+    mov [mouse_x], eax
+    mov eax, [ptrt_my]
+    mov [mouse_y], eax
+    popfd
+    mov al, [ptrt_up]
+    mov [mouse_up], al
+    call gfx_text
+    mov esi, mt_ptr_pass
+    cmp byte [ptrt_ok], 1
+    je .say
+    mov esi, mt_ptr_fail
+.say:
+    call puts_nl_local
+    popad
+    ret
+
+; eax, ebx = centre: each pointer pixel must be PTR_COLOUR
+.is_ptr:
+    pushad
+    mov edi, eax
+    mov ebp, ebx
+    xor esi, esi
+.p:
+    call .at
+    cmp cl, PTR_COLOUR
+    je .pn
+    mov byte [ptrt_ok], 0
+.pn:
+    inc esi
+    cmp esi, PTR_N
+    jb .p
+    popad
+    ret
+
+; eax, ebx = centre: each pointer pixel must be the pattern again
+.is_pat:
+    pushad
+    mov edi, eax
+    mov ebp, ebx
+    xor esi, esi
+.q:
+    call .at                    ; eax, ebx = pixel; cl = its colour
+    add eax, ebx
+    cmp cl, al
+    je .qn
+    mov byte [ptrt_ok], 0
+.qn:
+    inc esi
+    cmp esi, PTR_N
+    jb .q
+    popad
+    ret
+
+; edi, ebp = centre, esi = pointer pixel -> eax, ebx = position, cl = colour
+.at:
+    mov eax, edi
+    movsx edx, byte [ptr_dx+esi]
+    add eax, edx
+    mov ebx, ebp
+    movsx edx, byte [ptr_dy+esi]
+    add ebx, edx
+    call gfx_getpixel
+    ret
+
 ; Shell: mousetest — waits up to two seconds for motion or a click.
 ; It does not poll (2.0.1): only IRQ 12 can move the cursor here, so a
 ; PASS means the interrupt path works.
@@ -241,6 +444,12 @@ puts_nl_local:
 mt_pass db 'mouse: PASS', 0
 mt_fail db 'mouse: FAIL', 0
 mt_none db 'mouse: none', 0
+mt_ptr_pass db 'ptr: PASS', 0
+mt_ptr_fail db 'ptr: FAIL', 0
+
+; pointer pixels as offsets from the hot spot: centre, below, left, right
+ptr_dx db 0, 0, -1, 1
+ptr_dy db 0, 1, 0, 0
 
 align 4
 mouse_x     dd 0
@@ -254,3 +463,12 @@ mouse_up    db 0
 mouse_btns  db 0
 mouse_pkt_n db 0
 mouse_pkt   times 3 db 0
+ptr_vis     db 0
+ptr_save    times PTR_N db 0
+ptrt_ok     db 0
+ptrt_up     db 0
+align 4
+ptr_px      dd 0
+ptr_py      dd 0
+ptrt_mx     dd 0
+ptrt_my     dd 0
