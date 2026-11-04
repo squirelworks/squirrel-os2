@@ -107,4 +107,5 @@ Documentation is active.
 - 1.9.12 devices registered at run time; `run drvtest` (`releases/1.9.12.md`, `kernel/drivers.md`)
 - **2.0.0 released** — Warp-style system (`releases/2.0.0.md`, `specifications.md`, `../ROADMAP.md`)
 - 2.0.1 mouse on IRQ 12, drained everywhere; KB-18 resolved (`releases/2.0.1.md`, `kernel/mouse.md`)
+- 2.0.2 `ifconfig` refuses an off-subnet gateway (`releases/2.0.2.md`, `kernel/network.md`)
 - Next: modern hardware H.1–H.6 (`../TODO.md`, `../ROADMAP.md`).

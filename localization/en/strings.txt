@@ -49,3 +49,4 @@ inst_anykey=Press any key.
 net_noreply=No reply
 net_badaddr=Bad address
 net_of4= of 4
+net_offnet=Gateway is not on that subnet

@@ -71,7 +71,9 @@ hd1     block   ready 2048 sectors
 
 ## Devices at run time (1.9.12)
 
-`SYS_DEVREG` (`ebx` = ASCIIZ name, 1–7 characters) registers a ready null character device under that name. Reads fill the buffer with zeros; writes discard the bytes and report success. Up to four such devices fit beside the built-ins. A name already in the table (present or absent) is refused. `programs/drvtest.asm` registers `null`, writes and reads it, and prints `drv: PASS` (checks `drv`, `drv-devices`).
+`SYS_DEVREG` (`ebx` = ASCIIZ name, 1–7 characters) registers a ready null character device under that name. Reads fill the buffer with zeros; writes discard the bytes and report success. Up to four such devices fit beside the built-ins. A name already in the table (present or absent) is refused. `programs/drvtest.asm` registers `null`, writes and reads it, removes it again, and prints `drv: PASS` (checks `drv`, `drv-devices`, `drv-again`).
+
+`SYS_DEVUNREG` (2.0.2, `ebx` = name) removes a device that `SYS_DEVREG` made and frees its slot. Before 2.0.2 a slot was never given back, so after four registrations `SYS_DEVREG` failed for the rest of the boot, and `drvtest` failed the second time it ran. Built-in devices cannot be removed: only the four run-time slots are searched. A removed slot keeps its place in the device table, with an empty name and no `DEVF_UP`, so the handles of other devices do not move. `dev_handle` refuses a handle to it, `devices` skips it, and the next `SYS_DEVREG` reuses the slot and its table index (`dev_dyn_tix`). `drvtest` checks that after removal `SYS_DEVFIND` no longer finds the name, the old handle reads −1, a second removal fails, and removing `con` fails.
 
 ## Not yet
 

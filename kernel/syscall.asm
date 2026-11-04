@@ -40,7 +40,8 @@ SYS_NETSENDTO equ 30        ; ebx = block -> bytes, or -1 (1.9.7)
 SYS_NETRECVFROM equ 31      ; ebx = block -> bytes, -1 port taken, -2 nothing (1.9.7)
 SYS_SETPRIO equ 32          ; ebx = 0..3 -> 0, or -1 (1.9.9)
 SYS_DEVREG  equ 33          ; ebx = name -> register a null char device (1.9.12)
-SYS_COUNT   equ 34
+SYS_DEVUNREG equ 34         ; ebx = name -> remove a device SYS_DEVREG made (2.0.2)
+SYS_COUNT   equ 35
 
 SYS_ENOSYS  equ -1
 SYSCALL_VEC equ 0x80
@@ -101,6 +102,7 @@ syscall_table:
     dd sys_netrecvfrom
     dd sys_setprio
     dd sys_devreg
+    dd sys_devunreg
 
 ; ---------- handlers: args in ebx/ecx/edx, result in eax ----------
 sys_putc:
@@ -158,6 +160,11 @@ sys_setprio:
 ; character device under that name (1.9.12). eax = 0, or -1.
 sys_devreg:
     jmp dev_reg_null
+
+; ebx = ASCIIZ name of a device SYS_DEVREG registered: removes it and
+; frees its slot (2.0.2). eax = 0, or -1 (no such run-time device).
+sys_devunreg:
+    jmp dev_unreg_null
 
 ; Raw sector access. Writes are limited to the data disk (drive 1) so a
 ; program cannot overwrite the boot image.
