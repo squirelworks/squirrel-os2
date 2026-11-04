@@ -138,7 +138,7 @@ This avoids retargeting chains and confirmation steps.
 | 1.9.11  | 2026-11-01 | Configurable network addresses       |
 | 1.9.12  | 2026-11-01 | Devices registered at run time       |
 | 2.0.0   | 2026-11-01 | Warp-style system                    |
-| 2.0.1   | 2026-11-04 | Mouse on IRQ 12                      |
+| 2.0.1   | 2026-11-04 | Mouse on IRQ 12, no pointer trail    |
 
 ## Next planned release
 

@@ -762,33 +762,11 @@ dk_refresh:
 .r:
     ret
 
-; Soft mouse pointer: a white plus at mouse_x, mouse_y (1.9.10)
+; Soft mouse pointer: a white plus at mouse_x, mouse_y (1.9.10). Since
+; 2.0.1 it keeps the pixels under it and puts them back when it moves
+; (ptr_show in mouse.asm), so it leaves no trail.
 dk_ptr:
-    cmp byte [mouse_up], 0
-    je .r
-    pushad
-    mov eax, [mouse_x]
-    mov ebx, [mouse_y]
-    mov cl, 0x0F
-    push eax
-    push ebx
-    call gfx_putpixel
-    pop ebx
-    pop eax
-    push eax
-    inc ebx
-    call gfx_putpixel
-    pop eax
-    mov ebx, [mouse_y]
-    dec eax
-    call gfx_putpixel
-    mov eax, [mouse_x]
-    inc eax
-    mov ebx, [mouse_y]
-    call gfx_putpixel
-    popad
-.r:
-    ret
+    jmp ptr_show
 
 ; Left-click on a list row: select it; a click on the already selected
 ; row opens (CF clear). CF set if nothing to do.
