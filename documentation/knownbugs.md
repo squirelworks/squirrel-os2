@@ -64,6 +64,12 @@ Found by stress testing processes and threads:
 
 - **KB-17** A stack overflow did not reset the machine, as the specification said it would. A thread that ran off its 8 KB stack silently wrote over the stack of the slot below it, so a different process crashed, and memory could be lost. Resolved: an unmapped guard page sits under every stack, and the double fault it causes goes through a task gate to a stack of its own, so it is reported (`*** stack overflow in pid N`) and ends only that process; the shell offers its usual restart. Checks `stackover`, `stack-shell`.
 
+## 2.0.1
+
+Found while planning the 2.0.x clean-up:
+
+- **KB-18** After the mouse moved or clicked in the text shell (or in any program other than the desktop), the keyboard stopped answering. The 1.9.10 driver read mouse bytes only by polling from the desktop, so a mouse byte stayed in the keyboard controller's output buffer and every key waited behind it. Resolved in 2.0.1: the mouse runs on IRQ 12, and `kbd_isr` passes an auxiliary byte to the mouse instead of reading it as a key. Checks `mouse-shell`, `mouse-calc`.
+
 ## Notes
 
 - Add an entry only when behavior contradicts `specifications.md` or a stated milestone goal.

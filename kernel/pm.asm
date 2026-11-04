@@ -125,6 +125,9 @@ pm:
     mov edi, idt+0x21*8
     mov eax, kbd_isr
     call set_gate
+    mov edi, idt+0x2C*8
+    mov eax, mouse_isr          ; IRQ 12 (2.0.1)
+    call set_gate
     call syscall_init
     lidt [idt_desc]
     call fpu_init
@@ -133,7 +136,7 @@ pm:
     call vm_init
     call tss_init               ; double faults get their own stack (KB-17)
     call ata_init
-    call mouse_init             ; polled PS/2 mouse (1.9.10)
+    call mouse_init             ; PS/2 mouse (1.9.10; IRQ 12 since 2.0.1)
     call dev_init
 
     ; PIC + PIT
@@ -151,9 +154,15 @@ pm:
     mov al, 1
     out 0x21, al
     out 0xA1, al
-    mov al, 0xFC
+    mov al, 0xFC                ; timer and keyboard
+    mov ah, 0xFF
+    cmp byte [mouse_up], 0
+    je .masks
+    mov al, 0xF8                ; and the cascade (IRQ 2) ...
+    mov ah, 0xEF                ; ... to IRQ 12, the mouse (2.0.1)
+.masks:
     out 0x21, al
-    mov al, 0xFF
+    mov al, ah
     out 0xA1, al
     mov al, 0x36
     out 0x43, al
@@ -858,6 +867,9 @@ kbd_isr:
     push eax
     push ebx
     push ecx
+    in al, 0x64
+    test al, 0x20               ; an auxiliary byte: it is the mouse's (2.0.1)
+    jnz .aux
     in al, 0x60
     mov ebx, [kbd_head]
     lea ecx, [ebx+1]
@@ -870,12 +882,19 @@ kbd_isr:
     pushad
     call key_event              ; and a key event for SYS_KEYEVENTS (1.2.1)
     popad
+.eoi:
     mov al, 0x20
     out 0x20, al
     pop ecx
     pop ebx
     pop eax
     iretd
+.aux:
+    in al, 0x60
+    test byte [mouse_up], 1
+    jz .eoi
+    call mouse_byte
+    jmp .eoi
 
 ; Pops one scancode into al; CF set if the ring is empty. Clobbers ebx.
 ; Call with interrupts disabled.
@@ -956,7 +975,7 @@ default_isr:
 
 ; ---------- data ----------
 banner db 'Squirrel-OS/2'          ; (the "help" file: the English banner)
-banner_rest db ' 2.0.0', 10  ; OS version: here only (see releases/PROCESS.md)
+banner_rest db ' 2.0.1', 10  ; OS version: here only (see releases/PROCESS.md)
        db 'Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>', 10
        db '          mv <f> <new> | mkdir <d> | cd <d> | pwd | echo | batch <f> | format', 10
        db '          ps | disk | mem | devices | lang <en|la|tlh> | desktop | install', 10

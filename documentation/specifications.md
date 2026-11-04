@@ -373,6 +373,10 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 - Warp-style release of the 1.9.12 system: preemptive threads, windowing, object desktop, hierarchical SQFS with a graphical browser, 1.0 apps as desktop objects, native shell, and basic networking (loopback through a small TCP client), plus the Warp-gap boxes (priority, mouse, `ifconfig`, run-time null devices). Original code; no classic OS/2 ABI (`releases/2.0.0.md`; `ver-banner`, `lang-banner`).
 - Limits of 1.9.12 still apply. Modern hardware (H.1–H.6) and foreign personalities are not part of 2.0.0.
 
+## 2.0.1
+
+- The PS/2 mouse runs on IRQ 12, and mouse bytes are drained everywhere, so mouse use in the text shell or in a program no longer blocks the keyboard (`kernel/mouse.md`; `mousetest`, `mouse-still`, `mouse-shell`, `mouse-calc`).
+
 ## Notes
 
 - Items listed here are accepted characteristics of the current milestone.

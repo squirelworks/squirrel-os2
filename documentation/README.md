@@ -106,4 +106,5 @@ Documentation is active.
 - 1.9.11 `ifconfig` for inet / mask / gw (`releases/1.9.11.md`, `kernel/network.md`)
 - 1.9.12 devices registered at run time; `run drvtest` (`releases/1.9.12.md`, `kernel/drivers.md`)
 - **2.0.0 released** — Warp-style system (`releases/2.0.0.md`, `specifications.md`, `../ROADMAP.md`)
+- 2.0.1 mouse on IRQ 12, drained everywhere; KB-18 resolved (`releases/2.0.1.md`, `kernel/mouse.md`)
 - Next: modern hardware H.1–H.6 (`../TODO.md`, `../ROADMAP.md`).
