@@ -143,9 +143,9 @@ This avoids retargeting chains and confirmation steps.
 
 ## Next planned release
 
-**2.0.2** — the rest of the 2.0.x clean-up (click in a scrolled list, priority aging, `SYS_DEVUNREG`, `ifconfig` subnet check). Then one release per milestone of the 2.0.0 → 4.x plan in `../../ROADMAP.md`: 2.1 framebuffer graphics, 2.2 real windows, and so on.
+**2.1** — framebuffer graphics, the first milestone of the 2.0.0 → 4.x plan in `../../ROADMAP.md` (then 2.2 real windows, and so on). Its PR-sized boxes go into `../../TODO.md` first.
 
-**2.0.1 is ready to tag** (`2.0.1.md`): all three 2.0.1 boxes are on `main`. The owner tags `v2.0.1` and publishes the release; Claude prepares the images and checksums.
+**2.0.2 is ready to publish** (`2.0.2.md`): all four 2.0.2 boxes are on `main`. **2.0.1** is published (`v2.0.1`).
 
 2.0.0 is the Warp-style tag of the 1.9.12 system (`2.0.0.md`).
 
