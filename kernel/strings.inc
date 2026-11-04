@@ -52,7 +52,8 @@ LS_INST_ANYKEY equ 47
 LS_NET_NOREPLY equ 48
 LS_NET_BADADDR equ 49
 LS_NET_OF4 equ 50
-LS_COUNT equ 51
+LS_NET_OFFNET equ 51
+LS_COUNT equ 52
 LANG_COUNT equ 3
 
 align 4
@@ -113,6 +114,7 @@ ls_en:
     dd ls_en_net_noreply
     dd ls_en_net_badaddr
     dd ls_en_net_of4
+    dd ls_en_net_offnet
 ls_la:
     dd ls_la_banner
     dd ls_la_prompt
@@ -165,6 +167,7 @@ ls_la:
     dd ls_la_net_noreply
     dd ls_la_net_badaddr
     dd ls_la_net_of4
+    dd ls_la_net_offnet
 ls_tlh:
     dd ls_tlh_banner
     dd ls_tlh_prompt
@@ -217,6 +220,7 @@ ls_tlh:
     dd ls_tlh_net_noreply
     dd ls_tlh_net_badaddr
     dd ls_tlh_net_of4
+    dd ls_tlh_net_offnet
 ls_en_banner db 'Squirrel-OS/2', 0
 ls_en_prompt db '> ', 0
 ls_en_files db 'Files:', 0
@@ -268,6 +272,7 @@ ls_en_inst_anykey db 'Press any key.', 0
 ls_en_net_noreply db 'No reply', 0
 ls_en_net_badaddr db 'Bad address', 0
 ls_en_net_of4 db ' of 4', 0
+ls_en_net_offnet db 'Gateway is not on that subnet', 0
 ls_la_banner db 'Sciurus-OS/2', 0
 ls_la_prompt db '> ', 0
 ls_la_files db 'Tabulae:', 0
@@ -319,6 +324,7 @@ ls_la_inst_anykey db 'Preme clavem quamlibet.', 0
 ls_la_net_noreply db 'Nullum responsum', 0
 ls_la_net_badaddr db 'Inscriptio mala', 0
 ls_la_net_of4 db ' ex 4', 0
+ls_la_net_offnet db 'Porta non est in hac subrete', 0
 ls_tlh_banner db 'Squirrel-OS/2', 0
 ls_tlh_prompt db '> ', 0
 ls_tlh_files db "tebwI':", 0
@@ -370,3 +376,4 @@ ls_tlh_inst_anykey db 'leQ yIbach.', 0
 ls_tlh_net_noreply db "jang tu'lu'be'", 0
 ls_tlh_net_badaddr db 'ngoq QIH', 0
 ls_tlh_net_of4 db " vo' 4", 0
+ls_tlh_net_offnet db 'lojmIt Daq QIH', 0

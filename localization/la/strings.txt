@@ -49,3 +49,4 @@ inst_anykey=Preme clavem quamlibet.
 net_noreply=Nullum responsum
 net_badaddr=Inscriptio mala
 net_of4= ex 4
+net_offnet=Porta non est in hac subrete

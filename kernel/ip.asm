@@ -376,6 +376,12 @@ cmd_ifconfig_run:
     call next_word
     call ip_aton
     jc .bad
+    ; the gateway must be on the interface's subnet (2.0.2), or no
+    ; packet for another network could ever reach it
+    mov ebx, eax
+    xor ebx, [ifc_ip]
+    and ebx, [ifc_mask]
+    jnz .offnet
     mov [net_gw_ip], eax
     mov eax, [ifc_ip]
     mov [net_our_ip], eax
@@ -402,6 +408,9 @@ cmd_ifconfig_run:
     jmp putc
 .bad:
     mov esi, [lstr + LS_NET_BADADDR * 4]
+    jmp lputs_nl
+.offnet:                        ; nothing changed (2.0.2)
+    mov esi, [lstr + LS_NET_OFFNET * 4]
     jmp lputs_nl
 
 ; eax = address: print dotted quad (no newline)
