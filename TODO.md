@@ -275,8 +275,8 @@ From the 2.0.0 → 4.x plan in `ROADMAP.md` (imported 2026-11-04). These are the
   **Acceptance:** `mousetest` decodes fixed packets for each sign case and an overflow case. Done in 2.0.1 (`mouse_decode`); check `mouse-decode`.
 - [x] **2.0.2-scroll** — A click in a scrolled list picks the row under the pointer, not the row at that position before scrolling.
   **Acceptance:** a check scrolls a list, clicks, and reads the selected entry. Done in 2.0.2: lists scroll (`WG_TOP`, `WG_ROWS`; before, a list that did not fit was not drawn), and `wg_list_item` maps a clicked row to its item; `dk_mouse` uses it. Check `scrolltest`.
-- [ ] **2.0.2-aging** — Priority aging: a READY process that has waited long enough is run even if higher priorities stay busy.
-  **Acceptance:** `run priotest` still passes, and a priority-0 spinner makes progress beside a priority-3 spinner.
+- [x] **2.0.2-aging** — Priority aging: a READY process that has waited long enough is run even if higher priorities stay busy.
+  **Acceptance:** `run priotest` still passes, and a priority-0 spinner makes progress beside a priority-3 spinner. Done in 2.0.2 (`AGE_TICKS`, `proc_eff_prio`); checks `prio`, `age`.
 - [x] **2.0.2-devunreg** — `SYS_DEVUNREG` frees a slot `SYS_DEVREG` took.
   **Acceptance:** `run drvtest` passes twice in one boot, and `devices` no longer lists the device afterwards. Done in 2.0.2 (`SYS_DEVUNREG` = 34); checks `drv-devices`, `drv-again`.
 - [x] **2.0.2-subnet** — `ifconfig` refuses a gateway that is not on the interface's subnet.

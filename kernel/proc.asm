@@ -21,6 +21,8 @@ SLICE_TICKS     equ 5           ; 50 ms at 100 Hz (1.1)
 PRIO_MIN        equ 0
 PRIO_NORM       equ 1
 PRIO_MAX        equ 3
+AGE_TICKS       equ 200         ; READY this long without running: aged (2.0.2)
+PRIO_AGED       equ PRIO_MAX + 1 ; an aged process outranks every priority
 
 ; states
 P_FREE          equ 0
@@ -93,6 +95,7 @@ proc_spawn:
     mov dword [edi+PCB_WAITPID], 0
     mov byte [edi+PCB_NAME], 0
     mov dword [edi+PCB_PRIO], PRIO_NORM
+    call proc_stamp             ; its wait for the CPU starts now (2.0.2)
     mov dword [edi+PCB_FPU], 0  ; starts with a freshly reset FPU
     call msg_reset              ; and an empty message queue (1.2)
     mov ebx, [proc_cur]
@@ -356,7 +359,7 @@ proc_switch:
     cmp edi, esi
     jne .nmax
 .cand:
-    mov eax, [edi+PCB_PRIO]
+    call proc_eff_prio          ; eax = priority, raised if aged (2.0.2)
     cmp eax, ebx
     jle .nmax
     mov ebx, eax
@@ -377,7 +380,8 @@ proc_switch:
     je .none
     cmp dword [edi+PCB_STATE], P_READY
     jne .next
-    cmp [edi+PCB_PRIO], ebx
+    call proc_eff_prio
+    cmp eax, ebx
     je .go
 .next:
     loop .scan
@@ -396,6 +400,10 @@ proc_switch:
     call proc_fpu_swap
     mov [esi+PCB_ESP], esp
     mov dword [edi+PCB_STATE], P_RUNNING
+    xchg esi, edi
+    call proc_stamp             ; the one leaving starts waiting now
+    xchg esi, edi
+    call proc_stamp             ; the one arriving has had its turn
     mov dword [sched_left], SLICE_TICKS     ; a full slice for the next one
     mov [proc_cur], edi
     call vm_load
@@ -403,6 +411,47 @@ proc_switch:
     popad
     popfd
     clc
+    ret
+
+; Priority aging (2.0.2). Each slot keeps the tick at which it last got
+; or gave up the CPU (proc_since). A READY process that has waited
+; AGE_TICKS since then counts as PRIO_AGED, above every real priority,
+; so it runs for one slice even while higher priorities stay busy; the
+; switch restamps it, so it then waits again. A priority-0 process
+; therefore gets at least one slice every AGE_TICKS and cannot starve.
+
+; edi = PCB -> eax = the priority the scheduler compares
+proc_eff_prio:
+    mov eax, [edi+PCB_PRIO]
+    cmp dword [edi+PCB_STATE], P_READY
+    jne .r
+    push ebx
+    push edx
+    mov ebx, edi
+    sub ebx, proc_table
+    shr ebx, 6                  ; / PCB_SIZE
+    mov edx, [ticks]
+    sub edx, [proc_since+ebx*4]
+    cmp edx, AGE_TICKS
+    jb .young
+    mov eax, PRIO_AGED
+.young:
+    pop edx
+    pop ebx
+.r:
+    ret
+
+; edi = PCB: its slot's wait starts at the current tick
+proc_stamp:
+    push eax
+    push ebx
+    mov ebx, edi
+    sub ebx, proc_table
+    shr ebx, 6
+    mov eax, [ticks]
+    mov [proc_since+ebx*4], eax
+    pop ebx
+    pop eax
     ret
 
 ; esi = outgoing PCB, edi = incoming: gives each process its own x87
@@ -640,6 +689,7 @@ kbd_getscan:
     ret
 
 proc_table times PROC_MAX*PCB_SIZE db 0
+proc_since times PROC_MAX dd 0  ; tick of the last switch in or out (2.0.2)
 proc_fpu times PROC_MAX*FPU_SAVE db 0     ; fnsave areas, one per slot (1.0.1)
 proc_cur dd 0
 kbd_wait_hook dd 0              ; called (if set) while kbd_getscan waits
