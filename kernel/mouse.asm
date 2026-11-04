@@ -1,9 +1,12 @@
-; Squirrel-OS/2 — polled PS/2 mouse (1.9.10)
+; Squirrel-OS/2 — PS/2 mouse (1.9.10 polled, 2.0.1 on IRQ 12)
 ; Included from pm.asm. Original code.
 ;
-; Enables the auxiliary device and reads 3-byte packets by polling the
-; keyboard controller (no IRQ12). Soft cursor coordinates are kept in
-; mouse_x / mouse_y for the desktop. See documentation/kernel/mouse.md.
+; Enables the auxiliary device and builds 3-byte packets from its bytes.
+; Since 2.0.1 the bytes arrive on IRQ 12 (mouse_isr), and an auxiliary
+; byte that turns up on IRQ 1 is handed here too, so mouse data never
+; sits in the controller and blocks the keyboard. Soft cursor coordinates
+; are kept in mouse_x / mouse_y for the desktop.
+; See documentation/kernel/mouse.md.
 
 MOUSE_W     equ 320
 MOUSE_H     equ 200
@@ -73,13 +76,13 @@ mouse_init:
     call mouse_wait_in
     mov al, 0xA8
     out 0x64, al
-    ; Compaq status: enable IRQ12 and aux clock; we still poll
+    ; Compaq status: enable IRQ12 and the aux clock
     call mouse_wait_in
     mov al, 0x20
     out 0x64, al
     call mouse_wait_out
     in al, 0x60
-    or al, 2                     ; enable IRQ12 bit (harmless if masked)
+    or al, 2                     ; aux bytes raise IRQ 12 (2.0.1)
     and al, 0xDF                 ; clear disable-aux
     mov bl, al
     call mouse_wait_in
@@ -100,17 +103,49 @@ mouse_init:
 .r:
     ret
 
-; Pull pending aux bytes into packets; update position and buttons.
+; Pull pending aux bytes into packets (fallback for when IRQ 12 has not
+; run yet; with the interrupt on there is normally nothing left here).
 mouse_poll:
     cmp byte [mouse_up], 0
     je .r
+    pushfd
+    cli                         ; the ISRs share the packet state
 .more:
     in al, 0x64
     test al, 1
-    jz .r
+    jz .done
     test al, 0x20
-    jz .r                       ; keyboard data: leave for kbd_isr
+    jz .done                    ; keyboard data: leave for kbd_isr
     in al, 0x60
+    call mouse_byte
+    jmp .more
+.done:
+    popfd
+.r:
+    ret
+
+; IRQ 12 (vector 0x2C): one auxiliary byte from the controller.
+mouse_isr:
+    pushad
+    in al, 0x64
+    test al, 1
+    jz .eoi                     ; nothing there (already read by a poll)
+    in al, 0x60
+    test byte [mouse_up], 1
+    jz .eoi
+    call mouse_byte
+.eoi:
+    inc dword [mouse_irqs]
+    mov al, 0x20
+    out 0xA0, al                ; slave PIC
+    out 0x20, al                ; master PIC (cascade)
+    popad
+    iretd
+
+; al = one byte from the auxiliary device. Builds packets and updates
+; position and buttons. Call with interrupts disabled. Keeps all registers.
+mouse_byte:
+    pushad
     movzx ebx, byte [mouse_pkt_n]
     mov [mouse_pkt+ebx], al
     inc ebx
@@ -118,24 +153,17 @@ mouse_poll:
     cmp bl, 1
     jne .chkfull
     test al, 0x08                ; first byte always has bit 3 set
-    jnz .chkfull
+    jnz .r
     mov byte [mouse_pkt_n], 0   ; resync
-    jmp .more
+    jmp .r
 .chkfull:
     cmp bl, 3
-    jb .more
+    jb .r
     mov byte [mouse_pkt_n], 0
     ; dx / dy, with sign bits in byte 0
     movsx eax, byte [mouse_pkt+1]
-    test byte [mouse_pkt], 0x10
-    jz .xpos
-    ; sign already in movsx from the byte; overflow bits ignored
-.xpos:
     add [mouse_x], eax
     movsx eax, byte [mouse_pkt+2]
-    test byte [mouse_pkt], 0x20
-    jz .ypos
-.ypos:
     neg eax                     ; PS/2 Y is opposite to screen Y
     add [mouse_y], eax
     ; clamp
@@ -161,19 +189,20 @@ mouse_poll:
     mov [mouse_btns], al
     ; left button make edge
     test al, 1
-    jz .more
+    jz .r
     test bl, 1
-    jnz .more
+    jnz .r
     inc dword [mouse_clicks]
-    jmp .more
 .r:
+    popad
     ret
 
 ; Shell: mousetest — waits up to two seconds for motion or a click.
+; It does not poll (2.0.1): only IRQ 12 can move the cursor here, so a
+; PASS means the interrupt path works.
 cmd_mousetest_run:
     cmp byte [mouse_up], 0
     je .no
-    call mouse_poll
     mov eax, [mouse_x]
     mov [mt_x0], eax
     mov eax, [mouse_y]
@@ -183,7 +212,6 @@ cmd_mousetest_run:
     mov ebx, [ticks]
     add ebx, 200                ; two seconds
 .wait:
-    call mouse_poll
     mov eax, [mouse_x]
     cmp eax, [mt_x0]
     jne .pass
@@ -218,6 +246,7 @@ align 4
 mouse_x     dd 0
 mouse_y     dd 0
 mouse_clicks dd 0
+mouse_irqs  dd 0              ; IRQ 12 count (2.0.1)
 mt_x0       dd 0
 mt_y0       dd 0
 mt_c0       dd 0
