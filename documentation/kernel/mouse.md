@@ -28,6 +28,12 @@ The desktop's pointer is a small plus (centre, below, left, right) in colour `0x
 
 `ptrtest` fills mode 13h with a pattern, shows the pointer, moves it, hides it, and checks that the pattern comes back each time. It prints `ptr: PASS` or `ptr: FAIL`.
 
+## Packet decoding (2.0.1)
+
+`mouse_decode` turns a 3-byte packet into screen motion. PS/2 motion is 9 bits: byte 1 and byte 2 hold the low 8 bits of X and Y, and bits 4 and 5 of byte 0 are their sign bits. Before 2.0.1 the driver sign-extended bytes 1 and 2 on their own, so any move of more than 127 counts in one packet went the wrong way. For example, Y = `0x90` with no sign bit is +144, not −112. Bits 6 and 7 of byte 0 are the X and Y overflow bits. When either is set, the motion is meaningless, so it is dropped and only the buttons are used.
+
+`mousetest` first runs `mouse_decode` on a table of fixed packets: each sign case, a 9-bit move each way, and an overflow on each axis. It prints `decode: PASS` or `decode: FAIL`. This works with no mouse attached.
+
 ## Shell
 
 `mousetest` waits up to two seconds for motion or a click and prints `mouse: PASS`, or `mouse: FAIL` / `mouse: none`. Since 2.0.1 it does not poll, so only the interrupt path can move the cursor while it waits: a PASS means IRQ 12 works.
