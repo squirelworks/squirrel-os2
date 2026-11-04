@@ -160,12 +160,11 @@ mouse_byte:
     cmp bl, 3
     jb .r
     mov byte [mouse_pkt_n], 0
-    ; dx / dy, with sign bits in byte 0
-    movsx eax, byte [mouse_pkt+1]
+    mov esi, mouse_pkt
+    call mouse_decode           ; eax = dx, ebx = screen dy (2.0.1)
+    jc .btns                    ; overflowed: buttons only
     add [mouse_x], eax
-    movsx eax, byte [mouse_pkt+2]
-    neg eax                     ; PS/2 Y is opposite to screen Y
-    add [mouse_y], eax
+    add [mouse_y], ebx
     ; clamp
     cmp dword [mouse_x], 0
     jge .xhi
@@ -197,10 +196,104 @@ mouse_byte:
     popad
     ret
 
-; Shell: mousetest — waits up to two seconds for motion or a click.
+; esi -> 3-byte packet. -> eax = dx, ebx = dy in screen terms (down is
+; positive), CF set if either overflow bit is set (the motion is then
+; meaningless and is dropped). PS/2 sends 9-bit motion: the 9th (sign)
+; bits are bit 4 (X) and bit 5 (Y) of byte 0, so a byte of 0x90 with no
+; Y sign is +144, not -112 (2.0.1).
+mouse_decode:
+    movzx eax, byte [esi+1]
+    test byte [esi], 0x10
+    jz .xok
+    sub eax, 0x100              ; X is negative
+.xok:
+    movzx ebx, byte [esi+2]
+    test byte [esi], 0x20
+    jz .yok
+    sub ebx, 0x100              ; Y is negative
+.yok:
+    neg ebx                     ; PS/2 Y is opposite to screen Y
+    test byte [esi], 0xC0       ; X or Y overflow
+    jnz .ovf
+    clc
+    ret
+.ovf:
+    stc
+    ret
+
+; Runs mouse_decode on fixed packets and prints decode: PASS or FAIL.
+mouse_dectest:
+    pushad
+    mov byte [mdt_ok], 1
+    mov esi, mdt_cases
+.l:
+    cmp byte [esi], 0
+    je .done
+    push esi
+    call mouse_decode
+    pop esi
+    setc dl
+    cmp dl, [esi+11]
+    jne .bad
+    test dl, dl
+    jnz .next                   ; overflow: the motion is not looked at
+    cmp eax, [esi+3]
+    jne .bad
+    cmp ebx, [esi+7]
+    je .next
+.bad:
+    mov byte [mdt_ok], 0
+.next:
+    add esi, MDT_SIZE
+    jmp .l
+.done:
+    mov esi, mt_dec_pass
+    cmp byte [mdt_ok], 1
+    je .say
+    mov esi, mt_dec_fail
+.say:
+    call puts_nl_local
+    popad
+    ret
+
+; byte0, byte1, byte2, dd dx, dd screen dy, db overflow
+MDT_SIZE equ 12
+mdt_cases:
+    db 0x08, 5, 3
+    dd 5, -3
+    db 0
+    db 0x18, 0xFB, 0            ; left 5
+    dd -5, 0
+    db 0
+    db 0x18, 0x10, 0            ; left 240: needs the 9th bit
+    dd -240, 0
+    db 0
+    db 0x28, 0, 0xF0            ; PS/2 down 16: screen +16
+    dd 0, 16
+    db 0
+    db 0x08, 0, 0x90            ; PS/2 up 144: screen -144 (not +112)
+    dd 0, -144
+    db 0
+    db 0x38, 0x80, 0x80         ; both negative, -128 each
+    dd -128, 128
+    db 0
+    db 0x48, 0x20, 0            ; X overflow: dropped
+    dd 0, 0
+    db 1
+    db 0x88, 0, 0x20            ; Y overflow: dropped
+    dd 0, 0
+    db 1
+    db 0                        ; end (bit 3 is always set in a real byte 0)
+mdt_ok db 0
+mt_dec_pass db 'decode: PASS', 0
+mt_dec_fail db 'decode: FAIL', 0
+
+; Shell: mousetest — first checks packet decoding (2.0.1), then waits up
+; to two seconds for motion or a click.
 ; It does not poll (2.0.1): only IRQ 12 can move the cursor here, so a
 ; PASS means the interrupt path works.
 cmd_mousetest_run:
+    call mouse_dectest
     cmp byte [mouse_up], 0
     je .no
     mov eax, [mouse_x]

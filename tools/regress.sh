@@ -665,6 +665,8 @@ check prio          'prio: PASS'            'run priotest' '<ret>' '<pause>'
 check mousetest     'mouse: PASS'           mousetest '<ret>' '<pause>' '<mouse-move:12,-8>' '<pause>'
 # 2.0.1: mousetest no longer polls, so a still mouse fails; motion and
 # clicks in the text shell no longer block the keyboard (KB-18)
+# 2.0.1: 9-bit motion and overflow bits, from fixed packets
+check mouse-decode  'decode: PASS'          mousetest '<ret>' '<pause>'
 check mouse-still   'mouse: FAIL'           mousetest '<ret>' '<pause>' '<pause>' '<pause>'
 check mouse-shell   'systest: PASS'         '<mouse-move:10,5>' '<pause>' '<mouse-move:-3,4>' '<mouse-btn:1>' '<mouse-btn:0>' '<pause>' systest '<ret>'
 check mouse-calc    '= 42'                  'run calc' '<ret>' '<mouse-move:20,20>' '<pause>' '6*7' '<ret>'
