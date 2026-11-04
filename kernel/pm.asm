@@ -417,6 +417,9 @@ run_simple:
     mov edi, cmd_mousetest      ; 1.9.10
     call streq
     je .mousetest
+    mov edi, cmd_ptrtest        ; 2.0.1
+    call streq
+    je .ptrtest
     mov edi, cmd_ifconfig       ; 1.9.11 bare
     call streq
     je .ifconfig
@@ -644,6 +647,9 @@ run_simple:
     jmp .empty
 .mousetest:
     call cmd_mousetest_run
+    jmp .empty
+.ptrtest:
+    call cmd_ptrtest_run
     jmp .empty
 .ifconfig:
     call cmd_ifconfig_show
@@ -1127,6 +1133,7 @@ cmd_drawpx db 'drawpx', 0
 cmd_objtest db 'objtest', 0
 cmd_nettest db 'nettest', 0
 cmd_mousetest db 'mousetest', 0
+cmd_ptrtest db 'ptrtest', 0
 cmd_ifconfig db 'ifconfig', 0
 cmd_objs db 'objs', 0
 cmd_objcat db 'objcat ', 0

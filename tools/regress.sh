@@ -668,6 +668,10 @@ check mousetest     'mouse: PASS'           mousetest '<ret>' '<pause>' '<mouse-
 check mouse-still   'mouse: FAIL'           mousetest '<ret>' '<pause>' '<pause>' '<pause>'
 check mouse-shell   'systest: PASS'         '<mouse-move:10,5>' '<pause>' '<mouse-move:-3,4>' '<mouse-btn:1>' '<mouse-btn:0>' '<pause>' systest '<ret>'
 check mouse-calc    '= 42'                  'run calc' '<ret>' '<mouse-move:20,20>' '<pause>' '6*7' '<ret>'
+# 2.0.1: the pointer keeps the pixels under it, so it leaves no trail
+check ptrtest       'ptr: PASS'             ptrtest '<ret>' '<pause>'
+check ptr-trail     'gfx: files'            desktop '<ret>' '<pause>' '<mouse-move:0,-40>' '<pause>' \
+                    '<mouse-move:-8,0>' '<pause>' '<mouse-move:-8,0>' '<pause>' '<mouse-move:-8,0>' '<pause>' '<mouse-move:-8,0>' '<pause>' '<mouse-move:-8,0>' '<pause>' '<mouse-move:-8,0>' '<pause>' '<mouse-move:-8,0>' '<pause>' '<mouse-move:-8,0>' '<pause>' '<mouse-move:-8,0>' '<pause>' '<mouse-move:-8,0>' '<pause>' '<mouse-move:-8,0>' '<pause>' '<mouse-move:-8,0>' '<pause>' '<mouse-move:0,-60>' '<pause>' '<gfx>'
 # 1.9.11: show and set the guest address
 check ifconfig      'inet 10.0.2.15'        ifconfig '<ret>'
 check_all ifconfig-set 'inet 10.0.2.20|mask 255.255.255.0|gw 10.0.2.2' 'ifconfig 10.0.2.20 255.255.255.0 10.0.2.2' '<ret>'
