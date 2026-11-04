@@ -139,11 +139,18 @@ This avoids retargeting chains and confirmation steps.
 | 1.9.12  | 2026-11-01 | Devices registered at run time       |
 | 2.0.0   | 2026-11-01 | Warp-style system                    |
 | 2.0.1   | 2026-11-04 | Mouse on IRQ 12, no pointer trail    |
+| 2.0.2   | 2026-11-04 | 2.0 clean-up, part two               |
 
 ## Next planned release
 
-**H.1–H.6** — modern hardware (UEFI, GOP, AHCI, NVMe, USB), then the 2.x / 3.0 vision in `plannedmilestones.md`.
+**2.0.2** — the rest of the 2.0.x clean-up (click in a scrolled list, priority aging, `SYS_DEVUNREG`, `ifconfig` subnet check). Then one release per milestone of the 2.0.0 → 4.x plan in `../../ROADMAP.md`: 2.1 framebuffer graphics, 2.2 real windows, and so on.
 
-2.0.0 is the Warp-style tag of the 1.9.12 system (`2.0.0.md`). Owner tags after merge (`../../TODO.md`).
+**2.0.1 is ready to tag** (`2.0.1.md`): all three 2.0.1 boxes are on `main`. The owner tags `v2.0.1` and publishes the release; Claude prepares the images and checksums.
+
+2.0.0 is the Warp-style tag of the 1.9.12 system (`2.0.0.md`).
+
+## Release points
+
+A release is cut when a group of `TODO.md` boxes that shares a version is all on `main`: each 2.0.x patch, then each roadmap milestone (2.1, 2.2, …). For each one, Claude opens a release-prep PR (this section, the release note's status, README), builds `os.img`, `floppy.img`, `data.img` and `cd.iso` from the merged commit, and writes `SHA256SUMS`. The owner then creates the annotated tag `vX.Y.Z` on that commit and publishes a GitHub Release with those files. Release images are never committed to the repository.
 
 The forward plan and the PR-sized tasks are [`../../ROADMAP.md`](../../ROADMAP.md) and [`../../TODO.md`](../../TODO.md).

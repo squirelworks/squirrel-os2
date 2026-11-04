@@ -376,10 +376,12 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 ## 2.0.1
 
 - The PS/2 mouse runs on IRQ 12, and mouse bytes are drained everywhere, so mouse use in the text shell or in a program no longer blocks the keyboard (`kernel/mouse.md`; `mousetest`, `mouse-still`, `mouse-shell`, `mouse-calc`).
+- Mouse packets are decoded as 9-bit motion with the sign bits, and overflowed packets move nothing (`kernel/mouse.md`; `mouse-decode`).
 - The desktop pointer keeps the pixels under it and leaves no trail (`kernel/mouse.md`; `ptrtest`, `ptr-trail`).
 
 ## 2.0.2
 
+- `ifconfig` refuses a gateway that is not on the interface's subnet and keeps the old settings (`kernel/network.md`; `ifconfig-offnet`, `ifconfig-offnet-keep`).
 - `SYS_DEVUNREG` (34) removes a run-time device and frees its slot, so programs can register and remove devices any number of times (`kernel/drivers.md`; `drv-devices`, `drv-again`).
 
 ## Notes
