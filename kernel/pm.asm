@@ -405,6 +405,9 @@ run_simple:
     mov edi, cmd_listtest
     call streq
     je .listtest
+    mov edi, cmd_scrolltest     ; 2.0.2
+    call streq
+    je .scrolltest
     mov edi, cmd_drawpx         ; 1.6.5
     call streq
     je .drawpx
@@ -659,6 +662,9 @@ run_simple:
     jmp .empty
 .listtest:
     call cmd_listtest_run
+    jmp .empty
+.scrolltest:
+    call cmd_scrolltest_run
     jmp .empty
 .fieldtest:
     call cmd_fieldtest_run
@@ -1129,6 +1135,7 @@ cmd_labeltest db 'labeltest', 0
 cmd_buttontest db 'buttontest', 0
 cmd_fieldtest db 'fieldtest', 0
 cmd_listtest db 'listtest', 0
+cmd_scrolltest db 'scrolltest', 0
 cmd_drawpx db 'drawpx', 0
 cmd_objtest db 'objtest', 0
 cmd_nettest db 'nettest', 0

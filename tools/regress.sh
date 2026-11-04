@@ -379,6 +379,8 @@ check fieldtest-text 'systest: PASS'       fieldtest '<ret>' '<pause>' '<esc>' s
 check listtest     'list: Beech'           listtest '<ret>' '<pause>' '<down>' '<ret>'
 check listtest-end 'list: Dogwood'         listtest '<ret>' '<pause>' '<down>' '<down>' '<down>' '<down>' '<down>' '<esc>'
 check listtest-up  'list: Acorn'           listtest '<ret>' '<pause>' '<down>' '<up>' '<up>' '<ret>'
+# 2.0.2: a list longer than its window scrolls; rows map to items past the scroll
+check scrolltest    'scroll: PASS'          scrolltest '<ret>' '<pause>'
 check listtest-text 'systest: PASS'        listtest '<ret>' '<pause>' '<esc>' systest '<ret>'
 # 1.6.0: the desktop lists the programs (read off the graphics screen); Esc: the shell
 check_all desktop  'gfx: Squirrel-OS/2 Desktop|gfx: files|gfx: calc|gfx: edit|gfx: vedit|gfx: draw' \
