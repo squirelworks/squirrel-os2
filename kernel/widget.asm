@@ -20,7 +20,9 @@ WG_CODE         equ 20          ; button: the low 24 bits of its event;
                                 ; field: the most characters it holds;
                                 ; list: how many items
 WG_SEL          equ 24          ; list: the selected item, from 0
-WG_SIZE         equ 28
+WG_TOP          equ 28          ; list: the first item shown (2.0.2)
+WG_ROWS         equ 32          ; list: how many rows fit, from the last draw
+WG_SIZE         equ 36
 
 WGK_LABEL       equ 1           ; a line of text
 WGK_BUTTON      equ 2           ; text in a box; Enter or Space posts an event
@@ -111,9 +113,33 @@ wg_list:
     add edi, wg_table
     mov [edi+WG_CODE], edx
     mov dword [edi+WG_SEL], 0
+    mov dword [edi+WG_TOP], 0
+    mov dword [edi+WG_ROWS], 0
 .out:
     pop edx
     pop edi
+    ret
+
+; eax = a list's widget id, ebx = a row as drawn (0 = the top row shown)
+; -> eax = the item in that row, CF clear; CF set if the row is not shown
+; or holds no item. Since 2.0.2 a list scrolls, so row and item differ by
+; WG_TOP once it has.
+wg_list_item:
+    push edi
+    imul edi, eax, WG_SIZE
+    add edi, wg_table
+    cmp ebx, [edi+WG_ROWS]
+    jae .no
+    mov eax, [edi+WG_TOP]
+    add eax, ebx
+    cmp eax, [edi+WG_CODE]
+    jae .no
+    pop edi
+    clc
+    ret
+.no:
+    pop edi
+    stc
     ret
 
 ; eax = window id, ebx = x, ecx = y, esi = an 80 x 25 text buffer (char,
@@ -437,14 +463,53 @@ wg_draw:
     mov edx, ecx                ; cut at the client area's right edge
 .lfit:
     mov ecx, edx
+    ; as many rows as fit below WG_Y (2.0.2: before, a list taller than
+    ; the client area was not drawn at all), scrolled so that the
+    ; selection is one of them
+    mov edx, [wg_ch]
+    sub edx, [edi+WG_Y]
+    sub edx, 2 * WG_BTN_PAD + 2
+    jle .out
+    push eax
+    push ecx
+    mov eax, edx
+    xor edx, edx
+    mov ecx, GFX_CELL_H
+    div ecx                     ; eax = rows that fit
+    pop ecx
+    cmp eax, [edi+WG_CODE]
+    jbe .lrows
+    mov eax, [edi+WG_CODE]
+.lrows:
+    mov [edi+WG_ROWS], eax
+    test eax, eax
+    jnz .lshow
+    pop eax
+    jmp .out
+.lshow:
+    mov edx, [edi+WG_SEL]
+    cmp edx, [edi+WG_TOP]
+    jae .ltop1
+    mov [edi+WG_TOP], edx       ; selection above the window: scroll up
+.ltop1:
+    mov edx, [edi+WG_TOP]
+    add edx, eax
+    cmp [edi+WG_SEL], edx
+    jb .ltop2
+    mov edx, [edi+WG_SEL]       ; below it: scroll down to it
+    sub edx, eax
+    inc edx
+    mov [edi+WG_TOP], edx
+.ltop2:
     mov edx, [edi+WG_CODE]
-    imul edx, GFX_CELL_H
+    sub edx, eax
+    cmp [edi+WG_TOP], edx
+    jbe .ltop3
+    mov [edi+WG_TOP], edx       ; no empty rows at the bottom
+.ltop3:
+    imul edx, eax, GFX_CELL_H
     add edx, 2 * WG_BTN_PAD + 2
-    push edx
-    add edx, [edi+WG_Y]
-    cmp edx, [wg_ch]
-    pop edx
-    jg .out                     ; not all rows fit: not drawn
+    pop eax
     mov byte [gfx_colour], WM_TEXT
     call gfx_fillrect
     inc eax
@@ -457,9 +522,13 @@ wg_draw:
     add ebx, WG_BTN_PAD
     sub ecx, 2 * WG_BTN_PAD
     mov edx, GFX_CELL_H
-    xor ebp, ebp
+    mov ebp, [edi+WG_TOP]
 .row:
-    cmp ebp, [edi+WG_CODE]
+    push eax
+    mov eax, [edi+WG_TOP]
+    add eax, [edi+WG_ROWS]
+    cmp ebp, eax
+    pop eax
     jae .out
     mov esi, [edi+WG_TEXT]
     mov esi, [esi+ebp*4]
@@ -877,6 +946,131 @@ cmd_listtest_run:
     mov esi, wf_nl
 .say:
     jmp puts
+
+; scrolltest (2.0.2): a list of ten items in a window that shows only a
+; few rows. Moves the selection to item 8, redraws, and checks that the
+; list scrolled (WG_TOP > 0, the selection still shown), that
+; wg_list_item maps the rows drawn to the right items, and that the black
+; selection bar is on the screen row the item is drawn in. Prints
+; scroll: PASS or scroll: FAIL.
+SC_N equ 10
+SC_X equ 4
+SC_Y equ 2
+SC_SEL equ 8
+
+cmd_scrolltest_run:
+    call gfx_mode13
+    jnc .ok
+    mov esi, sc_nomem
+    jmp puts
+.ok:
+    pushad
+    mov byte [sc_ok], 1
+    mov eax, LT_X
+    mov ebx, LT_Y
+    mov ecx, 160
+    mov edx, 60
+    mov esi, sc_title
+    call wm_create
+    mov [lt_win], eax
+    mov ebx, SC_X
+    mov ecx, SC_Y
+    mov esi, sc_items
+    mov edx, SC_N
+    call wg_list
+    mov [sc_id], eax
+    call wm_redraw
+    imul edi, eax, WG_SIZE
+    add edi, wg_table
+    mov eax, [edi+WG_ROWS]
+    cmp eax, 2                  ; the window must show some rows ...
+    jb .bad
+    cmp eax, SC_N               ; ... but not all of them
+    jae .bad
+    mov ecx, SC_SEL
+.down:
+    mov al, WK_DOWN
+    push ecx
+    push edi
+    call wg_key
+    pop edi
+    pop ecx
+    loop .down
+    call wm_redraw
+    cmp dword [edi+WG_SEL], SC_SEL
+    jne .bad
+    mov eax, [edi+WG_TOP]
+    test eax, eax
+    jz .bad                     ; did not scroll
+    mov edx, SC_SEL
+    sub edx, eax                ; the selection's row as drawn
+    jb .bad
+    cmp edx, [edi+WG_ROWS]
+    jae .bad
+    mov [sc_row], edx
+    ; rows map to items past the scroll
+    mov eax, [sc_id]
+    xor ebx, ebx
+    call wg_list_item
+    jc .bad
+    cmp eax, [edi+WG_TOP]
+    jne .bad
+    mov eax, [sc_id]
+    mov ebx, [sc_row]
+    call wg_list_item
+    jc .bad
+    cmp eax, SC_SEL
+    jne .bad
+    mov eax, [sc_id]
+    mov ebx, [edi+WG_ROWS]
+    call wg_list_item
+    jnc .bad                    ; past the last row shown
+    ; the bar is drawn in the selection's row, not in row 0
+    imul ebx, [sc_row], GFX_CELL_H
+    add ebx, LT_Y + 1 + WM_TITLE_H + SC_Y + 1 + WG_BTN_PAD + GFX_CELL_H - 1
+    mov eax, LT_X + 1 + SC_X + 1 + WG_BTN_PAD
+    call gfx_getpixel
+    cmp cl, WM_TEXT
+    jne .bad
+    mov ebx, LT_Y + 1 + WM_TITLE_H + SC_Y + 1 + WG_BTN_PAD + GFX_CELL_H - 1
+    mov eax, LT_X + 1 + SC_X + 1 + WG_BTN_PAD
+    call gfx_getpixel
+    cmp cl, WG_BTN_FILL
+    je .done
+.bad:
+    mov byte [sc_ok], 0
+.done:
+    mov eax, [lt_win]
+    call wm_close
+    call gfx_text
+    mov esi, sc_pass
+    cmp byte [sc_ok], 1
+    je .say
+    mov esi, sc_fail
+.say:
+    call puts
+    popad
+    ret
+
+sc_title db 'Scroll', 0
+sc_i0 db 'Item 0', 0
+sc_i1 db 'Item 1', 0
+sc_i2 db 'Item 2', 0
+sc_i3 db 'Item 3', 0
+sc_i4 db 'Item 4', 0
+sc_i5 db 'Item 5', 0
+sc_i6 db 'Item 6', 0
+sc_i7 db 'Item 7', 0
+sc_i8 db 'Item 8', 0
+sc_i9 db 'Item 9', 0
+sc_pass db 'scroll: PASS', 10, 0
+sc_fail db 'scroll: FAIL', 10, 0
+sc_nomem db 'scroll: no memory for graphics', 10, 0
+sc_ok db 0
+align 4
+sc_items dd sc_i0, sc_i1, sc_i2, sc_i3, sc_i4, sc_i5, sc_i6, sc_i7, sc_i8, sc_i9
+sc_id dd 0
+sc_row dd 0
 
 LS_N equ 4
 ls_title db 'Lists', 0

@@ -791,9 +791,13 @@ dk_mouse:
     xor edx, edx
     mov ebx, GFX_CELL_H
     div ebx
+    mov ebx, eax                ; the row as drawn
+    mov eax, [dk_list]
+    call wg_list_item           ; -> the item in it, past any scroll (2.0.2)
+    jc .no
     cmp eax, [dk_nvis]
     jae .no
-    mov ebx, eax                ; row
+    mov ebx, eax                ; item
     mov eax, [dk_list]
     call wg_selected
     cmp eax, ebx

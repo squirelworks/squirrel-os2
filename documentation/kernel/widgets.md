@@ -15,6 +15,8 @@ The kernel keeps a table of up to 16 widgets (`WG_MAX`), shared by all windows. 
 | `WG_TEXT` | address of a zero-terminated string |
 | `WG_PID`, `WG_CODE` | button: the process its events go to, and its code; field: `WG_CODE` is the most characters; list: `WG_CODE` is how many items |
 | `WG_SEL` | list: the selected item, from 0 |
+| `WG_TOP` | list: the first item shown (2.0.2) |
+| `WG_ROWS` | list: how many rows fit, from the last draw (2.0.2) |
 
 A widget is cut to its window's client area. A label whose text row does not fit below is not drawn; a label that runs past the right edge loses the characters that do not fit.
 
@@ -50,12 +52,13 @@ A field is a box as wide as its most characters, showing the text of a buffer th
 
 ## List
 
-A list is a box as wide as its longest item, with one row per item. The selected row is a black bar with white text. If not all rows fit in the client area, the list is not drawn.
+A list is a box as wide as its longest item, with one row per item. The selected row is a black bar with white text. Since 2.0.2 a list scrolls: it shows as many rows as fit between its `y` and the bottom of the client area (`WG_ROWS`), starting at item `WG_TOP`. Each redraw moves `WG_TOP` just enough to keep the selection shown, and never leaves empty rows at the bottom. Before 2.0.2, a list with more rows than fitted was not drawn at all. A mouse click gives a row as drawn, and `wg_list_item` turns it into an item, so a click on a scrolled list picks the item under the pointer, not the one that was in that row before scrolling. The desktop's click handler (`dk_mouse`) uses it.
 
 | Routine | In | Out |
 |---------|----|-----|
 | `wg_list` | eax = window id, ebx = x, ecx = y, esi = items (an array of edx addresses of zero-terminated strings), edx = how many, at least 1 | eax = widget id, or −1; the first item is selected |
 | `wg_selected` | eax = a list's widget id | eax = its selected item, from 0 |
+| `wg_list_item` | eax = a list's widget id, ebx = a row as drawn (0 = the top row shown) | eax = the item in that row, CF clear; CF set if that row is not shown or holds no item (2.0.2) |
 
 ## Console
 
@@ -87,6 +90,8 @@ The test windows put a label at (4, 5) and the box beside it (field, list) at (4
 `fieldtest` (1.5.2) opens a window with the label `Name:` and a 16-character field over an empty buffer. Keys go to `wg_key`, with the Backspace scancode passed as 8, until Enter or Esc. It then reads the field box's top left pixel, which must be black, and prints `field: PASS "<text>"` with the buffer's text, or `field: FAIL`. Checks: `fieldtest` (`Hi there`, two Backspaces: `"Hi the"`), `fieldtest-full` (20 letters: the first 16 stay), and `fieldtest-text`. Without the store in `wg_key`, `fieldtest` prints `field: PASS ""`, and the check fails.
 
 `listtest` (1.5.3) opens a window with the label `Pick:` and a list of `Acorn`, `Beech`, `Cedar` and `Dogwood`. Keys go to `wg_key`, with the arrows passed as `WK_UP` and `WK_DOWN`, until Enter or Esc. It reads a pixel of the selected row below its text, which must be the black bar, and prints `list: <name>` with the selected item, or `list: FAIL`. Checks: `listtest` (Down: `Beech`), `listtest-end` (five Downs: `Dogwood`), `listtest-up` (Down, Up, Up: `Acorn`), and `listtest-text`. With the selection store taken out of `wg_key`, `listtest` prints `list: Acorn` and the check fails.
+
+`scrolltest` (2.0.2) opens a window 60 pixels high with a list of ten items (`Item 0` to `Item 9`), so only a few rows fit. It moves the selection to item 8 with `wg_key` and redraws, then checks that the list scrolled with the selection still shown, that `wg_list_item` maps row 0 to `WG_TOP` and the selection's row to item 8 and refuses the row past the last, and that the black bar is in the selection's row and not in row 0. It prints `scroll: PASS` or `scroll: FAIL` (check `scrolltest`). With the scrolling taken out of the draw, it prints FAIL.
 
 ## Next
 
