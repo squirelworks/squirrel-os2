@@ -203,9 +203,18 @@ dev_reg_null:
     inc ecx
     jmp .scan
 .slot:
-    mov edx, [dev_dyn_used]
+    ; a free run-time slot is one whose name is empty (2.0.2: slots
+    ; come back through SYS_DEVUNREG)
+    xor edx, edx
+.free:
     cmp edx, DEV_DYN_MAX
     jae .bad
+    imul eax, edx, DEV_DESC
+    cmp byte [dev_dyn+eax+DEV_NAME], 0
+    je .got
+    inc edx
+    jmp .free
+.got:
     imul eax, edx, DEV_DESC
     lea edi, [dev_dyn+eax]
     push edi
@@ -233,9 +242,17 @@ dev_reg_null:
     mov dword [edi+DEV_PROBE], dev_probe_yes
     mov dword [edi+DEV_READ], dev_null_read
     mov dword [edi+DEV_WRITE], dev_null_write
+    cmp dword [dev_dyn_tix+edx*4], 0
+    jne .again
     mov esi, edi
     call dev_register
     jc .bad
+    mov eax, [dev_count]        ; its table index + 1, kept for reuse
+    mov [dev_dyn_tix+edx*4], eax
+    jmp .done
+.again:                         ; the slot is in the table already: same handle
+    mov dword [edi+DEV_FLAGS], DEVF_UP
+.done:
     inc dword [dev_dyn_used]
     xor eax, eax
     jmp .out
@@ -245,6 +262,50 @@ dev_reg_null:
     pop edi
     pop esi
     pop edx
+    pop ecx
+    pop ebx
+    ret
+
+; ebx = name of a run-time device -> eax = 0, or -1 if no run-time
+; device has that name (built-in devices are never removed). The slot
+; keeps its place in dev_table, with an empty name and no DEVF_UP, so
+; other handles do not move; dev_handle refuses it, devices skips it,
+; and the next SYS_DEVREG reuses it (2.0.2).
+dev_unreg_null:
+    push ebx
+    push ecx
+    push esi
+    push edi
+    mov esi, ebx
+    cmp byte [esi], 0
+    je .bad
+    xor ecx, ecx
+.l:
+    cmp ecx, DEV_DYN_MAX
+    jae .bad
+    imul edi, ecx, DEV_DESC
+    add edi, dev_dyn
+    cmp byte [edi+DEV_NAME], 0
+    je .next
+    push edi
+    call streq                  ; esi vs edi (the name is first)
+    pop edi
+    je .hit
+.next:
+    inc ecx
+    jmp .l
+.hit:
+    mov dword [edi+DEV_NAME], 0
+    mov dword [edi+DEV_NAME+4], 0
+    mov dword [edi+DEV_FLAGS], 0
+    dec dword [dev_dyn_used]
+    xor eax, eax
+    jmp .out
+.bad:
+    mov eax, -1
+.out:
+    pop edi
+    pop esi
     pop ecx
     pop ebx
     ret
@@ -271,6 +332,8 @@ dev_handle:
     cmp ebx, [dev_count]
     jae .bad
     mov ebx, [dev_table+ebx*4]
+    cmp byte [ebx+DEV_NAME], 0  ; a removed run-time device (2.0.2)
+    je .bad
     ret
 .bad:
     xor ebx, ebx
@@ -323,6 +386,8 @@ cmd_devices_run:
     cmp ecx, [dev_count]
     jae .r
     mov ebx, [dev_table+ecx*4]
+    cmp byte [ebx+DEV_NAME], 0  ; removed run-time device (2.0.2)
+    je .skip
     lea esi, [ebx+DEV_NAME]
     call puts
     mov al, 8
@@ -371,6 +436,7 @@ cmd_devices_run:
 .eol:
     mov al, 10
     call putc
+.skip:
     inc ecx
     jmp .row
 .r:
@@ -437,3 +503,4 @@ dev_count dd 0
 dev_dyn_used dd 0
 dev_table times DEV_MAX dd 0
 dev_dyn times DEV_DYN_MAX*DEV_DESC db 0
+dev_dyn_tix times DEV_DYN_MAX dd 0  ; table index + 1 once a slot is registered (2.0.2)

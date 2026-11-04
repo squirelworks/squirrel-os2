@@ -683,7 +683,10 @@ check_all ifconfig-offnet-keep 'inet 10.0.2.15|gw 10.0.2.2' 'ifconfig 10.0.2.20 
 check ifconfig-offnet-la 'Porta non est in hac subrete' 'lang la' '<ret>' 'ifconfig 10.0.2.20 255.255.255.0 192.168.1.1' '<ret>'
 # 1.9.12: register a null device at run time
 check drv           'drv: PASS'             'run drvtest' '<ret>'
-check drv-devices   'null    char    ready' 'run drvtest' '<ret>' devices '<ret>'
+# 2.0.2: drvtest removes its device again (SYS_DEVUNREG), so it passes every
+# time, past the four run-time slots, and devices no longer lists it
+check_none drv-devices 'null    char' 'con     char' 'run drvtest' '<ret>' devices '<ret>'
+check_none drv-again 'drv: FAIL' 'drv: PASS' 'run drvtest' '<ret>' 'run drvtest' '<ret>' 'run drvtest' '<ret>' 'run drvtest' '<ret>' 'run drvtest' '<ret>' 'run drvtest' '<ret>'
 # 1.0.6: calc, edit and draw titles follow lang
 check l10n-calc-tlh "mI' De'wI' (Esc to exit)" 'lang tlh' '<ret>' 'run calc' '<ret>'
 check l10n-edit-tlh "ghItlhwI': (untitled)" 'lang tlh' '<ret>' 'run edit' '<ret>'

@@ -382,6 +382,7 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 ## 2.0.2
 
 - `ifconfig` refuses a gateway that is not on the interface's subnet and keeps the old settings (`kernel/network.md`; `ifconfig-offnet`, `ifconfig-offnet-keep`).
+- `SYS_DEVUNREG` (34) removes a run-time device and frees its slot, so programs can register and remove devices any number of times (`kernel/drivers.md`; `drv-devices`, `drv-again`).
 
 ## Notes
 

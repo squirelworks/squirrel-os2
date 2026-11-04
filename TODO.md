@@ -277,8 +277,8 @@ From the 2.0.0 → 4.x plan in `ROADMAP.md` (imported 2026-11-04). These are the
   **Acceptance:** a check scrolls a list, clicks, and reads the selected entry.
 - [ ] **2.0.2-aging** — Priority aging: a READY process that has waited long enough is run even if higher priorities stay busy.
   **Acceptance:** `run priotest` still passes, and a priority-0 spinner makes progress beside a priority-3 spinner.
-- [ ] **2.0.2-devunreg** — `SYS_DEVUNREG` frees a slot `SYS_DEVREG` took.
-  **Acceptance:** `run drvtest` passes twice in one boot, and `devices` no longer lists the device afterwards.
+- [x] **2.0.2-devunreg** — `SYS_DEVUNREG` frees a slot `SYS_DEVREG` took.
+  **Acceptance:** `run drvtest` passes twice in one boot, and `devices` no longer lists the device afterwards. Done in 2.0.2 (`SYS_DEVUNREG` = 34); checks `drv-devices`, `drv-again`.
 - [x] **2.0.2-subnet** — `ifconfig` refuses a gateway that is not on the interface's subnet.
   **Acceptance:** `ifconfig gw` with an off-subnet address prints an error and leaves the old gateway. Done in 2.0.2; checks `ifconfig-offnet`, `ifconfig-offnet-keep`, `ifconfig-offnet-la`.
 
