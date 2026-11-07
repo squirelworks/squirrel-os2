@@ -3,8 +3,9 @@
 ;
 ; Sets Bochs/QEMU DISPI linear modes from protected mode (no BIOS call):
 ; ports 0x01CE/0x01CF on QEMU's standard VGA (PCI 1234:1111). The linear
-; framebuffer is BAR0; vm_map_range makes it reachable. Mode 13h stays the
-; fallback when DISPI or the VGA BAR is absent.
+; framebuffer is BAR0; vm_map_range makes it reachable. Double buffering
+; draws to a second LFB page and blits it onto the visible page on flip.
+; Mode 13h stays the fallback when DISPI or the VGA BAR is absent.
 ; See documentation/kernel/graphics.md.
 
 VBE_INDEX       equ 0x01CE
@@ -27,11 +28,13 @@ PCI_DATA        equ 0x0CFC
 PCI_BAR0        equ 0x10
 VBE_VGA_ID      equ 0x11111234      ; QEMU std VGA: device 1111, vendor 1234
 
-; Largest mode we offer: map this much once so mode switches stay cheap.
+; Largest mode we offer: map two pages once so mode switches and double
+; buffering (DISPI virtual height + Y offset) stay cheap.
 VBE_MAX_W       equ 1024
 VBE_MAX_H       equ 768
 VBE_MAX_BPP     equ 32
 VBE_MAX_BYTES   equ (VBE_MAX_W * VBE_MAX_H * (VBE_MAX_BPP / 8))
+VBE_MAP_BYTES   equ (VBE_MAX_BYTES * 2)
 
 ; CF clear if DISPI answers. Keeps every register.
 vbe_present:
@@ -150,6 +153,15 @@ vbe_lfb:
     pop esi
     ret
 
+; Clear double-buffer state (single page at LFB base). Keeps registers.
+vbe_dbl_clear:
+    push eax
+    mov byte [vbe_dbl], 0
+    mov eax, [vbe_fb]
+    mov [vbe_front], eax
+    pop eax
+    ret
+
 ; Turn DISPI off. Keeps registers.
 vbe_disable:
     push eax
@@ -160,6 +172,7 @@ vbe_disable:
     call vbe_write
     mov byte [gfx_vbe], 0
     mov byte [vbe_ready], 0     ; next enter must save the text again
+    call vbe_dbl_clear
     pop edx
     pop ebx
     pop eax
@@ -174,6 +187,7 @@ vbe_abort_saved:
     call vbe_write
     mov byte [gfx_vbe], 0
     mov byte [vbe_ready], 0
+    call vbe_dbl_clear
     mov esi, gfx_regs_text
     call gfx_load_regs
     call gfx_restore
@@ -191,11 +205,12 @@ vbe_setup:
     test eax, eax
     jz .fail
     mov [vbe_fb], eax
-    mov ecx, VBE_MAX_BYTES
+    mov ecx, VBE_MAP_BYTES      ; two pages for double buffering
     call vm_map_range
     jc .fail
     call gfx_save               ; DISPI enable clears VGA memory
     jc .fail
+    call vbe_dbl_clear
     mov byte [vbe_ready], 1
 .ok:
     popad
@@ -266,6 +281,7 @@ vbe_mode:
     jne .refuse
     mov eax, [vbe_fb]
     mov [gfx_base], eax
+    mov [vbe_front], eax
     mov eax, [vbe_req_w]
     mov [gfx_width], eax
     mov ebx, [vbe_req_h]
@@ -276,6 +292,7 @@ vbe_mode:
     imul eax, ecx               ; pitch
     mov [gfx_pitch], eax
     mov byte [gfx_vbe], 1
+    mov byte [vbe_dbl], 0
     popad
     clc
     ret
@@ -295,10 +312,94 @@ gfx_vbe_640_32:
     mov cl, 32
     jmp vbe_mode
 
+; Double buffering on the current VBE mode (2.1-dblbuf). Uses the second
+; LFB page (already mapped) as a back buffer; vbe_flip blits it onto the
+; visible page. Drawing (gfx_base) targets the back once armed.
+; CF set if not in a VBE mode.
+vbe_dblbuf:
+    pushad
+    cmp byte [gfx_vbe], 0
+    je .fail
+    cmp byte [vbe_dbl], 0
+    jne .ok                     ; already armed
+    mov eax, [vbe_fb]
+    mov [vbe_front], eax        ; visible page (DISPI shows this)
+    mov ebx, [gfx_pitch]
+    imul ebx, [gfx_height]      ; bytes per page
+    add eax, ebx
+    mov [gfx_base], eax         ; draw on the hidden page in VRAM
+    mov byte [vbe_dbl], 1
+.ok:
+    popad
+    clc
+    ret
+.fail:
+    popad
+    stc
+    ret
+
+; Present the back buffer: copy it onto the visible front page.
+; CF set if double buffering is off. gfx_base stays on the back.
+vbe_flip:
+    pushad
+    cmp byte [vbe_dbl], 0
+    je .fail
+    mov esi, [gfx_base]
+    mov edi, [vbe_front]
+    mov ecx, [gfx_pitch]
+    imul ecx, [gfx_height]
+    shr ecx, 2                  ; dwords
+    rep movsd
+    popad
+    clc
+    ret
+.fail:
+    popad
+    stc
+    ret
+
+; Like gfx_getpixel but reads the visible (front) page while double
+; buffering. eax = x, ebx = y -> cl = colour (0 off screen).
+vbe_front_getpixel:
+    push eax
+    push ebx
+    push edx
+    push esi
+    xor ecx, ecx
+    cmp eax, [gfx_width]
+    jae .done
+    cmp ebx, [gfx_height]
+    jae .done
+    mov esi, [vbe_front]
+    imul ebx, [gfx_pitch]
+    add esi, ebx
+    cmp byte [gfx_bpp], 32
+    je .b32
+    cmp byte [gfx_bpp], 16
+    je .b16
+    mov cl, [esi+eax]
+    jmp .done
+.b16:
+    mov cx, [esi+eax*2]
+    movzx ecx, cl
+    jmp .done
+.b32:
+    mov ecx, [esi+eax*4]
+    movzx ecx, cl
+.done:
+    pop esi
+    pop edx
+    pop ebx
+    pop eax
+    ret
+
 ; vbetest: walk 640×480 / 800×600 / 1024×768 at 8, 16 and 32 bpp. Each mode
-; gets a pixel write/read. If VBE setup fails, fall back to mode 13h once.
+; gets a pixel write/read, then a double-buffer self-check (draw on the back,
+; front unchanged, flip, front matches). If VBE setup fails, fall back to
+; mode 13h once (no double buffering there).
 VBET_X equ 100
 VBET_Y equ 100
+VBET_DBL_COLOUR equ 0x3C        ; distinct from the single-buffer colours
 
 cmd_vbetest_run:
     mov byte [vbet_ok], 1
@@ -320,6 +421,7 @@ cmd_vbetest_run:
     call .one
     mov cl, 0x15
     call .one
+    call .dbl
     add esi, 12
     jmp .walk
 .mode_fail:
@@ -364,6 +466,33 @@ cmd_vbetest_run:
     mov byte [vbet_ok], 0
 .same:
     ret
+; Draw off-screen (back), confirm the front is still the last single-buffer
+; colour (0x15), flip, and read the new front pixel.
+.dbl:
+    call vbe_dblbuf
+    jc .dbl_bad
+    mov eax, VBET_X
+    mov ebx, VBET_Y
+    call vbe_front_getpixel
+    cmp cl, 0x15
+    jne .dbl_bad
+    mov cl, VBET_DBL_COLOUR
+    call gfx_putpixel
+    call gfx_getpixel
+    cmp cl, VBET_DBL_COLOUR
+    jne .dbl_bad
+    call vbe_front_getpixel
+    cmp cl, 0x15                ; front still unchanged
+    jne .dbl_bad
+    call vbe_flip
+    jc .dbl_bad
+    call vbe_front_getpixel
+    cmp cl, VBET_DBL_COLOUR
+    jne .dbl_bad
+    ret
+.dbl_bad:
+    mov byte [vbet_ok], 0
+    ret
 
 ; Each record: width dd, height dd, bpp dd (low byte); 0 width ends the list.
 align 4
@@ -382,12 +511,14 @@ vbe_modes:
 vbet_ok db 0
 vbet_fb db 0
 vbe_ready db 0
+vbe_dbl db 0
 vbet_pass db 'vbe: PASS', 10, 0
 vbet_13h  db 'vbe: 13h', 10, 0
 vbet_fail db 'vbe: FAIL', 10, 0
 
 align 4
 vbe_fb dd 0
+vbe_front dd 0
 vbe_req_w dd 0
 vbe_req_h dd 0
 vbe_req_bpp db 0
