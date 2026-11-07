@@ -50,7 +50,7 @@ Location: `../../kernel/vm.asm`.
 
 - **A page table for 0–4 MB** with 4 KB pages, mapping every page to itself.
 - **The kernel page directory.** Entry 0 points at that table. Entries 1–63 are 4 MB pages (CR4.PSE) that identity-map 4–256 MB.
-  Everything above 256 MB is left unmapped until something needs it: since 2.1, `vm_map_range` adds 4 MB PSE entries for a physical range (the VBE linear framebuffer's PCI BAR).
+  Everything above 256 MB is left unmapped until something needs it: since 2.1, `vm_map_range` adds 4 MB PSE entries for a physical range (the VBE linear framebuffer's PCI BAR) in the kernel page directory only. Address spaces already created with `as_create` keep their copy of the directory from that time, so they do not see a later LFB map until that is taught (not needed while only the kernel shell draws).
 
 It then loads CR3 and sets CR0.PG. Because the mapping is the identity, the kernel keeps running at the same addresses, and every pointer in the system means the same thing before and after.
 

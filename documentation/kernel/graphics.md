@@ -13,9 +13,10 @@ Location: `../../kernel/gfx.asm` (included from `kernel/pm.asm`)
 
 `kernel/vbe.asm` (since **2.1-vbe-mode**) sets one Bochs/QEMU DISPI mode from protected mode: 640×480×32 with a linear framebuffer.
 
-- DISPI ports `0x01CE` / `0x01CF` on QEMU's standard VGA (PCI `1234:1111`). The LFB address is that device's BAR0; `vm_map_range` identity-maps enough 4 MB pages in the kernel page directory so the LFB is reachable above the usual 256 MB identity map.
-- `gfx_vbe_640_32` programs DISPI, updates the `gfx_*` fields, and sets `gfx_vbe`. CF means DISPI or the BAR was missing, or the map failed; the caller then falls back to mode 13h.
-- `gfx_text` disables DISPI when `gfx_vbe` is set, then loads the text registers as before.
+- DISPI ports `0x01CE` / `0x01CF` on QEMU's standard VGA (PCI `1234:1111`). The LFB address is that device's BAR0; `vm_map_range` identity-maps enough 4 MB pages in the kernel page directory so the LFB is reachable above the usual 256 MB identity map. (Process page directories created earlier are not updated yet; only the kernel directory is, which is enough while the shell alone draws.)
+- `gfx_vbe_640_32` saves the text screen and font (`gfx_save`, as mode 13h does), programs DISPI, reads XRES/YRES/BPP back to confirm the mode, updates the `gfx_*` fields, and sets `gfx_vbe`. CF means DISPI or the BAR was missing, the map or save failed, or the adapter refused the mode; on a refused mode it disables DISPI and restores the text screen. The caller then falls back to mode 13h.
+- PCI BAR discovery probes function 0 of each bus/dev first and only scans functions 1–7 when function 0 exists, so a missing VGA is not a full 65,536-slot walk.
+- `gfx_text` disables DISPI when `gfx_vbe` is set, then loads the text registers and restores the saved screen/font as before.
 - The desktop and window manager still use mode 13h. Later 2.1 boxes add more modes, double buffering, dirty rectangles, and a blitter with clipping.
 
 ### Test
