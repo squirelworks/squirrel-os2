@@ -282,9 +282,19 @@ From the 2.0.0 → 4.x plan in `ROADMAP.md` (imported 2026-11-04). These are the
 - [x] **2.0.2-subnet** — `ifconfig` refuses a gateway that is not on the interface's subnet.
   **Acceptance:** `ifconfig gw` with an off-subnet address prints an error and leaves the old gateway. Done in 2.0.2; checks `ifconfig-offnet`, `ifconfig-offnet-keep`, `ifconfig-offnet-la`.
 
-## 2.1 and later
+## 2.1 — Framebuffer graphics
 
-The milestones after 2.0.x (GUI generations 2.1–4.x, ring 3 in 2.4, the 64-bit bridge 2.8–2.9, built-in apps A.1–A.7, games G.1–G.9, calculator suite C.1–C.9, Warp styling W.1–W.6, foreign programs P.1–P.12) are in `ROADMAP.md` and the epics #114–#119. Each one is split into boxes here, in a docs-only PR, when it comes up.
+From the 2.1 milestone in `ROADMAP.md` and epic #114. Resumed 2026-11-07 after the post-2.0.2 pause. Work top to bottom; each box is one PR. Mode 13h stays as the fallback throughout. Design notes go in `documentation/kernel/graphics.md` (and `documentation/apps/desktop.md` / `documentation/kernel/windows.md` when the desktop or window manager learns a new mode). Tick the matching line in the progress issue #132 when the last 2.1 box merges and 2.1 is released.
+
+- [ ] **2.1-vbe-mode** — Enter one VBE linear-framebuffer mode (640×480×32 bpp) from protected mode (Bochs/QEMU DISPI on the standard VGA, or a VBE BIOS), map the linear framebuffer so put/get pixel reach it, and return to text mode. When VBE is not there, fall back to mode 13h. A shell command `vbetest` prints `vbe: PASS` only after writing and reading back a pixel in the VBE mode (or `vbe: 13h` when it fell back and the 13h read-back worked). Existing `gfxtest` / desktop checks still pass.
+- [ ] **2.1-modes** — The other modes: 640×480, 800×600 and 1024×768 at 8, 16 and 32 bpp. `vbetest` walks them (or takes a mode); each succeeds with a pixel read-back. Mode 13h remains the fallback when a mode is refused.
+- [ ] **2.1-dblbuf** — Double buffering: draw to a back buffer, then flip (or blit) to the visible framebuffer. A self-check draws off-screen, confirms the front is unchanged, flips, and reads the new pixels.
+- [ ] **2.1-dirty** — Dirty rectangles: mark regions that changed and only copy those on flip. A check dirties two rects, flips, and confirms pixels outside them are untouched on the front buffer while the dirty ones match.
+- [ ] **2.1-blit-clip** — A blitter (copy rect) and clip regions: draws and blits are clipped to a rectangle; a check reads ink inside the clip and background outside it.
+
+## Later milestones
+
+The milestones after 2.1 (GUI generations 2.2–4.x, ring 3 in 2.4, the 64-bit bridge 2.8–2.9, built-in apps A.1–A.7, games G.1–G.9, calculator suite C.1–C.9, Warp styling W.1–W.6, foreign programs P.1–P.12) are in `ROADMAP.md` and the epics #114–#119. Each one is split into boxes here, in a docs-only PR, when it comes up.
 
 ## Installer (unscheduled)
 

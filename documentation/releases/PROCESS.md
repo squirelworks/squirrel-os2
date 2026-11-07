@@ -143,9 +143,9 @@ This avoids retargeting chains and confirmation steps.
 
 ## Next planned release
 
-**2.1** — framebuffer graphics, the first milestone of the 2.0.0 → 4.x plan in `../../ROADMAP.md` (then 2.2 real windows, and so on). Its PR-sized boxes go into `../../TODO.md` first.
+**2.1** — framebuffer graphics, the first milestone of the 2.0.0 → 4.x plan in `../../ROADMAP.md` (then 2.2 real windows, and so on). Its PR-sized boxes are in `../../TODO.md` (**2.1-vbe-mode** … **2.1-blit-clip**). Work resumed 2026-11-07.
 
-**2.0.2 is ready to publish** (`2.0.2.md`): all four 2.0.2 boxes are on `main`. **2.0.1** is published (`v2.0.1`).
+**2.0.2** is published (`2.0.2.md`). **2.0.1** is published (`v2.0.1`).
 
 2.0.0 is the Warp-style tag of the 1.9.12 system (`2.0.0.md`).
 

@@ -21,7 +21,7 @@ The code in this tree is project-native. Early releases are not described as OS/
 
 1.0.0 is released (2026-10-31, `documentation/releases/1.0.0.md`).
 **2.0.0** is released (2026-11-01, `documentation/releases/2.0.0.md`), and so are **2.0.1** and **2.0.2** (2026-11-04), which finish the 2.0.x clean-up.
-**Work is paused after 2.0.2** until the owner says to resume; the next milestone is 2.1 (framebuffer graphics), then the GUI generations below. Modern hardware H.1–H.6 is scheduled in the 64-bit bridge (2.8–2.9).
+**Resumed 2026-11-07:** work continues at **2.1** (framebuffer graphics), then the GUI generations below. Modern hardware H.1–H.6 is scheduled in the 64-bit bridge (2.8–2.9). The PR-sized boxes for 2.1 are in `TODO.md`.
 
 SquirrelBIOS (github.com/squirelworks/squirrelbios) is the firmware this system is meant to sit on; booting Squirrel-OS/2 is its main acceptance test. Squirrel-OS/2 keeps booting under SeaBIOS in QEMU as well. Many built-in applications are first built as desktop programs in squirrelsoft and then ported here.
 
@@ -119,7 +119,7 @@ The GUI grows in generations, and each generation is a shippable milestone (epic
 
 ### 2.1–2.3 — Generation 1: "Windows 3.1 / OS/2 Warp 3 class"
 
-- [ ] **2.1 Framebuffer graphics** — A VBE linear framebuffer at 640×480, 800×600 and 1024×768 in 8, 16 and 32 bpp (from SquirrelBIOS or a real VGA BIOS). Mode 13h stays as the fallback. Double buffering, dirty rectangles, a blitter and clip regions. Test: set a mode, draw, read pixels back; regress in both 13h and VBE.
+- [ ] **2.1 Framebuffer graphics** — A VBE linear framebuffer at 640×480, 800×600 and 1024×768 in 8, 16 and 32 bpp (from SquirrelBIOS or a real VGA BIOS). Mode 13h stays as the fallback. Double buffering, dirty rectangles, a blitter and clip regions. Test: set a mode, draw, read pixels back; regress in both 13h and VBE. PR-sized boxes: `TODO.md` **2.1-vbe-mode** … **2.1-blit-clip**.
 - [ ] **2.2 Real windows** — Overlapping windows that move and resize, with title bar, minimise / maximise / close, a system menu, z-order by mouse, focus, and Alt+Tab. Original proportional bitmap fonts. Test: scripted window-manager operations produce the expected window list and pixel probes.
 - [ ] **2.3 Program Manager / Warp 3 desktop** — Icon groups, double-click to launch, a two-pane File Manager, a clipboard, Control Panel v1 (colours, mouse, date and time, keyboard). Warp-style bevelled 3D controls are the default theme.
 
