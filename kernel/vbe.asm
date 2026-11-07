@@ -4,8 +4,8 @@
 ; Sets Bochs/QEMU DISPI linear modes from protected mode (no BIOS call):
 ; ports 0x01CE/0x01CF on QEMU's standard VGA (PCI 1234:1111). The linear
 ; framebuffer is BAR0; vm_map_range makes it reachable. Double buffering
-; uses DISPI virtual height (2×) and Y-offset page flips. Mode 13h stays
-; the fallback when DISPI or the VGA BAR is absent.
+; draws to a second LFB page and blits it onto the visible page on flip.
+; Mode 13h stays the fallback when DISPI or the VGA BAR is absent.
 ; See documentation/kernel/graphics.md.
 
 VBE_INDEX       equ 0x01CE
@@ -159,7 +159,6 @@ vbe_dbl_clear:
     mov byte [vbe_dbl], 0
     mov eax, [vbe_fb]
     mov [vbe_front], eax
-    mov dword [vbe_yoff], 0
     pop eax
     ret
 
@@ -294,7 +293,6 @@ vbe_mode:
     mov [gfx_pitch], eax
     mov byte [gfx_vbe], 1
     mov byte [vbe_dbl], 0
-    mov dword [vbe_yoff], 0
     popad
     clc
     ret
@@ -314,73 +312,44 @@ gfx_vbe_640_32:
     mov cl, 32
     jmp vbe_mode
 
-; Double buffering on the current VBE mode (2.1-dblbuf). Virtual height
-; becomes 2× visible height; page 0 is the front, page 1 the back. Drawing
-; (gfx_base) targets the back; vbe_flip swaps which page DISPI shows.
-; CF set if not in a VBE mode or the adapter refuses the virtual size.
+; Double buffering on the current VBE mode (2.1-dblbuf). Uses the second
+; LFB page (already mapped) as a back buffer; vbe_flip blits it onto the
+; visible page. Drawing (gfx_base) targets the back once armed.
+; CF set if not in a VBE mode.
 vbe_dblbuf:
     pushad
     cmp byte [gfx_vbe], 0
     je .fail
     cmp byte [vbe_dbl], 0
     jne .ok                     ; already armed
-    mov eax, [gfx_height]
-    add eax, eax                ; 2 * height
-    mov ebx, eax
-    mov al, DISPI_VHEIGHT
-    call vbe_write
-    mov al, DISPI_VHEIGHT
-    call vbe_read
-    mov ebx, [gfx_height]
-    add ebx, ebx
-    cmp eax, ebx
-    jne .refuse
-    xor ebx, ebx
-    mov al, DISPI_YOFF
-    call vbe_write
     mov eax, [vbe_fb]
-    mov [vbe_front], eax        ; visible page
+    mov [vbe_front], eax        ; visible page (DISPI shows this)
     mov ebx, [gfx_pitch]
     imul ebx, [gfx_height]      ; bytes per page
     add eax, ebx
-    mov [gfx_base], eax         ; draw on the hidden page
-    mov dword [vbe_yoff], 0
+    mov [gfx_base], eax         ; draw on the hidden page in VRAM
     mov byte [vbe_dbl], 1
 .ok:
     popad
     clc
     ret
-.refuse:
-    mov ebx, [gfx_height]       ; put virtual height back
-    mov al, DISPI_VHEIGHT
-    call vbe_write
 .fail:
     popad
     stc
     ret
 
-; Present the back buffer: swap DISPI Y offset and gfx_base / vbe_front.
-; CF set if double buffering is off.
+; Present the back buffer: copy it onto the visible front page.
+; CF set if double buffering is off. gfx_base stays on the back.
 vbe_flip:
     pushad
     cmp byte [vbe_dbl], 0
     je .fail
-    mov eax, [gfx_base]
-    mov ebx, [vbe_front]
-    mov [vbe_front], eax        ; old back is now visible
-    mov [gfx_base], ebx         ; old front is the new back
-    mov ecx, [vbe_yoff]
-    test ecx, ecx
-    jnz .to_zero
-    mov ecx, [gfx_height]       ; show page 1
-    jmp .set_y
-.to_zero:
-    xor ecx, ecx                ; show page 0
-.set_y:
-    mov [vbe_yoff], ecx
-    mov ebx, ecx
-    mov al, DISPI_YOFF
-    call vbe_write
+    mov esi, [gfx_base]
+    mov edi, [vbe_front]
+    mov ecx, [gfx_pitch]
+    imul ecx, [gfx_height]
+    shr ecx, 2                  ; dwords
+    rep movsd
     popad
     clc
     ret
@@ -550,7 +519,6 @@ vbet_fail db 'vbe: FAIL', 10, 0
 align 4
 vbe_fb dd 0
 vbe_front dd 0
-vbe_yoff dd 0
 vbe_req_w dd 0
 vbe_req_h dd 0
 vbe_req_bpp db 0
