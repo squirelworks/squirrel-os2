@@ -11,17 +11,18 @@ Location: `../../kernel/gfx.asm` (included from `kernel/pm.asm`)
 
 ## VBE linear framebuffer (2.1)
 
-`kernel/vbe.asm` (since **2.1-vbe-mode**) sets one Bochs/QEMU DISPI mode from protected mode: 640×480×32 with a linear framebuffer.
+`kernel/vbe.asm` (since **2.1-vbe-mode**, modes in **2.1-modes**) sets Bochs/QEMU DISPI linear modes from protected mode: 640×480, 800×600 and 1024×768 at 8, 16 and 32 bpp.
 
-- DISPI ports `0x01CE` / `0x01CF` on QEMU's standard VGA (PCI `1234:1111`). The LFB address is that device's BAR0; `vm_map_range` identity-maps enough 4 MB pages in the kernel page directory so the LFB is reachable above the usual 256 MB identity map. (Process page directories created earlier are not updated yet; only the kernel directory is, which is enough while the shell alone draws.)
-- `gfx_vbe_640_32` saves the text screen and font (`gfx_save`, as mode 13h does), programs DISPI, reads XRES/YRES/BPP back to confirm the mode, updates the `gfx_*` fields, and sets `gfx_vbe`. CF means DISPI or the BAR was missing, the map or save failed, or the adapter refused the mode; on a refused mode it disables DISPI and restores the text screen. The caller then falls back to mode 13h.
+- DISPI ports `0x01CE` / `0x01CF` on QEMU's standard VGA (PCI `1234:1111`). The LFB address is that device's BAR0; `vm_map_range` identity-maps enough 4 MB pages in the kernel page directory for the largest mode (1024×768×32). Process page directories created earlier are not updated yet; only the kernel directory is, which is enough while the shell alone draws.
+- `vbe_setup` finds DISPI and the BAR, maps the LFB, and saves the text screen/font (`gfx_save`). `vbe_mode` (width, height, bpp) programs DISPI, reads XRES/YRES/BPP back, and updates `gfx_*` / `gfx_vbe`. CF means setup failed or the adapter refused the mode (then DISPI is disabled and the text screen restored). `gfx_vbe_640_32` is a thin wrapper for 640×480×32.
 - PCI BAR discovery probes function 0 of each bus/dev first and only scans functions 1–7 when function 0 exists, so a missing VGA is not a full 65,536-slot walk.
-- `gfx_text` disables DISPI when `gfx_vbe` is set, then loads the text registers and restores the saved screen/font as before.
-- The desktop and window manager still use mode 13h. Later 2.1 boxes add more modes, double buffering, dirty rectangles, and a blitter with clipping.
+- `gfx_putpixel` / `gfx_getpixel` honour 8, 16 and 32 bpp (at 16/32 bpp the colour byte is the low byte of the pixel).
+- `gfx_text` disables DISPI when `gfx_vbe` is set, then loads the text registers and restores the saved screen/font.
+- The desktop and window manager still use mode 13h. Later 2.1 boxes add double buffering, dirty rectangles, and a blitter with clipping.
 
 ### Test
 
-`vbetest` tries `gfx_vbe_640_32`, writes colours `0x2A` and `0x15` to pixel (100, 100), reads each back, returns to text mode, and prints `vbe: PASS`. When VBE is unavailable it uses mode 13h instead and prints `vbe: 13h` if that read-back works. Checks `vbetest` and `vbetest-text` (`systest` after it).
+`vbetest` walks all nine modes above; for each it writes colours `0x2A` and `0x15` to pixel (100, 100) and reads them back, then returns to text mode and prints `vbe: PASS`. When VBE setup fails it uses mode 13h once and prints `vbe: 13h` if that read-back works. Checks `vbetest` and `vbetest-text` (`systest` after it).
 
 ## Routines
 
