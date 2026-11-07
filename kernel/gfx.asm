@@ -10,6 +10,15 @@ GFX_FB          equ 0xA0000
 GFX_W           equ 320
 GFX_H           equ 200
 
+; Live framebuffer description (mode 13h by default; VBE updates these).
+align 4
+gfx_base        dd GFX_FB
+gfx_width       dd GFX_W
+gfx_height      dd GFX_H
+gfx_pitch       dd GFX_W
+gfx_bpp         db 8
+gfx_vbe         db 0            ; 1 while a VBE linear mode is active
+
 ; Register sets: misc output, 5 sequencer, 25 CRTC, 9 graphics
 ; controller and 21 attribute controller values (standard VGA values for
 ; each mode).
@@ -113,6 +122,12 @@ gfx_mode13:
     jc .r
     mov esi, gfx_regs_13h
     call gfx_load_regs
+    mov dword [gfx_base], GFX_FB
+    mov dword [gfx_width], GFX_W
+    mov dword [gfx_height], GFX_H
+    mov dword [gfx_pitch], GFX_W
+    mov byte [gfx_bpp], 8
+    mov byte [gfx_vbe], 0
     clc
 .r:
     popad
@@ -121,9 +136,19 @@ gfx_mode13:
 ; Back to 80 x 25 text, with the text and the font as they were.
 gfx_text:
     pushad
+    cmp byte [gfx_vbe], 0
+    je .regs
+    call vbe_disable            ; leave a linear mode before VGA text regs
+.regs:
     mov esi, gfx_regs_text
     call gfx_load_regs
     call gfx_restore
+    mov dword [gfx_base], GFX_FB
+    mov dword [gfx_width], GFX_W
+    mov dword [gfx_height], GFX_H
+    mov dword [gfx_pitch], GFX_W
+    mov byte [gfx_bpp], 8
+    mov byte [gfx_vbe], 0
     call cursor_sync
     popad
     ret
@@ -240,33 +265,60 @@ align 4
 gfx_pages times GFX_SAVE_PAGES dd 0
 
 ; eax = x, ebx = y, cl = colour. Off-screen pixels are ignored.
+; 8 bpp: one byte at gfx_base + y * pitch + x.
+; 32 bpp: writes 0x000000|cl (blue channel); other channels stay 0.
 ; In mode 13h byte n of the window lands in plane n & 3. The text lives in
 ; planes 0 and 1 below 4000 and the font in plane 2, so drawing over them
 ; changes the text screen; gfxtest uses a pixel clear of both.
 gfx_putpixel:
-    cmp eax, GFX_W
+    cmp eax, [gfx_width]
     jae .r
-    cmp ebx, GFX_H
+    cmp ebx, [gfx_height]
     jae .r
+    push eax
     push ebx
-    imul ebx, GFX_W
-    mov [GFX_FB+ebx+eax], cl
+    push edx
+    imul ebx, [gfx_pitch]
+    add ebx, [gfx_base]
+    cmp byte [gfx_bpp], 32
+    je .b32
+    mov [ebx+eax], cl
+    jmp .done
+.b32:
+    lea edx, [eax*4]
+    movzx eax, cl
+    mov [ebx+edx], eax
+.done:
+    pop edx
     pop ebx
+    pop eax
 .r:
     ret
 
-; eax = x, ebx = y -> cl = colour (0 off screen)
+; eax = x, ebx = y -> cl = colour (0 off screen). At 32 bpp, cl is the
+; blue channel of the dword. eax and ebx are preserved.
 gfx_getpixel:
-    xor ecx, ecx
-    cmp eax, GFX_W
-    jae .r
-    cmp ebx, GFX_H
-    jae .r
+    push eax
     push ebx
-    imul ebx, GFX_W
-    mov cl, [GFX_FB+ebx+eax]
+    push edx
+    xor ecx, ecx
+    cmp eax, [gfx_width]
+    jae .done
+    cmp ebx, [gfx_height]
+    jae .done
+    imul ebx, [gfx_pitch]
+    add ebx, [gfx_base]
+    cmp byte [gfx_bpp], 32
+    je .b32
+    mov cl, [ebx+eax]
+    jmp .done
+.b32:
+    mov ecx, [ebx+eax*4]
+    movzx ecx, cl
+.done:
+    pop edx
     pop ebx
-.r:
+    pop eax
     ret
 
 ; gfxtest: mode 13h, write two colours to one pixel and read each back,

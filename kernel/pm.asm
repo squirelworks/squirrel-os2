@@ -399,6 +399,9 @@ run_simple:
     mov edi, cmd_gfxtext
     call streq
     je .gfxtext
+    mov edi, cmd_vbetest        ; 2.1
+    call streq
+    je .vbetest
     mov edi, cmd_desktop
     call streq
     je .desktop
@@ -635,6 +638,9 @@ run_simple:
     jmp .empty
 .gfxtext:
     call cmd_gfxtext_run
+    jmp .empty
+.vbetest:
+    call cmd_vbetest_run
     jmp .empty
 .desktop:
     call cmd_desktop_run
@@ -993,7 +999,7 @@ banner_rest db ' 2.0.2', 10  ; OS version: here only (see releases/PROCESS.md)
        db '          ps | disk | mem | devices | lang <en|la|tlh> | desktop | install', 10
        db '          objcat', 10
        db 'Tests: systest | proctest | blktest | fstest | memtest | keys', 10
-       db '       gfxtest | gfxprim | gfxtext | wintest | winmove | winfocus | nettest', 10
+       db '       gfxtest | gfxprim | gfxtext | vbetest | wintest | winmove | winfocus | nettest', 10
        db '       labeltest | buttontest | fieldtest | listtest | drawpx | objtest | objs', 10
        db 'Apps: files, calc, sci, graph, matrix, diff, edit, vedit, draw   (planned: topo)', 10, 0
 msg_partial db 'Warning: kernel image only partly loaded', 10, 0
@@ -1128,6 +1134,7 @@ cmd_blktest db 'blktest', 0
 cmd_gfxtest db 'gfxtest', 0
 cmd_gfxprim db 'gfxprim', 0
 cmd_gfxtext db 'gfxtext', 0
+cmd_vbetest db 'vbetest', 0
 cmd_wintest db 'wintest', 0
 cmd_winmove db 'winmove', 0
 cmd_winfocus db 'winfocus', 0
@@ -1308,6 +1315,7 @@ puthex:
 %include "batch.asm"
 %include "mm.asm"
 %include "vm.asm"
+%include "vbe.asm"
 %include "dev.asm"
 %include "chardev.asm"
 %include "lang.asm"
