@@ -1,6 +1,6 @@
 # Windows
 
-The window manager (`kernel/wm.asm`, since 1.4.0) draws windows in graphics mode with the primitives in `graphics.md`. Keyboard only; there is no mouse.
+The window manager (`kernel/wm.asm`, since 1.4.0) draws windows in graphics mode with the primitives in `graphics.md`. Keyboard only; there is no mouse. It still runs in VGA mode 13h (320×200); VBE modes from 2.1 are exercised by `vbetest` and are not yet the window manager's display.
 
 ## Windows
 

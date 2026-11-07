@@ -371,6 +371,46 @@ heap_pte:
     stc
     ret
 
+; ---------- framebuffer map (2.1) ----------
+; eax = physical address (any), ecx = byte length.
+; Identity-maps enough 4 MB pages (PSE) in the kernel page directory to
+; cover [eax, eax+ecx). Addresses below MM_LIMIT are already mapped.
+; Reloads CR3. CF set if ecx is 0. Clobbers eax, ebx, ecx, edx.
+vm_map_range:
+    pushad
+    test ecx, ecx
+    jz .fail
+    mov edx, eax                ; start
+    lea ebx, [eax+ecx-1]        ; last byte
+    and edx, -0x400000          ; 4 MB align down
+    or ebx, 0x3FFFFF            ; align up to end of its 4 MB page
+    inc ebx                     ; first byte past the range
+.map:
+    cmp edx, ebx
+    jae .ok
+    cmp edx, MM_LIMIT           ; already identity-mapped
+    jb .next
+    mov eax, edx
+    shr eax, 22                 ; PDE index
+    mov ecx, [kernel_pd]
+    lea ecx, [ecx+eax*4]
+    mov eax, edx
+    or eax, PG_P|PG_W|PG_PS
+    mov [ecx], eax
+.next:
+    add edx, 0x400000
+    jmp .map
+.ok:
+    mov eax, [kernel_pd]
+    mov cr3, eax                ; flush TLB for the new entries
+    popad
+    clc
+    ret
+.fail:
+    popad
+    stc
+    ret
+
 vm_m_nomem db '*** no memory for page tables', 10, 0
 
 align 4

@@ -37,11 +37,13 @@ Every change follows these:
 
 Also already true of this project: document hardware assumptions, keep accepted limits in `documentation/specifications.md`, and follow `documentation/releases/PROCESS.md`.
 
-## Where things are (2.0.2)
+## Where things are (2.1 started)
 
-Done and covered by `tools/regress.sh` (391 checks): 32-bit x86 in ring 0, preemptive priority scheduling and threads, messages, VGA mode 13h (320×200×256) graphics, the window manager (`kernel/wm.asm`), widgets, the desktop (`kernel/desktop.asm`) with an object model and persistent objects, a polled PS/2 mouse, SQFS with the file browser, the installer, `calc` / `sci` / `matrix` / `diff`, `edit` / `vedit` / `draw`, the NE2000 driver with ARP, IPv4, UDP, a TCP client and `ifconfig`, `SYS_DEVREG`, and en / la / tlh localization.
+Done and covered by `tools/regress.sh`: 32-bit x86 in ring 0, preemptive priority scheduling and threads, messages, VGA mode 13h (320×200×256) graphics, the window manager (`kernel/wm.asm`), widgets, the desktop (`kernel/desktop.asm`) with an object model and persistent objects, a polled PS/2 mouse, SQFS with the file browser, the installer, `calc` / `sci` / `matrix` / `diff`, `edit` / `vedit` / `draw`, the NE2000 driver with ARP, IPv4, UDP, a TCP client and `ifconfig`, `SYS_DEVREG`, and en / la / tlh localization.
 
 2.0.1 and 2.0.2 closed every follow-up from 1.9.10–1.9.12: the mouse runs on IRQ 12 and is drained everywhere, the cursor has a save-under, PS/2 sign bits are handled, clicks in a scrolled list pick the right row, priority aging stops starvation, `SYS_DEVUNREG` frees device slots, and `ifconfig` refuses an off-subnet gateway (402 checks at 2.0.2).
+
+**2.1 in progress:** `2.1-vbe-mode` maps a VBE 640×480×32 linear framebuffer (Bochs/QEMU DISPI + PCI BAR0) and checks it with `vbetest`; mode 13h remains the desktop fallback. Remaining boxes: `2.1-modes`, `2.1-dblbuf`, `2.1-dirty`, `2.1-blit-clip`.
 
 Still scaffolds: `graph` and `topo` (replaced by C.2 and C.9 below).
 

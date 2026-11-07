@@ -7,6 +7,20 @@ Location: `../../kernel/gfx.asm` (included from `kernel/pm.asm`)
 - 320 × 200 with 256 colours: VGA mode 13h. Pixel (x, y) is the byte at `0xA0000 + y * 320 + x`.
 - Protected mode has no BIOS, so `gfx_mode13` and `gfx_text` program the VGA registers directly: the misc output register, 5 sequencer, 25 CRTC, 9 graphics-controller and 21 attribute-controller registers, from the tables `gfx_regs_13h` and `gfx_regs_text`. CRTC registers 0–7 are unlocked first (bit 7 of register `0x11`).
 - `gfx_text` returns to the 80 × 25 text mode and puts the hardware cursor back. The DAC palette is not changed by either.
+- Live geometry is in `gfx_base`, `gfx_width`, `gfx_height`, `gfx_pitch`, `gfx_bpp` (mode 13h sets them to `0xA0000` / 320 / 200 / 320 / 8). `gfx_putpixel` / `gfx_getpixel` use those fields; at 32 bpp they write and read a dword (the colour byte is the blue channel) and keep `eax` / `ebx`.
+
+## VBE linear framebuffer (2.1)
+
+`kernel/vbe.asm` (since **2.1-vbe-mode**) sets one Bochs/QEMU DISPI mode from protected mode: 640×480×32 with a linear framebuffer.
+
+- DISPI ports `0x01CE` / `0x01CF` on QEMU's standard VGA (PCI `1234:1111`). The LFB address is that device's BAR0; `vm_map_range` identity-maps enough 4 MB pages in the kernel page directory so the LFB is reachable above the usual 256 MB identity map.
+- `gfx_vbe_640_32` programs DISPI, updates the `gfx_*` fields, and sets `gfx_vbe`. CF means DISPI or the BAR was missing, or the map failed; the caller then falls back to mode 13h.
+- `gfx_text` disables DISPI when `gfx_vbe` is set, then loads the text registers as before.
+- The desktop and window manager still use mode 13h. Later 2.1 boxes add more modes, double buffering, dirty rectangles, and a blitter with clipping.
+
+### Test
+
+`vbetest` tries `gfx_vbe_640_32`, writes colours `0x2A` and `0x15` to pixel (100, 100), reads each back, returns to text mode, and prints `vbe: PASS`. When VBE is unavailable it uses mode 13h instead and prints `vbe: 13h` if that read-back works. Checks `vbetest` and `vbetest-text` (`systest` after it).
 
 ## Routines
 
