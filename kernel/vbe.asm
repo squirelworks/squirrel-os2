@@ -1,7 +1,7 @@
 ; Squirrel-OS/2 — VBE linear framebuffer (2.1)
 ; Included from pm.asm after vm.asm. Original code.
 ;
-; Sets a Bochs/QEMU DISPI linear mode from protected mode (no BIOS call):
+; Sets Bochs/QEMU DISPI linear modes from protected mode (no BIOS call):
 ; ports 0x01CE/0x01CF on QEMU's standard VGA (PCI 1234:1111). The linear
 ; framebuffer is BAR0; vm_map_range makes it reachable. Mode 13h stays the
 ; fallback when DISPI or the VGA BAR is absent.
@@ -27,11 +27,11 @@ PCI_DATA        equ 0x0CFC
 PCI_BAR0        equ 0x10
 VBE_VGA_ID      equ 0x11111234      ; QEMU std VGA: device 1111, vendor 1234
 
-VBE_W           equ 640
-VBE_H           equ 480
-VBE_BPP         equ 32
-VBE_PITCH       equ (VBE_W * (VBE_BPP / 8))
-VBE_BYTES       equ (VBE_PITCH * VBE_H)
+; Largest mode we offer: map this much once so mode switches stay cheap.
+VBE_MAX_W       equ 1024
+VBE_MAX_H       equ 768
+VBE_MAX_BPP     equ 32
+VBE_MAX_BYTES   equ (VBE_MAX_W * VBE_MAX_H * (VBE_MAX_BPP / 8))
 
 ; CF clear if DISPI answers. Keeps every register.
 vbe_present:
@@ -53,14 +53,15 @@ vbe_present:
     clc
     ret
 
-; al = DISPI index -> ax = value. Keeps every other register.
+; al = DISPI index -> ax = value (zx in eax). Keeps every other register.
 vbe_read:
     push edx
     mov dx, VBE_INDEX
-    movzx ax, al
+    movzx eax, al
     out dx, ax
     mov dx, VBE_DATA
     in ax, dx
+    movzx eax, ax
     pop edx
     ret
 
@@ -136,9 +137,7 @@ vbe_lfb:
     xor eax, eax
     ret
 .found_fn:
-    mov eax, edx
-    or eax, esi
-    mov edx, eax
+    or edx, esi
 .found:
     mov eax, edx
     shl eax, 8
@@ -160,6 +159,7 @@ vbe_disable:
     mov al, DISPI_ENABLE
     call vbe_write
     mov byte [gfx_vbe], 0
+    mov byte [vbe_ready], 0     ; next enter must save the text again
     pop edx
     pop ebx
     pop eax
@@ -167,33 +167,61 @@ vbe_disable:
 
 ; After a failed enter that already saved the text screen: leave DISPI,
 ; reload text registers, and restore the screen/font (frees the pages).
-; Clobbers as gfx_load_regs / gfx_restore.
+; Clears vbe_ready. Clobbers as gfx_load_regs / gfx_restore.
 vbe_abort_saved:
     xor ebx, ebx
     mov al, DISPI_ENABLE
     call vbe_write
     mov byte [gfx_vbe], 0
+    mov byte [vbe_ready], 0
     mov esi, gfx_regs_text
     call gfx_load_regs
     call gfx_restore
     ret
 
-; Enter 640×480×32 linear mode. CF set on failure (DISPI missing, no BAR,
-; map failed, no pages for the text/font save, or the mode was refused);
-; then the mode is unchanged. On success gfx_* describe the LFB, gfx_vbe
-; is 1, and gfx_save has the text screen for gfx_text.
-gfx_vbe_640_32:
+; One-time prepare: DISPI present, BAR0 found, max LFB mapped, text saved.
+; CF set on failure (mode unchanged). Idempotent while vbe_ready is 1.
+vbe_setup:
     pushad
+    cmp byte [vbe_ready], 0
+    jne .ok
     call vbe_present
     jc .fail
     call vbe_lfb
     test eax, eax
     jz .fail
     mov [vbe_fb], eax
-    mov ecx, VBE_BYTES
+    mov ecx, VBE_MAX_BYTES
     call vm_map_range
     jc .fail
     call gfx_save               ; DISPI enable clears VGA memory
+    jc .fail
+    mov byte [vbe_ready], 1
+.ok:
+    popad
+    clc
+    ret
+.fail:
+    popad
+    stc
+    ret
+
+; eax = width, ebx = height, cl = bpp (8, 16 or 32).
+; Programs DISPI for that linear mode. Calls vbe_setup if needed.
+; CF set if setup fails or the adapter refuses the mode; text restored then.
+vbe_mode:
+    pushad
+    cmp cl, 8
+    je .bpp_ok
+    cmp cl, 16
+    je .bpp_ok
+    cmp cl, 32
+    jne .bad
+.bpp_ok:
+    mov [vbe_req_w], eax
+    mov [vbe_req_h], ebx
+    mov [vbe_req_bpp], cl
+    call vbe_setup
     jc .fail
     xor ebx, ebx
     mov al, DISPI_ENABLE
@@ -201,17 +229,17 @@ gfx_vbe_640_32:
     mov bx, DISPI_ID_MAGIC
     mov al, DISPI_ID
     call vbe_write
-    mov bx, VBE_W
+    mov ebx, [vbe_req_w]
     mov al, DISPI_XRES
     call vbe_write
     mov al, DISPI_VWIDTH
     call vbe_write
-    mov bx, VBE_H
+    mov ebx, [vbe_req_h]
     mov al, DISPI_YRES
     call vbe_write
     mov al, DISPI_VHEIGHT
     call vbe_write
-    mov bx, VBE_BPP
+    movzx ebx, byte [vbe_req_bpp]
     mov al, DISPI_BPP
     call vbe_write
     xor ebx, ebx
@@ -225,48 +253,88 @@ gfx_vbe_640_32:
     ; Confirm the adapter accepted the mode before claiming success.
     mov al, DISPI_XRES
     call vbe_read
-    cmp ax, VBE_W
+    cmp eax, [vbe_req_w]
     jne .refuse
     mov al, DISPI_YRES
     call vbe_read
-    cmp ax, VBE_H
+    cmp eax, [vbe_req_h]
     jne .refuse
     mov al, DISPI_BPP
     call vbe_read
-    cmp ax, VBE_BPP
+    movzx ebx, byte [vbe_req_bpp]
+    cmp eax, ebx
     jne .refuse
     mov eax, [vbe_fb]
     mov [gfx_base], eax
-    mov dword [gfx_width], VBE_W
-    mov dword [gfx_height], VBE_H
-    mov dword [gfx_pitch], VBE_PITCH
-    mov byte [gfx_bpp], VBE_BPP
+    mov eax, [vbe_req_w]
+    mov [gfx_width], eax
+    mov ebx, [vbe_req_h]
+    mov [gfx_height], ebx
+    movzx ecx, byte [vbe_req_bpp]
+    mov [gfx_bpp], cl
+    shr ecx, 3                  ; bytes per pixel
+    imul eax, ecx               ; pitch
+    mov [gfx_pitch], eax
     mov byte [gfx_vbe], 1
     popad
     clc
     ret
 .refuse:
     call vbe_abort_saved
+    mov byte [vbe_ready], 0
+.bad:
 .fail:
     popad
     stc
     ret
 
-; vbetest: prefer VBE 640×480×32; fall back to mode 13h. Write two colours
-; to one pixel, read each back, return to text, print vbe: PASS or vbe: 13h
-; (or vbe: FAIL).
+; Enter 640×480×32 (kept for callers). CF set on failure.
+gfx_vbe_640_32:
+    mov eax, 640
+    mov ebx, 480
+    mov cl, 32
+    jmp vbe_mode
+
+; vbetest: walk 640×480 / 800×600 / 1024×768 at 8, 16 and 32 bpp. Each mode
+; gets a pixel write/read. If VBE setup fails, fall back to mode 13h once.
 VBET_X equ 100
 VBET_Y equ 100
 
 cmd_vbetest_run:
     mov byte [vbet_ok], 1
     mov byte [vbet_fb], 0       ; 0 = VBE path, 1 = 13h fallback
-    call gfx_vbe_640_32
-    jnc .draw
+    call vbe_setup
+    jc .fallback
+    mov esi, vbe_modes
+.walk:
+    mov eax, [esi]
+    test eax, eax
+    jz .done_modes
+    mov ebx, [esi+4]
+    mov cl, [esi+8]
+    push esi
+    call vbe_mode
+    pop esi
+    jc .mode_fail
+    mov cl, 0x2A
+    call .one
+    mov cl, 0x15
+    call .one
+    add esi, 12
+    jmp .walk
+.mode_fail:
+    mov byte [vbet_ok], 0
+.done_modes:
+    call gfx_text
+    mov byte [vbe_ready], 0
+    cmp byte [vbet_ok], 1
+    jne .fail
+    mov esi, vbet_pass
+    jmp .say
+.fallback:
     mov byte [vbet_fb], 1
     call gfx_mode13
     jc .fail_mode
-.draw:
     mov cl, 0x2A
     call .one
     mov cl, 0x15
@@ -274,9 +342,6 @@ cmd_vbetest_run:
     call gfx_text
     cmp byte [vbet_ok], 1
     jne .fail
-    mov esi, vbet_pass
-    cmp byte [vbet_fb], 0
-    je .say
     mov esi, vbet_13h
     jmp .say
 .fail_mode:
@@ -284,6 +349,7 @@ cmd_vbetest_run:
     jmp .say
 .fail:
     call gfx_text
+    mov byte [vbe_ready], 0
     mov esi, vbet_fail
 .say:
     jmp puts
@@ -299,11 +365,30 @@ cmd_vbetest_run:
 .same:
     ret
 
+; Each record: width dd, height dd, bpp dd (low byte); 0 width ends the list.
+align 4
+vbe_modes:
+    dd 640, 480, 8
+    dd 640, 480, 16
+    dd 640, 480, 32
+    dd 800, 600, 8
+    dd 800, 600, 16
+    dd 800, 600, 32
+    dd 1024, 768, 8
+    dd 1024, 768, 16
+    dd 1024, 768, 32
+    dd 0
+
 vbet_ok db 0
 vbet_fb db 0
+vbe_ready db 0
 vbet_pass db 'vbe: PASS', 10, 0
 vbet_13h  db 'vbe: 13h', 10, 0
 vbet_fail db 'vbe: FAIL', 10, 0
 
 align 4
 vbe_fb dd 0
+vbe_req_w dd 0
+vbe_req_h dd 0
+vbe_req_bpp db 0
+    db 0, 0, 0

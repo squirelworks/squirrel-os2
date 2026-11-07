@@ -341,7 +341,7 @@ check gfx-text     'systest: PASS'         gfxtest '<ret>' systest '<ret>'
 # 1.3.1: a line and a filled rectangle, read back
 check gfxprim      'gfxprim: PASS'         gfxprim '<ret>'
 check gfxprim-text 'systest: PASS'         gfxprim '<ret>' systest '<ret>'
-# 2.1: VBE 640x480x32 linear framebuffer (mode 13h fallback prints vbe: 13h)
+# 2.1: VBE modes 640x480 / 800x600 / 1024x768 at 8/16/32 bpp (13h fallback: vbe: 13h)
 check vbetest      'vbe: PASS'             vbetest '<ret>'
 check vbetest-text 'systest: PASS'         vbetest '<ret>' systest '<ret>'
 # 1.3.2: a string in graphics mode, ink and background read back

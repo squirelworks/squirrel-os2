@@ -266,7 +266,8 @@ gfx_pages times GFX_SAVE_PAGES dd 0
 
 ; eax = x, ebx = y, cl = colour. Off-screen pixels are ignored.
 ; 8 bpp: one byte at gfx_base + y * pitch + x.
-; 32 bpp: writes 0x000000|cl (blue channel); other channels stay 0.
+; 16 bpp: a word; cl is the low byte (blue-ish), high byte 0.
+; 32 bpp: a dword 0x000000|cl (blue channel); other channels stay 0.
 ; In mode 13h byte n of the window lands in plane n & 3. The text lives in
 ; planes 0 and 1 below 4000 and the font in plane 2, so drawing over them
 ; changes the text screen; gfxtest uses a pixel clear of both.
@@ -282,7 +283,14 @@ gfx_putpixel:
     add ebx, [gfx_base]
     cmp byte [gfx_bpp], 32
     je .b32
+    cmp byte [gfx_bpp], 16
+    je .b16
     mov [ebx+eax], cl
+    jmp .done
+.b16:
+    lea edx, [eax*2]
+    movzx eax, cl
+    mov [ebx+edx], ax
     jmp .done
 .b32:
     lea edx, [eax*4]
@@ -295,8 +303,8 @@ gfx_putpixel:
 .r:
     ret
 
-; eax = x, ebx = y -> cl = colour (0 off screen). At 32 bpp, cl is the
-; blue channel of the dword. eax and ebx are preserved.
+; eax = x, ebx = y -> cl = colour (0 off screen). At 16/32 bpp, cl is the
+; low byte of the pixel. eax and ebx are preserved.
 gfx_getpixel:
     push eax
     push ebx
@@ -310,7 +318,13 @@ gfx_getpixel:
     add ebx, [gfx_base]
     cmp byte [gfx_bpp], 32
     je .b32
+    cmp byte [gfx_bpp], 16
+    je .b16
     mov cl, [ebx+eax]
+    jmp .done
+.b16:
+    mov cx, [ebx+eax*2]
+    movzx ecx, cl
     jmp .done
 .b32:
     mov ecx, [ebx+eax*4]
