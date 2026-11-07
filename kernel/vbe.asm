@@ -53,7 +53,7 @@ vbe_present:
     clc
     ret
 
-; al = DISPI index -> ax = value. Clobbers dx.
+; al = DISPI index -> ax = value. Keeps every other register.
 vbe_read:
     push edx
     mov dx, VBE_INDEX
@@ -79,25 +79,68 @@ vbe_write:
     ret
 
 ; EAX = BAR0 of QEMU's standard VGA, or 0. Clobbers ebx, ecx, edx.
+; Scans each bus/dev at function 0 first; only probes functions 1–7 when
+; function 0 exists (no device → 0xFFFFFFFF), so a missing VGA is not a
+; full 65,536-slot walk.
 vbe_lfb:
-    xor ecx, ecx                ; bus:dev:fn as (bus<<8)|(dev<<3)|fn
-.scan:
-    mov eax, ecx
+    push esi
+    xor ebx, ebx                ; bus
+.bus:
+    xor ecx, ecx                ; device
+.dev:
+    mov eax, ebx
     shl eax, 8
-    or eax, 0x80000000          ; enable bit, offset 0
+    mov edx, ecx
+    shl edx, 3
+    or eax, edx                 ; (bus<<8)|(dev<<3)|fn0
+    mov edx, eax                ; slot without enable bit
+    shl eax, 8
+    or eax, 0x80000000
+    push edx
     mov dx, PCI_ADDR
     out dx, eax
     mov dx, PCI_DATA
     in eax, dx
+    pop edx
+    cmp eax, 0xFFFFFFFF
+    je .next_dev                ; empty: skip fn 1–7
     cmp eax, VBE_VGA_ID
     je .found
+    mov esi, 1                  ; probe other functions on a live device
+.fn:
+    mov eax, edx
+    or eax, esi                 ; same bus/dev, this fn
+    shl eax, 8
+    or eax, 0x80000000
+    push edx
+    push esi
+    mov dx, PCI_ADDR
+    out dx, eax
+    mov dx, PCI_DATA
+    in eax, dx
+    pop esi
+    pop edx
+    cmp eax, VBE_VGA_ID
+    je .found_fn
+    inc esi
+    cmp esi, 8
+    jb .fn
+.next_dev:
     inc ecx
-    cmp ecx, 256 * 32 * 8
-    jb .scan
+    cmp ecx, 32
+    jb .dev
+    inc ebx
+    cmp ebx, 256
+    jb .bus
+    pop esi
     xor eax, eax
     ret
+.found_fn:
+    mov eax, edx
+    or eax, esi
+    mov edx, eax
 .found:
-    mov eax, ecx
+    mov eax, edx
     shl eax, 8
     or eax, 0x80000000 | PCI_BAR0
     mov dx, PCI_ADDR
@@ -105,6 +148,7 @@ vbe_lfb:
     mov dx, PCI_DATA
     in eax, dx
     and eax, 0xFFFFFFF0         ; drop the flag bits
+    pop esi
     ret
 
 ; Turn DISPI off. Keeps registers.
@@ -121,9 +165,23 @@ vbe_disable:
     pop eax
     ret
 
+; After a failed enter that already saved the text screen: leave DISPI,
+; reload text registers, and restore the screen/font (frees the pages).
+; Clobbers as gfx_load_regs / gfx_restore.
+vbe_abort_saved:
+    xor ebx, ebx
+    mov al, DISPI_ENABLE
+    call vbe_write
+    mov byte [gfx_vbe], 0
+    mov esi, gfx_regs_text
+    call gfx_load_regs
+    call gfx_restore
+    ret
+
 ; Enter 640×480×32 linear mode. CF set on failure (DISPI missing, no BAR,
-; or map failed); then the mode is unchanged. On success gfx_* describe
-; the LFB and gfx_vbe is 1.
+; map failed, no pages for the text/font save, or the mode was refused);
+; then the mode is unchanged. On success gfx_* describe the LFB, gfx_vbe
+; is 1, and gfx_save has the text screen for gfx_text.
 gfx_vbe_640_32:
     pushad
     call vbe_present
@@ -134,6 +192,8 @@ gfx_vbe_640_32:
     mov [vbe_fb], eax
     mov ecx, VBE_BYTES
     call vm_map_range
+    jc .fail
+    call gfx_save               ; DISPI enable clears VGA memory
     jc .fail
     xor ebx, ebx
     mov al, DISPI_ENABLE
@@ -162,6 +222,19 @@ gfx_vbe_640_32:
     mov bx, DISPI_ON | DISPI_LFB
     mov al, DISPI_ENABLE
     call vbe_write
+    ; Confirm the adapter accepted the mode before claiming success.
+    mov al, DISPI_XRES
+    call vbe_read
+    cmp ax, VBE_W
+    jne .refuse
+    mov al, DISPI_YRES
+    call vbe_read
+    cmp ax, VBE_H
+    jne .refuse
+    mov al, DISPI_BPP
+    call vbe_read
+    cmp ax, VBE_BPP
+    jne .refuse
     mov eax, [vbe_fb]
     mov [gfx_base], eax
     mov dword [gfx_width], VBE_W
@@ -172,6 +245,8 @@ gfx_vbe_640_32:
     popad
     clc
     ret
+.refuse:
+    call vbe_abort_saved
 .fail:
     popad
     stc

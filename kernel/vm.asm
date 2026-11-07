@@ -375,7 +375,7 @@ heap_pte:
 ; eax = physical address (any), ecx = byte length.
 ; Identity-maps enough 4 MB pages (PSE) in the kernel page directory to
 ; cover [eax, eax+ecx). Addresses below MM_LIMIT are already mapped.
-; Reloads CR3. CF set if ecx is 0. Clobbers eax, ebx, ecx, edx.
+; Reloads CR3. CF set if ecx is 0. Keeps registers (pushad/popad).
 vm_map_range:
     pushad
     test ecx, ecx
