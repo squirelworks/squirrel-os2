@@ -11,19 +11,20 @@ Location: `../../kernel/gfx.asm` (included from `kernel/pm.asm`)
 
 ## VBE linear framebuffer (2.1)
 
-`kernel/vbe.asm` (since **2.1-vbe-mode**, modes in **2.1-modes**, double buffering in **2.1-dblbuf**) sets Bochs/QEMU DISPI linear modes from protected mode: 640×480, 800×600 and 1024×768 at 8, 16 and 32 bpp.
+`kernel/vbe.asm` (since **2.1-vbe-mode**, modes in **2.1-modes**, double buffering in **2.1-dblbuf**, dirty rectangles in **2.1-dirty**) sets Bochs/QEMU DISPI linear modes from protected mode: 640×480, 800×600 and 1024×768 at 8, 16 and 32 bpp.
 
 - DISPI ports `0x01CE` / `0x01CF` on QEMU's standard VGA (PCI `1234:1111`). The LFB address is that device's BAR0; `vbe_lfb` also sizes the BAR (decode size in `vbe_vram`). `vm_map_range` identity-maps enough 4 MB pages in the kernel page directory for two copies of the largest mode (1024×768×32), or only what fits when the BAR is smaller. Process page directories created earlier are not updated yet; only the kernel directory is, which is enough while the shell alone draws.
 - `vbe_setup` finds DISPI and the BAR, maps the LFB, and saves the text screen/font (`gfx_save`). `vbe_mode` (width, height, bpp) programs DISPI, reads XRES/YRES/BPP back, and updates `gfx_*` / `gfx_vbe`. CF means setup failed or the adapter refused the mode (then DISPI is disabled and the text screen restored). `gfx_vbe_640_32` is a thin wrapper for 640×480×32.
-- **Double buffering:** `vbe_setup` maps up to two copies of the largest mode in the LFB. `vbe_dblbuf` refuses with CF if two pages of the current mode do not fit in `vbe_vram`. Otherwise it keeps the DISPI-visible page as the front (`vbe_front`), copies that page onto the next page in VRAM (the back), and points `gfx_base` at the back. `gfx_putpixel` / `gfx_getpixel` then draw and read the back. `vbe_flip` blits the back page onto the front; `gfx_base` stays on the back. `vbe_front_getpixel` reads the visible page without changing the draw target. Leaving the mode (`gfx_text` / `vbe_disable`) or entering a new mode clears the double-buffer state.
+- **Double buffering:** `vbe_setup` maps up to two copies of the largest mode in the LFB. `vbe_dblbuf` refuses with CF if two pages of the current mode do not fit in `vbe_vram`. Otherwise it keeps the DISPI-visible page as the front (`vbe_front`), copies that page onto the next page in VRAM (the back), and points `gfx_base` at the back. `gfx_putpixel` / `gfx_getpixel` then draw and read the back. `vbe_front_getpixel` reads the visible page without changing the draw target. Leaving the mode (`gfx_text` / `vbe_disable`) or entering a new mode clears the double-buffer state.
+- **Dirty rectangles:** `vbe_dirty` (x, y, width, height) marks a clipped region for the next present. `vbe_flip` copies only those regions from back to front, then clears the dirty set. With no marks, a full-screen mark, or more than eight slots (`VBE_DIRTY_MAX`), it falls back to a full-page blit so callers that skip marking stay correct. Draw primitives do not auto-mark; the caller marks after changing the back buffer.
 - PCI BAR discovery probes function 0 of each bus/dev first and only scans functions 1–7 when function 0 exists, so a missing VGA is not a full 65,536-slot walk.
 - `gfx_putpixel` / `gfx_getpixel` honour 8, 16 and 32 bpp (at 16/32 bpp the colour byte is the low byte of the pixel).
 - `gfx_text` disables DISPI when `gfx_vbe` is set, then loads the text registers and restores the saved screen/font.
-- The desktop and window manager still use mode 13h. Later 2.1 boxes add dirty rectangles and a blitter with clipping.
+- The desktop and window manager still use mode 13h. The remaining 2.1 box is a blitter with clipping.
 
 ### Test
 
-`vbetest` walks all nine modes above; for each it writes colours `0x2A` and `0x15` to pixel (100, 100) and reads them back, then arms double buffering, checks the back already reads `0x15` (copied from the front), draws `0x3C` on the back, checks the front is still `0x15`, flips, and checks the front is `0x3C`. It returns to text mode and prints `vbe: PASS`. When VBE setup fails it uses mode 13h once (no double buffering) and prints `vbe: 13h` if that read-back works. Checks `vbetest` and `vbetest-text` (`systest` after it).
+`vbetest` walks all nine modes above; for each it writes colours `0x2A` and `0x15` to pixel (100, 100) and reads them back, then arms double buffering, checks the back already reads `0x15` (copied from the front), draws `0x3C` on the back, checks the front is still `0x15`, flips, and checks the front is `0x3C`. It then draws three further pixels on the back, marks only two with `vbe_dirty`, flips, and checks the front matches the marked colours while the unmarked probe keeps its pre-flip front colour. It returns to text mode and prints `vbe: PASS`. When VBE setup fails it uses mode 13h once (no double buffering) and prints `vbe: 13h` if that read-back works. Checks `vbetest` and `vbetest-text` (`systest` after it).
 
 ## Routines
 
@@ -34,7 +35,8 @@ Location: `../../kernel/gfx.asm` (included from `kernel/pm.asm`)
 | `gfx_putpixel` | `eax` = x, `ebx` = y, `cl` = colour | — (off-screen pixels are ignored; draws the back buffer when double buffering) |
 | `gfx_getpixel` | `eax` = x, `ebx` = y | `cl` = colour (0 off screen; reads the draw target) |
 | `vbe_dblbuf` | — (current VBE mode) | arms back buffer (copied from front); CF if not in VBE mode or two pages do not fit in VRAM |
-| `vbe_flip` | — | blits the back buffer onto the visible front; CF if double buffering is off |
+| `vbe_dirty` | `eax` = x, `ebx` = y, `ecx` = width, `edx` = height | marks a clipped rect for the next flip (no effect if double buffering is off; overflow / full-screen → full flip) |
+| `vbe_flip` | — | blits dirty rects (or the whole page if unset / full / overflow) onto the visible front, then clears the dirty set; CF if double buffering is off |
 | `vbe_front_getpixel` | `eax` = x, `ebx` = y | `cl` = colour from the visible page (0 off screen) |
 | `gfx_line` (1.3.1) | `eax`, `ebx` = one end, `ecx`, `edx` = the other, colour in `gfx_colour` | — (Bresenham, both ends included, any direction) |
 | `gfx_fillrect` (1.3.1) | `eax`, `ebx` = top left, `ecx` = width, `edx` = height, colour in `gfx_colour` | — (clipped to the screen; x and y may be negative) |

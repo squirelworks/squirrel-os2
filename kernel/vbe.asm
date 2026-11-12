@@ -4,9 +4,12 @@
 ; Sets Bochs/QEMU DISPI linear modes from protected mode (no BIOS call):
 ; ports 0x01CE/0x01CF on QEMU's standard VGA (PCI 1234:1111). The linear
 ; framebuffer is BAR0; vm_map_range makes it reachable. Double buffering
-; draws to a second LFB page and blits it onto the visible page on flip.
+; draws to a second LFB page; vbe_flip blits dirty rectangles (or the whole
+; page when none / overflow / full-screen) onto the visible page.
 ; Mode 13h stays the fallback when DISPI or the VGA BAR is absent.
 ; See documentation/kernel/graphics.md.
+
+VBE_DIRTY_MAX   equ 8           ; fixed dirty-rect slots before full-page
 
 VBE_INDEX       equ 0x01CE
 VBE_DATA        equ 0x01CF
@@ -178,12 +181,22 @@ vbe_lfb:
     pop esi
     ret
 
+; Clear the dirty-rectangle set (empty = next flip does a full page).
+; Keeps registers.
+vbe_dirty_clear:
+    push eax
+    mov byte [vbe_dirty_n], 0
+    mov byte [vbe_dirty_full], 0
+    pop eax
+    ret
+
 ; Clear double-buffer state (single page at LFB base). Keeps registers.
 vbe_dbl_clear:
     push eax
     mov byte [vbe_dbl], 0
     mov eax, [vbe_fb]
     mov [vbe_front], eax
+    call vbe_dirty_clear
     pop eax
     ret
 
@@ -324,6 +337,7 @@ vbe_mode:
     mov [gfx_pitch], eax
     mov byte [gfx_vbe], 1
     mov byte [vbe_dbl], 0
+    call vbe_dirty_clear
     popad
     clc
     ret
@@ -370,6 +384,7 @@ vbe_dblbuf:
     lea eax, [eax+ebx]
     mov [gfx_base], eax         ; draw on the hidden page in VRAM
     mov byte [vbe_dbl], 1
+    call vbe_dirty_clear        ; first flip without marks = full page
 .ok:
     popad
     clc
@@ -379,18 +394,158 @@ vbe_dblbuf:
     stc
     ret
 
-; Present the back buffer: copy it onto the visible front page.
-; CF set if double buffering is off. gfx_base stays on the back.
+; Mark a rectangle dirty for the next vbe_flip (2.1-dirty).
+; eax = x, ebx = y, ecx = width, edx = height (signed; clipped to the screen).
+; No effect when double buffering is off. Overflow of the fixed slot list, or
+; a rect that covers the whole screen, forces a full-page flip next time.
+vbe_dirty:
+    pushad
+    cmp byte [vbe_dbl], 0
+    je .done
+    cmp byte [vbe_dirty_full], 0
+    jne .done
+    ; Reject non-positive size before clip (ecx/edx are signed widths).
+    test ecx, ecx
+    jle .done
+    test edx, edx
+    jle .done
+    ; Clip left/top: if x < 0, shrink width and set x = 0.
+    test eax, eax
+    jns .x_ok
+    add ecx, eax                ; w += x (x is negative)
+    xor eax, eax
+    test ecx, ecx
+    jle .done
+.x_ok:
+    test ebx, ebx
+    jns .y_ok
+    add edx, ebx
+    xor ebx, ebx
+    test edx, edx
+    jle .done
+.y_ok:
+    cmp eax, [gfx_width]
+    jae .done
+    cmp ebx, [gfx_height]
+    jae .done
+    ; Clip right/bottom against the live mode size.
+    mov esi, eax
+    add esi, ecx
+    cmp esi, [gfx_width]
+    jbe .w_ok
+    mov ecx, [gfx_width]
+    sub ecx, eax
+.w_ok:
+    mov esi, ebx
+    add esi, edx
+    cmp esi, [gfx_height]
+    jbe .h_ok
+    mov edx, [gfx_height]
+    sub edx, ebx
+.h_ok:
+    test ecx, ecx
+    jle .done
+    test edx, edx
+    jle .done
+    ; Whole-screen rect → full flip (cheaper than listing it).
+    cmp eax, 0
+    jne .store
+    cmp ebx, 0
+    jne .store
+    cmp ecx, [gfx_width]
+    jne .store
+    cmp edx, [gfx_height]
+    jne .store
+    mov byte [vbe_dirty_full], 1
+    jmp .done
+.store:
+    movzx esi, byte [vbe_dirty_n]
+    cmp esi, VBE_DIRTY_MAX
+    jae .overflow
+    mov [vbe_dx+esi*4], eax
+    mov [vbe_dy+esi*4], ebx
+    mov [vbe_dw+esi*4], ecx
+    mov [vbe_dh+esi*4], edx
+    inc byte [vbe_dirty_n]
+    jmp .done
+.overflow:
+    mov byte [vbe_dirty_full], 1
+.done:
+    popad
+    ret
+
+; Copy one clipped rect from the back buffer onto the front.
+; eax = x, ebx = y, ecx = width, edx = height. Clobbers as pushad frame.
+vbe_blit_rect:
+    pushad
+    movzx ebp, byte [gfx_bpp]
+    shr ebp, 3                  ; bytes per pixel
+    imul ecx, ebp               ; bytes per row of the rect
+    mov esi, [gfx_base]
+    mov edi, [vbe_front]
+    imul ebx, [gfx_pitch]
+    add esi, ebx
+    add edi, ebx
+    imul eax, ebp               ; x offset in bytes
+    add esi, eax
+    add edi, eax
+    mov ebx, [gfx_pitch]
+.row:
+    push ecx
+    push esi
+    push edi
+    mov eax, ecx
+    shr ecx, 2
+    rep movsd
+    mov ecx, eax
+    and ecx, 3
+    rep movsb
+    pop edi
+    pop esi
+    pop ecx
+    add esi, ebx
+    add edi, ebx
+    dec edx
+    jnz .row
+    popad
+    ret
+
+; Present the back buffer onto the visible front page.
+; With no dirty marks, an overflow, or a full-screen mark: copy the whole
+; page (same as 2.1-dblbuf). Otherwise copy only the dirty rectangles, then
+; clear the dirty set. CF set if double buffering is off. gfx_base stays
+; on the back.
 vbe_flip:
     pushad
     cmp byte [vbe_dbl], 0
     je .fail
+    cmp byte [vbe_dirty_full], 0
+    jne .full
+    cmp byte [vbe_dirty_n], 0
+    je .full                    ; unset → full page (callers that skip marks)
+    xor esi, esi
+.rects:
+    movzx eax, byte [vbe_dirty_n]
+    cmp esi, eax
+    jae .cleared
+    mov eax, [vbe_dx+esi*4]
+    mov ebx, [vbe_dy+esi*4]
+    mov ecx, [vbe_dw+esi*4]
+    mov edx, [vbe_dh+esi*4]
+    push esi
+    call vbe_blit_rect
+    pop esi
+    inc esi
+    jmp .rects
+.full:
     mov esi, [gfx_base]
     mov edi, [vbe_front]
     mov ecx, [gfx_pitch]
     imul ecx, [gfx_height]
     shr ecx, 2                  ; dwords
     rep movsd
+.cleared:
+    call vbe_dirty_clear
     popad
     clc
     ret
@@ -435,12 +590,22 @@ vbe_front_getpixel:
     ret
 
 ; vbetest: walk 640×480 / 800×600 / 1024×768 at 8, 16 and 32 bpp. Each mode
-; gets a pixel write/read, then a double-buffer self-check (draw on the back,
-; front unchanged, flip, front matches). If VBE setup fails, fall back to
-; mode 13h once (no double buffering there).
+; gets a pixel write/read, a double-buffer self-check, then a dirty-rectangle
+; flip (two marked rects update the front; an unmarked draw does not). If VBE
+; setup fails, fall back to mode 13h once (no double buffering there).
 VBET_X equ 100
 VBET_Y equ 100
 VBET_DBL_COLOUR equ 0x3C        ; distinct from the single-buffer colours
+; Dirty-rect probe points (inside every offered mode; away from VBET_X/Y).
+VBET_D1_X equ 40
+VBET_D1_Y equ 40
+VBET_D1_COLOUR equ 0x55
+VBET_D2_X equ 200
+VBET_D2_Y equ 80
+VBET_D2_COLOUR equ 0x66
+VBET_OUT_X equ 150
+VBET_OUT_Y equ 150
+VBET_OUT_COLOUR equ 0x77        ; drawn on the back but not marked dirty
 
 cmd_vbetest_run:
     mov byte [vbet_ok], 1
@@ -463,6 +628,7 @@ cmd_vbetest_run:
     mov cl, 0x15
     call .one
     call .dbl
+    call .dirty
     add esi, 12
     jmp .walk
 .mode_fail:
@@ -538,6 +704,74 @@ cmd_vbetest_run:
 .dbl_bad:
     mov byte [vbet_ok], 0
     ret
+; Dirty rectangles (2.1-dirty): draw three pixels on the back, mark only two,
+; flip, and confirm the front matches the marked ones while the third stays
+; at its pre-flip front colour. Relies on dblbuf already armed from .dbl.
+.dirty:
+    cmp byte [vbet_ok], 0
+    je .dirty_bad
+    cmp byte [vbe_dbl], 0
+    je .dirty_bad
+    ; Remember the front colour at the unmarked probe (must survive flip).
+    mov eax, VBET_OUT_X
+    mov ebx, VBET_OUT_Y
+    call vbe_front_getpixel
+    mov [vbet_out_front], cl
+    ; Two dirty 1×1 rects.
+    mov eax, VBET_D1_X
+    mov ebx, VBET_D1_Y
+    mov cl, VBET_D1_COLOUR
+    call gfx_putpixel
+    mov eax, VBET_D1_X
+    mov ebx, VBET_D1_Y
+    mov ecx, 1
+    mov edx, 1
+    call vbe_dirty
+    mov eax, VBET_D2_X
+    mov ebx, VBET_D2_Y
+    mov cl, VBET_D2_COLOUR
+    call gfx_putpixel
+    mov eax, VBET_D2_X
+    mov ebx, VBET_D2_Y
+    mov ecx, 1
+    mov edx, 1
+    call vbe_dirty
+    ; Third draw on the back, not marked.
+    mov eax, VBET_OUT_X
+    mov ebx, VBET_OUT_Y
+    mov cl, VBET_OUT_COLOUR
+    call gfx_putpixel
+    call gfx_getpixel
+    cmp cl, VBET_OUT_COLOUR
+    jne .dirty_bad
+    call vbe_front_getpixel
+    cmp cl, [vbet_out_front]    ; front still old at the unmarked point
+    jne .dirty_bad
+    call vbe_flip
+    jc .dirty_bad
+    mov eax, VBET_D1_X
+    mov ebx, VBET_D1_Y
+    call vbe_front_getpixel
+    cmp cl, VBET_D1_COLOUR
+    jne .dirty_bad
+    mov eax, VBET_D2_X
+    mov ebx, VBET_D2_Y
+    call vbe_front_getpixel
+    cmp cl, VBET_D2_COLOUR
+    jne .dirty_bad
+    mov eax, VBET_OUT_X
+    mov ebx, VBET_OUT_Y
+    call vbe_front_getpixel
+    cmp cl, [vbet_out_front]    ; unmarked region not copied
+    jne .dirty_bad
+    ; Back still has the unmarked colour (flip does not touch the back).
+    call gfx_getpixel
+    cmp cl, VBET_OUT_COLOUR
+    jne .dirty_bad
+    ret
+.dirty_bad:
+    mov byte [vbet_ok], 0
+    ret
 
 ; Each record: width dd, height dd, bpp dd (low byte); 0 width ends the list.
 align 4
@@ -555,8 +789,11 @@ vbe_modes:
 
 vbet_ok db 0
 vbet_fb db 0
+vbet_out_front db 0
 vbe_ready db 0
 vbe_dbl db 0
+vbe_dirty_n db 0                ; count of stored rects (0 = unset)
+vbe_dirty_full db 0             ; 1 → next flip copies the whole page
 vbet_pass db 'vbe: PASS', 10, 0
 vbet_13h  db 'vbe: 13h', 10, 0
 vbet_fail db 'vbe: FAIL', 10, 0
@@ -569,3 +806,7 @@ vbe_req_w dd 0
 vbe_req_h dd 0
 vbe_req_bpp db 0
     db 0, 0, 0
+vbe_dx times VBE_DIRTY_MAX dd 0
+vbe_dy times VBE_DIRTY_MAX dd 0
+vbe_dw times VBE_DIRTY_MAX dd 0
+vbe_dh times VBE_DIRTY_MAX dd 0
