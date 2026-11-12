@@ -29,7 +29,7 @@ PCI_BAR0        equ 0x10
 VBE_VGA_ID      equ 0x11111234      ; QEMU std VGA: device 1111, vendor 1234
 
 ; Largest mode we offer: map two pages once so mode switches and double
-; buffering (DISPI virtual height + Y offset) stay cheap.
+; buffering (second LFB page + blit present) stay cheap.
 VBE_MAX_W       equ 1024
 VBE_MAX_H       equ 768
 VBE_MAX_BPP     equ 32
@@ -82,12 +82,14 @@ vbe_write:
     pop eax
     ret
 
-; EAX = BAR0 of QEMU's standard VGA, or 0. Clobbers ebx, ecx, edx.
+; EAX = BAR0 of QEMU's standard VGA, or 0. Stores the BAR size in
+; vbe_vram (0 if not found). Clobbers ebx, ecx, edx.
 ; Scans each bus/dev at function 0 first; only probes functions 1–7 when
 ; function 0 exists (no device → 0xFFFFFFFF), so a missing VGA is not a
 ; full 65,536-slot walk.
 vbe_lfb:
     push esi
+    mov dword [vbe_vram], 0
     xor ebx, ebx                ; bus
 .bus:
     xor ecx, ecx                ; device
@@ -145,11 +147,34 @@ vbe_lfb:
     mov eax, edx
     shl eax, 8
     or eax, 0x80000000 | PCI_BAR0
+    mov esi, eax                ; PCI config address of BAR0
     mov dx, PCI_ADDR
     out dx, eax
     mov dx, PCI_DATA
     in eax, dx
-    and eax, 0xFFFFFFF0         ; drop the flag bits
+    push eax                    ; original BAR (flags + address)
+    mov eax, esi
+    mov dx, PCI_ADDR
+    out dx, eax
+    mov eax, 0xFFFFFFFF         ; size probe
+    mov dx, PCI_DATA
+    out dx, eax
+    mov eax, esi
+    mov dx, PCI_ADDR
+    out dx, eax
+    mov dx, PCI_DATA
+    in eax, dx
+    and eax, 0xFFFFFFF0         ; drop flag bits
+    not eax
+    inc eax                     ; BAR decode size in bytes
+    mov [vbe_vram], eax
+    mov eax, esi
+    mov dx, PCI_ADDR
+    out dx, eax
+    pop eax                     ; restore original BAR value
+    mov dx, PCI_DATA
+    out dx, eax
+    and eax, 0xFFFFFFF0         ; drop the flag bits → LFB base
     pop esi
     ret
 
@@ -205,7 +230,13 @@ vbe_setup:
     test eax, eax
     jz .fail
     mov [vbe_fb], eax
+    cmp dword [vbe_vram], 0
+    je .fail
     mov ecx, VBE_MAP_BYTES      ; two pages for double buffering
+    cmp ecx, [vbe_vram]
+    jbe .map
+    mov ecx, [vbe_vram]         ; smaller adapter: map only what fits
+.map:
     call vm_map_range
     jc .fail
     call gfx_save               ; DISPI enable clears VGA memory
@@ -314,19 +345,29 @@ gfx_vbe_640_32:
 
 ; Double buffering on the current VBE mode (2.1-dblbuf). Uses the second
 ; LFB page (already mapped) as a back buffer; vbe_flip blits it onto the
-; visible page. Drawing (gfx_base) targets the back once armed.
-; CF set if not in a VBE mode.
+; visible page. Drawing (gfx_base) targets the back once armed. Copies the
+; front onto the back so the first frame starts from the visible image.
+; CF set if not in a VBE mode, or if two pages do not fit in VRAM.
 vbe_dblbuf:
     pushad
     cmp byte [gfx_vbe], 0
     je .fail
     cmp byte [vbe_dbl], 0
     jne .ok                     ; already armed
-    mov eax, [vbe_fb]
-    mov [vbe_front], eax        ; visible page (DISPI shows this)
     mov ebx, [gfx_pitch]
     imul ebx, [gfx_height]      ; bytes per page
-    add eax, ebx
+    mov ecx, ebx
+    add ecx, ebx                ; two pages
+    cmp ecx, [vbe_vram]
+    ja .fail                    ; smaller adapter: refuse double buffering
+    mov eax, [vbe_fb]
+    mov [vbe_front], eax        ; visible page (DISPI shows this)
+    lea edi, [eax+ebx]          ; back page
+    mov esi, eax
+    mov ecx, ebx
+    shr ecx, 2                  ; dwords
+    rep movsd                   ; back starts as a copy of the front
+    lea eax, [eax+ebx]
     mov [gfx_base], eax         ; draw on the hidden page in VRAM
     mov byte [vbe_dbl], 1
 .ok:
@@ -466,13 +507,17 @@ cmd_vbetest_run:
     mov byte [vbet_ok], 0
 .same:
     ret
-; Draw off-screen (back), confirm the front is still the last single-buffer
-; colour (0x15), flip, and read the new front pixel.
+; Arm double buffering (back starts as a copy of the front), confirm the
+; back already has the last single-buffer colour (0x15), draw off-screen,
+; confirm the front is still 0x15, flip, and read the new front pixel.
 .dbl:
     call vbe_dblbuf
     jc .dbl_bad
     mov eax, VBET_X
     mov ebx, VBET_Y
+    call gfx_getpixel           ; back copied from front on arm
+    cmp cl, 0x15
+    jne .dbl_bad
     call vbe_front_getpixel
     cmp cl, 0x15
     jne .dbl_bad
@@ -519,6 +564,7 @@ vbet_fail db 'vbe: FAIL', 10, 0
 align 4
 vbe_fb dd 0
 vbe_front dd 0
+vbe_vram dd 0                   ; PCI BAR0 decode size (bytes)
 vbe_req_w dd 0
 vbe_req_h dd 0
 vbe_req_bpp db 0
