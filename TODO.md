@@ -383,6 +383,15 @@ From P.8 in `ROADMAP.md` and epic #118 (stream OS2-FOREIGN). Notes: `documentati
   **Acceptance:** `run dosrun doshello.com acorns`, `doscpu.com`, `dosfile.com` and `dosexe.exe` each print their PASS line, and the shell works afterwards. Checks `dos-hello`, `dos-cpu`, `dos-file`, `dos-exe`, `dos-missing`, `dos-after`.
 - [x] **P.8-dos-launch** — `run prog.com` and `run prog.exe` (MZ without PE) go to dosrun without naming it.
 
+## 2.7 — Long names, FAT, drive objects (OS2-FS)
+
+Roadmap 2.7 and the FAT/long-name side of A.5's disk utility. The desktop parts (drive and shredder objects) are coordinated with the 2.2/2.3 desktop work.
+
+- [ ] **2.7-lfn** — SQFS names up to 63 characters: unique short aliases in the entry, the whole name in continuation entries older kernels ignore, orphans freed at mount. Checks `lfntest`, `lfn-host`, `lfn-kernel`, `lfn-sqfs-py`, `lfn-sweep`, `lfn-sweep-freed`.
+- [ ] **2.7-fat** — FAT12/16/32 read and write on drive letters (`mount`, `umount`, `cp`; disks, partitions, image files), VFAT long names both ways. Checks `fat12-*`, `fat16-*`, `fat32-*`, `fat-*`; images checked afterwards by `tools/fatimg.py check`.
+- [ ] **2.7-objects** — Drive objects (one per mounted drive, opening lists it) and a shredder object (a file dropped on it is deleted).
+- [ ] **2.7-diskutil** — `diskutil` understands FAT volumes and long names (partition types, format FAT, check a FAT volume).
+
 ## Modern hardware (2.8–2.9)
 
 Scheduled in the 64-bit bridge, 2.8–2.9 in `ROADMAP.md`. Each box is one PR, and the BIOS boot path and its regression checks keep passing. QEMU covers each one: OVMF for UEFI, `-device ahci`, `-device nvme`, `-device qemu-xhci` with `usb-kbd` and `usb-storage`.
