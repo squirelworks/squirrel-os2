@@ -556,65 +556,67 @@ gfx_fillrect:
     ret
 
 ; ---------- blitter (2.1-blit-clip) ----------
-; eax,ebx = dest; ecx,edx = size; esi,edi = source (same buffer).
-; Dest clipped to clip region; source must stay on-screen and must not
-; overlap dest. Marks dirty when vbe_dbl is set.
+; eax,ebx = dest; ecx,edx = size. Source in [gfx_blit_sx]/[gfx_blit_sy].
+; Dest clipped to the clip region; source stays on-screen; no overlap.
+; Marks dirty when vbe_dbl is set. Preserves all registers (pushad).
 gfx_blit:
     pushad
     test ecx, ecx
-    jle .done
+    jle blit_out
     test edx, edx
-    jle .done
+    jle blit_out
+    mov esi, [gfx_blit_sx]
+    mov edi, [gfx_blit_sy]
     mov ebp, [gfx_clip_x]
     cmp eax, ebp
-    jge .dx
+    jge blit_dx
     sub ebp, eax
     add esi, ebp
     add eax, ebp
     sub ecx, ebp
-    jle .done
-.dx:
+    jle blit_out
+blit_dx:
     mov ebp, [gfx_clip_y]
     cmp ebx, ebp
-    jge .dy
+    jge blit_dy
     sub ebp, ebx
     add edi, ebp
     add ebx, ebp
     sub edx, ebp
-    jle .done
-.dy:
+    jle blit_out
+blit_dy:
     lea ebp, [eax+ecx]
     cmp ebp, [gfx_clip_r]
-    jle .dr
+    jle blit_dr
     mov ecx, [gfx_clip_r]
     sub ecx, eax
-    jle .done
-.dr:
+    jle blit_out
+blit_dr:
     lea ebp, [ebx+edx]
     cmp ebp, [gfx_clip_b]
-    jle .db
+    jle blit_db
     mov edx, [gfx_clip_b]
     sub edx, ebx
-    jle .done
-.db:
+    jle blit_out
+blit_db:
     cmp esi, [gfx_width]
-    jae .done
+    jae blit_out
     cmp edi, [gfx_height]
-    jae .done
+    jae blit_out
     lea ebp, [esi+ecx]
     cmp ebp, [gfx_width]
-    jbe .sw
+    jbe blit_sw
     mov ecx, [gfx_width]
     sub ecx, esi
-    jle .done
-.sw:
+    jle blit_out
+blit_sw:
     lea ebp, [edi+edx]
     cmp ebp, [gfx_height]
-    jbe .go
+    jbe blit_go
     mov edx, [gfx_height]
     sub edx, edi
-    jle .done
-.go:
+    jle blit_out
+blit_go:
     mov [gb_dx], eax
     mov [gb_dy], ebx
     mov [gb_dw], ecx
@@ -639,7 +641,7 @@ gfx_blit:
     imul eax, ebp
     mov edx, [gb_dh]
     mov ebx, [gfx_pitch]
-.row:
+blit_row:
     mov ecx, eax
     push esi
     push edi
@@ -655,18 +657,20 @@ gfx_blit:
     add esi, ebx
     add edi, ebx
     dec edx
-    jnz .row
+    jnz blit_row
     cmp byte [vbe_dbl], 0
-    je .done
+    je blit_out
     mov eax, [gb_dx]
     mov ebx, [gb_dy]
     mov ecx, [gb_dw]
     mov edx, [gb_dh]
     call vbe_dirty
-.done:
+blit_out:
     popad
     ret
 
+gfx_blit_sx dd 0
+gfx_blit_sy dd 0
 gb_dx dd 0
 gb_dy dd 0
 gb_dw dd 0
