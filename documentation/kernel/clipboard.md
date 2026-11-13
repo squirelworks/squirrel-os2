@@ -23,8 +23,8 @@ The kernel holds one text clipboard of up to 1024 bytes (`CLIP_MAX`, `kernel/cli
 
 | No. | Name | In | Out |
 |-----|------|----|-----|
-| 45 | `SYS_CLIPPUT` | ebx = text, ecx = length | the length kept |
-| 46 | `SYS_CLIPGET` | ebx = buffer, ecx = its size | the clipboard's length; as much as fits is copied |
+| 49 | `SYS_CLIPPUT` | ebx = text, ecx = length | the length kept |
+| 50 | `SYS_CLIPGET` | ebx = buffer, ecx = its size | the clipboard's length; as much as fits is copied |
 
 From ring 3, ebx must point at ecx bytes of the program's own memory (`UA_B_C`).
 

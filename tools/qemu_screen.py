@@ -17,7 +17,7 @@ always a scratch image, never a real disk).
 --cdrom boots IMAGE as a CD in the secondary master position (installer I.6).
 QEMU_EXTRA in the environment adds QEMU options (e.g. QEMU_EXTRA='-cpu 486,-pse').
 QEMU_BIN picks the emulator (default qemu-system-i386; qemu-system-x86_64 for
-64-bit UEFI firmware), QEMU_TEXT the address the text screen is read from
+long mode and SMP, 2.8, and for 64-bit UEFI firmware), QEMU_TEXT the address the text screen is read from
 (default 0xb8000; a UEFI boot keeps it in RAM at 0x1f8000, OS2-HW H.2). The 80x25 VGA text buffer is printed at the end.
 """
 import os, socket, subprocess, sys, tempfile, time
