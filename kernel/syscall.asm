@@ -42,7 +42,8 @@ SYS_SETPRIO equ 32          ; ebx = 0..3 -> 0, or -1 (1.9.9)
 SYS_DEVREG  equ 33          ; ebx = name -> register a null char device (1.9.12)
 SYS_DEVUNREG equ 34         ; ebx = name -> remove a device SYS_DEVREG made (2.0.2)
 SYS_GUI     equ 35          ; ebx = GUI_* op, ecx/edx = args: graphics for programs (appsys.asm)
-SYS_COUNT   equ 36
+SYS_SETTLS  equ 36          ; ebx = base of the FS/GS segment -> its selector (P.5)
+SYS_COUNT   equ 37
 
 SYS_ENOSYS  equ -1
 SYSCALL_VEC equ 0x80
@@ -58,6 +59,11 @@ syscall_init:
 
 syscall_isr:
     KSEGS
+    push esi                    ; a Linux process uses its own table (P.1)
+    mov esi, [proc_cur]
+    cmp dword [esi+PCB_LINUX], 0
+    pop esi
+    jne lx_isr
     cmp eax, SYS_COUNT
     jae .bad
     pushad
@@ -114,6 +120,7 @@ sys_uarg_kind:
     db UA_NONE, UA_NONE, UA_NETSEND, UA_NETRECV ; recv keyevents netsendto netrecvfrom
     db UA_NONE, UA_BZ, UA_BZ                    ; setprio devreg devunreg
     db UA_GUI                                   ; gui
+    db UA_NONE                                  ; settls
 %if $-sys_uarg_kind != SYS_COUNT
 %error sys_uarg_kind needs one byte per system call
 %endif
@@ -368,6 +375,10 @@ syscall_table:
     dd sys_devreg
     dd sys_devunreg
     dd sys_gui
+    dd sys_settls
+%if $-syscall_table != SYS_COUNT*4
+%error syscall_table and SYS_COUNT disagree
+%endif
 
 ; ---------- handlers: args in ebx/ecx/edx, result in eax ----------
 sys_putc:
