@@ -58,6 +58,15 @@ nasm -f bin -i "$root/programs/" "$root/programs/dosrun.asm" -o "$out/dosrun"
 for prog in doshello doscpu dosfile; do nasm -f bin "$root/programs/$prog.asm" -o "$out/$prog.com"; done
 nasm -f bin "$root/programs/dosexe.asm" -o "$out/dosexe.exe"
 for f in dosrun winrun doshello.com doscpu.com dosfile.com dosexe.exe; do python3 "$root/tools/sqfs.py" "$out/dos.img" put "$out/$f"; done
+# A.4: the debugger, its tests and the programs it traces (with a symbol file) on a disk of their own
+python3 "$root/tools/sqfs.py" "$out/dev.img" format 1024
+for prog in debugger dbgtest dbgtgt distest; do
+    nasm -f bin -i "$root/programs/" --before "[map symbols $out/$prog.map]" "$root/programs/$prog.asm" -o "$out/$prog"
+    python3 "$root/tools/sqfs.py" "$out/dev.img" put "$out/$prog"
+done
+python3 "$root/tools/mksym.py" "$out/dbgtgt.map" "$out/dbgtgt.sym"
+nasm -f bin "$root/programs/dbgelf.asm" -o "$out/dbgelf"    # ELF .symtab instead of a .sym file
+for f in dbgtgt.sym dbgelf; do python3 "$root/tools/sqfs.py" "$out/dev.img" put "$out/$f"; done
 rm -f "$out/data.img"
 dd if=/dev/zero of="$out/data.img" bs=1024 count=1024 2>/dev/null
 
@@ -870,6 +879,23 @@ check_all dos-run-com 'Hello from DOS land!|#! tail: acorns|doshello: PASS'  'ru
 check_all dos-run-exe 'Hello from an MZ .EXE!|dosexe: PASS'  'run dosexe.exe' '<ret>'
 check_all dos-winrun  'Hello from an MZ .EXE!|dosexe: PASS'  'run winrun dosexe.exe' '<ret>'
 check dos-run-after   'systest: PASS'         'run doscpu.com' '<ret>' systest '<ret>'
+# A.4: SYS_DEBUG, the disassembler and the debugger
+disk=$out/dev.img
+check dbg-api       'dbgtest: PASS'         'run dbgtest' '<ret>' '<pause>'
+check dbg-api-after 'systest: PASS'         'run dbgtest' '<ret>' '<pause>' systest '<ret>'
+check dbg-disasm    'distest: PASS'         'run distest' '<ret>'
+check_all dbg-entry '10 symbols loaded|pid 2 stopped at its entry|main:|00030010  B801000000        mov eax,0x1'  'run debugger dbgtgt' '<ret>' '<pause>'
+check_all dbg-break 'breakpoint 1 at 0003001C <here>|pid 2 hit breakpoint 1|0003001C  89C1              mov ecx,eax'  'run debugger dbgtgt' '<ret>' '<pause>' 'b here' '<ret>' c '<ret>' '<pause>'
+check_all dbg-step  '0003001A  01D8              add eax,ebx|eax=00000003 ebx=00000002|eip=0003001C <here>'  'run debugger dbgtgt' '<ret>' '<pause>' 's 2' '<ret>' s '<ret>' r '<ret>'
+check_all dbg-set   'eax=00000007|dbgtgt result 7|pid 2 ended (exit code 7)'  'run debugger dbgtgt' '<ret>' '<pause>' 'b here' '<ret>' c '<ret>' '<pause>' 'set eax 7' '<ret>' 'bd 1' '<ret>' c '<ret>' '<pause>'
+check_all dbg-next  'call 0x3007b <level1>|00030029  8B742404          mov esi,[esp+0x4]'  'run debugger dbgtgt' '<ret>' '<pause>' 'b here' '<ret>' c '<ret>' '<pause>' n '<ret>' n '<ret>' n '<ret>'
+check_all dbg-bt    'at 00030085 <level2>|at 00030083 <level1+8>|at 00030029 <here+d>'  'run debugger dbgtgt' '<ret>' '<pause>' 'b level2' '<ret>' c '<ret>' '<pause>' bt '<ret>'
+check_all dbg-mem   '0003009F  03 00 00 00|00030090  64 62 67 74 67 74 20 72 65 73 75 6C 74 20 00 03  dbgtgt result ..'  'run debugger dbgtgt' '<ret>' '<pause>' 'b level1' '<ret>' c '<ret>' '<pause>' 'x result 4' '<ret>' 'x msg 16' '<ret>'
+check_all dbg-fault 'stopped by CPU exception 14 at address 00000010|pid 2 ended (exit code -1)'  'run debugger dbgtgt f' '<ret>' '<pause>' c '<ret>' '<pause>' kill '<ret>'
+check_all dbg-esc   'pid 2 stopped|<here.spin>'  'run debugger dbgtgt s' '<ret>' '<pause>' c '<ret>' '<pause>' '<esc>' '<pause>'
+check dbg-quit      'systest: PASS'         'run debugger dbgtgt s' '<ret>' '<pause>' c '<ret>' '<pause>' '<esc>' '<pause>' q '<ret>' '<pause>' systest '<ret>'
+check_all dbg-elf   '3 symbols loaded|start:|00030059 loop_top|00030073 value'  'run debugger dbgelf' '<ret>' '<pause>' sym '<ret>'
+check_all dbg-elf-run 'loop 0x30059 <loop_top>|dbgelf done|pid 2 ended (exit code 6)'  'run debugger dbgelf' '<ret>' '<pause>' 'u start 4' '<ret>' g '<ret>' '<pause>'
 disk=$out/auto.img
 check bat-autoexec  'autoexec ran'
 check lang-autoexec 'Tabulae:'              ls '<ret>'

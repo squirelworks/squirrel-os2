@@ -28,6 +28,13 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `calculator.asm` | SQX | Calculator in a window, standard and scientific keypads on the `sci` engine (`run calculator`, A.1) |
 | `clock.asm` | SQX | Analogue clock with the time and date (`run clock`, `run clock test`, A.1) |
 | `notepad.asm` | SQX | Text editor in a window, with syntax highlighting for .asm/.inc, .c/.h and .bas (`run notepad [file]`, `run notepad -test`, A.1, A.7) |
+| `debugger.asm` | SQX | Debugger: breakpoints, single step, registers, memory, disassembly, backtrace, symbols (`run debugger dbgtgt`, A.4, `documentation/apps/debugger.md`) |
+| `disasm.inc` | include | The debugger's x86 disassembler (A.4) |
+| `debug.inc` | include | `SYS_DEBUG` operations and the register block (A.4) |
+| `dbgtest.asm` | SQX | Checks `SYS_DEBUG` on `dbgtgt` (`run dbgtest`, A.4) |
+| `dbgtgt.asm` | SQX | A program to trace: `run dbgtgt [f\|s\|b]` faults, spins or runs an `INT3` (A.4) |
+| `dbgelf.asm` | ELF32 | Hand-made ELF with a `.symtab`, for the debugger's ELF symbols (A.4) |
+| `distest.asm` | SQX | Checks the disassembler against 70 expected lines (`run distest`, A.4) |
 | `grapher.asm` | SQX | 2D graphing calculator: explicit, polar, parametric and implicit functions, inequalities, sliders, zoom, pan, trace, roots, extrema, intersections (`run grapher [f]`, `run grapher test`, C.2) |
 | `charmap.asm` | SQX | Character map of the system font; collects characters, F2 saves them (`run charmap`, A.2) |
 | `paint.asm` | SQX | Bitmap painter: pen, line, box, solid box, fill, eraser, undo; 16 colours; saves and opens BMP (`run paint [f]`, `run paint test`, A.2) |

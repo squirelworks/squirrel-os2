@@ -11,6 +11,7 @@ main:                           ; +0
 here:                           ; +12: dbgtest's breakpoint
     mov ecx, eax                ; +12, 2 bytes
     mov [result], ecx
+    call level1                 ; two stack frames for bt and n
     mov esi, [esp+4]
     cmp byte [esi], 'f'
     je .fault
@@ -39,6 +40,19 @@ here:                           ; +12: dbgtest's breakpoint
 .spin:
     inc dword [counter]
     jmp .spin
+
+level1:
+    push ebp
+    mov ebp, esp
+    call level2
+    pop ebp
+    ret
+level2:
+    push ebp
+    mov ebp, esp
+    inc dword [counter]
+    pop ebp
+    ret
 
 msg db 'dbgtgt result ', 0
 result dd 0
