@@ -45,6 +45,11 @@ for prog in guitest calculator clock notepad grapher charmap paint viewer topolo
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
     python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/$prog"
 done
+for prog in sheet geometry cas sysmon logview diskutil; do  # C.4, C.6, C.5, A.5
+    nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
+    python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/$prog"
+done
+python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/crash"   # A.5: logview shows its crash
 python3 - "$out/grad.bmp" <<'PYEOF'    # A.2: a 24-bit test picture, 64 x 48
 import struct, sys
 w, h = 64, 48
@@ -943,6 +948,40 @@ check_all fat-loop   'E: FAT12, 160 KB, disk image.img|inside.txt|fattest: PASS|
 python3 "$root/tools/sqfs.py" "$sq" get 'disk image.img' "$out/floppy27b.img"
 fatok fat-loop-fsck "$out/floppy27b.img"
 disk=$saved_disk; target=$saved_target
+# C.4: spreadsheet with charts
+check sheet         'sheet: PASS'           'run sheet test' '<ret>' '<pause>' '<pause>' '<pause>'
+check_all sheet-calc 'gfx: A3: =A1*A2+1|gfx: = 7' 'run sheet' '<ret>' '<pause>' '2' '<ret>' '3' '<ret>' '=A1*A2+1' '<ret>' '<up>' '<pause>' '<gfx>'
+check_all sheet-chart 'gfx: Line A1:B3|gfx: one|gfx: two' 'run sheet' '<ret>' '<pause>' 'one' '<tab>' 'two' '<ret>' '<left>' '1' '<ret>' '2' '<ret>' '<up>' '<up>' '<right>' '3' '<ret>' '5' '<ret>' '<up>' '<f3>' '<left>' '<up>' '<up>' '<ctrl-g>' '<pause>' '<gfx>'
+check sheet-cyc     'gfx: #CYC: it depends on itself' 'run sheet' '<ret>' '<pause>' '=A2' '<ret>' '=A1+1' '<ret>' '<up>' '<pause>' '<gfx>'
+check sheet-csv     '1,=A1*2'               'run sheet s.csv' '<ret>' '<pause>' '1' '<tab>' '=A1*2' '<ret>' '<ctrl-s>' '<pause>' '<esc>' '<pause>' 'cat s.csv' '<ret>'
+check sheet-quit    'systest: PASS'         'run sheet' '<ret>' '<pause>' 'x' '<ret>' '<esc>' '<pause>' 'n' '<pause>' systest '<ret>'
+# C.6: geometry
+check geometry      'geometry: PASS'        'run geometry test' '<ret>' '<pause>' '<pause>' '<pause>'
+check_all geometry-cmds 'gfx: s1: length 5|gfx: m1 = 5|gfx: D (-1.9365, 3.5)|gfx: E (1.9365, 3.5)' 'run geometry' '<ret>' '<pause>' '(0,0)' '<ret>' '(4,0)' '<ret>' 'C=(0,3)' '<ret>' 'seg B C' '<ret>' 'k=circle C 2' '<ret>' 'circle A B' '<ret>' 'dist B C' '<ret>' 'inter c1 k' '<ret>' '<pause>' '<gfx>'
+check_all geometry-move 'gfx: B (4.5, 0)|gfx: m1 = 4.5|gfx: M (2.25, 0)' 'run geometry' '<ret>' '<pause>' '(0,0)' '<ret>' '(4,0)' '<ret>' 'dist A B' '<ret>' 'M=mid A B' '<ret>' '<tab>' '<tab>' '<right>' '<right>' '<pause>' '<gfx>'
+check geometry-err  'gfx: Those are not the right kinds of object' 'run geometry' '<ret>' '<pause>' '(0,0)' '<ret>' '(4,0)' '<ret>' 'perp A B' '<ret>' '<pause>' '<gfx>'
+check geometry-save 'C=circle A 2'          'run geometry g.geo' '<ret>' '<pause>' '(0,0)' '<ret>' 'C=circle A 2' '<ret>' '<ctrl-s>' '<pause>' '<esc>' '<pause>' 'cat g.geo' '<ret>'
+check geometry-quit 'systest: PASS'         'run geometry' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
+# C.5: computer algebra
+check cas           'cas: PASS'             'run cas test' '<ret>' '<pause>' '<pause>' '<pause>'
+check_all cas-algebra 'gfx: (x + 3)*(x - 3)|gfx: x^2 - 9|gfx: x = -sqrt(2), x = sqrt(2)' 'run cas' '<ret>' '<pause>' 'factor(x^2-9)' '<ret>' 'expand(ans)' '<ret>' 'solve(x^2=2)' '<ret>' '<pause>' '<gfx>'
+check_all cas-calculus 'gfx: x^2*cos(x) + 2*x*sin(x)|gfx: sin(3*x)/3 + C|gfx: 1 - x^2/2 + x^4/24' 'run cas' '<ret>' '<pause>' 'diff(x^2*sin(x))' '<ret>' 'integrate(cos(3*x))' '<ret>' 'series(cos(x), 0, 4)' '<ret>' '<pause>' '<gfx>'
+check_all cas-err   'gfx: Error: syntax|gfx: Error: no answer yet for ans' 'run cas' '<ret>' '<pause>' 'ans' '<ret>' 'x +* 2' '<ret>' '<pause>' '<gfx>'
+check cas-quit      'systest: PASS'         'run cas' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
+# A.5: system monitor, log viewer, disk utility (and the kernel's GUI_SYSINFO)
+check sysmon        'sysmon: PASS'          'run sysmon test' '<ret>' '<pause>' '<pause>' '<pause>'
+check_all sysmon-view 'gfx: System Monitor|gfx: PID STATE|gfx: Memory|sysmon' 'run sysmon' '<ret>' '<pause>' '<pause>' '<gfx>'
+check sysmon-prio   'kernel prio 2'         'run sysmon' '<ret>' '<pause>' '<up>' '+' '<pause>' '<esc>' '<pause>' ps '<ret>'
+check sysmon-quit   'systest: PASS'         'run sysmon' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
+check logview       'logview: PASS'         'run logview test' '<ret>' '<pause>' '<pause>'
+check_all logview-crash 'Squirrel-OS/2 started|crashed crash (pid 1): page fault|ended crash (pid 1), exit code -1|gfx: Lines 1-5 of 5' 'run crash' '<ret>' '<pause>' 'run logview' '<ret>' '<pause>' '<gfx>'
+check_all logview-filter 'gfx: Lines 1-3 of 5|gfx: filter: crash' 'run crash' '<ret>' '<pause>' 'run logview' '<ret>' '<pause>' '/' 'crash' '<ret>' '<pause>' '<gfx>'
+check_all logview-file 'gfx: lv.txt|gfx: acorns and oak' 'put lv.txt acorns and oak' '<ret>' 'run logview lv.txt' '<ret>' '<pause>' '<gfx>'
+check logview-quit  'systest: PASS'         'run logview' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
+check diskutil      'diskutil: PASS'        'run diskutil test' '<ret>' '<pause>' '<pause>'
+check_all diskutil-check 'gfx: hd1 (data disk): SQFS, 2048 sectors, 1024 KB|gfx: Check: no problems found' 'run diskutil' '<ret>' '<pause>' 'c' '<pause>' '<gfx>'
+check diskutil-scan 'gfx: Surface scan: 2048 sectors read, 0 failed' 'run diskutil' '<ret>' '<pause>' 's' '<pause>' '<pause>' '<gfx>'
+check diskutil-quit 'systest: PASS'         'run diskutil' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
 # P.8: DOS .COM and .EXE programs run in the dosrun 8086 interpreter
 disk=$out/dos.img
 check_all dos-hello 'Hello from DOS land!|#! tail: acorns|doshello: PASS'  'run dosrun doshello.com acorns' '<ret>'
