@@ -52,7 +52,9 @@ SYS_WINDRAW  equ 41         ; ebx = id, ecx = 28-byte command -> 0, a colour (WD
 SYS_WINFLUSH equ 42         ; ebx = id -> 0 or -1: what was drawn reaches the screen
 SYS_WINEVENT equ 43         ; ebx = 16-byte buffer, ecx = 0 wait / 1 poll -> 0, or -1 nothing
 SYS_WININFO  equ 44         ; ebx = id or -1, ecx = 16-byte buffer -> 0 or -1
-SYS_COUNT   equ 45
+SYS_NET     equ 45          ; ebx = NET_* op: names, TCP, settings (3.0, netsys.asm)
+SYS_AUDIO   equ 46          ; ebx = AU_* op: sound for programs (3.0, kernel/audio/audio.asm)
+SYS_COUNT   equ 47
 
 SYS_ENOSYS  equ -1
 SYSCALL_VEC equ 0x80
@@ -120,7 +122,9 @@ UA_NETSEND  equ 9           ; ebx -> 16-byte block, its +8 -> its +12 bytes
 UA_NETRECV  equ 10          ; ebx -> 20-byte block, its +4 -> its +8 bytes
 UA_KERNEL   equ 11          ; refused from ring 3
 UA_GUI      equ 12          ; per GUI_* operation (gui_uargs, appsys.asm)
-UA_READDIR  equ 13          ; 2.7: ecx -> 20 bytes, or with ebx bit 31 72 bytes and edx -> string or 0
+UA_NET      equ 13          ; per NET_* operation (net_uargs, netsys.asm)
+UA_AUDIO    equ 14          ; per AU_* operation (audio_uargs, audio/audio.asm)
+UA_READDIR  equ 15          ; 2.7: ecx -> 20 bytes, or with ebx bit 31 72 bytes and edx -> string or 0
 
 SYS_EFAULT  equ -1
 
@@ -137,6 +141,7 @@ sys_uarg_kind:
     db UA_GUI                                   ; gui
     db UA_NONE                                  ; settls
     times 8 db UA_NONE                          ; 37-44 windows: checked in winsys.asm
+    db UA_NET, UA_AUDIO                         ; net audio
 %if $-sys_uarg_kind != SYS_COUNT
 %error sys_uarg_kind needs one byte per system call
 %endif
@@ -150,8 +155,16 @@ sys_uargs:
     ja .ok
     jmp [.kinds+eax*4]
 .kinds:
-    dd .ok, .bz, .bz_cz, .bz_cz0, .c_d, .b_c, .c_512, .c_20, .dev, .netsend, .netrecv, .bad, .gui
+    dd .ok, .bz, .bz_cz, .bz_cz0, .c_d, .b_c, .c_512, .c_20, .dev, .netsend, .netrecv, .bad, .gui, .net, .audio
     dd .readdir
+.net:
+    call net_uargs
+    jc .bad
+    jmp .ok
+.audio:
+    call audio_uargs
+    jc .bad
+    jmp .ok
 .readdir:
     test ebx, ebx
     jns .c_20
@@ -407,6 +420,8 @@ syscall_table:
     dd sys_settls
     dd sys_winopen, sys_winclose, sys_winmove, sys_wintitle   ; 2.2-progwin
     dd sys_windraw, sys_winflush, sys_winevent, sys_wininfo
+    dd sys_net
+    dd sys_audio
 %if $-syscall_table != SYS_COUNT*4
 %error syscall_table and SYS_COUNT disagree
 %endif

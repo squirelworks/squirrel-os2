@@ -7,7 +7,8 @@ Each KEYS argument is typed as text; a token like "<ret>", "<esc>",
 "<pause>" waits a second before the next key, "<gop>" reads the text the
 GOP console drew (UEFI boot, printed as "gop: <line>"), and "<gfx>" reads the text
 drawn in graphics mode (the 5 x 7 font of tools/font5x7.txt, in 6 x 8
-cells at any pixel offset) and prints each line found as "gfx: <text>"
+cells at any pixel offset, and the proportional faces of tools/fontp*.txt)
+and prints each line found as "gfx: <text>"
 after the text screen.
 --disk attaches DATA_IMAGE as the primary slave (the kernel's data disk).
 --target attaches DISK as the secondary master (the installer's target;
@@ -97,7 +98,76 @@ def gfx_text(path):
                     word = word.strip()
                     if len(word) >= 2 and word not in lines:
                         lines.append(word)
+    five = list(lines)
+    for word in prop_text(rgb, w, h, sw, sh):   # 5 x 7 text can half-match a face
+        if not any(word in line for line in five) and word not in lines:
+            lines.append(word)
     return lines
+
+
+def prop_text(rgb, w, h, sw, sh):
+    """Runs of text drawn in the proportional faces (2.2-propfont,
+    tools/fontp*.txt) on a solid background. A glyph is read where its
+    columns match exactly, the column after it and the one before the run
+    are all background, and so are its clear pixels; a gap one space wide
+    (plus its spacing column) is a space, a wider gap ends the run. Needs
+    numpy; without it nothing is read."""
+    try:
+        import numpy as np
+    except ImportError:
+        return []
+    import mkfont
+    img = np.frombuffer(rgb, np.uint8)[:w * h * 3].reshape(h, w, 3)[::h // sh, ::w // sw].astype(np.uint32)
+    ids = (img[..., 0] << 16) | (img[..., 1] << 8) | img[..., 2]
+    words = []
+    for _, name, height in mkfont.FACES:
+        glyphs = mkfont.read_p(name, height)
+        space = len(glyphs[0x20][0])
+        first = {}
+        for code, rows in glyphs.items():
+            if code == 0x20:
+                continue
+            cols = tuple(sum((rows[r][c] == '#') << r for r in range(height)) for c in range(len(rows[0])))
+            first.setdefault(cols[0], []).append((cols, chr(code)))
+        for v in first.values():
+            v.sort(key=lambda g: -len(g[0]))
+        starts = np.array(sorted(first), dtype=np.uint32)
+        for colour in np.unique(ids):
+            ink = (ids != colour).astype(np.uint32)
+            codes = np.zeros((sh - height + 1, sw), np.uint32)
+            for r in range(height):
+                codes |= ink[r:r + sh - height + 1] << r
+            cand = np.argwhere(np.isin(codes[:, 1:], starts) & (codes[:, :-1] == 0))
+            done = set()
+            for y, x in cand:
+                x += 1
+                if (y, x) in done:
+                    continue
+                row = codes[y]
+                text, pos = '', x
+                while pos < sw:
+                    for cols, ch in first.get(int(row[pos]), ()):
+                        end = pos + len(cols)
+                        if end < sw and row[end] == 0 and tuple(int(v) for v in row[pos:end]) == cols:
+                            break
+                    else:
+                        break
+                    done.add((y, pos))
+                    text += ch
+                    pos = end + 1
+                    gap = 0
+                    while pos + gap < sw and row[pos + gap] == 0:
+                        gap += 1
+                    if gap == 0:
+                        continue
+                    if gap != space + 1:
+                        break
+                    text += ' '
+                    pos += gap
+                text = text.strip()
+                if len(text) >= 2 and text not in words:
+                    words.append(text)
+    return words
 
 
 def gop_text(path):

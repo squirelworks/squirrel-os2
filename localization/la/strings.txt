@@ -50,5 +50,7 @@ net_noreply=Nullum responsum
 net_badaddr=Inscriptio mala
 net_of4= ex 4
 net_offnet=Porta non est in hac subrete
+net_nodhcp=Nullus minister DHCP respondit
+net_nohost=Hospes non inventus
 fe_nodrive=Nullus talis discus (vide mount)
 fe_xdev=Inter discos moveri non potest

@@ -53,9 +53,11 @@ LS_NET_NOREPLY equ 48
 LS_NET_BADADDR equ 49
 LS_NET_OF4 equ 50
 LS_NET_OFFNET equ 51
-LS_FE_NODRIVE equ 52
-LS_FE_XDEV equ 53
-LS_COUNT equ 54
+LS_NET_NODHCP equ 52
+LS_NET_NOHOST equ 53
+LS_FE_NODRIVE equ 54
+LS_FE_XDEV equ 55
+LS_COUNT equ 56
 LANG_COUNT equ 3
 
 align 4
@@ -117,6 +119,8 @@ ls_en:
     dd ls_en_net_badaddr
     dd ls_en_net_of4
     dd ls_en_net_offnet
+    dd ls_en_net_nodhcp
+    dd ls_en_net_nohost
     dd ls_en_fe_nodrive
     dd ls_en_fe_xdev
 ls_la:
@@ -172,6 +176,8 @@ ls_la:
     dd ls_la_net_badaddr
     dd ls_la_net_of4
     dd ls_la_net_offnet
+    dd ls_la_net_nodhcp
+    dd ls_la_net_nohost
     dd ls_la_fe_nodrive
     dd ls_la_fe_xdev
 ls_tlh:
@@ -227,6 +233,8 @@ ls_tlh:
     dd ls_tlh_net_badaddr
     dd ls_tlh_net_of4
     dd ls_tlh_net_offnet
+    dd ls_tlh_net_nodhcp
+    dd ls_tlh_net_nohost
     dd ls_tlh_fe_nodrive
     dd ls_tlh_fe_xdev
 ls_en_banner db 'Squirrel-OS/2', 0
@@ -281,6 +289,8 @@ ls_en_net_noreply db 'No reply', 0
 ls_en_net_badaddr db 'Bad address', 0
 ls_en_net_of4 db ' of 4', 0
 ls_en_net_offnet db 'Gateway is not on that subnet', 0
+ls_en_net_nodhcp db 'No DHCP server answered', 0
+ls_en_net_nohost db 'Host not found', 0
 ls_en_fe_nodrive db 'No such drive (see mount)', 0
 ls_en_fe_xdev db 'Cannot move between drives', 0
 ls_la_banner db 'Sciurus-OS/2', 0
@@ -335,6 +345,8 @@ ls_la_net_noreply db 'Nullum responsum', 0
 ls_la_net_badaddr db 'Inscriptio mala', 0
 ls_la_net_of4 db ' ex 4', 0
 ls_la_net_offnet db 'Porta non est in hac subrete', 0
+ls_la_net_nodhcp db 'Nullus minister DHCP respondit', 0
+ls_la_net_nohost db 'Hospes non inventus', 0
 ls_la_fe_nodrive db 'Nullus talis discus (vide mount)', 0
 ls_la_fe_xdev db 'Inter discos moveri non potest', 0
 ls_tlh_banner db 'Squirrel-OS/2', 0
@@ -389,5 +401,7 @@ ls_tlh_net_noreply db "jang tu'lu'be'", 0
 ls_tlh_net_badaddr db 'ngoq QIH', 0
 ls_tlh_net_of4 db " vo' 4", 0
 ls_tlh_net_offnet db 'lojmIt Daq QIH', 0
+ls_tlh_net_nodhcp db 'DHCP jang pagh', 0
+ls_tlh_net_nohost db "Qum tu'lu'be'", 0
 ls_tlh_fe_nodrive db "Hew tu'lu'be' (mount yIlegh)", 0
 ls_tlh_fe_xdev db "Hew latlh Daq vIHlaHbe'", 0

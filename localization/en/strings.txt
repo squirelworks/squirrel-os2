@@ -50,5 +50,7 @@ net_noreply=No reply
 net_badaddr=Bad address
 net_of4= of 4
 net_offnet=Gateway is not on that subnet
+net_nodhcp=No DHCP server answered
+net_nohost=Host not found
 fe_nodrive=No such drive (see mount)
 fe_xdev=Cannot move between drives

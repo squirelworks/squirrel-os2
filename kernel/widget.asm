@@ -542,7 +542,7 @@ wg_draw:
     mov byte [gfx_colour], WG_BTN_FILL
     mov byte [gfx_bg], WM_TEXT  ; white text on it
 .rowd:
-    call wm_drawtitle
+    call wm_drawtext5           ; lists keep the 5 x 7 rows
     add ebx, GFX_CELL_H
     inc ebp
     jmp .row
@@ -552,10 +552,17 @@ wg_draw:
     jmp .boxw
 .button:                        ; a black box, white inside, the text in it
     push eax
-    call strlen                 ; eax = characters
+    push ecx
+    mov ecx, FONT_9
+    call gfx_strwidth_p         ; eax = the text's width (2.2-propfont)
+    pop ecx
+    mov edx, eax
+    pop eax
+    jmp .boxp
 .boxw:
     imul edx, eax, GFX_CELL_W
     pop eax
+.boxp:
     add edx, 2 * WG_BTN_PAD + 2 ; the box's width
 .boxh:
     push edx
@@ -583,9 +590,12 @@ wg_draw:
     sub ecx, 2 * WG_BTN_PAD
     mov byte [gfx_colour], WM_TEXT
     mov byte [gfx_bg], WG_BTN_FILL
-    call wm_drawtitle
     cmp byte [edi+WG_KIND], WGK_FIELD
-    jne .out
+    je .ftext
+    call wm_drawtitle
+    jmp .out
+.ftext:
+    call wm_drawtext5           ; a field's cursor goes by 6 x 8 cells
     push eax                    ; the cursor: an underline in the next cell
     call strlen
     imul edx, eax, GFX_CELL_W
