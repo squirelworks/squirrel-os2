@@ -248,8 +248,8 @@ check ed-vaction    "Deleted 'c'"           'run vedit' '<ret>' abc '<backspace>
 check ed-unsaved    'Unsaved changes'       'run edit' '<ret>' x '<esc>'
 check ed-saveas     'memo2'                 'run edit' '<ret>' hi '<f2>' memo2 '<ret>' '<esc>' ls '<ret>'
 # 2.3-clipboard: Ctrl+Ins copies the line, Shift+Ins pastes; Ctrl+X cuts the line, Ctrl+V pastes
-check ed-clip-copy  'abc and abc'           'run edit memoc1' '<ret>' abc '<ctrl-insert>' ' and ' '<shift-insert>' '<ctrl-s>' '<esc>' 'cat memoc1' '<ret>'
-check ed-clip-cut   'two one'               'run edit memoc2' '<ret>' one '<ret>' two '<up>' '<ctrl-x>' '<end>' ' ' '<ctrl-v>' '<ctrl-s>' '<esc>' 'cat memoc2' '<ret>'
+check ed-clip-copy  'abc and abc'           'run edit memoc1' '<ret>' abc '<ctrl-insert>' ' and ' '<shift-insert>' '<ctrl-s>' '<esc>' 'cat memoc1' '<ret>' 'rm memoc1' '<ret>'
+check ed-clip-cut   'two one'               'run edit memoc2' '<ret>' one '<ret>' two '<up>' '<ctrl-x>' '<end>' ' ' '<ctrl-v>' '<ctrl-s>' '<esc>' 'cat memoc2' '<ret>' 'rm memoc2' '<ret>'
 check cbtest        'clip: PASS'            cbtest '<ret>'
 check cbtest-text   'systest: PASS'         cbtest '<ret>' systest '<ret>'
 # 1.0.9: Ctrl+F finds text, F3 finds it again (wrapping to the start)
