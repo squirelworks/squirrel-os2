@@ -390,13 +390,43 @@ wm_draw:
     mov byte [gfx_colour], WM_TEXT
     mov byte [gfx_bg], WM_CLIENT
     lea esi, [edi+WIN_BUF]
-    call wm_drawtitle
+    call wm_drawtext5
     popad
     ret
 
 ; esi = title, eax/ebx = where, ecx = room in pixels: draws as many
-; characters as fit.
+; characters as fit, in the proportional window face (FONT_9, 2.2-propfont).
+; Title bars, menus, icons, Alt+Tab, labels and buttons use it.
 wm_drawtitle:
+    pushad
+    mov edi, eax
+    add ecx, eax                ; right end of the room
+    push ecx
+    mov ecx, FONT_9
+    call pf_face
+    pop ecx
+.c:
+    movzx edx, byte [esi]
+    test edx, edx
+    jz .done
+    call pf_index
+    mov eax, [ebp]
+    movzx eax, byte [eax+edx]
+    lea eax, [edi+eax+PF_SPACE]
+    cmp eax, ecx
+    jg .done
+    mov eax, edi
+    call pf_glyph
+    mov edi, eax
+    inc esi
+    jmp .c
+.done:
+    popad
+    ret
+
+; As wm_drawtitle in the 5 x 7 font, in 6 x 8 cells: typed text, fields
+; and lists, where a character's cell is its place.
+wm_drawtext5:
     pushad
     mov edi, eax
     add ecx, eax                ; right end of the room
@@ -2215,25 +2245,21 @@ wm_popup:
     mov [wm_mown], ecx
     mov dword [wm_msel], 0
     mov dword [wm_msys], 0
-    xor ebp, ebp                ; widest item
-    xor ecx, ecx
+    xor ebp, ebp                ; widest item, in pixels
+    xor edi, edi
 .w:
-    mov edi, [esi+ecx*4]
-    xor eax, eax
-.len:
-    cmp byte [edi+eax], 0
-    je .got
-    inc eax
-    jmp .len
-.got:
+    push esi
+    mov esi, [esi+edi*4]
+    mov ecx, FONT_9
+    call gfx_strwidth_p
+    pop esi
     cmp eax, ebp
     jbe .nx
     mov ebp, eax
 .nx:
-    inc ecx
-    cmp ecx, edx
+    inc edi
+    cmp edi, edx
     jb .w
-    imul ebp, ebp, GFX_CELL_W
     add ebp, 2 * TH_BEVEL_W + 8
     mov [wm_mw], ebp
     imul edx, edx, WM_MENU_ROW

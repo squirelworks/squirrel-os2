@@ -459,6 +459,9 @@ run_simple:
     mov edi, cmd_winmenu        ; 2.2-sysmenu
     call streq
     je .winmenu
+    mov edi, cmd_pfont          ; 2.2-propfont
+    call streq
+    je .pfont
     mov edi, cmd_winalttab      ; 2.2-alttab
     call streq
     je .winalttab
@@ -722,6 +725,9 @@ run_simple:
     jmp .empty
 .winmenu:
     call cmd_winmenu_run
+    jmp .empty
+.pfont:
+    call cmd_pfont_run
     jmp .empty
 .winalttab:
     call cmd_winalttab_run
@@ -1240,6 +1246,7 @@ cmd_windrag db 'windrag', 0
 cmd_winmin db 'winmin', 0
 cmd_winmenu db 'winmenu', 0
 cmd_winalttab db 'winalttab', 0
+cmd_pfont db 'pfont', 0
 cmd_wintest db 'wintest', 0
 cmd_winmove db 'winmove', 0
 cmd_winfocus db 'winfocus', 0
@@ -1447,6 +1454,7 @@ khigh_start:
 %include "matrix.asm"
 %include "diff.asm"
 %include "graph.asm"
+%include "pfont.asm"
 %include "wm.asm"
 %include "winsys.asm"
 %include "widget.asm"

@@ -373,6 +373,9 @@ check cliptest      'clip: PASS'            cliptest '<ret>'                  # 
 check cliptest-text 'systest: PASS'         cliptest '<ret>' systest '<ret>'
 check bevtest       'bevel: PASS'           bevtest '<ret>'                   # W.1-theme
 check bevtest-text  'systest: PASS'         bevtest '<ret>' systest '<ret>'
+check pfont         'pfont: PASS'           pfont '<ret>' '<pause>' '<spc>'   # 2.2-propfont
+check_all pfont-read 'gfx: Wg Squirrel window face|gfx: Wg Display face, bold' pfont '<ret>' '<pause>' '<gfx>' '<spc>'
+check pfont-text    'systest: PASS'         pfont '<ret>' '<pause>' '<spc>' systest '<ret>'
 check winvbe        'winvbe: PASS'          winvbe '<ret>'                    # 2.2-vbe-wm
 check winvbe-text   'systest: PASS'         winvbe '<ret>' systest '<ret>'
 check winclip       'winclip: PASS'         winclip '<ret>'                   # 2.2-clip-z
