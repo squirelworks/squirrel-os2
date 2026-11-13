@@ -604,6 +604,12 @@ boot="$out/lowonly.img"
 check khigh-missing 'cannot read the high kernel image'
 boot=
 check khigh-mem     'Pages above 2 MB:'     mem '<ret>'
+# 2.8-smp-ap: the APs from the ACPI MADT start and park; one CPU is still fine
+check cpus-one      '1 CPU(s) online'       cpus '<ret>'
+export QEMU_EXTRA='-smp 4'
+check_all smp-4     'CPU 0: APIC id 0, boot processor|CPU 3: APIC id 3, online (parked)|4 CPU(s) online' cpus '<ret>'
+check smp-4-systest 'systest: PASS'         cpus '<ret>' systest '<ret>'
+unset QEMU_EXTRA
 export QEMU_EXTRA='-cpu 486,-pse'
 check cpu-nopse     'needs a Pentium-class CPU'
 export QEMU_EXTRA='-cpu pentium,-fpu'

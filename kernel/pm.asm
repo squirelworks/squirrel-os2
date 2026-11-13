@@ -218,6 +218,7 @@ pm:
     call hist_load
     mov byte [shell_up], 1      ; from here a crash can restart the shell
     sti                         ; autoexec.bat may run apps that need keys
+    call smp_init               ; start the other CPUs and park them (2.8)
     call bat_autoexec
     call sh_prompt
     sti
@@ -435,6 +436,9 @@ run_simple:
     mov edi, cmd_vbetest        ; 2.1
     call streq
     je .vbetest
+    mov edi, cmd_cpus           ; 2.8-smp-ap
+    call streq
+    je .cpus
     mov edi, cmd_cliptest       ; 2.1-blit-clip
     call streq
     je .cliptest
@@ -686,6 +690,9 @@ run_simple:
     jmp .empty
 .vbetest:
     call cmd_vbetest_run
+    jmp .empty
+.cpus:
+    call cmd_cpus_run
     jmp .empty
 .desktop:
     call cmd_desktop_run
@@ -1375,6 +1382,7 @@ puthex:
 ; part at KHIGH_LIMIT. See documentation/kernel/kernel-image.md.
 section .high vstart=KHIGH_BASE follows=.text align=16
 khigh_start:
+%include "smp.asm"
 %include "browser.asm"
 %include "calc.asm"
 %include "editor.asm"

@@ -7,6 +7,7 @@ every address below is both virtual and physical. Only the program area differs 
 |-------|-----|
 | `0x00000–0x004FF` | Real-mode IVT / BIOS data (left alone) |
 | `0x01000–0x012FF` | BIOS E820 memory map, copied by `stage2` (0.6.0) |
+| `0x07000–0x07FFF` | AP start-up trampoline, copied there by `smp_init` (2.8, `smp.md`) |
 | `0x07C00–0x07DFF` | Boot sector |
 | `0x08000–0x1FFFF` | Low kernel image (`pm.asm` section `.text`, 96 KB after 1.7.2; 64 KB from 0.5.1; 32 KB from 0.2.1), loaded by the boot sector |
 | `0x20000–0x2FFFF` | `KSCRATCH`: kernel scratch buffers (ATA identify/test buffers, later FS cache) |
