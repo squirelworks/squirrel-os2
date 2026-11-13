@@ -43,7 +43,7 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `cas.asm` | SQX | CAS: exact fractions and roots, simplify, expand, factor, solve, diff, integrate, definite integrals, limits and Taylor series in a console (`run cas`, `run cas test`, C.5) |
 | `sysmon.asm` | SQX | System Monitor: CPU use and its graph, memory, processes with their CPU share, CPU time, memory and priority (+/- changes it), from `GUI_SYSINFO` (`run sysmon`, `run sysmon test`, A.5) |
 | `logview.asm` | SQX | Log Viewer: the kernel log or a text file, scrolling, a filter with the word marked, following the end (`run logview [file]`, `run logview test`, A.5) |
-| `diskutil.asm` | SQX | Disk Utility: the disks, how full hd1 is, a sector map, the largest files, a file system check and a surface scan, read-only (`run diskutil`, `run diskutil test`, A.5) |
+| `diskutil.asm` | SQX | Disk Utility: the disks, how full hd1 is, a sector map, the largest files, a file system check and a surface scan, read-only; SQFS long names, other disks and FAT12/16/32 volumes (`run diskutil [hd2]`, `run diskutil test [hd2]`, A.5, 2.7) |
 | `notebook.asm` | SQX | Notebook: cells of notes, Nut code, graphs, tables, geometry and math (sqmath) that share their variables, run from the top; an editor for each cell; saved as text with `%% kind` lines (`run notebook [file]`, `run notebook test`, C.8) |
 | `nut.inc` | include | Nut, a small scripting language (numbers and strings, `if`/`while`/`for`, functions), with a host interface for programs (C.8) |
 | `sqmath.inc` | include | sqmath, the expression engine v2: real and complex numbers, decimals to 150 places, SI units with `to` conversion, variables and user functions; the notebook's math cells (C.1) |

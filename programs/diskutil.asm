@@ -1,5 +1,5 @@
 ; Squirrel-OS/2 — Disk Utility (A.5, OS2-APPS). Original code.
-; run diskutil  |  run diskutil test
+; run diskutil [hd2]  |  run diskutil test  |  run diskutil test hd2
 ;
 ; Looks at the data disk (hd1) through the block device, without the
 ; file system: its SQFS superblock and directory, then shows
@@ -16,6 +16,8 @@
 ;   S: surface scan (read every sector, counting those that fail)
 ;   Esc: quit
 ;
+;   (2.7) Another disk ("run diskutil hd2"), and FAT12/16/32 volumes on
+;   it, a whole disk or its first FAT partition: see dufat.inc.
 ;   (2.7) Long names: an entry whose name does not fit keeps a short
 ;   alias, and the whole name lives in continuation entries (kind 2,
 ;   directory 0xFF; 23 characters, the checksum of the owner's name, the
@@ -79,9 +81,17 @@ main:
     test esi, esi
     jz .gui
     cmp dword [esi], 'test'
-    jne .gui
+    jne .dev
     cmp byte [esi+4], 0
     je selftest
+    cmp byte [esi+4], ' '       ; (2.7) "test hd2": a FAT disk
+    jne .gui
+    add esi, 5
+    call set_dev
+    jc .gui
+    jmp fat_selftest
+.dev:
+    call set_dev                ; (2.7) "hd2": another disk
 .gui:
     call gui_open
     jc .nogfx
@@ -106,8 +116,11 @@ main:
     je .scan
     jmp .draw
 .check:
-    call analyse
+    call analyse                ; (a FAT volume is checked as it is read)
+    cmp byte [fat_ok], 0
+    jne .checked
     call check_fs
+.checked:
     mov byte [shown_rep], 1
     jmp .draw
 .scan:
@@ -155,6 +168,9 @@ analyse:
     mov byte [hd0_ok], 0
     mov byte [hd1_ok], 0
     mov byte [sq_ok], 0
+    mov byte [fat_ok], 0
+    mov dword [vbase], 0
+    mov dword [mshift], 0
     mov dword [total], 0
     mov eax, SYS_DEVFIND
     mov ebx, s_hd0
@@ -169,7 +185,7 @@ analyse:
     mov byte [hd0_ok], 1
 .hd1:
     mov eax, SYS_DEVFIND
-    mov ebx, s_hd1
+    mov ebx, [dname]
     int 0x80
     test eax, eax
     js .done
@@ -181,7 +197,12 @@ analyse:
     jc .done
     mov byte [hd1_ok], 1
     cmp dword [sect], SQ_MAGIC
-    jne .done
+    je .sq
+    call fat_probe              ; (2.7) not SQFS: FAT?
+    jc .done
+    call fat_analyse
+    jmp .done
+.sq:
     mov eax, [sect+8]
     mov [total], eax
     mov eax, [sect+4]
@@ -564,6 +585,7 @@ eproblem:
     mov edi, nm_a               ; (2.7) the whole name, cut to 15
     call full_name
     mov esi, nm_a
+.cut:                           ; (nproblem: esi = a name)
     mov edi, pline
     mov ecx, NAMELEN - 1
 .c:
@@ -834,23 +856,24 @@ scan:
 .go:
     inc ecx
     mov [scan_n], ecx
-    xor eax, eax
+    xor esi, esi                ; (2.7: from the volume's first sector)
     mov ebx, [hd1]
 .s:
-    cmp eax, [scan_n]
+    cmp esi, [scan_n]
     jae .done
+    mov eax, esi
+    add eax, [vbase]
     mov edi, sect
     call rd_sector
     jnc .ok
     inc dword [nfail]
-    cmp eax, [mapn]
-    jae .ok
-    mov edx, [smap]
-    mov byte [edx+eax], M_BAD
+    mov eax, esi
+    mov cl, M_BAD
+    call map_mark
 .ok:
     inc dword [nread]
-    inc eax
-    test eax, 63                ; the progress bar now and then
+    inc esi
+    test esi, 63                ; the progress bar now and then
     jnz .s
     cmp byte [scanning], 0
     je .s
@@ -910,15 +933,32 @@ draw_disks:
     call say
     mov edi, ln
     mov esi, s_hd1l
+    cmp dword [dname], s_hd1
+    je .l1
+    mov esi, [dname]            ; (2.7) "hd2: "
+    call scopy
+    mov esi, s_colon
+.l1:
     call scopy
     mov esi, s_absent
     cmp byte [hd1_ok], 0
     je .b
+    cmp byte [fat_ok], 0
+    je .nf
+    mov esi, s_fat              ; "FAT16, "
+    call scopy
+    mov eax, [ftype]
+    call gui_utoa
+    mov esi, s_comma
+    call scopy
+    jmp .size
+.nf:
     mov esi, s_nosq
     cmp byte [sq_ok], 0
     je .b
     mov esi, s_sqfs
     call scopy
+.size:
     mov eax, [total]
     inc eax
     call gui_utoa
@@ -936,6 +976,8 @@ draw_disks:
 
 ; "Used 123 of 2048 sectors (6%)   Files 12   Directories 1"
 draw_usage:
+    cmp byte [fat_ok], 0
+    jne .fat
     cmp byte [sq_ok], 0
     je .r
     mov edi, ln
@@ -961,6 +1003,7 @@ draw_usage:
     call scopy
     mov esi, ln
     call say
+.files:
     mov edi, ln
     mov esi, s_files
     call scopy
@@ -980,11 +1023,41 @@ draw_usage:
     call say
 .r:
     ret
+.fat:                           ; (2.7) "Used 12 of 4000 clusters (0%)"
+    cmp byte [fat_big], 0
+    jne .files
+    mov edi, ln
+    mov esi, s_used
+    call scopy
+    mov eax, [fused]
+    call gui_utoa
+    mov esi, s_of
+    call scopy
+    mov eax, [fmaxcl]
+    dec eax
+    call gui_utoa
+    mov esi, s_clus
+    call scopy
+    mov eax, [fused]
+    mov ecx, 100
+    mul ecx
+    mov ecx, [fmaxcl]
+    dec ecx
+    div ecx
+    call gui_utoa
+    mov esi, s_pct
+    call scopy
+    mov esi, ln
+    call say
+    jmp .files
 
 ; the sector map, then the largest files
 draw_map:
     cmp byte [sq_ok], 0
+    jne .go
+    cmp byte [fat_ok], 0
     je .r
+.go:
     add ebp, 2
     mov eax, MAP_X - 1
     mov ebx, ebp
@@ -1070,12 +1143,24 @@ draw_map:
     call say
     xor ecx, ecx
 .t:
+    cmp byte [fat_ok], 0        ; (2.7) a FAT volume's own list
+    je .tsq
+    cmp ecx, [nftop]
+    jae .r
+    imul esi, ecx, FT_LEN
+    add esi, ftop
+    mov eax, [esi+FT_SIZE]
+    jmp .tn
+.tsq:
     cmp ecx, [ntop]
     jae .r
     mov esi, [top+ecx*4]
+    mov eax, [esi+E_SIZE]
     mov edi, nm_a               ; (2.7) the whole name, cut to 21
     call full_name
     mov esi, nm_a
+.tn:
+    mov [tsize], eax
     mov edi, ln
     mov al, ' '
     stosb
@@ -1097,8 +1182,7 @@ draw_map:
     jmp .pad
 .sz:
     pop ecx
-    mov esi, [top+ecx*4]
-    mov eax, [esi+E_SIZE]
+    mov eax, [tsize]
     call gui_utoa
     mov esi, s_bytes2
     call scopy
@@ -1528,6 +1612,29 @@ contains:
     stc
     ret
 
+; esi = "hdN" (N 0..3) -> dname; CF if it is not one
+set_dev:
+    cmp word [esi], 'hd'
+    jne .no
+    mov al, [esi+2]
+    cmp al, '0'
+    jb .no
+    cmp al, '3'
+    ja .no
+    cmp byte [esi+3], 0
+    jne .no
+    mov word [dname_buf], 'hd'
+    mov [dname_buf+2], al
+    mov byte [dname_buf+3], 0
+    mov dword [dname], dname_buf
+    clc
+    ret
+.no:
+    stc
+    ret
+
+%include "dufat.inc"
+
 ; ---------- data ----------
 title db 'Disk Utility', 0
 s_keys db 'C: check   S: surface scan   Esc: quit', 0
@@ -1573,6 +1680,28 @@ rank_col db C_WHITE, C_BLUE, C_LGREEN, C_GREEN, C_RED ; (by rank)
 legend db C_BLUE, 'system', 0, C_GREEN, 'data', 0, C_LGREEN, 'kept', 0
        db C_WHITE, 'free', 0, C_RED, 'bad', 0, 0
 t_name db 'dutest.bin', 0
+dname dd s_hd1                  ; the disk looked at (2.7: "run diskutil hd2")
+s_colon db ': ', 0
+s_fat db 'FAT', 0
+s_comma db ', ', 0
+s_clus db ' clusters (', 0
+fat_ptypes db 0x01, 0x04, 0x06, 0x0B, 0x0C, 0x0E
+lfn_offs db 1, 3, 5, 7, 9, 14, 16, 18, 20, 22, 24, 28, 30
+p_fout db ': its chain leaves the disk', 0
+p_fcross db ': shares clusters with another file', 0
+p_fbadc db ': its chain meets a bad cluster', 0
+p_ffree db ': its chain runs into a free cluster', 0
+p_fsize db ': its size does not fit its clusters', 0
+p_fdot db ': . or .. points elsewhere', 0
+p_forph db ': long-name entries without a file', 0
+p_fqfull db 'Too many directories: not all checked', 0
+p_fbig db 'The FAT is too large to check', 0
+p_flost db ' clusters in use by no file (lost)', 0
+p_fmedia db 'The first FAT entry is not the media byte', 0
+p_fcopy db 'FAT copy ', 0
+p_fcopy2 db ' differs from the first', 0
+t_readme db 'README.TXT', 0
+t_flong db 'A Long Document Name.txt', 0
 t_long db 'a disk utility test file with a long name', 0
 m_nogfx db 'diskutil: no graphics', 10, 0
 m_nomem db 'diskutil: no memory', 10, 0
@@ -1611,5 +1740,42 @@ pline resb 96
 nm_a resb 64
 nm_b resb 64
 t_nf resd 1
+tsize resd 1
+dname_buf resb 4
+fat_ok resb 1                   ; (2.7) FAT volumes: dufat.inc
+fat_big resb 1
+fmedia resb 1
+lf_on resb 1
+lf_exp resb 1
+lf_sum resb 1
+fq_full resb 1
+alignb 4
+vbase resd 1
+mshift resd 1
+fspc resd 1
+fclbytes resd 1
+frsv resd 1
+fnfats resd 1
+fsects resd 1
+frootcl resd 1
+ffatsz resd 1
+frootlba resd 1
+frootsecs resd 1
+fdatalba resd 1
+fmaxcl resd 1
+ftype resd 1
+fat_mem resd 1
+fbits resd 1
+fatn resd 1
+fused resd 1
+fbad resd 1
+flost resd 1
+fqn resd 1
+wd_rec resd 1
+nftop resd 1
+fq resb FQ_MAX * FQ_LEN
+ftop resb TOP_N * FT_LEN
+fsec resb 512
+lname resb 64
 ln resb 96
 SQX_END
