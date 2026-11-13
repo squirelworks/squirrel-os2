@@ -13,11 +13,11 @@ cat "$out/boot.bin" "$out/pm.bin" > "$out/os.img"
 dd if=/dev/zero of="$out/floppy.img" bs=1024 count=1440 2>/dev/null
 dd if="$out/os.img" of="$out/floppy.img" conv=notrunc 2>/dev/null
 python3 "$root/tools/mkiso.py" "$out/floppy.img" "$out/cd.iso"    # installer I.6
-for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3 lxhello lxfile lxcat lxsys winrun winhello wincrt; do
+for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3 lxhello lxfile lxcat lxsys winrun winhello wincrt winprog; do
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
 done
 python3 "$root/tools/sqfs.py" "$out/progs.img" format 1024
-for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3 lxhello lxfile lxcat lxsys winrun winhello wincrt; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
+for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3 lxhello lxfile lxcat lxsys winrun winhello wincrt winprog; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
 # OS2-GAMES (G.x): the games get a disk of their own, so the file counts above stay put
 python3 "$root/tools/sqfs.py" "$out/games.img" format 1024
 for prog in mines reversi klondike freecell hearts chess mahjongg; do
@@ -375,6 +375,21 @@ check cliptest      'clip: PASS'            cliptest '<ret>'                  # 
 check cliptest-text 'systest: PASS'         cliptest '<ret>' systest '<ret>'
 check bevtest       'bevel: PASS'           bevtest '<ret>'                   # W.1-theme
 check bevtest-text  'systest: PASS'         bevtest '<ret>' systest '<ret>'
+check winvbe        'winvbe: PASS'          winvbe '<ret>'                    # 2.2-vbe-wm
+check winvbe-text   'systest: PASS'         winvbe '<ret>' systest '<ret>'
+check winclip       'winclip: PASS'         winclip '<ret>'                   # 2.2-clip-z
+check winclip-text  'systest: PASS'         winclip '<ret>' systest '<ret>'
+check winhit        'winhit: PASS'          winhit '<ret>'                    # 2.2-frame
+check winhit-text   'systest: PASS'         winhit '<ret>' systest '<ret>'
+check windrag       'windrag: PASS'         windrag '<ret>'                   # 2.2-mouse
+check windrag-text  'systest: PASS'         windrag '<ret>' systest '<ret>'
+check winmin        'winmin: PASS'          winmin '<ret>'                    # 2.2-minmax
+check winmin-text   'systest: PASS'         winmin '<ret>' systest '<ret>'
+check winmenu       'winmenu: PASS'         winmenu '<ret>'                   # 2.2-sysmenu
+check winmenu-text  'systest: PASS'         winmenu '<ret>' systest '<ret>'
+check_all winalttab 'Two Three One|alttab: PASS' winalttab '<ret>'             # 2.2-alttab
+check_all sysmenu-desk 'gfx: Restore|gfx: Minimize|gfx: Close' desktop '<ret>' '<pause>' '<alt-spc>' '<pause>' '<gfx>'
+check_all sysmenu-desk-move 'gfx: Programs:|desktop' desktop '<ret>' '<pause>' '<alt-spc>' '<pause>' '<down>' '<ret>' '<right>' '<right>' '<ret>' '<pause>' '<gfx>' '<esc>' '<pause>'
 # 1.3.2: a string in graphics mode, ink and background read back
 check gfxtext      'gfxtext: PASS'         gfxtext '<ret>'
 check gfxtext-text 'systest: PASS'         gfxtext '<ret>' systest '<ret>'
@@ -635,6 +650,8 @@ check ld-notprog    'Not a program'         'run notes' '<ret>'
 check ld-big        'too big'               'run huge' '<ret>'
 check ld-missing    'Unknown command or program'    'run nothere' '<ret>'
 check ld-again      'Argument: 2'           'run hello 1' '<ret>' 'run hello 2' '<ret>'
+check_all progwin  'progwin key: x|progwin: PASS' 'run winprog' '<ret>' '<pause>' '<pause>' x '<pause>' '<alt-f4>' '<pause>' '<pause>'   # 2.2-progwin
+check progwin-text  'systest: PASS'         'run winprog' '<ret>' '<pause>' '<pause>' x '<pause>' '<alt-f4>' '<pause>' '<pause>' systest '<ret>'
 check ld-browser    'Hello from a loaded'   'run files' '<ret>' '<home>' '<ret>'
 check ld-host-ls    'elfhello'              'run ls elf' '<ret>'
 check vm-nest       'own memory intact'     'run nest' '<ret>'
@@ -656,7 +673,7 @@ check seek          'seek: PASS'            'run seek' '<ret>' '<pause>'
 check devices       'hd1     block   ready 2048 sectors'  devices '<ret>'
 check devices-ro    '(read-only for programs)'  devices '<ret>'
 check devtest       'devtest: PASS'         'run devtest' '<ret>'
-check up-ls         '40 file(s)'             'run ls' '<ret>'   # 30 + the 7 P.1-P.5 programs + lxfile.txt, win.txt, crt.txt
+check up-ls         '41 file(s)'             'run ls' '<ret>'   # 30 + the 7 P.1-P.5 programs + lxfile.txt, win.txt, crt.txt + winprog
 # 1.2.1: a key arrives as a queue event as well as through SYS_GETC
 check_all keyev     'keyev: queue q getc q|keyev: PASS'  'run keyev' '<ret>' '<pause>' q '<pause>'
 check_all keyev-shift 'keyev: queue Q getc Q|keyev: PASS'  'run keyev' '<ret>' '<pause>' Q '<pause>'
