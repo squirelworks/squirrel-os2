@@ -33,6 +33,12 @@ python3 "$root/tools/sqfs.py" "$out/auto.img" put "$out/autoexec.bat"
 python3 "$root/tools/sqfs.py" "$out/dkauto.img" format 1024    # 1.6.0: boot into the desktop
 mkdir -p "$out/dk" && printf 'desktop\n' > "$out/dk/autoexec.bat"
 python3 "$root/tools/sqfs.py" "$out/dkauto.img" put "$out/dk/autoexec.bat"
+# OS2-APPS: graphical programs (SYS_GUI) on a data disk of their own
+python3 "$root/tools/sqfs.py" "$out/apps.img" format 1024
+for prog in guitest calculator clock notepad; do
+    nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
+    python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/$prog"
+done
 rm -f "$out/data.img"
 dd if=/dev/zero of="$out/data.img" bs=1024 count=1024 2>/dev/null
 
@@ -700,6 +706,26 @@ check l10n-edit-tlh "ghItlhwI': (untitled)" 'lang tlh' '<ret>' 'run edit' '<ret>
 check l10n-draw-la  'Programma pingendi - ASCII canvas' 'lang la' '<ret>' 'run draw' '<ret>'
 check l10n-calc-en  'Basic Calculator (Esc to exit)' 'run calc' '<ret>'
 check lang-systest  'systest: PROBATUM'     'lang la' '<ret>' systest '<ret>'
+# OS2-APPS: graphics for programs (SYS_GUI, programs/gui.inc) and the A.1 apps
+disk=$out/apps.img
+check guitest       'guitest: PASS'         'run guitest' '<ret>' '<pause>'
+check_all guitest-gfx 'gfx: Gui test|gfx: Hello from a program' 'run guitest hold' '<ret>' '<pause>' '<gfx>'
+check_all calculator 'gfx: Calculator|gfx: 2+3*4|gfx: = 14' 'run calculator' '<ret>' '<pause>' '2+3*4' '<ret>' '<pause>' '<gfx>'
+check calculator-ans 'gfx: = 28'            'run calculator' '<ret>' '<pause>' '2+3*4' '<ret>' '*2' '<ret>' '<pause>' '<gfx>'
+check_all calculator-err 'gfx: Error: division by|gfx: zero' 'run calculator' '<ret>' '<pause>' '1/0' '<ret>' '<pause>' '<gfx>'
+check_all calculator-syn 'gfx: Error: syntax at|gfx: column 4' 'run calculator' '<ret>' '<pause>' '2*(' '<ret>' '<pause>' '<gfx>'
+check calculator-keys 'gfx: = 45'           'run calculator' '<ret>' '<pause>' '<spc>' '<right>' '<spc>' '<ret>' '<pause>' '<gfx>'
+check_all calculator-sci 'gfx: sin|gfx: DEG|gfx: = 0.5' 'run calculator' '<ret>' '<pause>' '<tab>' '<f2>' 'sin(30)' '<ret>' '<pause>' '<gfx>'
+check calculator-quit 'systest: PASS'       'run calculator' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
+check clock         'clock: PASS'           'run clock test' '<ret>' '<pause>' '<pause>' '<pause>'
+check_all clock-gfx 'gfx: Clock|gfx: 20'    'run clock' '<ret>' '<pause>' '<gfx>'
+check clock-quit    'systest: PASS'         'run clock' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
+check_all notepad   'gfx: Notepad - memo|gfx: Hello notepad!|gfx: second line|gfx: Ln 1 Col 15' \
+                    'run notepad memo' '<ret>' '<pause>' 'Hello notepad' '<ret>' 'second line' '<up>' '<end>' '!' '<pause>' '<gfx>'
+check notepad-save  'Hello notepad!'        'run notepad memo' '<ret>' '<pause>' 'Hello notepad!' '<ctrl-s>' '<pause>' '<esc>' '<pause>' 'cat memo' '<ret>'
+check notepad-open  'gfx: Hello notepad!'   'run notepad memo' '<ret>' '<pause>' '<gfx>'
+check notepad-ask   'gfx: Save changes? y/n' 'run notepad' '<ret>' '<pause>' 'x' '<esc>' '<pause>' '<gfx>'
+check notepad-quit  'systest: PASS'         'run notepad' '<ret>' '<pause>' 'x' '<esc>' 'n' '<pause>' systest '<ret>'
 disk=$out/auto.img
 check bat-autoexec  'autoexec ran'
 check lang-autoexec 'Tabulae:'              ls '<ret>'

@@ -1341,6 +1341,7 @@ puthex:
 %include "udp.asm"
 %include "tcp.asm"
 %include "mouse.asm"
+%include "appsys.asm"
 
 align 8
 idt: times 256 dq 0

@@ -24,7 +24,12 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `udptest.asm` | SQX | Sends a UDP datagram to 127.0.0.1 and reads it back; a second process is refused that port (`run udptest`, 1.9.7) |
 | `priotest.asm` | SQX | High-priority spin must keep a low-priority child from running until the priority drops (`run priotest`, 1.9.9) |
 | `drvtest.asm` | SQX | Registers a null char device with `SYS_DEVREG`, writes and reads it (`run drvtest`, 1.9.12) |
+| `guitest.asm` | SQX | Self-check of `SYS_GUI` and `gui.inc`: draws a window, reads pixels back from the screen, the clock and `GUI_EVAL` (`run guitest`, `run guitest hold`) |
+| `calculator.asm` | SQX | Calculator in a window, standard and scientific keypads on the `sci` engine (`run calculator`, A.1) |
+| `clock.asm` | SQX | Analogue clock with the time and date (`run clock`, `run clock test`, A.1) |
+| `notepad.asm` | SQX | Text editor in a window (`run notepad [file]`, A.1) |
 | `sqx.inc` | — | SQX header macro and syscall numbers |
+| `gui.inc` | — | Graphics toolkit for programs over `SYS_GUI`: back buffer, pixels, lines, text, windows, buttons, keys, mouse (`../documentation/apps/gui-programs.md`) |
 
 Build and install:
 
