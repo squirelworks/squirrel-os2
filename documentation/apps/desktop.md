@@ -2,6 +2,8 @@
 
 `desktop` (since 1.6.0) is a shell command that switches to graphics mode and shows the desktop. The desktop is a window titled `Squirrel-OS/2 Desktop`, drawn with the window manager and widgets (`../kernel/windows.md`, `../kernel/widgets.md`). It is implemented in `kernel/desktop.asm`. Keyboard, and since 1.9.10 a polled mouse (`../kernel/mouse.md`): a left click selects a list row; a second click on the same row opens it. Since 2.0.2 the row is mapped through the list's scroll (`wg_list_item`), so a click picks the entry under the pointer even when the list has scrolled. The desktop still uses mode 13h; VBE linear modes (2.1) are not selected here yet (`../kernel/graphics.md`).
 
+Since 2.2 (**2.2-vbe-wm**) the desktop runs on the window manager's screen (`wm_screen`, `../kernel/windows.md`): 640×480 at 8 bpp when VBE is there, else mode 13h. The 320×200 layout below (the desktop window, program windows, the Rename window, mouse rows) is centred on the larger screen: `dk_ox` / `dk_oy` hold the offset, `dk_org` adds it to a layout position, and the mouse pointer is moved by the same offset when the desktop opens and back when it closes, so a pointer that was over a row stays over it. The Program Manager in 2.3 replaces this layout.
+
 ```
 +---------------------------------------+
 | Squirrel-OS/2 Desktop                 |

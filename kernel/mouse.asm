@@ -170,17 +170,21 @@ mouse_byte:
     jge .xhi
     mov dword [mouse_x], 0
 .xhi:
-    cmp dword [mouse_x], MOUSE_W - 1
+    mov eax, [gfx_width]        ; the live mode (2.2-vbe-wm)
+    dec eax
+    cmp [mouse_x], eax
     jle .ylo
-    mov dword [mouse_x], MOUSE_W - 1
+    mov [mouse_x], eax
 .ylo:
     cmp dword [mouse_y], 0
     jge .yhi
     mov dword [mouse_y], 0
 .yhi:
-    cmp dword [mouse_y], MOUSE_H - 1
+    mov eax, [gfx_height]
+    dec eax
+    cmp [mouse_y], eax
     jle .btns
-    mov dword [mouse_y], MOUSE_H - 1
+    mov [mouse_y], eax
 .btns:
     mov al, [mouse_pkt]
     and al, 7

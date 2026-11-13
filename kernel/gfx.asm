@@ -434,13 +434,13 @@ gfx_fillrect:
     pushad
     lea esi, [eax+ecx]          ; right edge (exclusive)
     lea edi, [ebx+edx]          ; bottom edge (exclusive)
-    cmp esi, GFX_W
+    cmp esi, [gfx_width]        ; the live mode, not 320 x 200 (2.1-blit-clip)
     jle .wok
-    mov esi, GFX_W
+    mov esi, [gfx_width]
 .wok:
-    cmp edi, GFX_H
+    cmp edi, [gfx_height]
     jle .hok
-    mov edi, GFX_H
+    mov edi, [gfx_height]
 .hok:
     test eax, eax
     jns .xok
