@@ -93,6 +93,15 @@ load:
     mov [hdr_len], eax
     cmp word [hdr], 'MZ'
     jne e_format
+    ; an MZ without 'PE',0,0 at e_lfanew is a DOS program: dosrun runs it
+    cmp eax, 0x40
+    jb to_dos
+    mov ebx, [hdr+0x3C]
+    lea ecx, [ebx+4]
+    cmp ecx, eax
+    ja to_dos
+    cmp dword [hdr+ebx], 'PE'
+    jne to_dos
     mov ebx, [hdr+0x3C]         ; e_lfanew
     lea ecx, [ebx+24+96+16*8]   ; PE signature, COFF and optional header
     cmp ecx, eax
@@ -495,7 +504,25 @@ puts:                           ; ebx = ASCIIZ (keeps registers but eax)
     int 0x80
     ret
 
+; a DOS MZ program: "dosrun <our command line>", waited for; its exit code
+to_dos:
+    mov eax, SYS_CLOSE
+    mov ebx, [fd]
+    int 0x80
+    mov eax, SYS_EXEC
+    mov ebx, m_dosrun
+    mov ecx, cmdline
+    int 0x80
+    test eax, eax
+    js e_dosrun
+    mov ebx, eax
+    mov eax, SYS_WAIT
+    int 0x80
+    ret
+
 ; ---------- load errors (each ends the program with exit code 1) ----------
+e_dosrun:  mov ebx, m_nodos
+           jmp e_out
 e_usage:   mov ebx, m_usage
            jmp e_out
 e_open:    mov ebx, m_open
@@ -832,6 +859,8 @@ m_prefix db 'winrun: ', 0
 m_usage db 'usage: run winrun prog.exe [arguments]', 10, 0
 m_open db 'cannot open the program file', 10, 0
 m_format db 'not a valid PE file', 10, 0
+m_dosrun db 'dosrun', 0
+m_nodos db 'a DOS program, and dosrun is not on the disk', 10, 0
 m_machine db 'only 32-bit x86 (PE32) programs run here', 10, 0
 m_subsys db 'only console programs run here (no Windows GUI yet)', 10, 0
 m_nomem db 'not enough memory for the image', 10, 0

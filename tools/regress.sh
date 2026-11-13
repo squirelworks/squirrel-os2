@@ -57,7 +57,7 @@ python3 "$root/tools/sqfs.py" "$out/dos.img" format 1024    # P.8: DOS programs 
 nasm -f bin -i "$root/programs/" "$root/programs/dosrun.asm" -o "$out/dosrun"
 for prog in doshello doscpu dosfile; do nasm -f bin "$root/programs/$prog.asm" -o "$out/$prog.com"; done
 nasm -f bin "$root/programs/dosexe.asm" -o "$out/dosexe.exe"
-for f in dosrun doshello.com doscpu.com dosfile.com dosexe.exe; do python3 "$root/tools/sqfs.py" "$out/dos.img" put "$out/$f"; done
+for f in dosrun winrun doshello.com doscpu.com dosfile.com dosexe.exe; do python3 "$root/tools/sqfs.py" "$out/dos.img" put "$out/$f"; done
 rm -f "$out/data.img"
 dd if=/dev/zero of="$out/data.img" bs=1024 count=1024 2>/dev/null
 
@@ -600,7 +600,7 @@ check ed-path-r     'deep'                  'cat e1/long-name.txt' '<ret>'
 check fb-dir        'in /e1'                'cd e1' '<ret>' 'run files' '<ret>'
 check fb-dir-up     '[app]'                 'cd e1' '<ret>' 'run files' '<ret>' '<ret>'
 # 0.9.3: release readiness
-check ver-banner    'Squirrel-OS/2 2.0.2'  systest '<ret>'
+check ver-banner    'Squirrel-OS/2 2.1.0'  systest '<ret>'
 check ver-planned   '(planned: topo)'  systest '<ret>'
 check calc-hist-root '1 + 1 = 2'            'mkdir c1' '<ret>' 'cd c1' '<ret>' 'run calc' '<ret>' '1 + 1' '<ret>' '<esc>' 'cat /calc.hist' '<ret>'
 boot="--floppy $out/floppy.img"
@@ -734,7 +734,7 @@ check l10n-hint-la  '(lineam tabulae addit)'  'lang la' '<ret>' put '<ret>'
 check l10n-fe-tlh   "tu'lu'pu'"             'lang tlh' '<ret>' 'mkdir t1' '<ret>' 'mkdir t1' '<ret>'
 check l10n-rm-tlh   "tu'lu'be'"             'lang tlh' '<ret>' 'rm nosuch' '<ret>'
 check lang-bad      'Unknown language (en la tlh)'  'lang fr' '<ret>'
-check lang-banner   'Sciurus-OS/2 2.0.2'   'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
+check lang-banner   'Sciurus-OS/2 2.1.0'   'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
 # 1.9.9: higher priority keeps a lower-priority child from running
 check prio          'prio: PASS'            'run priotest' '<ret>' '<pause>'
 # 2.0.2: aging lets a priority-0 child run beside a priority-3 spinner
@@ -849,6 +849,11 @@ check_all dos-file  'got: acorn|dosfile: PASS'  'run dosrun dosfile.com' '<ret>'
 check_all dos-exe   'Hello from an MZ .EXE!|dosexe: PASS'  'run dosrun dosexe.exe' '<ret>'
 check dos-missing   'dosrun: cannot open'   'run dosrun nothere.com' '<ret>'
 check dos-after     'systest: PASS'         'run dosrun doscpu.com' '<ret>' systest '<ret>'
+# P.8-dos-launch: .com files and MZ files without a PE header go to dosrun by themselves
+check_all dos-run-com 'Hello from DOS land!|#! tail: acorns|doshello: PASS'  'run doshello.com acorns' '<ret>'
+check_all dos-run-exe 'Hello from an MZ .EXE!|dosexe: PASS'  'run dosexe.exe' '<ret>'
+check_all dos-winrun  'Hello from an MZ .EXE!|dosexe: PASS'  'run winrun dosexe.exe' '<ret>'
+check dos-run-after   'systest: PASS'         'run doscpu.com' '<ret>' systest '<ret>'
 disk=$out/auto.img
 check bat-autoexec  'autoexec ran'
 check lang-autoexec 'Tabulae:'              ls '<ret>'
