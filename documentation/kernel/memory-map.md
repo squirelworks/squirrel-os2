@@ -23,6 +23,7 @@ every address below is both virtual and physical. Only the program area differs 
 | `0x200000` and up | Pages handed out by the page allocator (usable RAM up to 256 MB), including page directories and tables. Before 2.4 they started at `0x100000` |
 | `0x10000000` and up | Not mapped: any access faults (0.6.1) |
 | `0x40000000–0x403FFFFF` | A program's heap, mapped page by page as `SYS_SBRK` grows it (0.6.2, `memory.md`) |
+| `0x7FC00000–0x7FFFFFFF` | Ring-3 stacks, 512 KB per process slot, mapped page by page on first touch (2.4, `ring3.md`) |
 
 Scratch layout inside `KSCRATCH`:
 
