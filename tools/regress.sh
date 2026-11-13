@@ -774,7 +774,7 @@ check_none drv-again 'drv: FAIL' 'drv: PASS' 'run drvtest' '<ret>' 'run drvtest'
 disk=$out/games.img
 check mines-test    'mines: PASS'           'run mines test' '<ret>'
 check_all mines-play '  1 F |Mines left: 9' 'run mines 5' '<ret>' e5 '<ret>' 'f a1' '<ret>'
-check reversi-test  'reversi: PASS'         'run reversi test' '<ret>' '<pause>'
+check reversi-test  'reversi: PASS'         'run reversi test' '<ret>' '<pause>' '<pause>'
 check_all reversi-play 'Computer plays c3|You (X): 3   Computer (O): 3' 'run reversi 1' '<ret>' d3 '<ret>'
 check klondike-test 'klondike: PASS'        'run klondike test' '<ret>'
 check_all klondike-play 'Stock 23|That move is not allowed' 'run klondike 3' '<ret>' d '<ret>' 12 '<ret>'
