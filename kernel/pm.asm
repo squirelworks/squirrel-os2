@@ -1459,6 +1459,7 @@ khigh_start:
 %include "loader.asm"
 %include "personalities/linux/linux.asm"
 %include "personalities/common/tls.asm"
+%include "personalities/bsd/bsd.asm"
 %include "sci.asm"
 %include "matrix.asm"
 %include "diff.asm"
