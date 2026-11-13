@@ -86,6 +86,7 @@ proc_spawn:
     mov eax, -1
     jmp .out
 .got:
+    mov dword [proc_cpu+edx*4], 0   ; its CPU time (A.5)
     mov eax, [proc_next_pid]
     inc dword [proc_next_pid]
     mov [edi+PCB_PID], eax
@@ -150,6 +151,7 @@ proc_exit:
     mov esi, [proc_cur]
     call dbg_exit               ; what it traced runs on untraced (A.4)
     call tty_exit               ; its terminals close (A.3)
+    call klog_exit              ; (A.5)
     mov [esi+PCB_CODE], ebx
     mov dword [esi+PCB_STATE], P_ZOMBIE
     mov eax, [esi+PCB_PID]
@@ -572,8 +574,10 @@ proc_preempt:
 proc_idle:
     call proc_switch
     jnc .ran
+    mov byte [proc_idling], 1   ; the ticks till the next interrupt are idle (A.5)
     sti
     hlt
+    mov byte [proc_idling], 0
 .ran:
     ret
 
