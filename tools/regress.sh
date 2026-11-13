@@ -540,6 +540,19 @@ check pm-move       'calc 88 12'            progman '<ret>' '<pause>' '<right>' 
 check pm-move-reboot 'calc 96 12'           progman '<ret>' '<pause>' '<right>' m '<right>' '<ret>' '<esc>' 'cat /desktop/progman.pos' '<ret>'
 check pm-arrange    'calc 72 4'             progman '<ret>' '<pause>' a '<esc>' 'cat /desktop/progman.pos' '<ret>'
 check pm-text       'systest: PASS'         progman '<ret>' '<pause>' '<esc>' systest '<ret>'
+# 2.3-filemgr: the File Manager on a disk of its own: /w holds a.txt and sub
+python3 "$root/tools/sqfs.py" "$out/fm.img" format 1024 >/dev/null
+disk=$out/fm.img
+check fmtest        'fm: PASS'              fmtest '<ret>'
+check fm-setup      'sub/'                  'mkdir w' '<ret>' 'put w/a.txt hello' '<ret>' 'mkdir w/sub' '<ret>' 'ls w' '<ret>'
+check_all fm-panes  'gfx: File Manager|gfx: sub|gfx: <dir>|gfx: a.txt' 'cd w' '<ret>' filemgr '<ret>' '<pause>' '<gfx>'
+check fm-copy       'hello'                 'cd w' '<ret>' filemgr '<ret>' '<pause>' '<down>' c sub '<ret>' '<esc>' 'cat sub/a.txt' '<ret>'
+check fm-rename     'hello'                 'cd w' '<ret>' filemgr '<ret>' '<pause>' '<down>' r b.txt '<ret>' '<esc>' 'cat b.txt' '<ret>'
+check fm-move       'hello'                 'cd w' '<ret>' filemgr '<ret>' '<pause>' '<down>' m / '<ret>' '<esc>' 'cat /b.txt' '<ret>'
+check fm-mkdir      '/w/new'                'cd w' '<ret>' filemgr '<ret>' '<pause>' n new '<ret>' '<esc>' 'cd new' '<ret>' pwd '<ret>'
+check fm-delete     'Not found'             'cd w' '<ret>' filemgr '<ret>' '<pause>' '<ret>' '<delete>' y '<esc>' 'cat sub/a.txt' '<ret>'
+check fm-menu       'Not found'             'put w/m.txt x' '<ret>' 'cd w' '<ret>' filemgr '<ret>' '<pause>' '<down>' '<down>' f '<pause>' '<down>' '<down>' '<down>' '<down>' '<ret>' y '<esc>' 'cat m.txt' '<ret>'
+check fm-text       'systest: PASS'         filemgr '<ret>' '<pause>' '<esc>' systest '<ret>'
 disk=$pm_disk
 # 1.8.3: the desktop's entries are object files in /desktop, written the
 # first time; a removed file's entry is gone. A disk of their own, so the
