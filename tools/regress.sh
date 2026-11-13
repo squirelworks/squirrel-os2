@@ -13,11 +13,11 @@ cat "$out/boot.bin" "$out/pm.bin" > "$out/os.img"
 dd if=/dev/zero of="$out/floppy.img" bs=1024 count=1440 2>/dev/null
 dd if="$out/os.img" of="$out/floppy.img" conv=notrunc 2>/dev/null
 python3 "$root/tools/mkiso.py" "$out/floppy.img" "$out/cd.iso"    # installer I.6
-for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3 winprog; do
+for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3 lxhello lxfile lxcat lxsys winrun winhello wincrt winprog; do
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
 done
 python3 "$root/tools/sqfs.py" "$out/progs.img" format 1024
-for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3 winprog; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
+for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3 lxhello lxfile lxcat lxsys winrun winhello wincrt winprog; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
 # OS2-GAMES (G.x): the games get a disk of their own, so the file counts above stay put
 python3 "$root/tools/sqfs.py" "$out/games.img" format 1024
 for prog in mines reversi klondike freecell hearts chess mahjongg; do
@@ -53,6 +53,11 @@ open(sys.argv[1], 'wb').write(b'BM' + struct.pack('<IHHI', 54 + len(rows), 0, 0,
     + struct.pack('<IiiHHIIiiII', 40, w, h, 1, 24, 0, len(rows), 2835, 2835, 0, 0) + rows)
 PYEOF
 python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/grad.bmp"
+python3 "$root/tools/sqfs.py" "$out/dos.img" format 1024    # P.8: DOS programs under dosrun, on their own disk
+nasm -f bin -i "$root/programs/" "$root/programs/dosrun.asm" -o "$out/dosrun"
+for prog in doshello doscpu dosfile; do nasm -f bin "$root/programs/$prog.asm" -o "$out/$prog.com"; done
+nasm -f bin "$root/programs/dosexe.asm" -o "$out/dosexe.exe"
+for f in dosrun doshello.com doscpu.com dosfile.com dosexe.exe; do python3 "$root/tools/sqfs.py" "$out/dos.img" put "$out/$f"; done
 rm -f "$out/data.img"
 dd if=/dev/zero of="$out/data.img" bs=1024 count=1024 2>/dev/null
 
@@ -624,6 +629,21 @@ check ld-sqx        'Hello from a loaded program!'  'run hello' '<ret>'
 check ld-arg        'Argument: world'       'run hello world' '<ret>'
 check ld-wc         '2 3 14 notes'          'run wc notes' '<ret>'
 check ld-elf        'Hello from an ELF program!'    'run elfhello' '<ret>'
+# P.1/P.2: Linux i386 programs (EI_OSABI 3) through the Linux personality
+check lx-hello      'lxhello: PASS'         'run lxhello' '<ret>'
+check lx-argv       'argc=2 argv[0]=lxhello acorn'  'run lxhello acorn' '<ret>'
+check lx-file       'lxfile: PASS'          'run lxfile' '<ret>'
+check lx-pipe       'lx: acorns'            'echo acorns | run lxcat' '<ret>'
+check lx-then-native 'Hello from a loaded program!'  'run lxhello' '<ret>' 'run hello' '<ret>'
+check lx-sys        'lxsys: PASS'           'run lxsys' '<ret>'
+check lx-uname      'lxsys: uname Linux i686'       'run lxsys' '<ret>'
+# P.5: Win32 PE32 console programs through winrun
+check win-hello     'winhello: PASS'        'run winhello' '<ret>'
+check win-cmdline   'command line: winhello nuts'   'run winhello nuts' '<ret>'
+check win-missing   'not implemented: Beep' 'run winhello beep' '<ret>'
+check win-notpe     'not a valid PE file'   'run winrun lxhello' '<ret>'
+check win-crt       'wincrt: PASS'          'run wincrt acorn' '<ret>'
+check win-printf    'crt: -5 acorn 00ab x  |'       'run wincrt acorn' '<ret>'
 check ld-notprog    'Not a program'         'run notes' '<ret>'
 check ld-big        'too big'               'run huge' '<ret>'
 check ld-missing    'Unknown command or program'    'run nothere' '<ret>'
@@ -651,7 +671,7 @@ check seek          'seek: PASS'            'run seek' '<ret>' '<pause>'
 check devices       'hd1     block   ready 2048 sectors'  devices '<ret>'
 check devices-ro    '(read-only for programs)'  devices '<ret>'
 check devtest       'devtest: PASS'         'run devtest' '<ret>'
-check up-ls         '30 file(s)'             'run ls' '<ret>'
+check up-ls         '40 file(s)'             'run ls' '<ret>'   # 30 + the 7 P.1-P.5 programs + lxfile.txt, win.txt, crt.txt
 # 1.2.1: a key arrives as a queue event as well as through SYS_GETC
 check_all keyev     'keyev: queue q getc q|keyev: PASS'  'run keyev' '<ret>' '<pause>' q '<pause>'
 check_all keyev-shift 'keyev: queue Q getc Q|keyev: PASS'  'run keyev' '<ret>' '<pause>' Q '<pause>'
@@ -669,7 +689,7 @@ check_all ring3     '*** CPU exception 13 (general protection) in pid|Program en
 check ring3-after   'systest: PASS'         'run ring3' '<ret>' '<pause>' systest '<ret>'
 # 1.1.0: the timer preempts a program that spins without a system call
 check_all sched-preempt 'spin: second process ran|preempt: PASS' 'run spin' '<ret>' '<pause>'
-check up-ls-filter  '4 file(s)'             'run ls he' '<ret>'
+check up-ls-filter  '6 file(s)'             'run ls he' '<ret>'
 # 1.0.3: programs read why a file call failed (SYS_FSERROR), in the shell's words
 check errno-nf      'errno: Not found'      'run errno missing' '<ret>'
 check errno-dir     'errno: Is a directory' 'mkdir edir' '<ret>' 'run errno edir' '<ret>'
@@ -821,6 +841,14 @@ check_all matrixgui-inv 'gfx: inv A =|gfx: -2|gfx: 1.5|gfx: -0.5' 'run matrixgui
 check matrixgui-det 'gfx: det A = -2'      'run matrixgui' '<ret>' '<pause>' '1' '<right>' '2' '<down>' '4' '<left>' '3' '<ret>' 'd' '<pause>' '<gfx>'
 check matrixgui-sing 'gfx: The matrix is singular' 'run matrixgui' '<ret>' '<pause>' 'i' '<pause>' '<gfx>'
 check matrixgui-quit 'systest: PASS'        'run matrixgui' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
+# P.8: DOS .COM and .EXE programs run in the dosrun 8086 interpreter
+disk=$out/dos.img
+check_all dos-hello 'Hello from DOS land!|#! tail: acorns|doshello: PASS'  'run dosrun doshello.com acorns' '<ret>'
+check dos-cpu       'doscpu: PASS'          'run dosrun doscpu.com' '<ret>'
+check_all dos-file  'got: acorn|dosfile: PASS'  'run dosrun dosfile.com' '<ret>' acorn '<ret>'
+check_all dos-exe   'Hello from an MZ .EXE!|dosexe: PASS'  'run dosrun dosexe.exe' '<ret>'
+check dos-missing   'dosrun: cannot open'   'run dosrun nothere.com' '<ret>'
+check dos-after     'systest: PASS'         'run dosrun doscpu.com' '<ret>' systest '<ret>'
 disk=$out/auto.img
 check bat-autoexec  'autoexec ran'
 check lang-autoexec 'Tabulae:'              ls '<ret>'

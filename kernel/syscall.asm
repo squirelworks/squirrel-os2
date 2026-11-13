@@ -42,6 +42,7 @@ SYS_SETPRIO equ 32          ; ebx = 0..3 -> 0, or -1 (1.9.9)
 SYS_DEVREG  equ 33          ; ebx = name -> register a null char device (1.9.12)
 SYS_DEVUNREG equ 34         ; ebx = name -> remove a device SYS_DEVREG made (2.0.2)
 SYS_GUI     equ 35          ; ebx = GUI_* op, ecx/edx = args: graphics for programs (appsys.asm)
+SYS_SETTLS  equ 36          ; ebx = base of the FS/GS segment -> its selector (P.5)
 SYS_WINOPEN  equ 37         ; ebx = block: x, y, w, h, title, flags -> window id or -1 (2.2-progwin)
 SYS_WINCLOSE equ 38         ; ebx = id -> 0 or -1
 SYS_WINMOVE  equ 39         ; ebx = id, ecx = x | y << 16, edx = w | h << 16 (0 keeps) -> 0 or -1
@@ -50,7 +51,7 @@ SYS_WINDRAW  equ 41         ; ebx = id, ecx = 28-byte command -> 0, a colour (WD
 SYS_WINFLUSH equ 42         ; ebx = id -> 0 or -1: what was drawn reaches the screen
 SYS_WINEVENT equ 43         ; ebx = 16-byte buffer, ecx = 0 wait / 1 poll -> 0, or -1 nothing
 SYS_WININFO  equ 44         ; ebx = id or -1, ecx = 16-byte buffer -> 0 or -1
-SYS_COUNT   equ 45          ; 36 kept for OS2-FOREIGN (SYS_SETTLS)
+SYS_COUNT   equ 45
 
 SYS_ENOSYS  equ -1
 SYSCALL_VEC equ 0x80
@@ -66,6 +67,11 @@ syscall_init:
 
 syscall_isr:
     KSEGS
+    push esi                    ; a Linux process uses its own table (P.1)
+    mov esi, [proc_cur]
+    cmp dword [esi+PCB_LINUX], 0
+    pop esi
+    jne lx_isr
     cmp eax, SYS_COUNT
     jae .bad
     pushad
@@ -122,7 +128,7 @@ sys_uarg_kind:
     db UA_NONE, UA_NONE, UA_NETSEND, UA_NETRECV ; recv keyevents netsendto netrecvfrom
     db UA_NONE, UA_BZ, UA_BZ                    ; setprio devreg devunreg
     db UA_GUI                                   ; gui
-    db UA_NONE                                  ; 36: kept for SYS_SETTLS (OS2-FOREIGN)
+    db UA_NONE                                  ; settls
     times 8 db UA_NONE                          ; 37-44 windows: checked in winsys.asm
 %if $-sys_uarg_kind != SYS_COUNT
 %error sys_uarg_kind needs one byte per system call
@@ -378,15 +384,14 @@ syscall_table:
     dd sys_devreg
     dd sys_devunreg
     dd sys_gui
-    dd sys_none                                 ; 36: kept for SYS_SETTLS (OS2-FOREIGN)
+    dd sys_settls
     dd sys_winopen, sys_winclose, sys_winmove, sys_wintitle   ; 2.2-progwin
     dd sys_windraw, sys_winflush, sys_winevent, sys_wininfo
+%if $-syscall_table != SYS_COUNT*4
+%error syscall_table and SYS_COUNT disagree
+%endif
 
 ; ---------- handlers: args in ebx/ecx/edx, result in eax ----------
-sys_none:                   ; a number with no call yet
-    mov eax, SYS_ENOSYS
-    ret
-
 sys_putc:
     mov al, bl
     call putc

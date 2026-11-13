@@ -47,6 +47,7 @@ SYS_NETRECVFROM equ 31
 SYS_SETPRIO equ 32
 SYS_DEVREG  equ 33
 SYS_DEVUNREG equ 34
+SYS_SETTLS  equ 36
 SYS_WINOPEN  equ 37         ; windows for programs (2.2-progwin, windows.md)
 SYS_WINCLOSE equ 38
 SYS_WINMOVE  equ 39

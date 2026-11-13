@@ -111,6 +111,8 @@ gdt_tss_df:                     ; 0x20: the double-fault task
     dw TSS_SIZE-1,0,0x8900,0
     dw 0xFFFF,0,0xFA00,0x00CF   ; 0x28: ring-3 code, flat (2.4)
     dw 0xFFFF,0,0xF200,0x00CF   ; 0x30: ring-3 data, flat; the kernel's DS/ES too
+gdt_tls:                        ; 0x38: per-process TLS segment, FS/GS (P.5, tls.asm)
+    dw 0xFFFF,0,0xF200,0x00CF
 gdt_desc:
     dw $-gdt-1
     dd gdt
@@ -1439,6 +1441,8 @@ khigh_start:
 %include "draw.asm"
 %include "drawpx.asm"
 %include "loader.asm"
+%include "personalities/linux/linux.asm"
+%include "personalities/common/tls.asm"
 %include "sci.asm"
 %include "matrix.asm"
 %include "diff.asm"

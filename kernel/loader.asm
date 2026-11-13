@@ -80,6 +80,8 @@ prog_exec:
     je .known
     cmp dword [LD_STAGE], ELF_MAGIC
     je .known
+    cmp word [LD_STAGE], 'MZ'   ; a Windows program: winrun loads it (P.5)
+    je .win
 .badfmt:
     mov eax, LD_EFORMAT
     jmp .out
@@ -89,6 +91,38 @@ prog_exec:
 .enoent:
     mov eax, LD_ENOENT
     jmp .out
+.win:
+    ; run "winrun <file> <argument>", the argument built on the stack
+    sub esp, LD_ARGMAX
+    mov edi, esp
+    mov esi, [esp+LD_ARGMAX+8]  ; the file name (saved esi)
+    mov ecx, LD_ARGMAX-2        ; room for the space and the NUL
+    call .cpy
+    mov esi, ebp
+    test esi, esi
+    jz .wz
+    cmp byte [esi], 0
+    je .wz
+    mov al, ' '
+    stosb
+    call .cpy
+.wz:
+    mov byte [edi], 0
+    mov esi, ld_winrun
+    mov edi, esp
+    call prog_exec
+    add esp, LD_ARGMAX
+    jmp .out
+.cpy:                           ; ASCIIZ esi -> edi, at most ecx bytes
+    jecxz .cr
+    lodsb
+    test al, al
+    jz .cr
+    stosb
+    dec ecx
+    jmp .cpy
+.cr:
+    ret
 .known:
     ; a fresh address space; the image is copied into it from the
     ; staging buffer, which every address space maps
@@ -96,6 +130,7 @@ prog_exec:
     test eax, eax
     jz .nomem
     mov [ld_as], eax
+    mov dword [ld_linux], 0
     mov eax, [eax+AS_PD]
     mov cr3, eax
     cmp dword [LD_STAGE], SQX_MAGIC
@@ -152,6 +187,8 @@ prog_exec:
     call as_release
     mov eax, [ld_as]
     mov [edi+PCB_AS], eax
+    mov eax, [ld_linux]         ; a Linux ELF: entered by lx_enter_user (P.1)
+    mov [edi+PCB_LINUX], eax
     mov esi, [esp+12]           ; the file name (saved esi), for ps and crash reports
     call proc_set_name
     mov eax, edi
@@ -286,6 +323,10 @@ ld_elf:
     cmp eax, PROG_MAX
     jae .bad
     mov eax, [LD_STAGE+24]
+    cmp byte [LD_STAGE+7], 3        ; EI_OSABI = ELFOSABI_LINUX (P.1)
+    jne .r
+    mov [ld_linux], eax
+.r:
     ret
 .bad:
     mov eax, LD_EFORMAT
@@ -314,6 +355,8 @@ sys_exec:                       ; ebx = name, ecx = argument (or 0)
     jmp prog_exec
 
 ld_as dd 0
+ld_linux dd 0
+ld_winrun db 'winrun', 0
 prog_arg times LD_ARGMAX db 0
 prog_args times PROC_MAX*LD_ARGMAX db 0
 ld_probe db 0
