@@ -55,9 +55,9 @@ PYEOF
 python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/grad.bmp"
 python3 "$root/tools/sqfs.py" "$out/dos.img" format 1024    # P.8: DOS programs under dosrun, on their own disk
 nasm -f bin -i "$root/programs/" "$root/programs/dosrun.asm" -o "$out/dosrun"
-for prog in doshello doscpu dosfile; do nasm -f bin "$root/programs/$prog.asm" -o "$out/$prog.com"; done
+for prog in doshello doscpu dosfile dosgfx; do nasm -f bin "$root/programs/$prog.asm" -o "$out/$prog.com"; done
 nasm -f bin "$root/programs/dosexe.asm" -o "$out/dosexe.exe"
-for f in dosrun winrun doshello.com doscpu.com dosfile.com dosexe.exe; do python3 "$root/tools/sqfs.py" "$out/dos.img" put "$out/$f"; done
+for f in dosrun winrun doshello.com doscpu.com dosfile.com dosgfx.com dosexe.exe; do python3 "$root/tools/sqfs.py" "$out/dos.img" put "$out/$f"; done
 rm -f "$out/data.img"
 dd if=/dev/zero of="$out/data.img" bs=1024 count=1024 2>/dev/null
 
@@ -837,6 +837,9 @@ check_all dos-run-com 'Hello from DOS land!|#! tail: acorns|doshello: PASS'  'ru
 check_all dos-run-exe 'Hello from an MZ .EXE!|dosexe: PASS'  'run dosexe.exe' '<ret>'
 check_all dos-winrun  'Hello from an MZ .EXE!|dosexe: PASS'  'run winrun dosexe.exe' '<ret>'
 check dos-run-after   'systest: PASS'         'run doscpu.com' '<ret>' systest '<ret>'
+# P.8: VGA mode 13h: A000, INT 10h pixels, the DAC ports, retrace, teletype text in graphics, back to text
+check_all dos-gfx     'gfx: dosgfx: drawn|dosgfx: PASS'  'run dosgfx.com' '<ret>' '<pause>' '<gfx>' x '<pause>'
+check dos-gfx-after   'systest: PASS'         'run dosgfx.com' '<ret>' '<pause>' x '<pause>' systest '<ret>'
 disk=$out/auto.img
 check bat-autoexec  'autoexec ran'
 check lang-autoexec 'Tabulae:'              ls '<ret>'

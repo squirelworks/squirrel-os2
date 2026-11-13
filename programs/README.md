@@ -43,6 +43,7 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `doshello.asm` | DOS .COM | INT 21h output, the BIOS teletype, the command tail (`run doshello.com acorns`, P.8) |
 | `doscpu.asm` | DOS .COM | 8086/186 instructions and flags, steps a–k (`run doscpu.com`, P.8) |
 | `dosfile.asm` | DOS .COM | DOS files, memory blocks and buffered input (`run dosfile.com`, P.8) |
+| `dosgfx.asm` | DOS .COM | VGA mode 13h: A000, INT 10h pixels and DAC, ports, teletype text in graphics (`run dosgfx.com`, then a key; P.8) |
 | `dosexe.asm` | DOS .EXE | Hand-written MZ with relocations, three segments and a far call (`run dosexe.exe`, P.8) |
 | `winhello.asm` | PE32 | Hand-written Win32 console program: console, files, heap, relocations, imports (`run winhello`, P.5) |
 | `wincrt.asm` | PE32 | Hand-written Win32 program on msvcrt: TEB via `fs:`, `__getmainargs`, printf/sprintf, malloc, FILE I/O, atexit/exit (`run wincrt acorn`, P.5) |
