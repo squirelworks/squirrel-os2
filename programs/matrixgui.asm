@@ -49,6 +49,7 @@ main:
     mov dword [cols_a], 2
     mov dword [rows_b], 2
     mov dword [cols_b], 2
+    mov dword [rows_r], -1      ; no result yet
     mov esi, [arg]
     cmp dword [esi], 'test'
     je selftest
