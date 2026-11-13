@@ -1,6 +1,8 @@
 ; chess — chess against the computer (G.5). Original code.
 ;
 ;   run chess [seed]       you play White against an alpha-beta engine
+;   run chess gui [seed]   the same on the graphics screen: click a piece,
+;                          then where it goes; 1-4 set the level, n, q
 ;   run chess test         move generator perft, search, SAN and PGN self-check,
 ;                          prints "chess: PASS"
 ;
@@ -21,6 +23,9 @@
 %include "sqx.inc"
 SQX_HEADER main
 %include "games.inc"
+%include "cards.inc"
+%include "gui.inc"
+%include "gamegui.inc"
 
 PAWN   equ 1
 KNIGHT equ 2
@@ -53,6 +58,8 @@ main:
     call g_start
     jc selftest
     mov dword [depth], 3
+    cmp byte [g_gui], 0
+    jne gui_play
     mov esi, m_title
     call g_puts
 .new:
@@ -1778,6 +1785,509 @@ streq:
     call play_san
 %endmacro
 
+; ---------- graphics ----------
+
+; The board on the left (22-pixel squares, White at the bottom), the
+; moves and the state of the game on the right. Click one of your pieces
+; and then where it goes (or use the arrows and Enter); the squares it
+; may go to are dotted. Pawns promote to a queen here.
+SQ      equ 22
+BX0     equ 12
+BY0     equ 12
+PX      equ BX0 + 8 * SQ + 10   ; the panel on the right
+
+gui_play:
+    call gui_open
+    jnc .new
+    mov esi, m_nogui
+    call g_puts
+    mov eax, 1
+    ret
+.new:
+    mov esi, fen_start
+    call fen_load
+    call pgn_reset
+    mov dword [cursor], 0x14    ; e2
+    mov dword [gsel], -1
+    mov dword [glast], -1
+    mov byte [gyou], 0
+    mov byte [gme], 0
+.turn:
+    call gstate                 ; gmsg from the state of the game
+.draw:
+    call gdraw
+    call gui_flip
+    xor ecx, ecx
+    call gui_event
+    cmp eax, EV_CLICK
+    je .click
+    cmp eax, EV_DRAG
+    je .draw
+    cmp al, 27
+    je .esc
+    cmp al, 'q'
+    je .quit
+    cmp al, 'n'
+    je .new
+    cmp al, '1'
+    jb .k
+    cmp al, '4'
+    ja .k
+    sub al, '0'
+    movzx eax, al
+    mov [depth], eax
+    jmp .turn
+.k: cmp al, 13
+    je .act
+    cmp al, ' '
+    je .act
+    shr eax, 8
+    cmp al, K_ENTER
+    je .act
+    call gmove
+    jmp .draw
+.esc:
+    cmp dword [gsel], -1
+    je .quit
+    mov dword [gsel], -1        ; Esc first drops the piece
+    jmp .draw
+.click:
+    mov eax, [gui_mx]
+    mov ebx, [gui_my]
+    call ghit
+    cmp eax, -1
+    je .draw
+    mov [cursor], eax
+.act:
+    call status
+    test eax, eax
+    jnz .draw                   ; the game is over
+    mov ebx, [cursor]
+    movzx eax, byte [board+ebx]
+    test eax, eax
+    jz .to
+    test eax, BLACKP
+    jnz .to
+    mov [gsel], ebx             ; one of yours: pick it (again)
+    jmp .draw
+.to:
+    cmp dword [gsel], -1
+    je .draw
+    mov eax, [gsel]
+    call gfind                  ; eax = the move, or 0
+    test eax, eax
+    jnz .play
+    mov dword [gmsg], m_g_illegal
+    jmp .draw
+.play:
+    mov dword [gsel], -1
+    mov [glast], eax
+    call play_san
+    mov esi, san_buf
+    mov edi, gyou
+    call gcopy
+    mov byte [gme], 0
+    call status
+    test eax, eax
+    jnz .turn
+    mov dword [gmsg], m_g_think
+    call gdraw
+    call gui_flip
+    call think
+    test eax, eax
+    jz .turn
+    mov [glast], eax
+    call play_san
+    mov esi, san_buf
+    mov edi, gme
+    call gcopy
+    jmp .turn
+.quit:
+    call gui_close
+    xor eax, eax
+    ret
+
+; esi -> edi: copies a short ASCIIZ text (at most 15 characters)
+gcopy:
+    push eax
+    push ecx
+    mov ecx, 15
+.l: lodsb
+    stosb
+    test al, al
+    loopnz .l
+    mov byte [edi], 0
+    pop ecx
+    pop eax
+    ret
+
+; Sets gmsg from the game: your move, check, mate or stalemate
+gstate:
+    push eax
+    call status
+    mov esi, m_g_mated
+    cmp eax, 1
+    jne .st
+    cmp dword [side], 0
+    je .s
+    mov esi, m_g_mate
+    jmp .s
+.st:mov esi, m_g_stale
+    cmp eax, 2
+    je .s
+    mov esi, m_g_check
+    call in_check
+    test eax, eax
+    jnz .s
+    mov esi, m_g_help
+.s: mov [gmsg], esi
+    pop eax
+    ret
+
+; eax = from square, [cursor] = to -> eax = the legal move (a queen for
+; a promotion), or 0
+gfind:
+    push ebx
+    push ecx
+    push edx
+    push edi
+    mov edx, [cursor]
+    shl edx, 8
+    or edx, eax                 ; from | to << 8
+    mov edi, [msp]
+    call gen_legal
+    mov ecx, eax
+.l: jecxz .no
+    mov eax, [edi]
+    mov ebx, eax
+    and ebx, 0xFFFF
+    cmp ebx, edx
+    jne .n
+    mov ebx, eax
+    shr ebx, 16
+    and ebx, 7
+    jz .r
+    cmp ebx, QUEEN
+    je .r
+.n: add edi, 4
+    dec ecx
+    jmp .l
+.no:
+    xor eax, eax
+.r: pop edi
+    pop edx
+    pop ecx
+    pop ebx
+    ret
+
+; al = scancode: the arrows move the cursor over the board
+gmove:
+    push eax
+    push ebx
+    mov ebx, [cursor]
+    cmp al, K_LEFT
+    jne .rt
+    dec ebx
+.rt:cmp al, K_RIGHT
+    jne .up
+    inc ebx
+.up:cmp al, K_UP
+    jne .dn
+    add ebx, 16
+.dn:cmp al, K_DOWN
+    jne .ck
+    sub ebx, 16
+.ck:test ebx, 0xFFFFFF88
+    jnz .r
+    mov [cursor], ebx
+.r: pop ebx
+    pop eax
+    ret
+
+; eax, ebx = a point -> eax = the square there, or -1
+ghit:
+    push ecx
+    push edx
+    sub eax, BX0
+    js .no
+    sub ebx, BY0
+    js .no
+    xor edx, edx
+    mov ecx, SQ
+    div ecx
+    cmp eax, 8
+    jae .no
+    xchg eax, ebx               ; ebx = file
+    xor edx, edx
+    div ecx
+    cmp eax, 8
+    jae .no
+    neg eax
+    add eax, 7                  ; rank
+    shl eax, 4
+    add eax, ebx
+    jmp .r
+.no:
+    mov eax, -1
+.r: pop edx
+    pop ecx
+    ret
+
+; ebx = square -> eax, ebx = its top left corner
+gpos:
+    mov eax, ebx
+    and eax, 7
+    imul eax, SQ
+    add eax, BX0
+    shr ebx, 4
+    neg ebx
+    add ebx, 7
+    imul ebx, SQ
+    add ebx, BY0
+    ret
+
+; eax, ebx = top left, dl = piece: its shape, outlined
+gpiece:
+    pushad
+    movzx esi, dl
+    and esi, 7
+    dec esi
+    shl esi, 5
+    add esi, gpieces
+    mov cl, C_WHITE             ; White: white with a black rim
+    mov ch, C_BLACK
+    test dl, BLACKP
+    jz .c
+    mov cl, C_BLACK             ; Black: black with a light rim
+    mov ch, C_LGREY
+.c: mov [gox], eax
+    mov [goy], ebx
+    mov [gink], cx
+    ; the rim: every pixel of the shape moved one step four ways
+    mov cl, ch
+    mov eax, -1
+    xor ebx, ebx
+    call .shape
+    mov eax, 1
+    call .shape
+    xor eax, eax
+    mov ebx, -1
+    call .shape
+    mov ebx, 1
+    call .shape
+    mov cl, [gink]
+    xor ebx, ebx
+    call .shape
+    popad
+    ret
+; eax, ebx = shift, cl = colour, esi = shape
+.shape:
+    pushad
+    add eax, [gox]
+    add ebx, [goy]
+    mov edi, eax
+    xor edx, edx                ; row
+.row:
+    movzx ebp, word [esi+edx*2]
+    mov eax, edi
+.col:
+    test ebp, 0x8000
+    jz .n
+    call gui_pset
+.n: inc eax
+    shl ebp, 1
+    and ebp, 0xFFFF
+    jnz .col
+    inc ebx
+    inc edx
+    cmp edx, 16
+    jb .row
+    popad
+    ret
+
+gdraw:
+    pushad
+    call gg_table
+    ; file letters above, rank numbers to the left
+    mov byte [gbuf+1], 0
+    xor ecx, ecx
+.fl:lea eax, ['a'+ecx]
+    mov [gbuf], al
+    imul eax, ecx, SQ
+    add eax, BX0 + SQ / 2 - 3
+    mov ebx, 2
+    mov esi, gbuf
+    push ecx
+    mov cl, C_WHITE
+    call gg_textc
+    pop ecx
+    lea eax, ['8'+0]
+    sub eax, ecx
+    mov [gbuf], al
+    mov eax, 3
+    imul ebx, ecx, SQ
+    add ebx, BY0 + SQ / 2 - 4
+    push ecx
+    mov cl, C_WHITE
+    call gg_textc
+    pop ecx
+    inc ecx
+    cmp ecx, 8
+    jb .fl
+    ; the moves the picked piece may make
+    mov dword [gdests], 0
+    cmp dword [gsel], -1
+    je .sq0
+    mov edi, [msp]
+    call gen_legal
+    mov [gdests], eax
+    mov [gdlist], edi
+.sq0:
+    xor ebx, ebx
+.sq:test ebx, 0x88
+    jnz .sn
+    push ebx
+    mov ecx, ebx
+    shr ecx, 4
+    add ecx, ebx
+    and ecx, 1                  ; 1 = light square
+    call gpos
+    mov byte [gui_ink], C_BROWN
+    jecxz .dk
+    mov byte [gui_ink], C_LGREY
+.dk:mov ecx, SQ
+    mov edx, SQ
+    call gui_fill
+    mov esi, [esp]
+    ; the last move, lightly marked
+    cmp dword [glast], -1
+    je .pc
+    movzx ebp, byte [glast]
+    cmp esi, ebp
+    je .lm
+    movzx ebp, byte [glast+1]
+    cmp esi, ebp
+    jne .pc
+.lm:mov byte [gui_ink], C_YELLOW
+    call gui_box
+.pc:movzx edx, byte [board+esi]
+    test edx, edx
+    jz .dot
+    add eax, 3
+    add ebx, 3
+    call gpiece
+    sub eax, 3
+    sub ebx, 3
+.dot:
+    ; a dot where the picked piece may go
+    mov ecx, [gdests]
+    mov edi, [gdlist]
+.dl:jecxz .sd
+    movzx edx, byte [edi]
+    cmp edx, [gsel]
+    jne .dn
+    movzx edx, byte [edi+1]
+    cmp edx, esi
+    jne .dn
+    add eax, SQ / 2 - 2
+    add ebx, SQ / 2 - 2
+    mov ecx, 4
+    mov edx, 4
+    mov byte [gui_ink], C_LGREEN
+    call gui_fill
+    jmp .sd
+.dn:add edi, 4
+    dec ecx
+    jmp .dl
+.sd:pop ebx
+.sn:inc ebx
+    cmp ebx, 0x78
+    jb .sq
+    ; the picked piece and the cursor
+    cmp dword [gsel], -1
+    je .cu
+    mov ebx, [gsel]
+    call gpos
+    mov ecx, SQ
+    mov edx, SQ
+    mov byte [gui_ink], C_LGREEN
+    call gui_box
+    inc eax
+    inc ebx
+    sub ecx, 2
+    sub edx, 2
+    call gui_box
+.cu:mov ebx, [cursor]
+    call gpos
+    mov ecx, SQ
+    mov edx, SQ
+    mov byte [gui_ink], C_WHITE
+    call gui_box
+    ; the panel: who plays, the last two moves, the level
+    mov esi, m_g_name
+    mov eax, PX
+    mov ebx, 14
+    mov cl, C_WHITE
+    call gg_textc
+    mov esi, m_g_youare
+    mov ebx, 30
+    mov cl, C_LGREY
+    call gg_textc
+    mov edi, gbuf
+    call gg_sb_start
+    mov esi, m_g_you
+    call gg_sb_str
+    mov esi, gyou
+    call gg_sb_str
+    mov esi, gbuf
+    mov ebx, 54
+    mov cl, C_WHITE
+    call gg_textc
+    call gg_sb_start
+    mov esi, m_g_me
+    call gg_sb_str
+    mov esi, gme
+    call gg_sb_str
+    mov esi, gbuf
+    mov ebx, 66
+    call gg_textc
+    call gg_sb_start
+    mov esi, m_g_level
+    call gg_sb_str
+    mov eax, [depth]
+    call gg_sb_num
+    mov esi, gbuf
+    mov eax, PX
+    mov ebx, 90
+    mov cl, C_LGREY
+    call gg_textc
+    mov esi, m_g_keys
+    mov ebx, 102
+    call gg_textc
+    mov esi, m_g_keys2
+    mov ebx, 114
+    call gg_textc
+    mov esi, [gmsg]
+    call gg_status
+    popad
+    ret
+
+; piece shapes, 16 x 16, bit 15 = left column: pawn, knight, bishop,
+; rook, queen, king (original drawings)
+gpieces:
+    dw 0x0000, 0x0000, 0x0000, 0x0180, 0x03C0, 0x03C0, 0x0180, 0x03C0   ; pawn
+    dw 0x0180, 0x0180, 0x03C0, 0x07E0, 0x0FF0, 0x0FF0, 0x0000, 0x0000
+    dw 0x0000, 0x0000, 0x0340, 0x07E0, 0x0FF0, 0x1F70, 0x1FF8, 0x0EF8   ; knight
+    dw 0x01F8, 0x03F0, 0x07F0, 0x07F0, 0x0FF8, 0x0FF8, 0x0000, 0x0000
+    dw 0x0000, 0x0180, 0x03C0, 0x0760, 0x06E0, 0x07E0, 0x03C0, 0x0180   ; bishop
+    dw 0x03C0, 0x03C0, 0x07E0, 0x0180, 0x0FF0, 0x0FF0, 0x0000, 0x0000
+    dw 0x0000, 0x0000, 0x0DB0, 0x0FF0, 0x0FF0, 0x07E0, 0x07E0, 0x07E0   ; rook
+    dw 0x07E0, 0x07E0, 0x07E0, 0x0FF0, 0x1FF8, 0x1FF8, 0x0000, 0x0000
+    dw 0x0000, 0x1188, 0x1188, 0x1998, 0x1DB8, 0x0FF0, 0x0FF0, 0x07E0   ; queen
+    dw 0x07E0, 0x07E0, 0x0FF0, 0x1FF8, 0x1FF8, 0x0FF0, 0x0000, 0x0000
+    dw 0x0000, 0x0180, 0x03C0, 0x0180, 0x1DB8, 0x3FFC, 0x3FFC, 0x3FFC   ; king
+    dw 0x1FF8, 0x0FF0, 0x07E0, 0x07E0, 0x0FF0, 0x1FF8, 0x1FF8, 0x0000
+
 selftest:
     mov eax, 1
     call g_srand
@@ -1958,6 +2468,21 @@ pgn_head db '[Event "Squirrel Chess game"]', 10
          db '[Black "Squirrel Chess"]', 10, 10, 0
 
 m_name db 'chess', 0
+m_nogui db 'chess: no graphics screen', 10, 0
+m_g_help db 'Your move: click a piece, then where it goes', 0
+m_g_illegal db 'That move is not legal here', 0
+m_g_think db 'Thinking...', 0
+m_g_check db 'Check! Your move', 0
+m_g_mate db 'Checkmate: you win! n new game, q quit', 0
+m_g_mated db 'Checkmate: Squirrel Chess wins. n new game', 0
+m_g_stale db 'Stalemate: a draw. n new game, q quit', 0
+m_g_name db 'Squirrel Chess', 0
+m_g_youare db 'You play White', 0
+m_g_you db 'You: ', 0
+m_g_me db 'Me:  ', 0
+m_g_level db 'Level ', 0
+m_g_keys db '1-4 level', 0
+m_g_keys2 db 'n new  q quit', 0
 m_title db 'Squirrel Chess - you play White (capitals). Moves like e2e4, e7e8q, o-o;', 10
         db 'moves shows the game, save F writes it as PGN, level 1-4, n new, q quits', 10, 0
 m_cols db '    a b c d e f g h', 10, 0
@@ -2014,4 +2539,19 @@ num_buf resb 12
 undo resb UNDOMAX*UNDOSZ
 movebuf resd MOVEBUF
 pgn_text resb PGN_MAX
+alignb 4
+cursor resd 1
+gsel resd 1
+glast resd 1
+gmsg resd 1
+gdests resd 1
+gdlist resd 1
+gox resd 1
+goy resd 1
+gink resw 1
+gyou resb 16
+gme resb 16
+gbuf resb GG_SBMAX
+GUI_BSS
+GG_BSS
 SQX_END

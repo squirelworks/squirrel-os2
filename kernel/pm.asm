@@ -34,6 +34,7 @@ stage2:
     mov ds, ax
     mov es, ax
     mov [ld_drive], dl          ; the boot drive, from the boot sector
+    mov dword [UEFI_INFO], 0    ; a BIOS boot: no UEFI hand-off (H.1, drivers/gopcon.asm)
     ; the CPU must have CPUID, an FPU and 4 MB pages (PSE): a Pentium or
     ; later (0.9.3). Say so instead of crashing later.
     pushfd
@@ -117,6 +118,10 @@ gdt_desc:
     dw $-gdt-1
     dd gdt
 e820_count dw 0                 ; written in real mode, so also below 32 KB
+; UEFI hand-off header (H.1): boot/uefi/ finds it by its signature, then
+; fills E820_BUF, e820_count, ld_drive and UEFI_INFO, copies the two
+; images and enters pm through this GDT. See documentation/kernel/hardware.md.
+uefi_hdr dd 'S2UE', pm, gdt_desc, ld_drive, e820_count, KERNEL_SIZE, KHIGH_BASE
 msg_oldcpu db 'Squirrel-OS/2 needs a Pentium-class CPU (CPUID, FPU, 4 MB pages).', 13, 10, 0
 %include "khigh.asm"
 
@@ -171,6 +176,7 @@ pm:
     call ata_init
     call mouse_init             ; PS/2 mouse (1.9.10; IRQ 12 since 2.0.1)
     call dev_init
+    call hw_init                ; PCI disks, USB (OS2-HW, drivers/hw.asm)
 
     ; PIC + PIT
     mov al, 0x11
@@ -989,6 +995,9 @@ timer_isr:
     call sysinfo_tick           ; CPU time (A.5)
     mov al, 0x20
     out 0x20, al
+    pushad
+    call hw_tick                ; polled drivers (OS2-HW)
+    popad
     ; preemption (1.1): once the slice is used up, the first tick that
     ; lands in a loaded program (ring 3 since 2.4) switches to the next
     ; READY process. Kernel code is never interrupted this way (it is not
@@ -1508,6 +1517,14 @@ khigh_start:
 %include "udp.asm"
 %include "tcp.asm"
 %include "appsys.asm"
+%include "drivers/hw.asm"
+%include "drivers/pci.asm"
+%include "drivers/ahci.asm"
+%include "drivers/nvme.asm"
+%include "drivers/xhci.asm"
+%include "drivers/usbkbd.asm"
+%include "drivers/usbmsd.asm"
+%include "drivers/gopcon.asm"
 %include "sysinfo.asm"
 
 
@@ -1515,6 +1532,9 @@ khigh_start:
 KHIGH_LIMIT equ (INS_PART_LBA-KHIGH_LBA)*512 ; to the installer's partition
 %if $-$$ > KHIGH_MAX-4 || $-$$ > KHIGH_LIMIT-4
 %error the high kernel image is larger than KHIGH_MAX or KHIGH_LIMIT
+%endif
+%if $-$$ > GOP_SHADOW-KHIGH_BASE-4
+%error the high kernel image runs into the GOP console's text shadow (drivers/gopcon.asm)
 %endif
 times (512-(($-$$+4) % 512)) % 512 db 0
 dd KHIGH_SIG
