@@ -167,6 +167,39 @@ The TLS segment is the same per-process descriptor the Windows layer uses for FS
 paragraph below): `set_thread_area` sets its base and the kernel reloads FS and GS with it on
 every switch.
 
+### OS/2 text-mode personality (P.9)
+
+`os2run` (`programs/os2run.asm`) runs OS/2 32-bit text-mode programs in the LX format. The
+kernel loader hands it every `MZ` file whose `e_lfanew` points at `LX`. It is a user program,
+like `winrun`: it reads the file into its heap, gives each object page-aligned memory, copies
+the pages (legal and zero-filled; not iterated), applies the fixups (source types 32-bit offset
+and 32-bit self-relative; targets internal, import by ordinal and import by name, with
+additive values and source lists), and calls the entry point on the stack object as
+`entry(hmod, 0, env, cmdline)`. The TIB is reached through FS (`SYS_SETTLS`), with
+`tib_pexchain` = −1, a TIB2 (thread 1) and the PIB from `DosGetInfoBlocks`. The command line is
+`name NUL arguments NUL NUL`; the environment is empty.
+
+DOSCALLS imports by ordinal bind to `_System` shims (arguments on the stack, the caller pops,
+`APIRET` in `eax`). Any other import is bound to a stub that prints
+`os2run: MODULE.ordinal is not implemented` and ends the program with exit code 3 when called.
+
+| Ordinal | Call | Notes |
+|---|---|---|
+| 282, 281 | `DosWrite`, `DosRead` | handles 0–2 the console (a read gives one line with CR LF), files = native fd + 3 |
+| 273, 257 | `DosOpen`, `DosClose` | open flags: exists → fail / open / replace, new → fail / create; action 1, 2 or 3; `ERROR_OPEN_FAILED` |
+| 256, 259 | `DosSetFilePtr`, `DosDelete` | |
+| 234 | `DosExit` | the result is the exit code |
+| 299, 304 | `DosAllocMem`, `DosFreeMem` | page-aligned, zeroed heap; freeing is accepted |
+| 312 | `DosGetInfoBlocks` | TIB and PIB |
+| 348 | `DosQuerySysInfo` | max path 260, page size 4096, version 20.45, ms count; the rest 0 |
+| 274, 275 | `DosQueryCurrentDir`, `DosQueryCurrentDisk` | the root of C: |
+| 224, 227 | `DosQueryHType`, `DosScanEnv` | devices for 0–2; no variables |
+| 212, 229, 286 | `DosError`, `DosSleep`, `DosBeep` | accepted (`DosSleep` yields once) |
+
+Test: `programs/os2hello.asm`, a hand-written LX (checks `os2-hello`, `os2-missing`,
+`os2-notlx`, `os2-after`). Not yet: 16-bit code and 16:16 fixups, iterated pages, program
+DLLs, threads, VIO/KBD/MOU, PM.
+
 ### Windows personality (P.5)
 
 **Selecting it.** When the kernel loader finds an `MZ` file it runs the program `winrun` (from

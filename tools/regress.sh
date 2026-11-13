@@ -57,7 +57,8 @@ python3 "$root/tools/sqfs.py" "$out/dos.img" format 1024    # P.8: DOS programs 
 nasm -f bin -i "$root/programs/" "$root/programs/dosrun.asm" -o "$out/dosrun"
 for prog in doshello doscpu dosfile; do nasm -f bin "$root/programs/$prog.asm" -o "$out/$prog.com"; done
 nasm -f bin "$root/programs/dosexe.asm" -o "$out/dosexe.exe"
-for f in dosrun winrun doshello.com doscpu.com dosfile.com dosexe.exe; do python3 "$root/tools/sqfs.py" "$out/dos.img" put "$out/$f"; done
+for prog in os2run os2hello; do nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"; done    # P.9 OS/2 rides along on this disk
+for f in dosrun winrun doshello.com doscpu.com dosfile.com dosexe.exe os2run os2hello; do python3 "$root/tools/sqfs.py" "$out/dos.img" put "$out/$f"; done
 rm -f "$out/data.img"
 dd if=/dev/zero of="$out/data.img" bs=1024 count=1024 2>/dev/null
 
@@ -837,6 +838,11 @@ check_all dos-run-com 'Hello from DOS land!|#! tail: acorns|doshello: PASS'  'ru
 check_all dos-run-exe 'Hello from an MZ .EXE!|dosexe: PASS'  'run dosexe.exe' '<ret>'
 check_all dos-winrun  'Hello from an MZ .EXE!|dosexe: PASS'  'run winrun dosexe.exe' '<ret>'
 check dos-run-after   'systest: PASS'         'run doscpu.com' '<ret>' systest '<ret>'
+# P.9: an OS/2 32-bit LX program: objects, fixups, DOSCALLS by ordinal, TIB/PIB
+check_all os2-hello   'Hello from OS/2 land!|arguments: acorns|os2hello: PASS'  'run os2hello acorns' '<ret>'
+check os2-missing     'os2run: DOSCALLS.1 is not implemented'  'run os2hello stub' '<ret>'
+check os2-notlx       'not an OS/2 32-bit LX program'  'run os2run doshello.com' '<ret>'
+check os2-after       'Hello from DOS land!'  'run os2hello' '<ret>' 'run doshello.com' '<ret>'
 disk=$out/auto.img
 check bat-autoexec  'autoexec ran'
 check lang-autoexec 'Tabulae:'              ls '<ret>'

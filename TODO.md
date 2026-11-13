@@ -347,6 +347,8 @@ From P.1–P.12 in `ROADMAP.md` and epic #118 (stream OS2-FOREIGN). Each box shi
 - [x] **P.5-win32-crt** — The TEB through FS (`SYS_SETTLS`, per-process TLS segment) and an msvcrt subset (start-up, stdio and printf, strings, memory, atexit/exit) plus the KERNEL32 start-up calls, so MinGW-built console programs run.
   **Acceptance:** `run wincrt acorn` prints `crt: -5 acorn 00ab x  |` and `wincrt: PASS`. Checks `win-crt`, `win-printf`.
 - [x] **P.8-dos-design** — DOS `.COM` personality design (V86 monitor, `INT 21h` subset, memory map, tests) in `documentation/architecture/dos-personality.md`. Building it waits for 2.4.
+- [ ] **P.9-os2-text** — OS/2 32-bit text-mode programs: `os2run` (LX loader with fixups, TIB/PIB, DOSCALLS shims by ordinal), and the kernel loader hands `MZ`+`LX` files to it.
+  **Acceptance:** `run os2hello acorns` prints `Hello from OS/2 land!`, `arguments: acorns` and `os2hello: PASS`; an import without a shim is named when called. Checks `os2-hello`, `os2-missing`, `os2-notlx`, `os2-after`.
 
 ## Installer (unscheduled)
 
