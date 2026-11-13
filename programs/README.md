@@ -22,6 +22,8 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `stackover.asm` | SQX | Starts a thread that overflows its stack; the kernel must end only that thread, and the program's own memory and stack must be intact (`run stackover`, KB-17) |
 | `devtest.asm` | SQX | Uses devices by name: writes through `con`, reads `hd1`, checks `hd0` refuses writes (0.7.x) |
 | `udptest.asm` | SQX | Sends a UDP datagram to 127.0.0.1 and reads it back; a second process is refused that port (`run udptest`, 1.9.7) |
+| `wget.asm` | SQX | HTTP/1.1 download: Content-Length, chunked, redirects; saves the body or prints it (`run wget <url> [file\|-]`, 3.0) |
+| `netcfg.asm` | SQX | Network settings: a window with the address, mask, gateway and DNS server, DHCP, and `network.cfg` (`run netcfg [show\|dhcp\|set\|save\|load]`, 3.0) |
 | `priotest.asm` | SQX | High-priority spin must keep a low-priority child from running until the priority drops (`run priotest`, 1.9.9) |
 | `drvtest.asm` | SQX | Registers a null char device with `SYS_DEVREG`, writes and reads it (`run drvtest`, 1.9.12) |
 | `guitest.asm` | SQX | Self-check of `SYS_GUI` and `gui.inc`: draws a window, reads pixels back from the screen, the clock and `GUI_EVAL` (`run guitest`, `run guitest hold`) |
@@ -47,6 +49,8 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `winhello.asm` | PE32 | Hand-written Win32 console program: console, files, heap, relocations, imports (`run winhello`, P.5) |
 | `wincrt.asm` | PE32 | Hand-written Win32 program on msvcrt: TEB via `fs:`, `__getmainargs`, printf/sprintf, malloc, FILE I/O, atexit/exit (`run wincrt acorn`, P.5) |
 | `winshim.inc` | — | The KERNEL32 start-up calls and the msvcrt subset that `winrun` binds imports to |
+| `net.inc` | — | `SYS_NET` numbers and address helpers (3.0) |
+| `http.inc` | — | HTTP/1.1 client library on `SYS_NET` (3.0, `../documentation/apps/network.md`) |
 | `lxelf.inc` | — | ELF header macro and Linux call numbers for the Linux test programs |
 | `mines.asm` | SQX | Minesweeper-class game, G.3 (`run mines [seed] [big]`, `run mines test`); see `documentation/apps/games.md` |
 | `reversi.asm` | SQX | Reversi against a two-ply computer player, G.8 (`run reversi [seed]`, `run reversi test`) |

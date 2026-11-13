@@ -99,3 +99,47 @@ Since 1.9.8 the kernel can keep one TCP connection: connect, send, receive, clos
 `fetch <ip> <port> <path>` connects, sends `GET <path> HTTP/1.0` and a blank line, and prints whatever comes back until the server closes or the wait ends. `No reply` means the handshake or the request was not acknowledged.
 
 The regression listens on the host at 127.0.0.1:18080 (`tools/fileserve.py`). QEMU's user network delivers a guest connection to 10.0.2.2:18080 there. `fetch 10.0.2.2 18080 /hello.txt` prints the file (check `fetch-hello`).
+
+## Broadcasts (3.0)
+
+`ip_output` sends to 255.255.255.255 on the card with the Ethernet broadcast address, without asking ARP. `ip_input` takes frames to 255.255.255.255, and while the DHCP client is asking it takes frames to any address (a server sends its offer to the address it offers). The NE2000 filter already accepts broadcasts.
+
+`udp_csum` sums the pseudo-header and the datagram in place, so it checks datagrams of any length; `udp_send_raw` (eax = destination, edx = local port | remote port << 16, esi/ecx = bytes up to 576) is how the kernel's own clients send.
+
+## DHCP (3.0)
+
+`kernel/dhcp.asm`, from RFC 2131 and RFC 2132. `dhcp_run` sets the address to 0.0.0.0, broadcasts a DISCOVER from port 68 to port 67 (broadcast flag set, the card's MAC as the client address, a parameter list asking for options 1, 3, 6 and 51), takes the first OFFER for our transaction id and MAC, broadcasts a REQUEST for it (options 50 and 54), and on the ACK sets the address, the mask (option 1, or 255.255.255.0), the gateway (option 3), the DNS server (option 6, port 53) and the lease (option 51). Each step waits three seconds and is tried twice. A NAK or no answer puts the old address back and leaves everything else alone. While it runs, `udp_input` hands datagrams for port 68 to `dhcp_input` before any socket sees them, since a DHCP message is longer than a socket datagram (`UDP_MAX`).
+
+The settings are not renewed when the lease runs out; run `dhcp` again (QEMU's lease is a day).
+
+The shell command `dhcp` prints `dhcp: bound` and the `ifconfig` lines, or `No DHCP server answered` (checks `dhcp`, `dhcp-dns`, `dhcp-nonic`). Setting an address by hand with `ifconfig` or `SYS_NET` marks the settings as manual again.
+
+## DNS (3.0)
+
+`kernel/dns.asm`, from RFC 1035. `dns_resolve` (esi = name → eax = address, CF on failure, `dns_why` = 1 no such name, 2 no answer, 3 a bad name) reads a dotted quad as it is, answers `localhost` with 127.0.0.1, looks in an eight-name cache, and otherwise sends one query (type A, class IN, recursion desired) from port 5353 to the DNS server, twice at most, two seconds each. The answer must come from the server's address with the query's id. The first A record is used; records before it, such as a CNAME, are stepped over, and names in the answer may be compressed (a two-byte pointer). The cache is emptied when the server or the network changes.
+
+The server is QEMU's resolver 10.0.2.3 at boot, or what DHCP said. `dns` shows it; `dns <ip> [port]` sets it, the port being for a test server (the regression's `tools/netserve.py` listens on 127.0.0.1:18053 and is reached as `dns 10.0.2.2 18053`). `host <name>` prints `<name> is <address>`, `Host not found`, `No reply` or `Bad address` (checks `host-name`, `host-cname`, `host-nx`, `host-quad`, `host-local`). `ping` and `fetch` take a name as well as an address (checks `ping-name`, `fetch-name`).
+
+## TCP changes (3.0)
+
+- The receive buffer is 8 KB, and the window offered is what is free in it. When a program takes data out of a buffer whose last offered window was under a quarter of it, an ACK announces the larger window.
+- Data is sent 512 bytes a segment; each segment is acknowledged before the next (`tcp_send` loops).
+- Each connection uses a new local port from 41000 to 41999, so a second connection soon after the first is not mistaken for it.
+- `ne_poll` stops taking frames off the card while the receive queue is full and `net_pump` comes back for the rest, so a burst of segments waits in the card's ring instead of being dropped.
+
+## SYS_NET
+
+`SYS_NET` (37, `kernel/netsys.asm`) gives programs the resolver, the TCP connection and the settings. `ebx` is the operation, as with `SYS_GUI`; pointers from ring 3 are checked per operation (`UA_NET`). `programs/net.inc` has the numbers and address helpers, and `programs/http.inc` builds an HTTP/1.1 client on it (`../apps/network.md`).
+
+| `ebx` | Name | Arguments | Returns |
+|-------|------|-----------|---------|
+| 0 | `NET_RESOLVE` | `ecx` = name | the address, or −1 |
+| 1 | `NET_CONNECT` | `ecx` = address, `edx` = port | 0, −1 no answer, −2 another program has the connection |
+| 2 | `NET_SEND` | `ecx` = bytes, `edx` = count | the count, or −1 |
+| 3 | `NET_RECV` | `ecx` = buffer, `edx` = size | bytes, 0 when the other side closed and nothing is left, −2 when nothing came for three seconds, −1 not the caller's |
+| 4 | `NET_CLOSE` | — | 0, or −1 when it is not the caller's |
+| 5 | `NET_INFO` | `ecx` = 28-byte block | 0: +0 address, +4 mask, +8 gateway, +12 DNS server, +16 its port (word), +18 MAC, +24 flags (bit 0 a card, bit 1 from DHCP, bits 16–31 the lease in minutes) |
+| 6 | `NET_SET` | `ecx` = 20-byte block: address, mask, gateway, DNS server, its port (word, 0 = 53) | 0, or −1 when the gateway is off the subnet or the address is 0 |
+| 7 | `NET_DHCP` | — | 0, or −1 |
+
+There is still one kernel TCP connection. The program that opens it owns it until it closes it or ends; another program's `NET_CONNECT` gets −2 meanwhile. `NET_RECV` pumps the card and yields while it waits.
