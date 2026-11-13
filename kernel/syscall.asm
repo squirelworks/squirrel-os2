@@ -41,7 +41,8 @@ SYS_NETRECVFROM equ 31      ; ebx = block -> bytes, -1 port taken, -2 nothing (1
 SYS_SETPRIO equ 32          ; ebx = 0..3 -> 0, or -1 (1.9.9)
 SYS_DEVREG  equ 33          ; ebx = name -> register a null char device (1.9.12)
 SYS_DEVUNREG equ 34         ; ebx = name -> remove a device SYS_DEVREG made (2.0.2)
-SYS_COUNT   equ 35
+SYS_SETTLS  equ 35          ; ebx = base of the FS/GS segment -> its selector (P.5)
+SYS_COUNT   equ 36
 
 SYS_ENOSYS  equ -1
 SYSCALL_VEC equ 0x80
@@ -108,6 +109,7 @@ syscall_table:
     dd sys_setprio
     dd sys_devreg
     dd sys_devunreg
+    dd sys_settls
 
 ; ---------- handlers: args in ebx/ecx/edx, result in eax ----------
 sys_putc:

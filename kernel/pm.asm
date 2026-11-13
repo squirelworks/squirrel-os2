@@ -87,6 +87,9 @@ gdt_tss_main:                   ; 0x18: the TSS of everything that normally runs
     dw TSS_SIZE-1,0,0x8900,0    ; (base filled in by tss_init, KB-17)
 gdt_tss_df:                     ; 0x20: the double-fault task
     dw TSS_SIZE-1,0,0x8900,0
+    dq 0, 0                     ; 0x28, 0x30: reserved for the ring-3 segments (2.4)
+gdt_tls:                        ; 0x38: per-process TLS segment, FS/GS (P.5, tls.asm)
+    dw 0xFFFF,0,0xF200,0x00CF
 gdt_desc:
     dw $-gdt-1
     dd gdt
@@ -1327,6 +1330,7 @@ puthex:
 %include "drawpx.asm"
 %include "loader.asm"
 %include "personalities/linux/linux.asm"
+%include "personalities/common/tls.asm"
 %include "sci.asm"
 %include "matrix.asm"
 %include "diff.asm"

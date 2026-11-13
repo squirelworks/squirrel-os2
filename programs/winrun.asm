@@ -217,10 +217,61 @@ load:
     jc e_fixed
     call bind
     jc e_format
+    call make_teb
+    jc e_nomem
     ; run it: entry() with the Windows callee-saved registers kept
     mov eax, [base]
     add eax, [entry]
     call eax
+    ret
+
+; The thread and process blocks Win32 code reaches through FS: a TEB
+; (exception list -1, stack base and limit, self pointer, PEB, ids,
+; TLS slots) and a PEB with the image base. SYS_SETTLS points FS at
+; the TEB. CF if there is no memory.
+make_teb:
+    mov eax, SYS_SBRK               ; page-align the break
+    xor ebx, ebx
+    int 0x80
+    neg eax
+    and eax, 0xFFF
+    mov ebx, eax
+    mov eax, SYS_SBRK
+    int 0x80
+    mov eax, SYS_SBRK
+    mov ebx, 0x2000                 ; TEB page, PEB page
+    int 0x80
+    cmp eax, -1
+    je .no
+    mov [teb], eax
+    mov dword [eax], -1             ; ExceptionList: none
+    lea ecx, [esp+0xFFF]
+    and ecx, -0x1000
+    mov [eax+4], ecx                ; StackBase
+    sub ecx, 0x2000
+    mov [eax+8], ecx                ; StackLimit
+    mov [eax+0x18], eax             ; Self
+    lea ecx, [eax+0x1000]
+    mov [eax+0x30], ecx             ; PEB
+    mov edx, [base]
+    mov [ecx+8], edx                ; PEB.ImageBaseAddress
+    lea edx, [eax+0xE10]
+    mov [eax+0x2C], edx             ; ThreadLocalStoragePointer: the slots
+    push eax
+    mov eax, SYS_GETPID
+    int 0x80
+    mov ecx, eax
+    pop eax
+    mov [eax+0x20], ecx             ; ClientId: process ...
+    mov [eax+0x24], ecx             ; ... and thread
+    mov ebx, eax
+    mov eax, SYS_SETTLS
+    int 0x80
+    mov fs, ax
+    clc
+    ret
+.no:
+    stc
     ret
 
 ; base relocations: adds base - ImageBase to every HIGHLOW site. CF if
@@ -281,7 +332,7 @@ bind:
     jz .done
     add eax, [base]
     mov [dll_name], eax
-    call is_kernel32
+    call is_known_dll
     mov [dll_known], al
     mov edi, [esi+16]           ; FirstThunk (IAT)
     mov ebx, [esi]              ; OriginalFirstThunk (lookup), or the IAT
@@ -326,12 +377,25 @@ bind:
     clc
     ret
 
-; [dll_name] -> al = 1 if it is kernel32.dll (any case, ".dll" optional)
-is_kernel32:
+; [dll_name] -> al = 1 if it is a DLL the shim stands in for:
+; kernel32.dll or msvcrt.dll (any case, ".dll" optional)
+is_known_dll:
+    push edi
+    mov edi, n_kernel32
+    call dll_is
+    je .yes
+    mov edi, n_msvcrt
+    call dll_is
+.yes:
+    sete al
+    pop edi
+    ret
+
+; edi = lower-case name -> ZF if [dll_name] is that DLL
+dll_is:
     push esi
     push edi
     mov esi, [dll_name]
-    mov edi, n_kernel32
 .c:
     mov al, [esi]
     cmp al, 'A'
@@ -344,51 +408,49 @@ is_kernel32:
     test ah, ah
     jz .end
     cmp al, ah
-    jne .no
+    jne .r
     inc esi
     inc edi
     jmp .c
 .end:
     test al, al
-    jz .yes
+    jz .r
     cmp al, '.'
-    jne .no
-.yes:
-    mov al, 1
-    jmp .r
-.no:
-    xor al, al
 .r:
     pop edi
     pop esi
     ret
 
-; ebp = function name -> eax = shim address, or 0
+; ebp = function name -> eax = shim address, or 0. The table (shims) is
+; a list of entries: dd address, db 'Name', 0; a 0 address ends it.
 find_shim:
     push esi
     push edi
     push ecx
     mov ecx, shims
 .next:
-    mov edi, [ecx]
-    test edi, edi
-    jz .none
+    mov eax, [ecx]
+    test eax, eax
+    jz .r
+    lea edi, [ecx+4]
     mov esi, ebp
 .cmp:
-    mov al, [esi]
-    cmp al, [edi]
+    mov dl, [esi]
+    cmp dl, [edi]
     jne .skip
     inc esi
     inc edi
-    test al, al
+    test dl, dl
     jnz .cmp
-    mov eax, [ecx+4]
-    jmp .r
-.skip:
-    add ecx, 8
+    jmp .r                          ; eax = its address
+.skip:                              ; past this entry's name
+    cmp byte [edi], 0
+    je .past
+    inc edi
+    jmp .skip
+.past:
+    lea ecx, [edi+1]
     jmp .next
-.none:
-    xor eax, eax
 .r:
     pop ecx
     pop edi
@@ -734,44 +796,38 @@ grow:
 .r:
     ret
 
+%macro K 1                          ; a KERNEL32 function k_<name>
+    dd k_%1
+    db %str(%1), 0
+%endmacro
+%macro M 1                          ; an msvcrt function or variable m_<name>
+    dd m_%1
+    db %str(%1), 0
+%endmacro
+%include "winshim.inc"
 shims:
-    dd s_GetStdHandle, k_GetStdHandle
-    dd s_WriteFile, k_WriteFile
-    dd s_WriteConsoleA, k_WriteConsoleA
-    dd s_ReadFile, k_ReadFile
-    dd s_CreateFileA, k_CreateFileA
-    dd s_CloseHandle, k_CloseHandle
-    dd s_SetFilePointer, k_SetFilePointer
-    dd s_ExitProcess, k_ExitProcess
-    dd s_GetCommandLineA, k_GetCommandLineA
-    dd s_GetLastError, k_GetLastError
-    dd s_SetLastError, k_SetLastError
-    dd s_GetModuleHandleA, k_GetModuleHandleA
-    dd s_GetProcessHeap, k_GetProcessHeap
-    dd s_HeapAlloc, k_HeapAlloc
-    dd s_HeapFree, k_HeapFree
-    dd s_VirtualAlloc, k_VirtualAlloc
-    dd s_VirtualFree, k_VirtualFree
+    K GetStdHandle
+    K WriteFile
+    K WriteConsoleA
+    K ReadFile
+    K CreateFileA
+    K CloseHandle
+    K SetFilePointer
+    K ExitProcess
+    K GetCommandLineA
+    K GetLastError
+    K SetLastError
+    K GetModuleHandleA
+    K GetProcessHeap
+    K HeapAlloc
+    K HeapFree
+    K VirtualAlloc
+    K VirtualFree
+    WINSHIM_TABLE
     dd 0
-s_GetStdHandle db 'GetStdHandle', 0
-s_WriteFile db 'WriteFile', 0
-s_WriteConsoleA db 'WriteConsoleA', 0
-s_ReadFile db 'ReadFile', 0
-s_CreateFileA db 'CreateFileA', 0
-s_CloseHandle db 'CloseHandle', 0
-s_SetFilePointer db 'SetFilePointer', 0
-s_ExitProcess db 'ExitProcess', 0
-s_GetCommandLineA db 'GetCommandLineA', 0
-s_GetLastError db 'GetLastError', 0
-s_SetLastError db 'SetLastError', 0
-s_GetModuleHandleA db 'GetModuleHandleA', 0
-s_GetProcessHeap db 'GetProcessHeap', 0
-s_HeapAlloc db 'HeapAlloc', 0
-s_HeapFree db 'HeapFree', 0
-s_VirtualAlloc db 'VirtualAlloc', 0
-s_VirtualFree db 'VirtualFree', 0
 
 n_kernel32 db 'kernel32', 0
+n_msvcrt db 'msvcrt', 0
 m_prefix db 'winrun: ', 0
 m_usage db 'usage: run winrun prog.exe [arguments]', 10, 0
 m_open db 'cannot open the program file', 10, 0
@@ -800,10 +856,13 @@ base resd 1
 dll_name resd 1
 dll_known resb 1
 alignb 4
+teb resd 1
+alignb 4
 nstubs resd 1
 last_error resd 1
 exe_name resb 32
 cmdline resb 80
 stubs resb STUB_MAX*STUB_SIZE
 hdr resb HDR_MAX
+WINSHIM_BSS
 SQX_END

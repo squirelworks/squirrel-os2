@@ -98,6 +98,7 @@ proc_spawn:
     call proc_stamp             ; its wait for the CPU starts now (2.0.2)
     mov dword [edi+PCB_FPU], 0  ; starts with a freshly reset FPU
     mov dword [edi+PCB_LINUX], 0    ; native ABI unless the loader says so (P.1)
+    call tls_clear              ; and no TLS segment base (P.5)
     call msg_reset              ; and an empty message queue (1.2)
     mov ebx, [proc_cur]
     push eax
@@ -408,6 +409,7 @@ proc_switch:
     mov dword [sched_left], SLICE_TICKS     ; a full slice for the next one
     mov [proc_cur], edi
     call vm_load
+    call tls_switch             ; its FS/GS base (P.5)
     mov esp, [edi+PCB_ESP]
     popad
     popfd
