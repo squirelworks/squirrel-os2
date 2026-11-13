@@ -352,6 +352,8 @@ check winvbe        'winvbe: PASS'          winvbe '<ret>'                    # 
 check winvbe-text   'systest: PASS'         winvbe '<ret>' systest '<ret>'
 check winclip       'winclip: PASS'         winclip '<ret>'                   # 2.2-clip-z
 check winclip-text  'systest: PASS'         winclip '<ret>' systest '<ret>'
+check winhit        'winhit: PASS'          winhit '<ret>'                    # 2.2-frame
+check winhit-text   'systest: PASS'         winhit '<ret>' systest '<ret>'
 # 1.3.2: a string in graphics mode, ink and background read back
 check gfxtext      'gfxtext: PASS'         gfxtext '<ret>'
 check gfxtext-text 'systest: PASS'         gfxtext '<ret>' systest '<ret>'

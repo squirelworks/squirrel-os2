@@ -19,6 +19,7 @@ The kernel keeps a table of up to 16 windows (`WM_MAX`; 4 before 2.2-clip-z). Ea
 | `WIN_W`, `WIN_H` | outer size, frame included |
 | `WIN_TITLE` | address of a zero-terminated title |
 | `WIN_LEN`, `WIN_BUF` | the characters typed into the window (up to 24) and their count |
+| `WIN_FLAGS` | `WF_*`: which title-bar boxes it has and whether it can be sized (2.2-frame) |
 
 A window is a one-pixel frame (white, `WM_FRAME`), a title bar one text row high plus a margin (with the title in white), and a client area below it (light grey, `WM_CLIENT`) that shows the window's typed text in black. The title bar is blue (`WM_BAR`) on the focused window and dark grey (`WM_BAR_IDLE`) on the others. The desktop behind the windows is cyan (`WM_DESKTOP`). The colours are the text mode's EGA palette, which the DAC keeps in mode 13h: the bright colours are at `0x38`–`0x3F`.
 
@@ -73,6 +74,25 @@ The mouse pointer (`mouse.md`) is drawn on the back page too; `ptr_show` marks t
 
 `winclip` enters the window manager's screen with double buffering, opens One at (100, 100) and Two at (150, 150), both 200 × 150, and redraws. It changes one desktop pixel at (600, 20) on the back page only, moves Two to (380, 250) and calls `wm_update`. On the visible page it reads where Two covered One's client (One's client now), Two's old left edge inside One (One's client), Two's old place beyond One (desktop), Two's new left edge and title bar, and the changed pixel, which must still show the desktop there, while the back page must still hold the change: neither repainted nor flipped. It then moves Two so it hangs 160 pixels off the right edge (allowed; its left edge is read on the visible page after `wm_update`) and to x = 640 (refused), opens windows until the table holds 16 and checks the 17th is refused, closes them all, returns to text mode and prints `winclip: PASS` or `winclip: FAIL`. Checks `winclip` and `winclip-text`.
 
+## Frame and hit testing (2.2-frame)
+
+A new window has `WF_DEFAULT`: `WF_SIZABLE`, `WF_SYSMENU`, `WF_MINBOX`, `WF_MAXBOX` and `WF_CLOSEBOX`; `wm_setflags` (eax = id, ebx = flags) changes them. The title bar draws, inside the frame, a system-menu box at its left end and minimise, maximise and close boxes at its right end, as the flags ask. Each box is `WM_BOX` square (the bar's height, 10 pixels): the face colour, a raised `gfx_bevel`, and an original glyph in the 4 × 4 square inside the bevel: a bar across the middle (system menu), an X (close), a square outline with a thick top (maximise), a bar at the bottom (minimise). The title starts 2 pixels after the system-menu box and is cut before the right-hand boxes. The minimum window width (`WM_MIN_W`) is now 58 pixels, room for all four boxes and a little title.
+
+`wm_hit` (eax = x, ebx = y) returns in eax the top window under the point, or −1 over the desktop, and in ebx the part (`HT_*`):
+
+| Part | Where |
+|------|-------|
+| `HT_T`, `HT_B` | a sizable window's top two rows (the frame and the row below), and its bottom `WM_GRIP` (3) rows |
+| `HT_L`, `HT_R` | its left and right 3 columns between those |
+| `HT_TL`, `HT_TR`, `HT_BL`, `HT_BR` | the top or bottom band within `WM_CORNER` (8) pixels of an end |
+| `HT_SYSMENU`, `HT_MIN`, `HT_MAX`, `HT_CLOSE` | the boxes, in the rest of the title bar |
+| `HT_TITLE` | the rest of the title bar (and a window that cannot be sized has no edge parts) |
+| `HT_CLIENT` | everything else |
+
+The mouse (**2.2-mouse**) uses it to decide between moving, sizing and the boxes.
+
+`winhit` opens One at (40, 30), 200 × 120, and Two over its bottom right at (150, 100), 120 × 80, in mode 13h, and calls `wm_hit` at 21 points: One's title, each box, the title between the boxes, each edge, three corners and the client; One just left of Two; Two's client, left edge, title and bottom-right corner where it covers One; and two points on the desktop. It also reads back One's close box (the bevel's light corner and the X's first pixel) and the system-menu bar. It prints `winhit: PASS` or `winhit: FAIL`. Checks `winhit` and `winhit-text`. `wintest` reads the title's first letter after the system-menu box.
+
 ## Widgets
 
 Since 1.5.0, `wm_draw` draws a window's widgets after its client area, and `wm_close` drops them (`widgets.md`).
@@ -103,7 +123,7 @@ The window record gains `WIN_STATE` (`WS_NORMAL`, `WS_MIN`, `WS_MAX`), `WIN_REST
 
 | Routine | In | Out |
 |---------|----|-----|
-| `wm_create` | as before; `edi` = flags (0 means `WF_DEFAULT`) | as before; the caller's pid becomes the owner |
+| `wm_create` | as before | as before, with `WF_DEFAULT`; `wm_setflags` changes the flags (2.2-frame); the caller's pid becomes the owner (**2.2-progwin**) |
 | `wm_client` | eax = window id | eax, ebx = client top left on the screen, ecx, edx = client size; CF if not open |
 | `wm_settitle` | eax = window id, esi = title | CF if not open |
 | `wm_setstate` | eax = window id, ebx = `WS_*` | minimise / maximise / restore; CF if not open or the flag is missing |

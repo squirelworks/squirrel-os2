@@ -20,11 +20,35 @@ WIN_H           equ 16
 WIN_TITLE       equ 20          ; zero-terminated string
 WIN_LEN         equ 24          ; characters typed into the window
 WIN_BUF         equ 28          ; WM_BUF characters and a zero
-WIN_SIZE        equ 56
+WIN_FLAGS       equ 56          ; WF_* (2.2-frame)
+WIN_SIZE        equ 60
 WM_BUF          equ 24
 
 WM_TITLE_H      equ GFX_CELL_H + 2  ; title bar: one text row and a margin
-WM_MIN_W        equ 16
+WM_BOX          equ WM_TITLE_H  ; a title-bar box: square, the bar's height
+WM_GRIP         equ 3           ; the sizing band along each edge (wm_hit)
+WM_CORNER       equ 8           ; how far a corner reaches along an edge
+WF_SIZABLE      equ 1           ; flags (2.2-frame)
+WF_MINBOX       equ 2
+WF_MAXBOX       equ 4
+WF_SYSMENU      equ 8
+WF_CLOSEBOX     equ 16
+WF_DEFAULT      equ 31
+HT_CLIENT       equ 0           ; wm_hit parts
+HT_TITLE        equ 1
+HT_SYSMENU      equ 2
+HT_MIN          equ 3
+HT_MAX          equ 4
+HT_CLOSE        equ 5
+HT_L            equ 6
+HT_R            equ 7
+HT_T            equ 8
+HT_B            equ 9
+HT_TL           equ 10
+HT_TR           equ 11
+HT_BL           equ 12
+HT_BR           equ 13
+WM_MIN_W        equ 5 * WM_BOX + 8  ; room for the boxes and a little title
 WM_MIN_H        equ WM_TITLE_H + 4
 
 ; colours: aliases of the theme's names (kernel/theme.inc)
@@ -68,6 +92,7 @@ wm_create:
     mov [edi+WIN_TITLE], esi
     mov dword [edi+WIN_LEN], 0
     mov byte [edi+WIN_BUF], 0
+    mov dword [edi+WIN_FLAGS], WF_DEFAULT
     call wm_markwin             ; its place needs painting (2.2-clip-z)
     mov eax, ebp
     mov ebp, [wm_zn]            ; on top
@@ -314,10 +339,14 @@ wm_draw:
     mov [gfx_colour], dl
     mov edx, WM_TITLE_H
     call gfx_fillrect
+    call wm_boxes               ; the title-bar boxes (2.2-frame)
     push eax
     push ebx
     push ecx
-    add eax, 2                  ; the title, 2 pixels in from each end
+    add eax, [wm_tl]            ; the title, 2 pixels in from the boxes
+    sub ecx, [wm_tl]
+    sub ecx, [wm_tr]
+    add eax, 2
     inc ebx
     sub ecx, 4
     mov byte [gfx_colour], WM_BAR_TEXT
@@ -391,7 +420,8 @@ cmd_wintest_run:
     call wm_redraw
     mov dl, WM_FRAME            ; left edge, half way down
     call .probe
-    mov eax, WT_X + 4           ; the title's first glyph ('T' top row)
+    mov eax, WT_X + 4 + WM_BOX  ; the title's first glyph ('T' top row),
+                                ; after the system-menu box (2.2-frame)
     mov ebx, WT_Y + 2
     call gfx_getpixel
     cmp cl, WM_BAR_TEXT
@@ -1016,3 +1046,378 @@ wc_one db 'One', 0
 wc_two db 'Two', 0
 wc_pass db 'winclip: PASS', 10, 0
 wc_fail db 'winclip: FAIL', 10, 0
+
+; ---------- frame: title-bar boxes and hit testing (2.2-frame) ----------
+
+; eax, ebx = the title bar's top left (inside the frame), ecx = its width,
+; edi = window record. Draws the system-menu box at the left and the
+; minimise, maximise and close boxes at the right, as the flags ask, each a
+; raised bevel on the face colour with a small original glyph. Sets wm_tl
+; and wm_tr to the room they take on each side.
+wm_boxes:
+    pushad
+    mov dword [wm_tl], 0
+    mov dword [wm_tr], 0
+    mov ebp, [edi+WIN_FLAGS]
+    test ebp, WF_SYSMENU
+    jz .right
+    mov dl, 0                   ; glyph 0: a bar across the middle
+    call wm_box
+    mov dword [wm_tl], WM_BOX
+.right:
+    lea eax, [eax+ecx-WM_BOX]   ; boxes from the right edge leftwards
+    test ebp, WF_CLOSEBOX
+    jz .max
+    mov dl, 1                   ; an X
+    call wm_box
+    sub eax, WM_BOX
+    add dword [wm_tr], WM_BOX
+.max:
+    test ebp, WF_MAXBOX
+    jz .min
+    mov dl, 2                   ; a square outline
+    call wm_box
+    sub eax, WM_BOX
+    add dword [wm_tr], WM_BOX
+.min:
+    test ebp, WF_MINBOX
+    jz .r
+    mov dl, 3                   ; a short bar at the bottom
+    call wm_box
+    add dword [wm_tr], WM_BOX
+.r:
+    popad
+    ret
+
+; eax, ebx = a box's top left, dl = glyph (0 sysmenu, 1 close, 2 max, 3 min)
+wm_box:
+    pushad
+    mov ecx, WM_BOX
+    push edx
+    mov edx, WM_BOX
+    mov byte [gfx_colour], TH_FACE
+    call gfx_fillrect
+    xor esi, esi                ; raised
+    call gfx_bevel
+    pop edx
+    mov byte [gfx_colour], TH_TEXT
+    add eax, 3                  ; the glyph's square: inside the bevel
+    add ebx, 3
+    cmp dl, 1
+    je .x
+    cmp dl, 2
+    je .sq
+    mov ecx, WM_BOX - 6         ; sysmenu: a bar 2 high across the middle
+    mov edx, 2
+    cmp byte [esp+20], 3        ; (pushad's edx: dl is the glyph)
+    jne .bar
+    add ebx, WM_BOX - 8         ; min: the same bar at the bottom
+    jmp .fill
+.bar:
+    add ebx, (WM_BOX - 6) / 2 - 1
+.fill:
+    call gfx_fillrect
+    jmp .r
+.x:
+    lea ecx, [eax+WM_BOX-7]     ; corner to corner, both ways
+    lea edx, [ebx+WM_BOX-7]
+    call gfx_line
+    xchg eax, ecx
+    call gfx_line
+    jmp .r
+.sq:
+    mov ecx, WM_BOX - 6         ; an outline: fill, then the inside back
+    mov edx, WM_BOX - 6
+    call gfx_fillrect
+    inc eax
+    add ebx, 2                  ; a thicker top, like a title bar
+    sub ecx, 2
+    sub edx, 3
+    mov byte [gfx_colour], TH_FACE
+    call gfx_fillrect
+.r:
+    popad
+    ret
+
+; eax = x, ebx = y -> eax = the top window under the point, or -1, and
+; ebx = the part of it there (HT_*). Edges and corners are a WM_GRIP band
+; inside the window's edge, only on a sizable window; a corner reaches
+; WM_CORNER along each edge. The top band is the frame row and the one
+; below it, so the title-bar boxes stay clickable.
+wm_hit:
+    push ecx
+    push edx
+    push esi
+    push edi
+    push ebp
+    mov ebp, [wm_zn]
+.next:
+    dec ebp
+    js .none
+    movzx esi, byte [wm_z+ebp]
+    imul edi, esi, WIN_SIZE
+    add edi, wm_table
+    mov ecx, eax
+    sub ecx, [edi+WIN_X]        ; ecx = x within the window
+    js .next
+    cmp ecx, [edi+WIN_W]
+    jge .next
+    mov edx, ebx
+    sub edx, [edi+WIN_Y]        ; edx = y within it
+    js .next
+    cmp edx, [edi+WIN_H]
+    jge .next
+    mov eax, esi                ; found: now which part
+    call wm_part
+    jmp .out
+.none:
+    mov eax, -1
+    xor ebx, ebx
+.out:
+    pop ebp
+    pop edi
+    pop esi
+    pop edx
+    pop ecx
+    ret
+
+; edi = record, ecx, edx = a point within it -> ebx = HT_*
+wm_part:
+    push eax
+    mov eax, [edi+WIN_FLAGS]
+    test eax, WF_SIZABLE
+    jz .inner
+    ; the vertical zone: 0 top band, 1 middle, 2 bottom band
+    mov ebx, HT_T
+    cmp edx, 2
+    jb .corner
+    mov ebx, [edi+WIN_H]
+    sub ebx, WM_GRIP
+    cmp edx, ebx
+    mov ebx, HT_B
+    jge .corner
+    mov ebx, HT_L
+    cmp ecx, WM_GRIP
+    jb .r
+    mov ebx, [edi+WIN_W]
+    sub ebx, WM_GRIP
+    cmp ecx, ebx
+    mov ebx, HT_R
+    jge .r
+    jmp .inner
+.corner:                        ; ebx = HT_T or HT_B: a corner near the ends
+    cmp ecx, WM_CORNER
+    jae .rc
+    add ebx, HT_TL - HT_T       ; HT_TL / HT_BL
+    cmp ebx, HT_TL
+    je .r
+    mov ebx, HT_BL
+    jmp .r
+.rc:
+    push eax
+    mov eax, [edi+WIN_W]
+    sub eax, WM_CORNER
+    cmp ecx, eax
+    pop eax
+    jb .r
+    cmp ebx, HT_T
+    mov ebx, HT_TR
+    je .r
+    mov ebx, HT_BR
+    jmp .r
+.inner:
+    mov ebx, HT_CLIENT
+    cmp edx, WM_TITLE_H + 1
+    jae .r
+    mov ebx, HT_TITLE           ; in the bar: maybe a box
+    dec ecx                     ; x within the bar
+    js .r
+    test eax, WF_SYSMENU
+    jz .rt
+    cmp ecx, WM_BOX
+    mov ebx, HT_SYSMENU
+    jb .r
+    mov ebx, HT_TITLE
+.rt:
+    push edx
+    mov edx, [edi+WIN_W]
+    sub edx, 2                  ; the bar's width
+    sub edx, ecx                ; edx = 1.. from the bar's right end
+    dec edx                     ; 0 for its last column
+    js .rtpop
+    test eax, WF_CLOSEBOX
+    jz .rmax
+    cmp edx, WM_BOX
+    mov ebx, HT_CLOSE
+    jb .rtpop
+    sub edx, WM_BOX
+.rmax:
+    test eax, WF_MAXBOX
+    jz .rmin
+    cmp edx, WM_BOX
+    mov ebx, HT_MAX
+    jb .rtpop
+    sub edx, WM_BOX
+.rmin:
+    test eax, WF_MINBOX
+    jz .rtitle
+    cmp edx, WM_BOX
+    mov ebx, HT_MIN
+    jb .rtpop
+.rtitle:
+    mov ebx, HT_TITLE
+.rtpop:
+    pop edx
+.r:
+    pop eax
+    ret
+
+; eax = window id, ebx = WF_* flags. CF if the id is not open.
+wm_setflags:
+    push edi
+    call wm_record
+    jc .r
+    mov [edi+WIN_FLAGS], ebx
+    call wm_markwin
+.r:
+    pop edi
+    ret
+
+align 4
+wm_tl dd 0
+wm_tr dd 0
+
+; winhit: in mode 13h, two overlapping windows; wm_hit at each part of the
+; lower one (title, the four boxes, the edges, corners, client), of the one
+; on top where they overlap, and outside both. Also draws them and reads the
+; close box's bevel and glyph. Prints `winhit: PASS` or `winhit: FAIL`.
+WH_AX equ 40
+WH_AY equ 30
+WH_AW equ 200
+WH_AH equ 120
+WH_BX equ 150
+WH_BY equ 100
+cmd_winhit_run:
+    call gfx_mode13
+    mov esi, wh_fail
+    jc .say
+    mov byte [gfxt_ok], 1
+    mov eax, WH_AX
+    mov ebx, WH_AY
+    mov ecx, WH_AW
+    mov edx, WH_AH
+    mov esi, wc_one
+    call wm_create
+    mov [wh_ids], eax
+    mov eax, WH_BX
+    mov ebx, WH_BY
+    mov ecx, 120
+    mov edx, 80
+    mov esi, wc_two
+    call wm_create
+    mov [wh_ids+4], eax
+    call wm_redraw
+    mov esi, wh_probes
+.p:
+    lodsd
+    cmp eax, -1
+    je .draw
+    mov ebx, [esi]
+    movzx edx, byte [esi+4]     ; 0 = One, 1 = Two, 0xFF = none
+    movzx ecx, byte [esi+5]
+    add esi, 6
+    call wm_hit
+    cmp dl, 0xFF
+    jne .some
+    cmp eax, -1
+    jne .bad
+    jmp .p
+.some:
+    cmp eax, [wh_ids+edx*4]
+    jne .bad
+    cmp ebx, ecx
+    je .p
+.bad:
+    mov byte [gfxt_ok], 0
+    jmp .p
+.draw:
+    mov eax, WH_AX + WH_AW - 1 - WM_BOX ; One's close box: outer top left
+    mov ebx, WH_AY + 1
+    call gfx_getpixel
+    cmp cl, TH_LIGHT
+    jne .fail
+    add eax, 3                  ; the X starts in its glyph square's corner
+    add ebx, 3
+    call gfx_getpixel
+    cmp cl, TH_TEXT
+    jne .fail
+    mov eax, WH_AX + 1 + WM_BOX / 2 ; the system-menu bar
+    mov ebx, WH_AY + 1 + WM_BOX / 2
+    call gfx_getpixel
+    cmp cl, TH_TEXT
+    je .close
+.fail:
+    mov byte [gfxt_ok], 0
+.close:
+    mov eax, [wh_ids]
+    call wm_close
+    mov eax, [wh_ids+4]
+    call wm_close
+    call gfx_text
+    mov esi, wh_pass
+    cmp byte [gfxt_ok], 1
+    je .say
+    mov esi, wh_fail
+.say:
+    jmp puts
+
+; x, y (dd), window (db: 0 One, 1 Two, 0xFF none), part (db); x = -1 ends
+wh_probes:
+    dd WH_AX + 100, WH_AY + 5
+    db 0, HT_TITLE
+    dd WH_AX + 5, WH_AY + 5
+    db 0, HT_SYSMENU
+    dd WH_AX + WH_AW - 7, WH_AY + 5
+    db 0, HT_CLOSE
+    dd WH_AX + WH_AW - 7 - WM_BOX, WH_AY + 5
+    db 0, HT_MAX
+    dd WH_AX + WH_AW - 7 - 2 * WM_BOX, WH_AY + 5
+    db 0, HT_MIN
+    dd WH_AX + WH_AW - 7 - 3 * WM_BOX, WH_AY + 5
+    db 0, HT_TITLE
+    dd WH_AX + 1, WH_AY + 50
+    db 0, HT_L
+    dd WH_AX + WH_AW - 2, WH_AY + 50
+    db 0, HT_R
+    dd WH_AX + 60, WH_AY
+    db 0, HT_T
+    dd WH_AX + 60, WH_AY + WH_AH - 2
+    db 0, HT_B
+    dd WH_AX + 1, WH_AY + 1
+    db 0, HT_TL
+    dd WH_AX + WH_AW - 3, WH_AY
+    db 0, HT_TR
+    dd WH_AX + 2, WH_AY + WH_AH - 1
+    db 0, HT_BL
+    dd WH_AX + 60, WH_AY + 50
+    db 0, HT_CLIENT
+    dd WH_BX - 5, WH_BY + 40
+    db 0, HT_CLIENT             ; One, just left of Two
+    dd WH_BX + 50, WH_BY + 40
+    db 1, HT_CLIENT             ; Two covers One here
+    dd WH_BX + 1, WH_BY + 40
+    db 1, HT_L
+    dd WH_BX + 50, WH_BY + 5
+    db 1, HT_TITLE
+    dd WH_BX + 119, WH_BY + 79
+    db 1, HT_BR
+    dd 5, 5
+    db 0xFF, 0                  ; the desktop
+    dd 300, 190
+    db 0xFF, 0
+    dd -1
+
+align 4
+wh_ids dd 0, 0
+wh_pass db 'winhit: PASS', 10, 0
+wh_fail db 'winhit: FAIL', 10, 0
