@@ -474,6 +474,12 @@ run_simple:
     mov edi, cmd_dnsbare        ; 3.0
     call streq
     je .dnsbare
+    mov edi, cmd_audio          ; 3.0
+    call streq
+    je .audio
+    mov edi, cmd_audiotest      ; 3.0
+    call streq
+    je .audiotest
     mov edi, cmd_objs           ; 1.7.2
     call streq
     je .objs
@@ -719,6 +725,12 @@ run_simple:
     jmp .empty
 .dnsbare:
     call cmd_dns_show
+    jmp .empty
+.audio:
+    call cmd_audio_run
+    jmp .empty
+.audiotest:
+    call cmd_audiotest_run
     jmp .empty
 .objs:
     call cmd_objs_run
@@ -1222,6 +1234,8 @@ cmd_host db 'host ', 0
 cmd_dns_arg db 'dns ', 0
 cmd_dhcp db 'dhcp', 0
 cmd_dnsbare db 'dns', 0
+cmd_audio db 'audio', 0
+cmd_audiotest db 'audiotest', 0
 cmd_desktop db 'desktop', 0
 cmd_proctest db 'proctest', 0
 proc_full db 'Too many processes', 10, 0
@@ -1421,6 +1435,10 @@ khigh_start:
 %include "dhcp.asm"                 ; 3.0 (OS2-NET-AUDIO)
 %include "dns.asm"
 %include "netsys.asm"
+%include "audio/pci.asm"           ; 3.0 (OS2-NET-AUDIO)
+%include "audio/ac97.asm"
+%include "audio/hda.asm"
+%include "audio/audio.asm"
 %include "appsys.asm"
 
 
