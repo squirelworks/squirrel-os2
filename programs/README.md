@@ -55,6 +55,8 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `hearts.asm` | SQX | Hearts against three computer players, G.4 (`run hearts [seed]`, `run hearts test`) |
 | `chess.asm` | SQX | Chess against an alpha-beta engine, with SAN and PGN save, G.5 (`run chess [seed]`, `run chess test`) |
 | `mahjongg.asm` | SQX | Mahjongg-style tile solitaire, always solvable deals, G.7 (`run mahjongg [seed]`, `run mahjongg test`) |
+| `checkers.asm` | SQX | Checkers (English draughts) against an alpha-beta engine, G.9 (`run checkers [seed]`, `run checkers test`) |
+| `go.asm` | SQX | Go on a 9 x 9 board against the computer, area scoring, G.9 (`run go [seed]`, `run go test`) |
 | `sqx.inc` | — | SQX header macro and syscall numbers |
 | `bmp.inc` | — | BMP reader (8- and 24-bit) and 16-colour writer for programs |
 | `gui.inc` | — | Graphics toolkit for programs over `SYS_GUI`: back buffer, pixels, lines, text, windows, buttons, keys, mouse (`../documentation/apps/gui-programs.md`) |
