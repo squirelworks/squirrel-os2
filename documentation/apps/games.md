@@ -61,8 +61,8 @@ All of the art is original.
 | Mahjongg solitaire | `mahjongg` | G.7 | `mahjongg: PASS` (17 checks) |
 | Reversi | `reversi` | G.8 | `reversi: PASS` (15 checks) |
 | Contract Bridge | `bridge` | G.6 | `bridge: PASS` (65 checks) |
-
-G.9 (Checkers or Go) is not written yet.
+| Checkers | `checkers` | G.9 | `checkers: PASS` (24 checks) |
+| Go (9 x 9) | `go` | G.9 | `go: PASS` (21 checks) |
 
 ## Klondike (`klondike`, G.1)
 
@@ -243,3 +243,42 @@ in notrump and in a trump suit; eleven contract scores (part scores, games, slam
 redoubled, overtricks and undertricks); the openings (1NT, 1S, pass); a Stayman sequence
 (2C, 2S, 3S) and a Blackwood sequence (4NT, 5D, 6S); and twelve seeded deals with the computer in
 every seat, each call and card checked legal and 13 tricks played.
+
+## Checkers (`checkers`, G.9)
+
+English draughts on the 32 dark squares: you play Black (`b`, crowned `B`) from the bottom and
+move first, the computer plays White (`w`, `W`). Men move one square diagonally forward, kings
+forward and back. A capture jumps an adjacent enemy piece onto the empty square beyond and must
+go on jumping while it can; capturing is compulsory, but any of several captures may be chosen.
+A man that reaches the far row is crowned and its move ends there. A side that cannot move
+loses; 80 moves in a row with no capture and no man moving are a draw.
+
+- A move lists its squares: `c3d4` or `c3-d4`; a jump lists every landing square, `c3e5g3` or
+  `c3xe5xg3`. The first and the last square are enough when only one jump joins them.
+- `level N` sets the computer's search depth (1-8, default 6).
+- The engine is a negamax alpha-beta search over the legal moves that keeps searching while
+  captures are pending; the evaluation counts men (100, plus 4 a rank forward) and kings (160).
+  Equal moves are chosen between with the seeded random numbers.
+- The self-check counts the positions after 1-5 moves from the start (7, 49, 302, 1469, 7361),
+  forced and multiple captures, crowning ending a jump, the parser, a double capture preferred
+  to a single one, and two computer-against-computer games from the same seed.
+
+## Go (`go`, G.9)
+
+Go on a 9 x 9 board: you play Black (`X`) and move first, the computer plays White (`O`); `+`
+marks the five star points. A group with no liberty left is taken off; suicide (a move that
+leaves its own group without a liberty and takes nothing) is refused, and so is retaking a ko
+at once. Two passes in a row end the game, which is scored by area: stones on the board plus
+empty points surrounded by one colour only, with 7 points of komi for White. Dead stones are not
+removed at the end, so take them off before passing.
+
+- `e5` plays a stone (columns a-i, rows 1-9), `pass` passes, `score` counts the board as it
+  stands.
+- The computer looks one move ahead with rules of thumb: take stones in atari, save its own
+  groups from atari, put yours in atari, keep liberties, avoid self-atari, never fill its own
+  eyes, and in the opening prefer the third and fourth lines. It passes when no move is worth
+  more than passing.
+- The self-check covers captures of one stone and of a group, suicide, ko (refused at once,
+  allowed after a move elsewhere), area scoring, the computer taking a stone and saving its
+  own, not filling an eye, and two computer-against-computer games to two passes from the same
+  seed.
