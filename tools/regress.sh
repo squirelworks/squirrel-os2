@@ -41,7 +41,7 @@ mkdir -p "$out/dk" && printf 'desktop\n' > "$out/dk/autoexec.bat"
 python3 "$root/tools/sqfs.py" "$out/dkauto.img" put "$out/dk/autoexec.bat"
 # OS2-APPS: graphical programs (SYS_GUI) on a data disk of their own
 python3 "$root/tools/sqfs.py" "$out/apps.img" format 1024
-for prog in guitest calculator clock notepad grapher charmap paint viewer topology matrixgui stats; do
+for prog in guitest calculator clock notepad grapher charmap paint viewer topology matrixgui stats graph3d; do
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
     python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/$prog"
 done
@@ -807,11 +807,18 @@ check matrixgui-quit 'systest: PASS'        'run matrixgui' '<ret>' '<pause>' '<
 # C.3: statistics (lists, one- and two-variable statistics, regressions, histogram, box plot, CSV)
 check stats         'stats: PASS'           'run stats test' '<ret>' '<pause>' '<pause>' '<pause>'
 check_all stats-one 'gfx: n = 5|gfx: mean = 3|gfx: sx = 1.581139|gfx: Q1 = 1.5|gfx: Q3 = 4.5' 'run stats' '<ret>' '<pause>' '1' '<ret>' '2' '<ret>' '3' '<ret>' '4' '<ret>' '5' '<ret>' 'v' '<pause>' '<gfx>'
-check_all stats-reg 'gfx: linear: y = a*x + b|gfx: a = 0.6|gfx: b = 2.2|gfx: r^2 = 0.6' 'run stats' '<ret>' '<pause>' '1' '<ret>' '2' '<ret>' '3' '<ret>' '4' '<ret>' '5' '<ret>' '<tab>' '<pageup>' '2' '<ret>' '4' '<ret>' '5' '<ret>' '4' '<ret>' '5' '<ret>' 'r' '<pause>' '<gfx>'
-check_all stats-quad 'gfx: quadratic: y=a*x^2+b*x+c|gfx: a = -0.285714|gfx: b = 2.314286|gfx: c = 0.2' 'run stats' '<ret>' '<pause>' '1' '<ret>' '2' '<ret>' '3' '<ret>' '4' '<ret>' '5' '<ret>' '<tab>' '<pageup>' '2' '<ret>' '4' '<ret>' '5' '<ret>' '4' '<ret>' '5' '<ret>' 'r' 'r' '<pause>' '<gfx>'
+check_all stats-reg 'gfx: linear: y = a*x + b|gfx: a = 0.6|gfx: b = 2.2|gfx: r^2 = 0.6' 'run stats' '<ret>' '<pause>' '1' '<ret>' '2' '<ret>' '3' '<ret>' '4' '<ret>' '5' '<ret>' '<tab>' '2' '<ret>' '4' '<ret>' '5' '<ret>' '4' '<ret>' '5' '<ret>' 'r' '<pause>' '<gfx>'
+check_all stats-quad 'gfx: quadratic: y=a*x^2+b*x+c|gfx: a = -0.285714|gfx: b = 2.314286|gfx: c = 0.2' 'run stats' '<ret>' '<pause>' '1' '<ret>' '2' '<ret>' '3' '<ret>' '4' '<ret>' '5' '<ret>' '<tab>' '2' '<ret>' '4' '<ret>' '5' '<ret>' '4' '<ret>' '5' '<ret>' 'r' 'r' '<pause>' '<gfx>'
 check stats-differ  'gfx: L1 and L2 must have the same length' 'run stats' '<ret>' '<pause>' '1' '<ret>' '2' '<ret>' 'x' '<pause>' '<gfx>'
 check_all stats-csv 'gfx: Saved|gfx: n = 2|gfx: mean = 7.5' 'run stats' '<ret>' '<pause>' '7' '<ret>' '8' '<ret>' '<ctrl-s>' '<pause>' '<gfx>' '<esc>' '<pause>' 'run stats stats.csv' '<ret>' '<pause>' 'v' '<pause>' '<gfx>'
 check stats-quit    'systest: PASS'         'run stats' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
+# C.7: 3D graphing (surfaces, space curves)
+check graph3d       'graph3d: PASS'         'run graph3d test' '<ret>' '<pause>' '<pause>' '<pause>'
+check_all graph3d-surf 'gfx: sin(x)*cos(y)|gfx: x, y: -3 to 3|gfx: z: -0.9975 to 0.9975' 'run graph3d sin(x)*cos(y)' '<ret>' '<pause>' '<left>' '<up>' '<pause>' '<gfx>'
+check_all graph3d-curve 'gfx: t: 0 to 2 pi|gfx: z: 0 to 1.2566' 'run graph3d' '<ret>' '<pause>' 'x = cos(t), y = sin(t), z = t/5' '<ret>' '<pause>' '<gfx>'
+check_all graph3d-size 'gfx: x, y: -6 to 6|gfx: z: 0 to 72' 'run graph3d x^2+y^2' '<ret>' '<pause>' '<pgup>' '<pause>' '<gfx>'
+check graph3d-syn   'gfx: Error: syntax at column 4' 'run graph3d' '<ret>' '<pause>' 'z = x*(' '<ret>' '<pause>' '<gfx>'
+check graph3d-quit  'systest: PASS'         'run graph3d x*y' '<ret>' '<pause>' 'w' '<pause>' '<esc>' '<pause>' systest '<ret>'
 disk=$out/auto.img
 check bat-autoexec  'autoexec ran'
 check lang-autoexec 'Tabulae:'              ls '<ret>'
