@@ -72,6 +72,7 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `gui.inc` | — | Graphics toolkit for programs over `SYS_GUI`: back buffer, pixels, lines, text, windows, buttons, keys, mouse (`../documentation/apps/gui-programs.md`) |
 | `games.inc` | — | Shared runtime for the games: output, line input, seeded random numbers, self-test helpers |
 | `cards.inc` | — | Playing cards for the card games: deck, printing, parsing |
+| `gamegui.inc` | — | Drawing for the games' graphical front ends (`run <game> gui`): table, status bar, cards, suit signs, columns, discs, frames |
 
 Build and install:
 
