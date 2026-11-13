@@ -947,7 +947,7 @@ dk_trykey:
 .wmk:
     mov al, ah
     call wm_menukey
-    jc dk_trykey                ; (a side arrow nobody wants)
+    jc .side                    ; a side arrow nobody wants: the caller's
     call dk_wmreply
     jmp dk_trykey
 .map:
@@ -980,11 +980,21 @@ dk_trykey:
     call proc_idle
     stc
     ret
+.side:                          ; (the desktop ignores it; progman moves)
+    mov al, ah
+    clc
+    ret
 
 ; eax, ebx = a window manager reply (wm_altkey, wm_menukey): the desktop's
 ; own close (Alt+F4, the system menu's Close) asks the loop to quit; then
 ; repaints what changed.
 dk_wmreply:
+    cmp eax, WME_MENU           ; a pop-up's choice: for the caller's loop
+    jne .notmenu                ; (2.3-filemgr), item + 1 in dk_menu
+    inc ecx
+    mov [dk_menu], ecx
+    jmp dk_wmdone
+.notmenu:
     cmp eax, WME_CLOSE
     jne dk_wmdone
     cmp ebx, [dk_win]
@@ -998,6 +1008,8 @@ dk_wmdone:
     ret
 
 dk_quit db 0
+align 4
+dk_menu dd 0                    ; a chosen pop-up item + 1, or 0
 
 ; Waits for a key -> al = what wg_key takes: ASCII, 8 for Backspace,
 ; 27 for Esc, WK_UP and WK_DOWN for the arrows.

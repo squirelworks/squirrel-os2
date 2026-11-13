@@ -477,6 +477,24 @@ run_simple:
     mov edi, cmd_winmenu        ; 2.2-sysmenu
     call streq
     je .winmenu
+    mov edi, cmd_pfont          ; 2.2-propfont
+    call streq
+    je .pfont
+    mov edi, cmd_icontest       ; 2.3-icons
+    call streq
+    je .icontest
+    mov edi, cmd_filemgr        ; 2.3-filemgr
+    call streq
+    je .filemgr
+    mov edi, cmd_fmtest
+    call streq
+    je .fmtest
+    mov edi, cmd_progman        ; 2.3-groups
+    call streq
+    je .progman
+    mov edi, cmd_pmtest
+    call streq
+    je .pmtest
     mov edi, cmd_winalttab      ; 2.2-alttab
     call streq
     je .winalttab
@@ -740,6 +758,24 @@ run_simple:
     jmp .empty
 .winmenu:
     call cmd_winmenu_run
+    jmp .empty
+.pfont:
+    call cmd_pfont_run
+    jmp .empty
+.icontest:
+    call cmd_icontest_run
+    jmp .empty
+.filemgr:
+    call cmd_filemgr_run
+    jmp .empty
+.fmtest:
+    call cmd_fmtest_run
+    jmp .empty
+.progman:
+    call cmd_progman_run
+    jmp .empty
+.pmtest:
+    call cmd_pmtest_run
     jmp .empty
 .winalttab:
     call cmd_winalttab_run
@@ -1268,6 +1304,12 @@ cmd_windrag db 'windrag', 0
 cmd_winmin db 'winmin', 0
 cmd_winmenu db 'winmenu', 0
 cmd_winalttab db 'winalttab', 0
+cmd_progman db 'progman', 0
+cmd_filemgr db 'filemgr', 0
+cmd_fmtest db 'fmtest', 0
+cmd_pmtest db 'pmtest', 0
+cmd_pfont db 'pfont', 0
+cmd_icontest db 'icontest', 0
 cmd_wintest db 'wintest', 0
 cmd_winmove db 'winmove', 0
 cmd_winfocus db 'winfocus', 0
@@ -1478,10 +1520,14 @@ khigh_start:
 %include "matrix.asm"
 %include "diff.asm"
 %include "graph.asm"
+%include "pfont.asm"
+%include "icon.asm"
 %include "wm.asm"
 %include "winsys.asm"
 %include "widget.asm"
 %include "desktop.asm"
+%include "progman.asm"
+%include "filemgr.asm"
 %include "object.asm"
 %include "net.asm"
 %include "ne2k.asm"

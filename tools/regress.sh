@@ -7,6 +7,7 @@ out=${TMPDIR:-/tmp}/squirrel-os2-build
 mkdir -p "$out"
 python3 "$root/tools/mkstrings.py" --check || exit 1
 python3 "$root/tools/mkfont.py" --check || exit 1
+python3 "$root/tools/mkicon.py" --check || exit 1   # 2.3-icons
 (cd "$root/kernel" && nasm -f bin boot.asm -o "$out/boot.bin" \
     && nasm -f bin pm.asm -o "$out/pm.bin" 2>/dev/null)
 cat "$out/boot.bin" "$out/pm.bin" > "$out/os.img"
@@ -400,6 +401,11 @@ check cliptest      'clip: PASS'            cliptest '<ret>'                  # 
 check cliptest-text 'systest: PASS'         cliptest '<ret>' systest '<ret>'
 check bevtest       'bevel: PASS'           bevtest '<ret>'                   # W.1-theme
 check bevtest-text  'systest: PASS'         bevtest '<ret>' systest '<ret>'
+check pfont         'pfont: PASS'           pfont '<ret>' '<pause>' '<spc>'   # 2.2-propfont
+check_all pfont-read 'gfx: Wg Squirrel window face|gfx: Wg Display face, bold' pfont '<ret>' '<pause>' '<gfx>' '<spc>'
+check pfont-text    'systest: PASS'         pfont '<ret>' '<pause>' '<spc>' systest '<ret>'
+check icontest      'icon: PASS'            icontest '<ret>'                  # 2.3-icons
+check icontest-text 'systest: PASS'         icontest '<ret>' systest '<ret>'
 check winvbe        'winvbe: PASS'          winvbe '<ret>'                    # 2.2-vbe-wm
 check winvbe-text   'systest: PASS'         winvbe '<ret>' systest '<ret>'
 check winclip       'winclip: PASS'         winclip '<ret>'                   # 2.2-clip-z
@@ -544,6 +550,32 @@ check_all desktop-objs 'Program < DesktopObject|0 live' desktop '<ret>' '<pause>
 # "Program < DesktopObject" (one space after "<").
 check_once desktop-objs-2 'Program < DesktopObject|  DesktopObject|0 live' \
                    desktop '<ret>' '<pause>' '<esc>' desktop '<ret>' '<pause>' '<esc>' objs '<ret>'
+# 2.3-groups: the Program Manager on a disk of its own (its places file in /desktop)
+pm_disk=$disk
+python3 "$root/tools/sqfs.py" "$out/pm.img" format 1024 >/dev/null
+disk=$out/pm.img
+check pmtest        'pm: PASS'              pmtest '<ret>' '<pause>'
+check_all pm-groups 'gfx: Main|gfx: Tools|gfx: calc|gfx: draw' progman '<ret>' '<pause>' '<gfx>'
+check_all pm-launch 'gfx: calc> 2 + 2|gfx: = 4' \
+                   progman '<ret>' '<pause>' '<right>' '<ret>' '<pause>' '2 + 2' '<ret>' '<pause>' '<gfx>'
+check pm-move       'calc 88 12'            progman '<ret>' '<pause>' '<right>' m '<right>' '<right>' '<down>' '<ret>' '<esc>' 'cat /desktop/progman.pos' '<ret>'
+check pm-move-reboot 'calc 96 12'           progman '<ret>' '<pause>' '<right>' m '<right>' '<ret>' '<esc>' 'cat /desktop/progman.pos' '<ret>'
+check pm-arrange    'calc 72 4'             progman '<ret>' '<pause>' a '<esc>' 'cat /desktop/progman.pos' '<ret>'
+check pm-text       'systest: PASS'         progman '<ret>' '<pause>' '<esc>' systest '<ret>'
+# 2.3-filemgr: the File Manager on a disk of its own: /w holds a.txt and sub
+python3 "$root/tools/sqfs.py" "$out/fm.img" format 1024 >/dev/null
+disk=$out/fm.img
+check fmtest        'fm: PASS'              fmtest '<ret>'
+check fm-setup      'sub/'                  'mkdir w' '<ret>' 'put w/a.txt hello' '<ret>' 'mkdir w/sub' '<ret>' 'ls w' '<ret>'
+check_all fm-panes  'gfx: File Manager|gfx: sub|gfx: <dir>|gfx: a.txt' 'cd w' '<ret>' filemgr '<ret>' '<pause>' '<gfx>'
+check fm-copy       'hello'                 'cd w' '<ret>' filemgr '<ret>' '<pause>' '<down>' c sub '<ret>' '<esc>' 'cat sub/a.txt' '<ret>'
+check fm-rename     'hello'                 'cd w' '<ret>' filemgr '<ret>' '<pause>' '<down>' r b.txt '<ret>' '<esc>' 'cat b.txt' '<ret>'
+check fm-move       'hello'                 'cd w' '<ret>' filemgr '<ret>' '<pause>' '<down>' m / '<ret>' '<esc>' 'cat /b.txt' '<ret>'
+check fm-mkdir      '/w/new'                'cd w' '<ret>' filemgr '<ret>' '<pause>' n new '<ret>' '<esc>' 'cd new' '<ret>' pwd '<ret>'
+check fm-delete     'Not found'             'cd w' '<ret>' filemgr '<ret>' '<pause>' '<ret>' '<delete>' y '<esc>' 'cat sub/a.txt' '<ret>'
+check fm-menu       'Not found'             'put w/m.txt x' '<ret>' 'cd w' '<ret>' filemgr '<ret>' '<pause>' '<down>' '<down>' f '<pause>' '<down>' '<down>' '<down>' '<down>' '<ret>' y '<esc>' 'cat m.txt' '<ret>'
+check fm-text       'systest: PASS'         filemgr '<ret>' '<pause>' '<esc>' systest '<ret>'
+disk=$pm_disk
 # 1.8.3: the desktop's entries are object files in /desktop, written the
 # first time; a removed file's entry is gone. A disk of their own, so the
 # other desktop checks keep all five entries.

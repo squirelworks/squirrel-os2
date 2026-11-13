@@ -34,11 +34,18 @@ main:
     DRAW w1, WD_FILL, 10, 10, 40, 30, 0x2A
     mov dword [cmd+24], hello
     DRAW w1, WD_TEXT, 10, 50, -1, 0, 0x00
+    mov dword [cmd+24], wg      ; 2.2-propfont: the window face, no background
+    DRAW w1, WD_PTEXT, 10, 62, -1, 0, 0x0E
+    cmp eax, 11                 ; its width: W 5 + 1, g 4 + 1
+    jne .fail
     mov eax, SYS_WINFLUSH
     mov ebx, [w1]
     int 0x80
     DRAW w1, WD_PIXEL, 20, 20, 0, 0, 0
     cmp eax, 0x2A               ; the fill is on the screen
+    jne .fail
+    DRAW w1, WD_PIXEL, 10, 62, 0, 0, 0
+    cmp eax, 0x0E               ; W's top left corner is ink
     jne .fail
     mov eax, SYS_WINOPEN        ; Two over One's middle: screen x 130.., y 110..
     mov ebx, open2
@@ -123,6 +130,7 @@ open2 dd 130, 110, 200, 120, title2, 0
 title1 db 'One', 0
 title2 db 'Two', 0
 hello db 'Hello', 0
+wg db 'Wg', 0
 keymsg db 'progwin key: '
 keych db '?', 10, 0
 pass db 'progwin: PASS', 10, 0

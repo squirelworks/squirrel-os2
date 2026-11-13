@@ -70,6 +70,8 @@ The graphics font is an original 5 × 7 design for the printable ASCII codes 0x2
 
 Each character fills a 6 × 8 cell: the glyph, then one column and one row of background, so a string reads as words on a solid band.
 
+Since 2.2 there are also two proportional faces (`FONT_9`, `FONT_12`, `tools/fontp*.txt`, `gfx_drawstr_p`); window text uses them. See `windows.md`, *Proportional fonts*.
+
 ## Test
 
 `gfxtest` (a shell command) enters mode 13h, writes colour `0x2A` to pixel (160, 100) and reads it back, does the same with `0x15`, returns to text mode and prints `gfxtest: PASS` if both reads matched (check `gfxtest`). In text mode the window at `0xA0000` is not mapped, so a read there returns `0xFF` and the test fails: with the call to `gfx_mode13` taken out, it prints `gfxtest: FAIL`. Check `gfx-text` runs `systest` after `gfxtest` to show the text screen works again.
