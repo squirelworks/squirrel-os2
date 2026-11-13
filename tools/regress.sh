@@ -45,7 +45,7 @@ for prog in guitest calculator clock notepad grapher charmap paint viewer topolo
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
     python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/$prog"
 done
-for prog in sheet geometry cas sysmon logview diskutil; do  # C.4, C.6, C.5, A.5
+for prog in sheet geometry cas sysmon logview diskutil notebook; do  # C.4, C.6, C.5, A.5, C.8
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
     python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/$prog"
 done
@@ -935,6 +935,14 @@ check diskutil      'diskutil: PASS'        'run diskutil test' '<ret>' '<pause>
 check_all diskutil-check 'gfx: hd1 (data disk): SQFS, 2048 sectors, 1024 KB|gfx: Check: no problems found' 'run diskutil' '<ret>' '<pause>' 'c' '<pause>' '<gfx>'
 check diskutil-scan 'gfx: Surface scan: 2048 sectors read, 0 failed' 'run diskutil' '<ret>' '<pause>' 's' '<pause>' '<pause>' '<gfx>'
 check diskutil-quit 'systest: PASS'         'run diskutil' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
+# C.8: notebooks (notes, Nut code, graphs, tables, geometry; C.1: math cells by sqmath)
+check notebook      'notebook: PASS'        'run notebook test' '<ret>' '<pause>' '<pause>' '<pause>'
+check_all notebook-code 'gfx: 42|gfx: 7 12' 'run notebook' '<ret>' '<pause>' 'c' 'x = 6' '<ret>' 'print x*7' '<ret>' 'print x+1, x*2' '<esc>' '<pause>' '<gfx>'
+check_all notebook-cells 'gfx: y = sin(x)|gfx: x: -10 .. 10|gfx: y: -1 .. 1|gfx: d = 5|gfx: 2 hi' 'run notebook' '<ret>' '<pause>' 'g' 'sin(x)' '<esc>' 'o' 'A = (0,0)' '<ret>' 'B = (3,4)' '<ret>' 'seg A B' '<ret>' 'd = dist A B' '<esc>' 't' '=d-3 | hi' '<esc>' '<pause>' '<gfx>'
+check notebook-err  'gfx: ! line 2: division by zero' 'run notebook' '<ret>' '<pause>' 'c' 'x = 1' '<ret>' 'print x/0' '<esc>' '<pause>' '<gfx>'
+check_all notebook-save '%% code|print 5|%% note|acorns' 'run notebook n.nb' '<ret>' '<pause>' 'n' 'acorns' '<esc>' 'c' 'print 5' '<esc>' '<ctrl-s>' '<pause>' '<esc>' '<pause>' 'cat n.nb' '<ret>'
+check_all notebook-math 'gfx: z = -3 + 4i|gfx: v = 25 m/s|gfx: 1/7 = 0.1428571428571428571428571428571428571429' 'run notebook' '<ret>' '<pause>' 'm' 'z = (1+2i)^2' '<ret>' 'v = 90 [km/h] to [m/s]' '<ret>' 'digits 40' '<ret>' '1/7' '<esc>' '<pause>' '<gfx>'
+check notebook-quit 'systest: PASS'         'run notebook' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
 # P.8: DOS .COM and .EXE programs run in the dosrun 8086 interpreter
 disk=$out/dos.img
 check_all dos-hello 'Hello from DOS land!|#! tail: acorns|doshello: PASS'  'run dosrun doshello.com acorns' '<ret>'
