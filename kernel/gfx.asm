@@ -945,3 +945,140 @@ clip_expect_vbe:
 
 clip_pass db 'clip: PASS', 10, 0
 clip_fail db 'clip: FAIL', 10, 0
+
+; ---------- bevels (W.1-theme) ----------
+
+; eax, ebx = top left, ecx = width, edx = height, esi = 0 raised / 1 sunken.
+; Draws TH_BEVEL_W rings just inside the rectangle's edge: per ring a top
+; row and a left column in one colour, then a bottom row and a right column
+; in another (so the top-right and bottom-left corners take the second).
+; Raised: light / dark outside, light / shadow inside. Sunken: shadow /
+; light outside, dark / face inside. The face is not filled.
+gfx_bevel:
+    pushad
+    mov [bv_w], ecx
+    mov [bv_h], edx
+    lea ebp, [bev_cols+esi*4]
+    movzx esi, byte [gfx_colour]    ; kept, put back at the end
+    xor edi, edi                ; ring
+.ring:
+    mov ecx, [bv_w]             ; this ring's width and height
+    sub ecx, edi
+    sub ecx, edi
+    mov edx, [bv_h]
+    sub edx, edi
+    sub edx, edi
+    push esi
+    mov esi, edx                ; esi = height
+    mov dl, [ebp+edi]
+    mov [gfx_colour], dl        ; top-left colour of this ring
+    mov edx, 1
+    call gfx_fillrect           ; top row: x, y, w, 1
+    xchg ecx, edx               ; ecx = 1, edx = w
+    xchg edx, esi               ; edx = h, esi = w
+    call gfx_fillrect           ; left column: x, y, 1, h
+    mov cl, [ebp+edi+2]
+    mov [gfx_colour], cl        ; bottom-right colour
+    push eax
+    add eax, esi
+    dec eax
+    mov ecx, 1
+    call gfx_fillrect           ; right column: x + w - 1, y, 1, h
+    pop eax
+    push ebx
+    add ebx, edx
+    dec ebx
+    mov ecx, esi
+    mov edx, 1
+    call gfx_fillrect           ; bottom row: x, y + h - 1, w, 1
+    pop ebx
+    pop esi
+    inc eax
+    inc ebx
+    inc edi
+    cmp edi, TH_BEVEL_W
+    jb .ring
+    mov eax, esi
+    mov [gfx_colour], al
+    popad
+    ret
+
+align 4
+bv_w dd 0
+bv_h dd 0
+
+; per mode: top-left ring 0, ring 1, bottom-right ring 0, ring 1
+bev_cols:
+    db TH_LIGHT, TH_LIGHT, TH_DARK, TH_SHADOW       ; raised
+    db TH_SHADOW, TH_DARK, TH_LIGHT, TH_FACE        ; sunken
+
+; bevtest: on a face-grey band in mode 13h, draws a raised and a sunken
+; bevel and reads back each ring's colours, a shared corner and the face.
+; Prints `bevel: PASS` or `bevel: FAIL`.
+cmd_bevtest_run:
+    call gfx_mode13
+    mov byte [gfxt_ok], 1
+    mov byte [gfx_colour], TH_FACE
+    xor eax, eax
+    mov ebx, GFX_SAFE_Y
+    mov ecx, GFX_W
+    mov edx, GFX_H - GFX_SAFE_Y
+    call gfx_fillrect
+    mov eax, 20                 ; raised: x 20..59, y 110..129
+    mov ebx, 110
+    mov ecx, 40
+    mov edx, 20
+    xor esi, esi
+    call gfx_bevel
+    mov eax, 80                 ; sunken: x 80..119, y 110..129
+    inc esi
+    call gfx_bevel
+    mov esi, bev_expect
+.check:
+    lodsd
+    cmp eax, -1
+    je .end
+    mov ebx, [esi]
+    mov dl, [esi+4]
+    add esi, 5
+    call gfx_getpixel
+    cmp cl, dl
+    je .check
+    mov byte [gfxt_ok], 0
+    jmp .check
+.end:
+    call gfx_text
+    mov esi, bev_pass
+    cmp byte [gfxt_ok], 1
+    je .say
+    mov esi, bev_fail
+.say:
+    jmp puts
+
+bev_expect:
+    dd 20, 110
+    db TH_LIGHT                 ; raised, outer top left
+    dd 21, 111
+    db TH_LIGHT                 ; inner top left
+    dd 59, 129
+    db TH_DARK                  ; outer bottom right
+    dd 58, 128
+    db TH_SHADOW                ; inner bottom right
+    dd 59, 110
+    db TH_DARK                  ; top-right corner takes the bottom-right colour
+    dd 40, 120
+    db TH_FACE                  ; the face is untouched
+    dd 80, 110
+    db TH_SHADOW                ; sunken, outer top left
+    dd 81, 111
+    db TH_DARK                  ; inner top left
+    dd 119, 129
+    db TH_LIGHT                 ; outer bottom right
+    dd 100, 129
+    db TH_LIGHT                 ; outer bottom row
+    dd 60, 120
+    db TH_FACE                  ; between the two
+    dd -1
+
+bev_pass db 'bevel: PASS', 10, 0
+bev_fail db 'bevel: FAIL', 10, 0

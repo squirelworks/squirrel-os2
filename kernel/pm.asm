@@ -416,6 +416,9 @@ run_simple:
     mov edi, cmd_cliptest       ; 2.1-blit-clip
     call streq
     je .cliptest
+    mov edi, cmd_bevtest        ; W.1-theme
+    call streq
+    je .bevtest
     mov edi, cmd_desktop
     call streq
     je .desktop
@@ -655,6 +658,8 @@ run_simple:
     jmp .empty
 .cliptest:
     call cmd_cliptest_run
+.bevtest:
+    call cmd_bevtest_run
     jmp .empty
 .vbetest:
     call cmd_vbetest_run
@@ -1153,6 +1158,7 @@ cmd_gfxprim db 'gfxprim', 0
 cmd_gfxtext db 'gfxtext', 0
 cmd_vbetest db 'vbetest', 0
 cmd_cliptest db 'cliptest', 0
+cmd_bevtest db 'bevtest', 0
 cmd_wintest db 'wintest', 0
 cmd_winmove db 'winmove', 0
 cmd_winfocus db 'winfocus', 0
