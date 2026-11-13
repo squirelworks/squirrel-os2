@@ -171,6 +171,7 @@ pm:
     call ata_init
     call mouse_init             ; PS/2 mouse (1.9.10; IRQ 12 since 2.0.1)
     call dev_init
+    call hw_init                ; PCI disks, USB (OS2-HW, drivers/hw.asm)
 
     ; PIC + PIT
     mov al, 0x11
@@ -909,6 +910,9 @@ timer_isr:
     inc dword [ticks]
     mov al, 0x20
     out 0x20, al
+    pushad
+    call hw_tick                ; polled drivers (OS2-HW)
+    popad
     ; preemption (1.1): once the slice is used up, the first tick that
     ; lands in a loaded program (ring 3 since 2.4) switches to the next
     ; READY process. Kernel code is never interrupted this way (it is not
@@ -1398,6 +1402,10 @@ khigh_start:
 %include "udp.asm"
 %include "tcp.asm"
 %include "appsys.asm"
+%include "drivers/hw.asm"
+%include "drivers/pci.asm"
+%include "drivers/ahci.asm"
+%include "drivers/nvme.asm"
 
 
 ; the high image ends on a sector boundary, with its signature last

@@ -75,6 +75,11 @@ hd1     block   ready 2048 sectors
 
 `SYS_DEVUNREG` (2.0.2, `ebx` = name) removes a device that `SYS_DEVREG` made and frees its slot. Before 2.0.2 a slot was never given back, so after four registrations `SYS_DEVREG` failed for the rest of the boot, and `drvtest` failed the second time it ran. Built-in devices cannot be removed: only the four run-time slots are searched. A removed slot keeps its place in the device table, with an empty name and no `DEVF_UP`, so the handles of other devices do not move. `dev_handle` refuses a handle to it, `devices` skips it, and the next `SYS_DEVREG` reuses the slot and its table index (`dev_dyn_tix`). `drvtest` checks that after removal `SYS_DEVFIND` no longer finds the name, the old handle reads −1, a second removal fails, and removing `con` fails.
 
+## PCI disks (OS2-HW)
+
+`sd0`/`sd1` (AHCI) and `nv0` (NVMe) are registered by `kernel/drivers/` after the built-in
+devices, and only when the hardware is there. See `hardware.md`.
+
 ## Not yet
 
 - Interrupt-driven I/O. The ATA driver still polls.

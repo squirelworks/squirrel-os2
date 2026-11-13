@@ -58,6 +58,21 @@ nasm -f bin -i "$root/programs/" "$root/programs/dosrun.asm" -o "$out/dosrun"
 for prog in doshello doscpu dosfile; do nasm -f bin "$root/programs/$prog.asm" -o "$out/$prog.com"; done
 nasm -f bin "$root/programs/dosexe.asm" -o "$out/dosexe.exe"
 for f in dosrun winrun doshello.com doscpu.com dosfile.com dosexe.exe; do python3 "$root/tools/sqfs.py" "$out/dos.img" put "$out/$f"; done
+# OS2-HW (H.3-H.6): blkdev on a disk of its own; marked scratch disks for the AHCI/NVMe/USB drivers
+python3 "$root/tools/sqfs.py" "$out/hw.img" format 1024
+nasm -f bin -i "$root/programs/" "$root/programs/blkdev.asm" -o "$out/blkdev"
+python3 "$root/tools/sqfs.py" "$out/hw.img" put "$out/blkdev"
+hwdisk() {  # hwdisk FILE: a 4 MB disk with 'SQHW' in sector 0 and 'S100' in sector 100
+    python3 - "$1" <<'PYEOF'
+import sys
+d = bytearray(4 << 20); d[0:4] = b'SQHW'; d[51200:51204] = b'S100'
+open(sys.argv[1], 'wb').write(d)
+PYEOF
+}
+sector5() {  # sector5 NAME FILE: the pattern blkdev wrote must be in the image itself
+    if python3 -c "import sys; d = open(sys.argv[1], 'rb').read()[2560:2568]; sys.exit(d != bytes.fromhex('05005a5a06015b5b'))" "$2"
+    then echo "ok   $1"; else echo "FAIL $1 (sector 5 of $2 not written)"; fail=1; fi
+}
 rm -f "$out/data.img"
 dd if=/dev/zero of="$out/data.img" bs=1024 count=1024 2>/dev/null
 
@@ -870,6 +885,25 @@ check_all dos-run-com 'Hello from DOS land!|#! tail: acorns|doshello: PASS'  'ru
 check_all dos-run-exe 'Hello from an MZ .EXE!|dosexe: PASS'  'run dosexe.exe' '<ret>'
 check_all dos-winrun  'Hello from an MZ .EXE!|dosexe: PASS'  'run winrun dosexe.exe' '<ret>'
 check dos-run-after   'systest: PASS'         'run doscpu.com' '<ret>' systest '<ret>'
+# OS2-HW H.3/H.4: AHCI and NVMe disks as sd0 and nv0 (drivers/ahci.asm, drivers/nvme.asm)
+disk=$out/hw.img
+hwdisk "$out/sata.img"; hwdisk "$out/nvme.img"
+export QEMU_EXTRA="-device ahci,id=ahci -drive if=none,id=sd,file=$out/sata.img,format=raw -device ide-hd,drive=sd,bus=ahci.0 -drive if=none,id=nv,file=$out/nvme.img,format=raw -device nvme,serial=sqhw,drive=nv"
+check_all hw-devices 'sd0     block   ready 8192 sectors|nv0     block   ready 8192 sectors'  devices '<ret>'
+check hw-ahci       'blkdev: sd0 PASS'      'run blkdev sd0' '<ret>'
+sector5 hw-ahci-disk "$out/sata.img"
+check hw-nvme       'blkdev: nv0 PASS'      'run blkdev nv0' '<ret>'
+sector5 hw-nvme-disk "$out/nvme.img"
+check hw-after      'systest: PASS'         'run blkdev sd0' '<ret>' 'run blkdev nv0' '<ret>' systest '<ret>'
+unset QEMU_EXTRA
+check_none hw-absent 'sd0     block' 'ne0     net' devices '<ret>'
+check hw-missing    'blkdev: FAIL'          'run blkdev nv0' '<ret>'
+# q35: no IDE at all; the boot disk and the data disk are both on AHCI, the data disk becomes the file system
+cp "$out/os.img" "$out/os-q35.img"; truncate -s 2M "$out/os-q35.img"
+cp "$out/hw.img" "$out/hw-q35.img"
+export QEMU_EXTRA="-M q35"; boot=$out/os-q35.img; disk=$out/hw-q35.img
+check_all hw-q35    'hd1     block   absent|sd1     block   ready 2048 sectors|blkdev  '  devices '<ret>' ls '<ret>'
+unset QEMU_EXTRA boot
 disk=$out/auto.img
 check bat-autoexec  'autoexec ran'
 check lang-autoexec 'Tabulae:'              ls '<ret>'
