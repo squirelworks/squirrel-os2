@@ -482,7 +482,45 @@ fetch_pid=$!
 check fetch-hello   'hello from squirrel'   'fetch 10.0.2.2 18080 /hello.txt' '<ret>' '<pause>' '<pause>' '<pause>'
 kill $fetch_pid 2>/dev/null || true
 wait $fetch_pid 2>/dev/null || true
+# 3.0 (OS2-NET-AUDIO): DHCP from slirp; DNS and HTTP/1.1 from tools/netserve.py on the host
+# (slirp delivers 10.0.2.2:<port> to 127.0.0.1:<port>); wget and netcfg on a disk of their own
+python3 "$root/tools/sqfs.py" "$out/net.img" format 1024
+for prog in wget netcfg; do
+    nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
+    python3 "$root/tools/sqfs.py" "$out/net.img" put "$out/$prog"
+done
+python3 -u "$root/tools/netserve.py" 18081 18053 >"$out/netserve.log" 2>&1 &
+net_pid=$!
+net_disk=$disk; disk=$out/net.img
+ns='dns 10.0.2.2 18053'
+check_all dhcp      'dhcp: bound|inet 10.0.2.15|mask 255.255.255.0|gw 10.0.2.2' 'ifconfig 10.0.2.99 255.255.0.0 10.0.2.9' '<ret>' dhcp '<ret>' '<pause>' '<pause>'
+check dhcp-dns      'dns 10.0.2.3'          "$ns" '<ret>' dhcp '<ret>' '<pause>' '<pause>' dns '<ret>'
+check host-name     'squirrel.test is 10.0.2.2'      "$ns" '<ret>' 'host squirrel.test' '<ret>' '<pause>'
+check host-cname    'www.squirrel.test is 10.0.2.2'  "$ns" '<ret>' 'host www.squirrel.test' '<ret>' '<pause>'
+check host-nx       'Host not found'        "$ns" '<ret>' 'host nothere.test' '<ret>' '<pause>'
+check host-quad     '10.1.2.3 is 10.1.2.3'  'host 10.1.2.3' '<ret>'
+check host-local    'localhost is 127.0.0.1' 'host localhost' '<ret>'
+check ping-name     '4 of 4'                "$ns" '<ret>' 'ping squirrel.test' '<ret>' '<pause>' '<pause>'
+check fetch-name    'hello from squirrel over HTTP/1.1' "$ns" '<ret>' 'fetch squirrel.test 18081 /hello.txt' '<ret>' '<pause>' '<pause>' '<pause>'
+check wget-len      'wget: 200, 34 bytes, sum 2948 -> hello.txt' "$ns" '<ret>' 'run wget http://squirrel.test:18081/hello.txt' '<ret>' '<pause>' '<pause>'
+check wget-saved    'hello from squirrel over HTTP/1.1' "$ns" '<ret>' 'run wget squirrel.test:18081/hello.txt' '<ret>' '<pause>' '<pause>' 'cat hello.txt' '<ret>'
+check_all wget-chunked 'chunked transfer works|wget: 200, 23 bytes, sum 2247' "$ns" '<ret>' 'run wget squirrel.test:18081/chunked.txt -' '<ret>' '<pause>' '<pause>'
+check wget-redirect 'wget: 200, 34 bytes, sum 2948 -> moved' "$ns" '<ret>' 'run wget http://www.squirrel.test:18081/moved' '<ret>' '<pause>' '<pause>'
+check_none wget-404 'nope    ' 'wget: 404'  "$ns" '<ret>' 'run wget http://squirrel.test:18081/nope' '<ret>' '<pause>' '<pause>' ls '<ret>'
+check wget-big      'wget: 200, 20000 bytes, sum 59120 -> big.bin' "$ns" '<ret>' 'run wget http://squirrel.test:18081/big.bin' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
+check_all wget-headers 'Host: squirrel.test:18081|User-Agent: SquirrelOS2-wget/3.0' "$ns" '<ret>' 'run wget squirrel.test:18081/echo -' '<ret>' '<pause>' '<pause>'
+check wget-nohost   'wget: host not found'  "$ns" '<ret>' 'run wget http://nothere.test/' '<ret>' '<pause>' '<pause>'
+check wget-https    'wget: not an http:// URL' 'run wget https://squirrel.test/' '<ret>'
+check_all netcfg-set 'method  manual|address 10.0.2.20|dns     10.0.2.2' 'run netcfg set 10.0.2.20 255.255.255.0 10.0.2.2 10.0.2.2' '<ret>'
+check netcfg-offnet 'not on that subnet'    'run netcfg set 1.2.3.4 255.255.255.0 10.0.2.2 1.1.1.1' '<ret>'
+check_all netcfg-load 'netcfg: saved network.cfg|address 10.0.2.21' 'run netcfg set 10.0.2.21 255.255.255.0 10.0.2.2 10.0.2.3' '<ret>' 'run netcfg save' '<ret>' 'run netcfg dhcp' '<ret>' '<pause>' 'run netcfg load' '<ret>'
+check_all netcfg-gui-dhcp 'gfx: Network Settings|gfx: DHCP: bound|gfx: dhcp, lease 1440 min' 'ifconfig 10.0.2.99 255.255.255.0 10.0.2.2' '<ret>' 'run netcfg' '<ret>' '<pause>' '<f2>' '<pause>' '<pause>' '<gfx>'
+check_all netcfg-gui-apply 'gfx: Applied|inet 10.0.2.77' 'run netcfg' '<ret>' '<pause>' '<backspace>' '<backspace>' '77' '<ret>' '<pause>' '<gfx>' '<esc>' '<pause>' ifconfig '<ret>'
+disk=$net_disk
+kill $net_pid 2>/dev/null || true
+wait $net_pid 2>/dev/null || true
 nic=
+check dhcp-nonic    'No DHCP server answered' dhcp '<ret>'
 check arp-nonic     'No reply'              'arp 10.0.2.2' '<ret>'
 # 1.9.6: ICMP echo. Loopback does not need the card.
 check ping-lo       '4 of 4'                'ping 127.0.0.1' '<ret>'
