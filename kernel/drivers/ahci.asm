@@ -50,11 +50,11 @@ AHCI_PG_FIS     equ 0x400
 AHCI_PG_CT      equ 0x500
 AHCI_PG_BUF     equ 0x600
 ; unit record
-AU_PORT         equ 0               ; port register base (virtual = physical)
-AU_PAGE         equ 4
-AU_SECTORS      equ 8
-AU_NUM          equ 12              ; port number, for the boot message
-AU_SIZE         equ 16
+AHU_PORT        equ 0               ; port register base (virtual = physical)
+AHU_PAGE        equ 4
+AHU_SECTORS     equ 8
+AHU_NUM         equ 12              ; port number, for the boot message
+AHU_SIZE        equ 16
 
 ATA_CMD_IDENTIFY    equ 0xEC
 ATA_CMD_READ_EXT    equ 0x25
@@ -130,9 +130,9 @@ ahci_port_init:
     mov ebx, [ahci_count]
     shl ebx, 4
     add ebx, ahci_units
-    mov [ebx+AU_PORT], edi
-    mov [ebx+AU_PAGE], eax
-    mov [ebx+AU_NUM], ecx
+    mov [ebx+AHU_PORT], edi
+    mov [ebx+AHU_PAGE], eax
+    mov [ebx+AHU_NUM], ecx
     mov [edi+AP_CLB], eax
     mov dword [edi+AP_CLBU], 0
     lea edx, [eax+AHCI_PG_FIS]
@@ -151,7 +151,7 @@ ahci_port_init:
     call ahci_issue
     pop esi
     jc .no
-    mov edx, [ebx+AU_PAGE]
+    mov edx, [ebx+AHU_PAGE]
     add edx, AHCI_PG_BUF
     mov eax, [edx+200]              ; words 100-101: LBA48 sector count
     cmp dword [edx+204], 0
@@ -164,7 +164,7 @@ ahci_port_init:
 .size:
     test eax, eax
     jz .no
-    mov [ebx+AU_SECTORS], eax
+    mov [ebx+AHU_SECTORS], eax
     inc dword [ahci_count]
 .no:
     ret
@@ -191,8 +191,8 @@ ahci_stop:
 ; Keeps registers.
 ahci_issue:
     pushad
-    mov esi, [ebx+AU_PAGE]
-    mov edi, [ebx+AU_PORT]
+    mov esi, [ebx+AHU_PAGE]
+    mov edi, [ebx+AHU_PORT]
     ; command header 0: 5-dword FIS, one PRD, W if writing
     mov ebp, 5 | (1 << 16)
     test edx, edx
@@ -266,7 +266,7 @@ ahci_dev_probe:
     push eax
     mov eax, [ebx+DEV_UNIT]
     shl eax, 4
-    mov eax, [ahci_units+eax+AU_SECTORS]
+    mov eax, [ahci_units+eax+AHU_SECTORS]
     mov [ebx+DEV_SIZE], eax
     cmp eax, 1
     pop eax
@@ -284,7 +284,7 @@ ahci_dev_read:
     xor edx, edx
     call ahci_issue
     jc .fail
-    mov esi, [ebx+AU_PAGE]
+    mov esi, [ebx+AHU_PAGE]
     add esi, AHCI_PG_BUF
     mov ecx, 128
     rep movsd
@@ -304,7 +304,7 @@ ahci_dev_write:
     mov ebx, [ebx+DEV_UNIT]
     shl ebx, 4
     add ebx, ahci_units
-    mov edi, [ebx+AU_PAGE]
+    mov edi, [ebx+AHU_PAGE]
     add edi, AHCI_PG_BUF
     push ecx
     mov ecx, 128
@@ -332,4 +332,4 @@ dev_sd1:
 ahci_devs dd dev_sd0, dev_sd1
 ahci_abar dd 0
 ahci_count dd 0
-ahci_units times AHCI_MAX*AU_SIZE db 0
+ahci_units times AHCI_MAX*AHU_SIZE db 0
