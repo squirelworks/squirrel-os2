@@ -32,8 +32,9 @@ All the games are original code. They share two include files:
 | Chess | `chess` | G.5 | `chess: PASS` (19 checks) |
 | Mahjongg solitaire | `mahjongg` | G.7 | `mahjongg: PASS` (17 checks) |
 | Reversi | `reversi` | G.8 | `reversi: PASS` (15 checks) |
+| Contract Bridge | `bridge` | G.6 | `bridge: PASS` (65 checks) |
 
-G.6 (Contract Bridge) and G.9 (Checkers or Go) are not written yet.
+G.9 (Checkers or Go) is not written yet.
 
 ## Klondike (`klondike`, G.1)
 
@@ -165,3 +166,52 @@ one disc; a move that flips nothing is refused and leaves the board alone; perft
 position gives 4, 12, 56 and 244 positions at depths 1–4; the computer takes a corner when it
 can; a board with one colour only is over; and a full computer-against-computer game ends with
 all 64 squares accounted for.
+
+## Contract Bridge (`bridge`, G.6)
+
+You sit South with North as your partner; West and East are the opponents. The computer bids
+and plays for the other three seats (and for North's cards only when East-West declare).
+
+- **Auction.** The deal rotates the dealer. Calls go clockwise: `1c` .. `7nt` (`3n` works too),
+  `p` or `pass`, `x` (double) and `xx` (redouble). A bid must outrank the last one; you may double
+  only an opponents' bid and redouble only a doubled bid of your side. Four passes throw the deal
+  in; otherwise three passes after the last bid end it.
+- **Declarer and dummy.** The first player of the winning side to name the final strain is
+  declarer; partner is dummy and goes face up after the opening lead. When North-South declare,
+  you play both North's and South's cards; when East-West declare, you defend from South.
+- **Play.** Follow suit when you can; the highest trump wins, else the highest card of the suit
+  led. Play a card by name (`qs`, `10h`, `th`).
+- **Scoring.** Non-vulnerable duplicate scoring: 20 a trick in minors, 30 in majors, 40 then 30 in
+  notrump (doubled ×2, redoubled ×4); game bonus 300 when the contract's trick score reaches
+  100, else 50; small slam 500, grand slam 1000; overtricks at trick value (100 or 200 each when
+  doubled or redoubled); 50 for the insult (100 redoubled); undertricks 50 each, or 100, 200, 200,
+  then 300 each doubled (twice that redoubled). Running totals for N-S and E-W.
+
+The computer's bidding is an original natural system:
+
+- Open 1NT with 15–17 and a balanced hand (no singleton or void, at most one doubleton); else
+  with 12+ open one of a five-card major (spades on a tie), else the longer minor (diamonds with
+  4–4, clubs with 3–3).
+- Overcall a five-card suit at the one or two level with 10+.
+- Answer partner: raise a major with three cards (a minor with four) to two with 6–9, three with
+  10–12, game with 13+; over 1NT bid 2NT with 8–9 or 3NT with 10+; else a new four-card suit (at
+  the two level with 11+) or notrump by strength.
+- Rebid to game (3NT, four of a major, five of a minor) when the partnership's points reach 25,
+  counting what partner's bids showed.
+- Conventions: **Stayman** (2C over partner's 1NT with 8+ and a four-card major; the opener shows
+  2H, 2S or 2D; the asker raises a fitting major or bids notrump) and **Blackwood** (with slam
+  values, 33+ between the hands, 4NT asks for aces: 5C 0 or 4, 5D 1, 5H 2, 5S 3; six with three
+  or more aces between the hands, else five). It never doubles.
+
+The card-play AI: declarer draws trumps with its highest while the opponents may still hold any;
+leaders cash a card that is the best left in its suit (not a trump if it can), else lead low from
+their longest side suit; second hand plays low; third and fourth hand win as cheaply as they can
+(trumping when void) unless partner's card already wins; otherwise they play low or discard from
+their longest side suit.
+
+Self-check (`run bridge test`, 65 checks): the deal and its 40 points; the call parser; legal
+bids, doubles and redoubles; the auction's end, passed-out deals and who declares; trick winners
+in notrump and in a trump suit; eleven contract scores (part scores, games, slams, doubled and
+redoubled, overtricks and undertricks); the openings (1NT, 1S, pass); a Stayman sequence
+(2C, 2S, 3S) and a Blackwood sequence (4NT, 5D, 6S); and twelve seeded deals with the computer in
+every seat, each call and card checked legal and 13 tricks played.
