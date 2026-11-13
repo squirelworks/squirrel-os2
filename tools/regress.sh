@@ -843,7 +843,7 @@ check_all grapher-trace 'gfx: 2: x = 4*cos(t), y = 2*sin(t)|gfx: t=0.0262|gfx: x
 check grapher-zoom  'gfx: roots: -3.1416'   'run grapher sin(x)' '<ret>' '<pause>' '+' 'z' '<pause>' '<gfx>'
 check grapher-syn   'gfx: Error: syntax at column 4' 'run grapher' '<ret>' '<pause>' 'y = 2*(' '<ret>' '<pause>' '<gfx>'
 check grapher-quit  'systest: PASS'         'run grapher sin(x)' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
-check_all grapher-impl 'gfx: 1: x^2+y^2=25|gfx: only for y = f(x)' 'run grapher x^2+y^2=25' '<ret>' '<pause>' 'z' '<pause>' '<gfx>'
+check_all grapher-impl 'gfx: 1: x^2+y^2=25|gfx: only for y = f(x)' 'run grapher x^2+y^2=25' '<ret>' '<pause>' '<pause>' 'z' '<pause>' '<gfx>'
 check_all grapher-ineq 'gfx: 1: y >= x^2|gfx: Trace is for y =, r = and x =, y =' 'run grapher' '<ret>' '<pause>' 'y >= x^2' '<ret>' '<pause>' 't' '<pause>' '<gfx>'
 check grapher-slider 'gfx: a = 2.2'         'run grapher y=a*sin(x)' '<ret>' '<pause>' 'a' '<pause>' '<right>' '<pause>' '<right>' '<pause>' '<up>' '<pause>' '<pause>' '<gfx>'
 check grapher-form  'gfx: Use y = f(x), r = f(t), x = f(t), y = g(t), = < >' 'run grapher' '<ret>' '<pause>' 'y < x < 2' '<ret>' '<pause>' '<gfx>'
