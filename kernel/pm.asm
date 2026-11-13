@@ -162,6 +162,7 @@ pm:
     mov eax, mouse_isr          ; IRQ 12 (2.0.1)
     call set_gate
     call syscall_init
+    call dbg_init               ; INT3 from ring 3 (A.4)
     lidt [idt_desc]
     call fpu_init
     call proc_init
@@ -1398,6 +1399,7 @@ khigh_start:
 %include "udp.asm"
 %include "tcp.asm"
 %include "appsys.asm"
+%include "debug.asm"
 
 
 ; the high image ends on a sector boundary, with its signature last

@@ -146,6 +146,7 @@ proc_trampoline:
 proc_exit:
     cli
     mov esi, [proc_cur]
+    call dbg_exit               ; what it traced runs on untraced (A.4)
     mov [esi+PCB_CODE], ebx
     mov dword [esi+PCB_STATE], P_ZOMBIE
     mov eax, [esi+PCB_PID]
@@ -208,6 +209,7 @@ proc_enter_user:
     push dword 0x202            ; eflags: IF, IOPL 0
     push dword USER_CS
     push dword [ebx+PCB_ENTRY]
+    call dbg_entry              ; started by a debugger: stops here first (A.4)
     xor eax, eax                ; no kernel values leak into ring 3
     xor ebx, ebx
     xor ecx, ecx
@@ -774,12 +776,13 @@ sched_preempts dd 0             ; switches made by the timer
 proc_next_pid dd 0
 pt_pids times 3 dd 0
 
-state_names dd st_free, st_ready, st_running, st_waiting, st_zombie
+state_names dd st_free, st_ready, st_running, st_waiting, st_zombie, st_stopped
 st_free db 'free', 0
 st_ready db 'ready', 0
 st_running db 'running', 0
 st_waiting db 'waiting', 0
 st_zombie db 'zombie', 0
+st_stopped db 'stopped', 0
 ps_header db 'PID      STATE    NAME              MEMORY', 10, 0
 ps_none db '-', 0
 proc_shell_name db 'shell', 0
