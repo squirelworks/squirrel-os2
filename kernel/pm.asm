@@ -819,6 +819,9 @@ puts:
     ret
 
 putc:                         ; al = char; preserves all registers
+    cmp byte [tty_count], 0
+    jne tty_putc                ; a program on a terminal (tty.asm, A.3)
+.con:
     cmp byte [cap_on], 0
     jne cap_putc                ; output redirected (shell.asm)
     push eax
@@ -1400,6 +1403,7 @@ khigh_start:
 %include "tcp.asm"
 %include "appsys.asm"
 %include "debug.asm"
+%include "tty.asm"
 
 
 ; the high image ends on a sector boundary, with its signature last

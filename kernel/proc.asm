@@ -98,6 +98,7 @@ proc_spawn:
     call proc_stamp             ; its wait for the CPU starts now (2.0.2)
     mov dword [edi+PCB_FPU], 0  ; starts with a freshly reset FPU
     mov dword [edi+PCB_LINUX], 0    ; native ABI unless the loader says so (P.1)
+    call tty_inherit            ; on its parent's terminal, if any (A.3)
     call tls_clear              ; and no TLS segment base (P.5)
     call msg_reset              ; and an empty message queue (1.2)
     mov ebx, [proc_cur]
@@ -147,6 +148,7 @@ proc_exit:
     cli
     mov esi, [proc_cur]
     call dbg_exit               ; what it traced runs on untraced (A.4)
+    call tty_exit               ; its terminals close (A.3)
     mov [esi+PCB_CODE], ebx
     mov dword [esi+PCB_STATE], P_ZOMBIE
     mov eax, [esi+PCB_PID]

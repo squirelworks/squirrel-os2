@@ -29,6 +29,7 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `clock.asm` | SQX | Analogue clock with the time and date (`run clock`, `run clock test`, A.1) |
 | `notepad.asm` | SQX | Text editor in a window, with syntax highlighting for .asm/.inc, .c/.h and .bas (`run notepad [file]`, `run notepad -test`, A.1, A.7) |
 | `debugger.asm` | SQX | Debugger: breakpoints, single step, registers, memory, disassembly, backtrace, symbols (`run debugger dbgtgt`, A.4, `documentation/apps/debugger.md`) |
+| `terminal.asm` | SQX | Terminal: up to four shell sessions in windows, programs' output and input through `SYS_TTY` (`run terminal`, A.3, `documentation/apps/terminal.md`) |
 | `disasm.inc` | include | The debugger's x86 disassembler (A.4) |
 | `debug.inc` | include | `SYS_DEBUG` operations and the register block (A.4) |
 | `dbgtest.asm` | SQX | Checks `SYS_DEBUG` on `dbgtgt` (`run dbgtest`, A.4) |

@@ -60,7 +60,7 @@ nasm -f bin "$root/programs/dosexe.asm" -o "$out/dosexe.exe"
 for f in dosrun winrun doshello.com doscpu.com dosfile.com dosexe.exe; do python3 "$root/tools/sqfs.py" "$out/dos.img" put "$out/$f"; done
 # A.4: the debugger, its tests and the programs it traces (with a symbol file) on a disk of their own
 python3 "$root/tools/sqfs.py" "$out/dev.img" format 1024
-for prog in debugger dbgtest dbgtgt distest; do
+for prog in debugger dbgtest dbgtgt distest terminal hello wc; do    # A.3 terminal too
     nasm -f bin -i "$root/programs/" --before "[map symbols $out/$prog.map]" "$root/programs/$prog.asm" -o "$out/$prog"
     python3 "$root/tools/sqfs.py" "$out/dev.img" put "$out/$prog"
 done
@@ -896,6 +896,14 @@ check_all dbg-esc   'pid 2 stopped|<here.spin>'  'run debugger dbgtgt s' '<ret>'
 check dbg-quit      'systest: PASS'         'run debugger dbgtgt s' '<ret>' '<pause>' c '<ret>' '<pause>' '<esc>' '<pause>' q '<ret>' '<pause>' systest '<ret>'
 check_all dbg-elf   '3 symbols loaded|start:|00030059 loop_top|00030073 value'  'run debugger dbgelf' '<ret>' '<pause>' sym '<ret>'
 check_all dbg-elf-run 'loop 0x30059 <loop_top>|dbgelf done|pid 2 ended (exit code 6)'  'run debugger dbgelf' '<ret>' '<pause>' 'u start 4' '<ret>' g '<ret>' '<pause>'
+# A.3: the terminal (SYS_TTY): programs in windows, their output and input
+check_all term-run  'gfx: Terminal 1|gfx: 1> hello world|gfx: Hello from a loaded program!|gfx: Argument: world'  'run terminal' '<ret>' '<pause>' '<pause>' 'hello world' '<ret>' '<pause>' '<gfx>'
+check_all term-builtin 'gfx: hi there|gfx: Unknown command or program|gfx: F1-F4 sessions, F5 one/all windows, F10 quit'  'run terminal' '<ret>' '<pause>' '<pause>' 'echo hi there' '<ret>' nothing '<ret>' help '<ret>' '<pause>' '<gfx>'
+check_all term-input 'gfx: 1> wc|gfx: 2 3 14'  'run terminal' '<ret>' '<pause>' '<pause>' wc '<ret>' '<pause>' 'one two' '<ret>' three '<ret>' '<ctrl-d>' '<pause>' '<gfx>'
+check_all term-sessions 'gfx: Terminal 1 - dbgtgt|gfx: 1> dbgtgt s|gfx: Terminal 2|gfx: 2> hello two|gfx: Argument: two'  'run terminal' '<ret>' '<pause>' '<pause>' 'dbgtgt s' '<ret>' '<pause>' '<f2>' '<pause>' 'hello two' '<ret>' '<pause>' '<f5>' '<pause>' '<gfx>'
+check_all term-ctrlc 'gfx: ^C|gfx: *** CPU exception 14 (page fault) in pid 3 (dbgtgt)|gfx: [exit code -1]'  'run terminal' '<ret>' '<pause>' '<pause>' 'dbgtgt s' '<ret>' '<pause>' '<ctrl-c>' '<pause>' 'dbgtgt f' '<ret>' '<pause>' '<pause>' '<gfx>'
+check_all term-debugger 'gfx: pid 3 hit breakpoint 1|gfx: pid 3 stopped|gfx: jmp 0x30073 <here.spin>|gfx: pid 3 ended (exit code -1)'  'run terminal' '<ret>' '<pause>' '<pause>' 'debugger dbgtgt s' '<ret>' '<pause>' 'b level1' '<ret>' c '<ret>' '<pause>' 'bd 1' '<ret>' c '<ret>' '<pause>' '<esc>' '<pause>' q '<ret>' '<pause>' '<gfx>'
+check_all term-quit 'systest: PASS|0        running  shell'  'run terminal' '<ret>' '<pause>' '<pause>' 'dbgtgt s' '<ret>' '<f2>' '<pause>' exit '<ret>' '<pause>' '<f10>' '<pause>' '<pause>' systest '<ret>' ps '<ret>'
 disk=$out/auto.img
 check bat-autoexec  'autoexec ran'
 check lang-autoexec 'Tabulae:'              ls '<ret>'

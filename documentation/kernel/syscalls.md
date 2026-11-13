@@ -59,6 +59,7 @@ add its `SYS_*` constant, bump `SYS_COUNT`.
 | 35 | `SYS_GUI` | `ebx` = operation, `ecx` = its argument | depends on the operation | Graphics for programs (OS2-APPS): see [SYS_GUI](#sys_gui) below |
 | 36 | `SYS_SETTLS` | `ebx` = base address | the selector (`0x3B`) | Added for P.5: the caller's FS/GS segment base, kept per process and reloaded on every switch; FS and GS are loaded at once. Used for the Win32 TEB, see `../architecture/foreign-compatibility.md` |
 | 37 | `SYS_DEBUG` | `ebx` = operation, `ecx` = pid, `edx` = argument | depends on the operation | Added for A.4: trace another program (start it stopped, breakpoints, single step, registers, memory), see `debug.md` |
+| 38 | `SYS_TTY` | `ebx` = operation \| tty << 8, `ecx`, `edx` = arguments | depends on the operation | Added for A.3: terminals; a program's output and keys through a terminal's window, see `tty.md` |
 
 Example:
 

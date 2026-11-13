@@ -49,6 +49,7 @@ SYS_DEVREG  equ 33
 SYS_DEVUNREG equ 34
 SYS_SETTLS  equ 36
 SYS_DEBUG   equ 37
+SYS_TTY     equ 38
 MSG_KEY     equ 0x4B000000
 
 O_CREATE    equ 1

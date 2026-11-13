@@ -44,7 +44,8 @@ SYS_DEVUNREG equ 34         ; ebx = name -> remove a device SYS_DEVREG made (2.0
 SYS_GUI     equ 35          ; ebx = GUI_* op, ecx/edx = args: graphics for programs (appsys.asm)
 SYS_SETTLS  equ 36          ; ebx = base of the FS/GS segment -> its selector (P.5)
 ; SYS_DEBUG  37: ebx = DBG_* op, ecx/edx = args: tracing for debuggers (debug.asm, A.4)
-SYS_COUNT   equ 38
+; SYS_TTY    38: ebx = TTY_* op | tty << 8: terminals for programs (tty.asm, A.3)
+SYS_COUNT   equ 39
 
 SYS_ENOSYS  equ -1
 SYSCALL_VEC equ 0x80
@@ -108,6 +109,7 @@ UA_NETRECV  equ 10          ; ebx -> 20-byte block, its +4 -> its +8 bytes
 UA_KERNEL   equ 11          ; refused from ring 3
 UA_GUI      equ 12          ; per GUI_* operation (gui_uargs, appsys.asm)
 UA_DEBUG    equ 13          ; per DBG_* operation (dbg_uargs, debug.asm)
+UA_TTY      equ 14          ; per TTY_* operation (tty_uargs, tty.asm)
 
 SYS_EFAULT  equ -1
 
@@ -124,6 +126,7 @@ sys_uarg_kind:
     db UA_GUI                                   ; gui
     db UA_NONE                                  ; settls
     db UA_DEBUG                                 ; debug
+    db UA_TTY                                   ; tty
 %if $-sys_uarg_kind != SYS_COUNT
 %error sys_uarg_kind needs one byte per system call
 %endif
@@ -133,13 +136,17 @@ sys_uarg_kind:
 sys_uargs:
     pushad
     movzx eax, byte [sys_uarg_kind+eax]
-    cmp eax, UA_DEBUG
+    cmp eax, UA_TTY
     ja .ok
     jmp [.kinds+eax*4]
 .kinds:
-    dd .ok, .bz, .bz_cz, .bz_cz0, .c_d, .b_c, .c_512, .c_20, .dev, .netsend, .netrecv, .bad, .gui, .debug
+    dd .ok, .bz, .bz_cz, .bz_cz0, .c_d, .b_c, .c_512, .c_20, .dev, .netsend, .netrecv, .bad, .gui, .debug, .tty
 .debug:
     call dbg_uargs
+    jc .bad
+    jmp .ok
+.tty:
+    call tty_uargs
     jc .bad
     jmp .ok
 .gui:
@@ -384,6 +391,7 @@ syscall_table:
     dd sys_gui
     dd sys_settls
     dd sys_debug
+    dd sys_tty
 %if $-syscall_table != SYS_COUNT*4
 %error syscall_table and SYS_COUNT disagree
 %endif
@@ -405,6 +413,8 @@ sys_puts:                   ; through the console device (0.7.1)
 ; Waits for a key press and returns its ASCII code.
 ; Enter -> 10, Backspace -> 8, Esc -> 27; releases and unmapped keys are skipped.
 sys_getc:
+    call tty_getc               ; a program on a terminal reads its keys (A.3)
+    jnc .r
     cmp byte [in_on], 0
     jne in_getc                 ; input redirected (shell.asm): -1 at the end
     push eax                    ; one byte from the keyboard device (0.7.1)
@@ -414,6 +424,7 @@ sys_getc:
     call dev_read
     pop eax
     movzx eax, al
+.r:
     ret
 
 ; Lets the next READY process run; if there is none, sleeps until the
