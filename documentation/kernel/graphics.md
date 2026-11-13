@@ -22,6 +22,18 @@ Location: `../../kernel/gfx.asm` (included from `kernel/pm.asm`)
 - `gfx_text` disables DISPI when `gfx_vbe` is set, then loads the text registers and restores the saved screen/font.
 - The desktop and window manager still use mode 13h. The remaining 2.1 box is a blitter with clipping.
 
+## Clip rectangle and blitter (2.1-blit-clip)
+
+Every pixel any primitive draws goes through `gfx_putpixel`, and that is where the clip is applied, so lines, filled rectangles, text and blits are all cut to it. The clip is `gfx_clip_x`, `gfx_clip_y`, `gfx_clip_w`, `gfx_clip_h`; a pixel is drawn when `x - gfx_clip_x` and `y - gfx_clip_y`, taken unsigned, are below the width and height, so a pixel left of or above the clip wraps to a large number and is dropped too. The default (and what `gfx_noclip` and `gfx_text` put back) is 0, 0 and a width and height of `0xFFFFFFFF`: the whole screen. The screen bounds are still checked first.
+
+`gfx_copyrect` copies a rectangle within the draw target (the back buffer when double buffering). It reads with `gfx_getpixel` and writes with `gfx_putpixel`, so the destination is clipped and a source pixel off the screen reads as 0. When the destination lies below the source, or on the same rows and to the right, it copies from the last pixel back to the first, so overlapping copies (scrolling, moving a window by a few pixels) come out right.
+
+`gfx_fillrect` now clips to the live mode (`gfx_width` / `gfx_height`); before 2.1-blit-clip it stopped at 320 × 200 even in a VBE mode.
+
+### Test
+
+`cliptest` clears rows 103–199 in mode 13h, sets the clip to x 100–149, y 120–149, fills a rectangle that overhangs it on every side and draws a line across it, and reads back the clip's corners (ink) and a pixel just outside each side (background), and the line inside and outside the clip. It then draws a 4 × 3 block with a marked corner, copies it to a free place, copies that copy onto a place overlapping it by one row and two columns (the mark must arrive, which only happens when the copy runs backwards), and copies the block into a clip that cuts its first two columns. When VBE is there it also fills a rectangle at x 400 in 640 × 480 × 8 and reads it back. It returns to text mode and prints `clip: PASS` or `clip: FAIL`. Checks `cliptest` and `cliptest-text` (`systest` after it).
+
 ### Test
 
 `vbetest` walks all nine modes above; for each it writes colours `0x2A` and `0x15` to pixel (100, 100) and reads them back, then arms double buffering, checks the back already reads `0x15` (copied from the front), draws `0x3C` on the back, checks the front is still `0x15`, flips, and checks the front is `0x3C`. It then draws three further pixels on the back, marks only two with `vbe_dirty`, flips, and checks the front matches the marked colours while the unmarked probe keeps its pre-flip front colour. It returns to text mode and prints `vbe: PASS`. When VBE setup fails it uses mode 13h once (no double buffering) and prints `vbe: 13h` if that read-back works. Checks `vbetest` and `vbetest-text` (`systest` after it).
@@ -42,6 +54,9 @@ Location: `../../kernel/gfx.asm` (included from `kernel/pm.asm`)
 | `gfx_fillrect` (1.3.1) | `eax`, `ebx` = top left, `ecx` = width, `edx` = height, colour in `gfx_colour` | — (clipped to the screen; x and y may be negative) |
 | `gfx_drawchar` (1.3.2) | `eax`, `ebx` = top left of the cell, `dl` = character, ink in `gfx_colour`, background in `gfx_bg` | — (a 6 × 8 cell) |
 | `gfx_drawstr` (1.3.2) | `esi` = zero-terminated string, `eax`, `ebx` = top left, colours as `gfx_drawchar` | — (6 pixels per character) |
+| `gfx_setclip` (2.1) | `eax`, `ebx` = top left, `ecx` = width, `edx` = height | later draws are cut to that rectangle |
+| `gfx_noclip` (2.1) | — | the clip is the whole screen again |
+| `gfx_copyrect` (2.1) | `eax`, `ebx` = source top left, `ecx` = width, `edx` = height, `esi`, `edi` = destination top left | copy within the draw target; overlap safe; destination clipped |
 
 ## The text screen while in graphics mode
 
@@ -62,3 +77,11 @@ Each character fills a 6 × 8 cell: the glyph, then one column and one row of ba
 `gfxprim` (1.3.1) clears rows 103–199, draws a line from (20, 120) to (300, 190) in colour `0x0C` and fills the rectangle x 200–259, y 105–124 in `0x0A`. It also fills a rectangle 20 wide starting at x = -10, y 130–139, in `0x09`, of which x 0–9 is on the screen. It then reads back ten pixels: the line's two ends and its middle (160, 155), one inside the first rectangle, the three pixels just left of, right of and below it, which must still be 0, and (0, 135), (9, 135) and (10, 135) for the clipped one. It prints `gfxprim: PASS` when all ten match (checks `gfxprim`, `gfxprim-text`). With the line left out, it prints FAIL.
 
 `gfxtext` (1.3.2) clears rows 103–199 and draws `Squirrel-OS/2` at (40, 140), ink `0x0F` on background `0x01`. It reads back two ink pixels and the top-left background pixel of the `S`, the spacing column after it, and the pixel left of the string, which must still be 0, and prints `gfxtext: PASS` (checks `gfxtext`, `gfxtext-text`). Without the drawing, it prints FAIL.
+
+## Theme and bevels (W.1-theme)
+
+Every colour and size the window manager, widgets, desktop and mouse pointer draw with is named once in `kernel/theme.inc` (`TH_DESKTOP`, `TH_FACE`, `TH_LIGHT`, `TH_SHADOW`, `TH_DARK`, `TH_FRAME`, `TH_TITLE`, `TH_TITLE_IDLE`, `TH_TITLE_TEXT`, `TH_CLIENT`, `TH_TEXT`, `TH_BTN_FACE`, `TH_POINTER`, `TH_BEVEL_W`). The older names (`WM_DESKTOP`, `WM_FRAME`, `WM_BAR`, `WG_BTN_FILL`, `PTR_COLOUR` and so on) are aliases of them, so the look is unchanged; a later theme (Control Panel, 2.3) changes only `theme.inc`.
+
+`gfx_bevel` (eax, ebx = top left, ecx = width, edx = height, esi = 0 raised / 1 sunken) draws `TH_BEVEL_W` (2) rings just inside the rectangle. In each ring the top row and left column are drawn first and the bottom row and right column after them, so the top-right and bottom-left corners take the second colour. Raised: light / dark outside, light / shadow inside. Sunken: shadow / light outside, dark / face inside. The face is not filled and `gfx_colour` is kept.
+
+`bevtest` fills rows 103–199 with the face grey, draws a raised bevel at (20, 110) and a sunken one at (80, 110), both 40 × 20, reads back the outer and inner ring colours, a shared corner and the face, returns to text mode and prints `bevel: PASS` or `bevel: FAIL`. Checks `bevtest` and `bevtest-text`.

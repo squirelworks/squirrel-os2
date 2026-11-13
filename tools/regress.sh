@@ -369,6 +369,10 @@ check gfxprim-text 'systest: PASS'         gfxprim '<ret>' systest '<ret>'
 # 2.1: VBE modes 640x480 / 800x600 / 1024x768 at 8/16/32 bpp (13h fallback: vbe: 13h)
 check vbetest      'vbe: PASS'             vbetest '<ret>'
 check vbetest-text 'systest: PASS'         vbetest '<ret>' systest '<ret>'
+check cliptest      'clip: PASS'            cliptest '<ret>'                  # 2.1-blit-clip
+check cliptest-text 'systest: PASS'         cliptest '<ret>' systest '<ret>'
+check bevtest       'bevel: PASS'           bevtest '<ret>'                   # W.1-theme
+check bevtest-text  'systest: PASS'         bevtest '<ret>' systest '<ret>'
 # 1.3.2: a string in graphics mode, ink and background read back
 check gfxtext      'gfxtext: PASS'         gfxtext '<ret>'
 check gfxtext-text 'systest: PASS'         gfxtext '<ret>' systest '<ret>'
