@@ -18,7 +18,7 @@ for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zomb
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
 done
 python3 "$root/tools/sqfs.py" "$out/progs.img" format 1024
-for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3 smpspin lxhello lxfile lxcat lxsys winrun winhello wincrt winprog clipbrd; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
+for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3 smpspin lxhello lxfile lxcat lxsys winrun winhello wincrt winprog; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
 # OS2-GAMES (G.x): the games get a disk of their own, so the file counts above stay put
 python3 "$root/tools/sqfs.py" "$out/games.img" format 1024
 for prog in mines reversi klondike freecell hearts chess mahjongg bridge checkers go; do
@@ -51,6 +51,7 @@ for prog in sheet geometry cas sysmon logview diskutil notebook; do  # C.4, C.6,
     python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/$prog"
 done
 python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/crash"   # A.5: logview shows its crash
+python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/clipbrd"   # 2.3-clipboard: progs.img has no free entry
 python3 - "$out/grad.bmp" <<'PYEOF'    # A.2: a 24-bit test picture, 64 x 48
 import struct, sys
 w, h = 64, 48
@@ -766,10 +767,6 @@ check ld-missing    'Unknown command or program'    'run nothere' '<ret>'
 check ld-again      'Argument: 2'           'run hello 1' '<ret>' 'run hello 2' '<ret>'
 check_all progwin  'progwin key: x|progwin: PASS' 'run winprog' '<ret>' '<pause>' '<pause>' x '<pause>' '<alt-f4>' '<pause>' '<pause>'   # 2.2-progwin
 check progwin-text  'systest: PASS'         'run winprog' '<ret>' '<pause>' '<pause>' x '<pause>' '<alt-f4>' '<pause>' '<pause>' systest '<ret>'
-# 2.3-clipboard: cbtest leaves "clip me" on the clipboard; the viewer shows it
-check_all clip-viewer 'gfx: Clipboard|gfx: clip me' cbtest '<ret>' 'run clipbrd' '<ret>' '<pause>' '<pause>' '<gfx>' q '<pause>'
-check clip-viewer-n 'clipbrd: 7 bytes'      cbtest '<ret>' 'run clipbrd' '<ret>' '<pause>' '<pause>' q '<pause>'
-check_all clip-empty 'gfx: (empty)|clipbrd: 0 bytes' 'run clipbrd' '<ret>' '<pause>' '<pause>' '<gfx>' q '<pause>'
 check ld-browser    'Hello from a loaded'   'run files' '<ret>' '<home>' '<ret>'
 check ld-host-ls    'elfhello'              'run ls elf' '<ret>'
 check vm-nest       'own memory intact'     'run nest' '<ret>'
@@ -791,7 +788,7 @@ check seek          'seek: PASS'            'run seek' '<ret>' '<pause>'
 check devices       'hd1     block   ready 2048 sectors'  devices '<ret>'
 check devices-ro    '(read-only for programs)'  devices '<ret>'
 check devtest       'devtest: PASS'         'run devtest' '<ret>'
-check up-ls         '43 file(s)'             'run ls' '<ret>'   # 30 + smpspin (2.8) + winprog + the 7 P.1-P.5 programs + lxfile.txt, win.txt, crt.txt + clipbrd
+check up-ls         '42 file(s)'             'run ls' '<ret>'   # 30 + smpspin (2.8) + winprog + the 7 P.1-P.5 programs + lxfile.txt, win.txt, crt.txt
 # 1.2.1: a key arrives as a queue event as well as through SYS_GETC
 check_all keyev     'keyev: queue q getc q|keyev: PASS'  'run keyev' '<ret>' '<pause>' q '<pause>'
 check_all keyev-shift 'keyev: queue Q getc Q|keyev: PASS'  'run keyev' '<ret>' '<pause>' Q '<pause>'
@@ -938,6 +935,10 @@ check l10n-calc-en  'Basic Calculator (Esc to exit)' 'run calc' '<ret>'
 check lang-systest  'systest: PROBATUM'     'lang la' '<ret>' systest '<ret>'
 # OS2-APPS: graphics for programs (SYS_GUI, programs/gui.inc) and the A.1 apps
 disk=$out/apps.img
+# 2.3-clipboard: cbtest leaves "clip me" on the clipboard; the viewer shows it
+check_all clip-viewer 'gfx: Clipboard|gfx: clip me' cbtest '<ret>' 'run clipbrd' '<ret>' '<pause>' '<pause>' '<gfx>' q '<pause>'
+check clip-viewer-n 'clipbrd: 7 bytes'      cbtest '<ret>' 'run clipbrd' '<ret>' '<pause>' '<pause>' q '<pause>'
+check_all clip-empty 'gfx: (empty)|clipbrd: 0 bytes' 'run clipbrd' '<ret>' '<pause>' '<pause>' '<gfx>' q '<pause>'
 check guitest       'guitest: PASS'         'run guitest' '<ret>' '<pause>'
 check_all guitest-gfx 'gfx: Gui test|gfx: Hello from a program' 'run guitest hold' '<ret>' '<pause>' '<gfx>'
 check_all calculator 'gfx: Calculator|gfx: 2+3*4|gfx: = 14' 'run calculator' '<ret>' '<pause>' '2+3*4' '<ret>' '<pause>' '<gfx>'
