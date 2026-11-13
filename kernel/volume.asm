@@ -188,6 +188,7 @@ vol_mount:
     mov al, [vm_letter]
     mov [ebp+V_LETTER], al
     call vol_print
+    call fsobj_mounted          ; its Drive object on the desktop
     popad
     ret
 .notfat:
@@ -550,6 +551,7 @@ vol_umount:
     mov ebx, [ebp+V_LOOPFD]
     call fs_close
 .free:
+    call fsobj_unmounted
     mov byte [ebp+V_LETTER], 0
     mov esi, fs_ok
     call puts
@@ -743,6 +745,12 @@ vol_command:
     mov edi, vc_fattest_arg
     call streq_prefix
     je .fattest
+    mov edi, vc_fsobjtest
+    call streq
+    je .fsobjtest
+    mov edi, vc_drive_arg
+    call streq_prefix
+    je .drive
     pop edi
     stc
     ret
@@ -770,6 +778,13 @@ vol_command:
     jmp .done
 .lfntest:
     call cmd_lfntest_run
+    jmp .done
+.fsobjtest:
+    call cmd_fsobjtest_run
+    jmp .done
+.drive:
+    add esi, 6
+    call cmd_drive_run
     jmp .done
 .fattest:
     add esi, 8
@@ -1083,6 +1098,8 @@ vc_umount_arg db 'umount ', 0
 vc_cp_arg db 'cp ', 0
 vc_lfntest db 'lfntest', 0
 vc_fattest_arg db 'fattest ', 0
+vc_fsobjtest db 'fsobjtest', 0
+vc_drive_arg db 'drive ', 0
 cp_usage db 'Usage: cp <from> <to|dir>', 10, 0
 cp_samemsg db 'A file cannot be copied onto itself', 10, 0
 cp_copied db ' bytes copied', 10, 0

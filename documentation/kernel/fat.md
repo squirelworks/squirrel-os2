@@ -77,6 +77,39 @@ it says `Cannot move between drives` (`FE_XDEV`): copy, then remove.
 - FAT32: the FSInfo free count and next-free hint are set to "unknown" on the first change, so
   other systems recount instead of trusting a stale number.
 
+## Listing with long names
+
+`fs_readdir_long` (`volume.asm`), and `SYS_READDIR` when bit 31 of the cursor in `ebx` is set:
+`ecx` = a 72-byte buffer, `edx` = a directory path (`d:/docs`, `/notes`, `My Documents`) or 0 for
+the current SQFS directory. The buffer gets the entry's whole name (64 bytes, zero-terminated),
+its size (−1 for a directory) and flags (1 = directory); the call returns the next cursor (bit 31
+set), 0 at the end, −1 when the directory does not exist. Without bit 31 the call is the 0.8
+`SYS_READDIR` (16-byte names, aliases for long ones). Ring 3: the buffer and the path are checked
+(`UA_READDIR`).
+
+## Desktop objects
+
+`kernel/fsobj.asm` adds two classes under the desktop's `DesktopObject` (`../apps/desktop.md`),
+agreed with the desktop stream: it owns these classes, the desktop only sends them messages.
+
+- **Drive**, fields `name`, `in` and `path` (`D:/`). `mount` writes `/desktop/drive-d.obj`
+  (name `Drive D`) and the shredder if it is missing; `umount` removes the drive's file, and a boot
+  removes drive files left from before (nothing is mounted after a reboot). `open` shows the drive
+  in a window (`dk_textwin`): the entries with long names and sizes, arrows to choose, Enter opens
+  a directory or shows a file, Backspace goes up, Esc closes. `drive d:` does the same on the text
+  screen. Folder views and the File Manager list `path` with `fs_readdir_long`.
+- **Shredder**, `/desktop/shredder.obj`. `drop`: `eax` = the shredder, `ebx` = the dropped object
+  or 0, `ecx` = the path to delete (the object's file, or a file or empty directory from a folder
+  view, on SQFS or a drive) -> `eax` = 0 when deleted (the desktop then forgets the object), −1
+  when refused: a Drive or a Shredder is never shredded, and a path that cannot be deleted stays.
+  `open` does nothing.
+- The classes are recorded at mount, and at boot when `/desktop` exists, so they are known before
+  the desktop loads its object files.
+- `fsobjtest` checks the classes, a Drive's `path` through `obj_save`/`obj_load`, the inherited
+  `name`, and the shredder deleting a file with a long name and refusing a Drive and a missing
+  path. Regress: `fsobjtest`, `drive-obj`, `drive-obj-boot`, `drive-browse`, `drive-show`,
+  `drive-up`.
+
 ## Tests
 
 - `fattest x:` on a mounted, writable drive: a directory, a 9000-byte file with a long name written
@@ -99,7 +132,6 @@ it says `Cannot move between drives` (`FE_XDEV`): copy, then remove.
 - 512-byte sectors only; no FAT12/16 volumes larger than their type allows, no exFAT.
 - No access dates beyond the day, no attributes other than directory and archive are set; the
   read-only attribute is not enforced.
-- No `cd` onto a drive, no `SYS_READDIR` for drives yet (the desktop's drive objects will need a
-  listing call).
+- No `cd` onto a drive (paths on a drive always start at its root).
 - An image file on a FAT drive cannot itself be mounted.
 - One FAT sector is cached for all drives; there is no other cache.

@@ -1403,6 +1403,7 @@ khigh_start:
 %include "fslfn.asm"
 %include "volume.asm"
 %include "fat.asm"
+%include "fsobj.asm"
 
 
 ; the high image ends on a sector boundary, with its signature last

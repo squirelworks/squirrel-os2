@@ -91,6 +91,7 @@ fs_mount_boot:
     jmp .out
 .mount:
     call fs_load
+    call fsobj_boot             ; drive and shredder objects (2.7)
 .out:
     popad
     ret

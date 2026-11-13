@@ -872,6 +872,13 @@ fatok fat12-fsck "$out/fat12.img"
 target=$out/fat16.img
 check_all fat16-part 'D: FAT16, 15 MB, hd2|fattest: PASS' 'mount d: hd2' '<ret>' 'fattest d:' '<ret>' '<pause>' '<pause>'
 fatok fat16-fsck "$out/fat16.img"
+# drive and shredder objects (fsobj.asm)
+check fsobjtest      'fsobjtest: PASS'      fsobjtest '<ret>'
+check_all drive-obj  'class Drive|name: Drive D|path: D:/|shredder.obj' 'mount d: hd2' '<ret>' 'objcat /desktop/drive-d.obj' '<ret>' 'ls /desktop' '<ret>'
+check_none drive-obj-boot 'drive-d.obj' 'shredder.obj' 'ls /desktop' '<ret>'
+check_all drive-browse 'd:/docs|> A Long Document Name.txt 14|Esc: close' 'mount d: hd2' '<ret>' 'drive d:' '<ret>' '<ret>'
+check_all drive-show 'one two|(press a key)' 'mount d: hd2' '<ret>' 'drive d:' '<ret>' '<ret>' '<ret>'
+check_all drive-up   '> docs/|  README.TXT 24' 'mount d: hd2' '<ret>' 'drive d:' '<ret>' '<ret>' '<backspace>'
 target=$out/fat32.img
 check_all fat32-part 'D: FAT32, 39 MB, hd2|A Long Document Name.txt|fattest: PASS' 'mount d: hd2' '<ret>' 'ls d:/docs' '<ret>' 'fattest d:' '<ret>' '<pause>' '<pause>'
 check_all fat32-cp   '14 bytes copied|notes about the winter stores.txt 14' 'mount d: hd2' '<ret>' 'cp "My Documents/notes about the winter stores.txt" d:/docs' '<ret>' 'ls d:/docs' '<ret>'
