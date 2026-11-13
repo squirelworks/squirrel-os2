@@ -24,8 +24,22 @@ SHELL_STACK equ 0x9F000             ; the boot stack, which the shell runs on
 
 exc_report:
     cli
+    KSEGS
     pushad
     mov ebp, esp
+    ; a page fault in the current thread's ring-3 stack grows it (2.4)
+    xor eax, eax
+    cmp dword [ebp+EXC_VEC], 14
+    jne .report
+    mov eax, cr2
+    call vm_ustack_fault        ; 0 grown, 1 its guard page, 2 elsewhere
+    test eax, eax
+    jnz .report
+    popad
+    add esp, 8                  ; the vector and the error code
+    iretd
+.report:
+    mov [exc_ovf], al
     call vm_reload_kernel       ; the report's own pages must be there
     mov ebx, [ebp+EXC_VEC]
     lea esi, [ebp+EXC_VEC+4]    ; the CPU's frame
@@ -40,9 +54,20 @@ exc_report:
 .noerr:
     mov [exc_eip], esi          ; -> EIP, CS, EFLAGS
     lea eax, [esi+12]           ; ESP before the fault
+    test byte [esi+4], 3
+    jz .k
+    mov eax, [eax]              ; from ring 3: the CPU pushed it (2.4)
+.k:
     mov [exc_esp], eax
     mov [exc_err], edx
     ; headline: number, name, process
+    cmp byte [exc_ovf], 1
+    jne .head
+    mov esi, df_m_overflow      ; a ring-3 stack ran into its guard page
+    call puts
+    call exc_who
+    jmp .where
+.head:
     mov esi, exc_m_head
     call puts
     mov eax, ebx
@@ -60,6 +85,7 @@ exc_report:
     mov esi, exc_m_close
     call puts
     call exc_who
+.where:
     ; EIP, error code, fault address
     mov esi, exc_m_eip
     call puts
@@ -242,6 +268,8 @@ vm_reload_kernel:
 ; fresh stack, and returns there with iretd, the way back from a task.
 
 TSS_SIZE    equ 104
+TSS_ESP0    equ 4                   ; the stack ring-3 code enters the kernel on (2.4)
+TSS_SS0     equ 8
 TSS_CR3     equ 28
 TSS_EIP     equ 32
 TSS_EFLAGS  equ 36
@@ -276,6 +304,8 @@ tss_init:
     mov eax, tss_df
     call tss_base
     mov word [tss_main+TSS_IOMAP], TSS_SIZE
+    mov dword [tss_main+TSS_SS0], 0x10
+    mov dword [tss_main+TSS_ESP0], SHELL_STACK  ; proc_switch sets it per slot
     mov edi, tss_df
     mov word [edi+TSS_IOMAP], TSS_SIZE
     mov eax, [kernel_pd]
@@ -462,4 +492,5 @@ align 4
 exc_eip dd 0
 exc_esp dd 0
 exc_err dd 0
+exc_ovf db 0                    ; 1: a ring-3 stack overflow (2.4)
 shell_up db 0
