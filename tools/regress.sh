@@ -41,7 +41,7 @@ mkdir -p "$out/dk" && printf 'desktop\n' > "$out/dk/autoexec.bat"
 python3 "$root/tools/sqfs.py" "$out/dkauto.img" put "$out/dk/autoexec.bat"
 # OS2-APPS: graphical programs (SYS_GUI) on a data disk of their own
 python3 "$root/tools/sqfs.py" "$out/apps.img" format 1024
-for prog in guitest calculator clock notepad grapher charmap paint viewer topology matrixgui stats graph3d; do
+for prog in guitest calculator clock notepad grapher charmap paint viewer topology matrixgui stats graph3d hexedit; do
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
     python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/$prog"
 done
@@ -819,6 +819,13 @@ check_all graph3d-curve 'gfx: t: 0 to 2 pi|gfx: z: 0 to 1.2566' 'run graph3d' '<
 check_all graph3d-size 'gfx: x, y: -6 to 6|gfx: z: 0 to 72' 'run graph3d x^2+y^2' '<ret>' '<pause>' '<pgup>' '<pause>' '<gfx>'
 check graph3d-syn   'gfx: Error: syntax at column 4' 'run graph3d' '<ret>' '<pause>' 'z = x*(' '<ret>' '<pause>' '<gfx>'
 check graph3d-quit  'systest: PASS'         'run graph3d x*y' '<ret>' '<pause>' 'w' '<pause>' '<esc>' '<pause>' systest '<ret>'
+# A.7: hex editor
+check hexedit       'hexedit: PASS'         'run hexedit test' '<ret>' '<pause>' '<pause>'
+check_all hexedit-view 'gfx: Hex: htest.bin|gfx: 00020: 20 21 22 23 24 25 26 27|gfx: @00011 = AB 171' 'run hexedit htest.bin' '<ret>' '<pause>' '<down>' '<down>' '<right>' '<pause>' '<gfx>'
+check hexedit-goto  'gfx: @00080 = 80 128'  'run hexedit htest.bin' '<ret>' '<pause>' '<ctrl-g>' '80' '<ret>' '<pause>' '<gfx>'
+check_all hexedit-new 'gfx: Saved|gfx: @00000 = 41 65' 'run hexedit hnew.bin' '<ret>' '<pause>' '4' '1' '4' '2' '<ctrl-s>' '<pause>' '<gfx>' '<esc>' '<pause>' 'run hexedit hnew.bin' '<ret>' '<pause>' '<gfx>'
+check hexedit-quit  'systest: PASS'         'run hexedit htest.bin' '<ret>' '<pause>' '7' '<esc>' '<pause>' 'n' '<pause>' systest '<ret>'
+check hexedit-usage 'usage: run hexedit <file>' 'run hexedit' '<ret>'
 disk=$out/auto.img
 check bat-autoexec  'autoexec ran'
 check lang-autoexec 'Tabulae:'              ls '<ret>'
