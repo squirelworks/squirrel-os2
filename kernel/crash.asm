@@ -81,6 +81,7 @@ exc_report:
     ja .named
     mov esi, [exc_names+ebx*4]
 .named:
+    call klog_crash             ; (A.5)
     call puts
     mov esi, exc_m_close
     call puts

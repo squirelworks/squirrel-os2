@@ -223,6 +223,7 @@ prog_exec:
     call bsd_mark
     mov esi, [esp+12]           ; the file name (saved esi), for ps and crash reports
     call proc_set_name
+    call klog_start             ; (A.5)
     mov eax, edi
     sub eax, proc_table
     shr eax, 6                  ; / PCB_SIZE
