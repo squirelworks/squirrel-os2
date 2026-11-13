@@ -171,6 +171,7 @@ pm:
     mov eax, mouse_isr          ; IRQ 12 (2.0.1)
     call set_gate
     call syscall_init
+    call dbg_init               ; INT3 from ring 3 (A.4)
     lidt [idt_desc]
     call fpu_init
     call proc_init
@@ -946,6 +947,9 @@ puts:
     ret
 
 putc:                         ; al = char; preserves all registers
+    cmp byte [tty_count], 0
+    jne tty_putc                ; a program on a terminal (tty.asm, A.3)
+.con:
     cmp byte [cap_on], 0
     jne cap_putc                ; output redirected (shell.asm)
     push eax
@@ -1584,6 +1588,8 @@ khigh_start:
 %include "volume.asm"
 %include "fat.asm"
 %include "fsobj.asm"
+%include "debug.asm"
+%include "tty.asm"
 %include "drivers/hw.asm"
 %include "drivers/pci.asm"
 %include "drivers/ahci.asm"

@@ -536,7 +536,7 @@ draw_table:
     call ln_num
     pop edi
     mov eax, [edi+SI_STATE]
-    cmp eax, 4
+    cmp eax, PS_STOPPED
     jbe .st
     xor eax, eax
 .st:
@@ -965,7 +965,8 @@ st_ready db 'ready', 0
 st_run db 'running', 0
 st_wait db 'waiting', 0
 st_zombie db 'zombie', 0
-state_names dd st_free, st_ready, st_run, st_wait, st_zombie
+st_stopped db 'stopped', 0
+state_names dd st_free, st_ready, st_run, st_wait, st_zombie, st_run, st_stopped    ; 5: on an AP
 s_boot db 'Squirrel-OS/2 started', 0
 s_me db 'started sysmon', 0
 m_nogfx db 'sysmon: no graphics', 10, 0

@@ -54,7 +54,9 @@ SYS_WINEVENT equ 43         ; ebx = 16-byte buffer, ecx = 0 wait / 1 poll -> 0, 
 SYS_WININFO  equ 44         ; ebx = id or -1, ecx = 16-byte buffer -> 0 or -1
 SYS_NET     equ 45          ; ebx = NET_* op: names, TCP, settings (3.0, netsys.asm)
 SYS_AUDIO   equ 46          ; ebx = AU_* op: sound for programs (3.0, kernel/audio/audio.asm)
-SYS_COUNT   equ 47
+SYS_DEBUG   equ 47          ; ebx = DBG_* op, ecx/edx = args: tracing for debuggers (debug.asm, A.4)
+SYS_TTY     equ 48          ; ebx = TTY_* op | tty << 8: terminals for programs (tty.asm, A.3)
+SYS_COUNT   equ 49
 
 SYS_ENOSYS  equ -1
 SYSCALL_VEC equ 0x80
@@ -125,6 +127,8 @@ UA_GUI      equ 12          ; per GUI_* operation (gui_uargs, appsys.asm)
 UA_NET      equ 13          ; per NET_* operation (net_uargs, netsys.asm)
 UA_AUDIO    equ 14          ; per AU_* operation (audio_uargs, audio/audio.asm)
 UA_READDIR  equ 15          ; 2.7: ecx -> 20 bytes, or with ebx bit 31 72 bytes and edx -> string or 0
+UA_DEBUG    equ 16          ; per DBG_* operation (dbg_uargs, debug.asm)
+UA_TTY      equ 17          ; per TTY_* operation (tty_uargs, tty.asm)
 
 SYS_EFAULT  equ -1
 
@@ -142,6 +146,8 @@ sys_uarg_kind:
     db UA_NONE                                  ; settls
     times 8 db UA_NONE                          ; 37-44 windows: checked in winsys.asm
     db UA_NET, UA_AUDIO                         ; net audio
+    db UA_DEBUG                                 ; debug
+    db UA_TTY                                   ; tty
 %if $-sys_uarg_kind != SYS_COUNT
 %error sys_uarg_kind needs one byte per system call
 %endif
@@ -151,12 +157,12 @@ sys_uarg_kind:
 sys_uargs:
     pushad
     movzx eax, byte [sys_uarg_kind+eax]
-    cmp eax, UA_READDIR
+    cmp eax, UA_TTY
     ja .ok
     jmp [.kinds+eax*4]
 .kinds:
     dd .ok, .bz, .bz_cz, .bz_cz0, .c_d, .b_c, .c_512, .c_20, .dev, .netsend, .netrecv, .bad, .gui, .net, .audio
-    dd .readdir
+    dd .readdir, .debug, .tty
 .net:
     call net_uargs
     jc .bad
@@ -177,6 +183,14 @@ sys_uargs:
     mov esi, ecx
     mov ecx, 72                 ; RD_LEN (volume.asm)
     jmp .range
+.debug:
+    call dbg_uargs
+    jc .bad
+    jmp .ok
+.tty:
+    call tty_uargs
+    jc .bad
+    jmp .ok
 .gui:
     call gui_uargs
     jc .bad
@@ -422,6 +436,8 @@ syscall_table:
     dd sys_windraw, sys_winflush, sys_winevent, sys_wininfo
     dd sys_net
     dd sys_audio
+    dd sys_debug
+    dd sys_tty
 %if $-syscall_table != SYS_COUNT*4
 %error syscall_table and SYS_COUNT disagree
 %endif
@@ -443,6 +459,8 @@ sys_puts:                   ; through the console device (0.7.1)
 ; Waits for a key press and returns its ASCII code.
 ; Enter -> 10, Backspace -> 8, Esc -> 27; releases and unmapped keys are skipped.
 sys_getc:
+    call tty_getc               ; a program on a terminal reads its keys (A.3)
+    jnc .r
     cmp byte [in_on], 0
     jne in_getc                 ; input redirected (shell.asm): -1 at the end
     push eax                    ; one byte from the keyboard device (0.7.1)
@@ -452,6 +470,7 @@ sys_getc:
     call dev_read
     pop eax
     movzx eax, al
+.r:
     ret
 
 ; Lets the next READY process run; if there is none, sleeps until the
@@ -469,6 +488,10 @@ sys_exit:
 
 sys_wait:
     jmp proc_wait
+
+sys_reserved:                   ; a number kept for a call another branch adds
+    mov eax, SYS_ENOSYS
+    ret
 
 sys_getpid:
     mov eax, [proc_cur]

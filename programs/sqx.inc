@@ -67,6 +67,8 @@ WD_PTEXT    equ 3
 WD_BLIT     equ 4
 WD_BEVEL    equ 5
 WD_PIXEL    equ 7
+SYS_DEBUG   equ 47
+SYS_TTY     equ 48
 MSG_KEY     equ 0x4B000000
 
 O_CREATE    equ 1

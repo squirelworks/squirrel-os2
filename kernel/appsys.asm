@@ -206,6 +206,8 @@ gui_uargs:
 ; A key press without waiting. Releases, Shift and Ctrl give 0 (Shift and
 ; Ctrl are tracked, as for SYS_GETC). Esc and Backspace give 27 and 8.
 gui_key:
+    call tty_pollkey            ; a program on a terminal: its keys (A.3)
+    jnc .r
     cli
     call kbd_dequeue
     sti

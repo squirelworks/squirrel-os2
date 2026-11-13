@@ -70,6 +70,15 @@ nasm -f bin "$root/programs/winwnd.asm" -o "$out/winwnd"    # P.6 Win32 GUI ride
 nasm -f bin "$root/programs/winreg.asm" -o "$out/winreg"    # P.6 registry emulation
 nasm -f bin "$root/programs/windll.asm" -o "$out/windll"    # P.6 DLL loader: a program ...
 nasm -f bin "$root/programs/winlib.asm" -o "$out/acorn.dll" # ... and its DLL
+# A.4: the debugger, its tests and the programs it traces (with a symbol file) on a disk of their own
+python3 "$root/tools/sqfs.py" "$out/dev.img" format 1024
+for prog in debugger dbgtest dbgtgt distest terminal hello wc; do    # A.3 terminal too
+    nasm -f bin -i "$root/programs/" --before "[map symbols $out/$prog.map]" "$root/programs/$prog.asm" -o "$out/$prog"
+    python3 "$root/tools/sqfs.py" "$out/dev.img" put "$out/$prog"
+done
+python3 "$root/tools/mksym.py" "$out/dbgtgt.map" "$out/dbgtgt.sym"
+nasm -f bin "$root/programs/dbgelf.asm" -o "$out/dbgelf"    # ELF .symtab instead of a .sym file
+for f in dbgtgt.sym dbgelf; do python3 "$root/tools/sqfs.py" "$out/dev.img" put "$out/$f"; done
 # OS2-HW H.1: the UEFI loaders carry this os.img; an EFI system partition image holds both
 (cd "$root/boot/uefi" && nasm -f bin -DOS_IMG="\"$out/os.img\"" bootx64.asm -o "$out/BOOTX64.EFI" \
     && nasm -f bin -DOS_IMG="\"$out/os.img\"" bootia32.asm -o "$out/BOOTIA32.EFI")
@@ -1166,6 +1175,31 @@ check_all win-reg     'winreg: PASS|winreg: count 2'  'run winreg' '<ret>' 'run 
 check win-reg-file    'HKCU\Software\Acorn|count|4|02000000'  'run winreg' '<ret>' 'run winreg again' '<ret>' 'cat registry.dat' '<ret>'
 check_all win-dll     'windll: Hello from acorn.dll|windll: PASS'  'run windll' '<ret>'
 check win-dll-gone    'not implemented: Gone' 'run windll gone' '<ret>'
+# A.4: SYS_DEBUG, the disassembler and the debugger
+disk=$out/dev.img
+check dbg-api       'dbgtest: PASS'         'run dbgtest' '<ret>' '<pause>'
+check dbg-api-after 'systest: PASS'         'run dbgtest' '<ret>' '<pause>' systest '<ret>'
+check dbg-disasm    'distest: PASS'         'run distest' '<ret>'
+check_all dbg-entry '10 symbols loaded|pid 2 stopped at its entry|main:|00030010  B801000000        mov eax,0x1'  'run debugger dbgtgt' '<ret>' '<pause>'
+check_all dbg-break 'breakpoint 1 at 0003001C <here>|pid 2 hit breakpoint 1|0003001C  89C1              mov ecx,eax'  'run debugger dbgtgt' '<ret>' '<pause>' 'b here' '<ret>' c '<ret>' '<pause>'
+check_all dbg-step  '0003001A  01D8              add eax,ebx|eax=00000003 ebx=00000002|eip=0003001C <here>'  'run debugger dbgtgt' '<ret>' '<pause>' 's 2' '<ret>' s '<ret>' r '<ret>'
+check_all dbg-set   'eax=00000007|dbgtgt result 7|pid 2 ended (exit code 7)'  'run debugger dbgtgt' '<ret>' '<pause>' 'b here' '<ret>' c '<ret>' '<pause>' 'set eax 7' '<ret>' 'bd 1' '<ret>' c '<ret>' '<pause>'
+check_all dbg-next  'call 0x3007b <level1>|00030029  8B742404          mov esi,[esp+0x4]'  'run debugger dbgtgt' '<ret>' '<pause>' 'b here' '<ret>' c '<ret>' '<pause>' n '<ret>' n '<ret>' n '<ret>'
+check_all dbg-bt    'at 00030085 <level2>|at 00030083 <level1+8>|at 00030029 <here+d>'  'run debugger dbgtgt' '<ret>' '<pause>' 'b level2' '<ret>' c '<ret>' '<pause>' bt '<ret>'
+check_all dbg-mem   '0003009F  03 00 00 00|00030090  64 62 67 74 67 74 20 72 65 73 75 6C 74 20 00 03  dbgtgt result ..'  'run debugger dbgtgt' '<ret>' '<pause>' 'b level1' '<ret>' c '<ret>' '<pause>' 'x result 4' '<ret>' 'x msg 16' '<ret>'
+check_all dbg-fault 'stopped by CPU exception 14 at address 00000010|pid 2 ended (exit code -1)'  'run debugger dbgtgt f' '<ret>' '<pause>' c '<ret>' '<pause>' kill '<ret>'
+check_all dbg-esc   'pid 2 stopped|<here.spin>'  'run debugger dbgtgt s' '<ret>' '<pause>' c '<ret>' '<pause>' '<esc>' '<pause>'
+check dbg-quit      'systest: PASS'         'run debugger dbgtgt s' '<ret>' '<pause>' c '<ret>' '<pause>' '<esc>' '<pause>' q '<ret>' '<pause>' systest '<ret>'
+check_all dbg-elf   '3 symbols loaded|start:|00030059 loop_top|00030073 value'  'run debugger dbgelf' '<ret>' '<pause>' sym '<ret>'
+check_all dbg-elf-run 'loop 0x30059 <loop_top>|dbgelf done|pid 2 ended (exit code 6)'  'run debugger dbgelf' '<ret>' '<pause>' 'u start 4' '<ret>' g '<ret>' '<pause>'
+# A.3: the terminal (SYS_TTY): programs in windows, their output and input
+check_all term-run  'gfx: Terminal 1|gfx: 1> hello world|gfx: Hello from a loaded program!|gfx: Argument: world'  'run terminal' '<ret>' '<pause>' '<pause>' 'hello world' '<ret>' '<pause>' '<gfx>'
+check_all term-builtin 'gfx: hi there|gfx: Unknown command or program|gfx: F1-F4 sessions, F5 one/all windows, F10 quit'  'run terminal' '<ret>' '<pause>' '<pause>' 'echo hi there' '<ret>' nothing '<ret>' help '<ret>' '<pause>' '<gfx>'
+check_all term-input 'gfx: 1> wc|gfx: 2 3 14'  'run terminal' '<ret>' '<pause>' '<pause>' wc '<ret>' '<pause>' 'one two' '<ret>' three '<ret>' '<ctrl-d>' '<pause>' '<gfx>'
+check_all term-sessions 'gfx: Terminal 1 - dbgtgt|gfx: 1> dbgtgt s|gfx: Terminal 2|gfx: 2> hello two|gfx: Argument: two'  'run terminal' '<ret>' '<pause>' '<pause>' 'dbgtgt s' '<ret>' '<pause>' '<f2>' '<pause>' 'hello two' '<ret>' '<pause>' '<f5>' '<pause>' '<gfx>'
+check_all term-ctrlc 'gfx: ^C|gfx: *** CPU exception 14 (page fault) in pid 3 (dbgtgt)|gfx: [exit code -1]'  'run terminal' '<ret>' '<pause>' '<pause>' 'dbgtgt s' '<ret>' '<pause>' '<ctrl-c>' '<pause>' 'dbgtgt f' '<ret>' '<pause>' '<pause>' '<gfx>'
+check_all term-debugger 'gfx: pid 3 hit breakpoint 1|gfx: pid 3 stopped|gfx: jmp 0x30073 <here.spin>|gfx: pid 3 ended (exit code -1)'  'run terminal' '<ret>' '<pause>' '<pause>' 'debugger dbgtgt s' '<ret>' '<pause>' 'b level1' '<ret>' c '<ret>' '<pause>' 'bd 1' '<ret>' c '<ret>' '<pause>' '<esc>' '<pause>' q '<ret>' '<pause>' '<gfx>'
+check_all term-quit 'systest: PASS|0        running  shell'  'run terminal' '<ret>' '<pause>' '<pause>' 'dbgtgt s' '<ret>' '<f2>' '<pause>' exit '<ret>' '<pause>' '<f10>' '<pause>' '<pause>' systest '<ret>' ps '<ret>'
 # 3.0 (OS2-NET-AUDIO): sound. AC'97 and Intel HDA under QEMU (-audiodev none paces the DMA in
 # real time; -audiodev wav writes what was played, which tools/wavcheck.py listens to)
 python3 "$root/tools/sqfs.py" "$out/snd.img" format 1024

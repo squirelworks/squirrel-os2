@@ -105,6 +105,7 @@ proc_spawn:
     call proc_stamp             ; its wait for the CPU starts now (2.0.2)
     mov dword [edi+PCB_FPU], 0  ; starts with a freshly reset FPU
     mov dword [edi+PCB_LINUX], 0    ; native ABI unless the loader says so (P.1)
+    call tty_inherit            ; on its parent's terminal, if any (A.3)
     call tls_clear              ; and no TLS segment base (P.5)
     call lx_sig_clear           ; and Linux signals at their defaults (P.2)
     call msg_reset              ; and an empty message queue (1.2)
@@ -155,6 +156,8 @@ proc_exit:
     call ws_procgone            ; its windows close (2.2-progwin)
     cli
     mov esi, [proc_cur]
+    call dbg_exit               ; what it traced runs on untraced (A.4)
+    call tty_exit               ; its terminals close (A.3)
     call klog_exit              ; (A.5)
     mov [esi+PCB_CODE], ebx
     mov dword [esi+PCB_STATE], P_ZOMBIE
@@ -218,6 +221,7 @@ proc_enter_user:
     push dword 0x202            ; eflags: IF, IOPL 0
     push dword USER_CS
     push dword [ebx+PCB_ENTRY]
+    call dbg_entry              ; started by a debugger: stops here first (A.4)
     xor eax, eax                ; no kernel values leak into ring 3
     xor ebx, ebx
     xor ecx, ecx
@@ -843,13 +847,14 @@ sched_preempts dd 0             ; switches made by the timer
 proc_next_pid dd 0
 pt_pids times 3 dd 0
 
-state_names dd st_free, st_ready, st_running, st_waiting, st_zombie, st_aprun
+state_names dd st_free, st_ready, st_running, st_waiting, st_zombie, st_aprun, st_stopped
 st_aprun db 'running (AP)', 0
 st_free db 'free', 0
 st_ready db 'ready', 0
 st_running db 'running', 0
 st_waiting db 'waiting', 0
 st_zombie db 'zombie', 0
+st_stopped db 'stopped', 0
 ps_header db 'PID      STATE    NAME              MEMORY', 10, 0
 ps_none db '-', 0
 proc_shell_name db 'shell', 0
