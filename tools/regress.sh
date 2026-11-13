@@ -7,6 +7,7 @@ out=${TMPDIR:-/tmp}/squirrel-os2-build
 mkdir -p "$out"
 python3 "$root/tools/mkstrings.py" --check || exit 1
 python3 "$root/tools/mkfont.py" --check || exit 1
+python3 "$root/tools/mkicon.py" --check || exit 1   # 2.3-icons
 (cd "$root/kernel" && nasm -f bin boot.asm -o "$out/boot.bin" \
     && nasm -f bin pm.asm -o "$out/pm.bin" 2>/dev/null)
 cat "$out/boot.bin" "$out/pm.bin" > "$out/os.img"
@@ -381,6 +382,8 @@ check bevtest-text  'systest: PASS'         bevtest '<ret>' systest '<ret>'
 check pfont         'pfont: PASS'           pfont '<ret>' '<pause>' '<spc>'   # 2.2-propfont
 check_all pfont-read 'gfx: Wg Squirrel window face|gfx: Wg Display face, bold' pfont '<ret>' '<pause>' '<gfx>' '<spc>'
 check pfont-text    'systest: PASS'         pfont '<ret>' '<pause>' '<spc>' systest '<ret>'
+check icontest      'icon: PASS'            icontest '<ret>'                  # 2.3-icons
+check icontest-text 'systest: PASS'         icontest '<ret>' systest '<ret>'
 check winvbe        'winvbe: PASS'          winvbe '<ret>'                    # 2.2-vbe-wm
 check winvbe-text   'systest: PASS'         winvbe '<ret>' systest '<ret>'
 check winclip       'winclip: PASS'         winclip '<ret>'                   # 2.2-clip-z
