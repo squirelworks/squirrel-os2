@@ -53,6 +53,11 @@ open(sys.argv[1], 'wb').write(b'BM' + struct.pack('<IHHI', 54 + len(rows), 0, 0,
     + struct.pack('<IiiHHIIiiII', 40, w, h, 1, 24, 0, len(rows), 2835, 2835, 0, 0) + rows)
 PYEOF
 python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/grad.bmp"
+python3 "$root/tools/sqfs.py" "$out/dos.img" format 1024    # P.8: DOS programs under dosrun, on their own disk
+nasm -f bin -i "$root/programs/" "$root/programs/dosrun.asm" -o "$out/dosrun"
+for prog in doshello doscpu dosfile; do nasm -f bin "$root/programs/$prog.asm" -o "$out/$prog.com"; done
+nasm -f bin "$root/programs/dosexe.asm" -o "$out/dosexe.exe"
+for f in dosrun doshello.com doscpu.com dosfile.com dosexe.exe; do python3 "$root/tools/sqfs.py" "$out/dos.img" put "$out/$f"; done
 rm -f "$out/data.img"
 dd if=/dev/zero of="$out/data.img" bs=1024 count=1024 2>/dev/null
 
@@ -815,6 +820,14 @@ check_all matrixgui-inv 'gfx: inv A =|gfx: -2|gfx: 1.5|gfx: -0.5' 'run matrixgui
 check matrixgui-det 'gfx: det A = -2'      'run matrixgui' '<ret>' '<pause>' '1' '<right>' '2' '<down>' '4' '<left>' '3' '<ret>' 'd' '<pause>' '<gfx>'
 check matrixgui-sing 'gfx: The matrix is singular' 'run matrixgui' '<ret>' '<pause>' 'i' '<pause>' '<gfx>'
 check matrixgui-quit 'systest: PASS'        'run matrixgui' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
+# P.8: DOS .COM and .EXE programs run in the dosrun 8086 interpreter
+disk=$out/dos.img
+check_all dos-hello 'Hello from DOS land!|#! tail: acorns|doshello: PASS'  'run dosrun doshello.com acorns' '<ret>'
+check dos-cpu       'doscpu: PASS'          'run dosrun doscpu.com' '<ret>'
+check_all dos-file  'got: acorn|dosfile: PASS'  'run dosrun dosfile.com' '<ret>' acorn '<ret>'
+check_all dos-exe   'Hello from an MZ .EXE!|dosexe: PASS'  'run dosrun dosexe.exe' '<ret>'
+check dos-missing   'dosrun: cannot open'   'run dosrun nothere.com' '<ret>'
+check dos-after     'systest: PASS'         'run dosrun doscpu.com' '<ret>' systest '<ret>'
 disk=$out/auto.img
 check bat-autoexec  'autoexec ran'
 check lang-autoexec 'Tabulae:'              ls '<ret>'
