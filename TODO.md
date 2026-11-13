@@ -354,6 +354,14 @@ From P.1–P.12 in `ROADMAP.md` and epic #118 (stream OS2-FOREIGN). Each box shi
 - [ ] **P.9-os2-text** — OS/2 32-bit text-mode programs: `os2run` (LX loader with fixups, TIB/PIB, DOSCALLS shims by ordinal), and the kernel loader hands `MZ`+`LX` files to it.
   **Acceptance:** `run os2hello acorns` prints `Hello from OS/2 land!`, `arguments: acorns` and `os2hello: PASS`; an import without a shim is named when called. Checks `os2-hello`, `os2-missing`, `os2-notlx`, `os2-after`.
 
+- [ ] **P.6-win32-gui** — USER32/GDI32 subset over `SYS_GUI` for GUI-subsystem PE32 programs (`programs/wingui.inc`, test `winwnd`).
+
+- [ ] **P.6-registry** — ADVAPI32 registry emulation over `registry.dat` (`programs/winreg.inc`, test `winreg`).
+
+- [ ] **P.6-dll-loader** — An original DLL loader in `winrun`: DLLs from the disk, export binding by name and ordinal, forwarders, DllMain, LoadLibrary/GetProcAddress (test `windll` with `acorn.dll`).
+
+- [ ] **P.6-win32-windows** — Win32 top-level windows as real desktop windows once 2.2 brings program windows.
+
 ## Installer (unscheduled)
 
 The author lifted the old gate ("not before the 1.5 and 1.6 boxes above are closed") on 2026-10-31: these boxes now run alongside the 1.x work, and stay out of the desktop and editor files. Each PR carries the OS version it ships in, like any other release (I.1 and I.2 shipped in 1.7.2). Each box is one PR. Design notes go in `documentation/guides/install.md` with the first box. The target is an IDE/ATA disk in BIOS mode; the regression run uses a blank QEMU disk as the target.

@@ -65,7 +65,11 @@ nasm -f bin "$root/programs/dosexe.asm" -o "$out/dosexe.exe"
 nasm -f bin -i "$root/programs/" "$root/programs/lxsig.asm" -o "$out/lxsig"    # P.2 signals ride along on this disk
 nasm -f bin -i "$root/programs/" "$root/programs/bsdhello.asm" -o "$out/bsdhello"    # P.10 FreeBSD rides along on this disk
 for prog in os2run os2hello; do nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"; done    # P.9 OS/2 rides along on this disk
-for f in dosrun winrun doshello.com doscpu.com dosfile.com dosgfx.com dosexe.exe lxsig bsdhello os2run os2hello; do python3 "$root/tools/sqfs.py" "$out/dos.img" put "$out/$f"; done
+nasm -f bin "$root/programs/winwnd.asm" -o "$out/winwnd"    # P.6 Win32 GUI rides along on this disk
+nasm -f bin "$root/programs/winreg.asm" -o "$out/winreg"    # P.6 registry emulation
+nasm -f bin "$root/programs/windll.asm" -o "$out/windll"    # P.6 DLL loader: a program ...
+nasm -f bin "$root/programs/winlib.asm" -o "$out/acorn.dll" # ... and its DLL
+for f in dosrun winrun doshello.com doscpu.com dosfile.com dosgfx.com dosexe.exe lxsig bsdhello os2run os2hello winwnd winreg windll acorn.dll; do python3 "$root/tools/sqfs.py" "$out/dos.img" put "$out/$f"; done
 rm -f "$out/data.img"
 dd if=/dev/zero of="$out/data.img" bs=1024 count=1024 2>/dev/null
 
@@ -952,6 +956,13 @@ check_all os2-hello   'Hello from OS/2 land!|arguments: acorns|os2hello: PASS'  
 check os2-missing     'os2run: DOSCALLS.1 is not implemented'  'run os2hello stub' '<ret>'
 check os2-notlx       'not an OS/2 32-bit LX program'  'run os2run doshello.com' '<ret>'
 check os2-after       'Hello from DOS land!'  'run os2hello' '<ret>' 'run doshello.com' '<ret>'
+# P.6: a Win32 GUI program: window, WM_PAINT with GDI, timer, keys, DestroyWindow
+check_all win-gui     'gfx: Acorn window|gfx: Hello from Win32 GUI|gfx: winwnd: PASS'  'run winwnd' '<ret>' '<pause>' q '<pause>' '<gfx>'
+check win-gui-after   'systest: PASS'         'run winwnd' '<ret>' '<pause>' x '<pause>' systest '<ret>'
+check_all win-reg     'winreg: PASS|winreg: count 2'  'run winreg' '<ret>' 'run winreg again' '<ret>'
+check win-reg-file    'HKCU\Software\Acorn|count|4|02000000'  'run winreg' '<ret>' 'run winreg again' '<ret>' 'cat registry.dat' '<ret>'
+check_all win-dll     'windll: Hello from acorn.dll|windll: PASS'  'run windll' '<ret>'
+check win-dll-gone    'not implemented: Gone' 'run windll gone' '<ret>'
 disk=$out/auto.img
 check bat-autoexec  'autoexec ran'
 check lang-autoexec 'Tabulae:'              ls '<ret>'
