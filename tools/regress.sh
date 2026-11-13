@@ -41,7 +41,7 @@ mkdir -p "$out/dk" && printf 'desktop\n' > "$out/dk/autoexec.bat"
 python3 "$root/tools/sqfs.py" "$out/dkauto.img" put "$out/dk/autoexec.bat"
 # OS2-APPS: graphical programs (SYS_GUI) on a data disk of their own
 python3 "$root/tools/sqfs.py" "$out/apps.img" format 1024
-for prog in guitest calculator clock notepad grapher charmap paint viewer topology matrixgui stats graph3d hexedit; do
+for prog in guitest calculator clock notepad grapher charmap paint viewer topology matrixgui stats graph3d hexedit write; do
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
     python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/$prog"
 done
@@ -827,6 +827,12 @@ check hexedit-goto  'gfx: @00080 = 80 128'  'run hexedit htest.bin' '<ret>' '<pa
 check_all hexedit-new 'gfx: Saved|gfx: @00000 = 41 65' 'run hexedit hnew.bin' '<ret>' '<pause>' '4' '1' '4' '2' '<ctrl-s>' '<pause>' '<gfx>' '<esc>' '<pause>' 'run hexedit hnew.bin' '<ret>' '<pause>' '<gfx>'
 check hexedit-quit  'systest: PASS'         'run hexedit htest.bin' '<ret>' '<pause>' '7' '<esc>' '<pause>' 'n' '<pause>' systest '<ret>'
 check hexedit-usage 'usage: run hexedit <file>' 'run hexedit' '<ret>'
+# A.7: word processor
+check write         'write: PASS'           'run write test' '<ret>' '<pause>' '<pause>'
+check_all write-count 'gfx: Write - wdoc.swp|gfx: words 5|gfx: chars 22 *' 'run write wdoc.swp' '<ret>' '<pause>' 'Two words' '<ret>' 'and two more' '<pause>' '<gfx>'
+check_all write-styles 'gfx: Opened|gfx: Centred line' 'run write wdoc.swp' '<ret>' '<pause>' 'Plain ' '<ctrl-i>' 'italic ' '<ctrl-i>' '<ctrl-u>' 'under' '<ctrl-u>' '<ret>' 'Centred line' '<ctrl-e>' '<ctrl-s>' '<pause>' '<esc>' '<pause>' 'run write wdoc.swp' '<ret>' '<pause>' '<pause>' '<gfx>'
+check write-ask     'gfx: Save changes? y/n' 'run write' '<ret>' '<pause>' 'x' '<esc>' '<pause>' '<gfx>'
+check write-quit    'systest: PASS'         'run write' '<ret>' '<pause>' 'x' '<esc>' '<pause>' 'n' '<pause>' systest '<ret>'
 disk=$out/auto.img
 check bat-autoexec  'autoexec ran'
 check lang-autoexec 'Tabulae:'              ls '<ret>'
