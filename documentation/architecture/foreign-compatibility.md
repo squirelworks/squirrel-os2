@@ -89,7 +89,7 @@ Two personalities run real programs today, both inside ordinary Squirrel process
 **Selecting it.** The native loader (`kernel/loader.asm`) already loads static ELF32 images.
 An ELF whose `e_ident[EI_OSABI]` is 3 (`ELFOSABI_LINUX`) is marked as a Linux process: the
 loader stores the real entry point in the process slot (`PCB_LINUX`, offset 36) and starts the
-process in `lx_start`. Native ELF programs (OSABI 0, like `elfhello`) are unchanged. A program
+process through `lx_enter_user`. Native ELF programs (OSABI 0, like `elfhello`) are unchanged. A program
 built with a normal toolchain can be marked with `elfedit --output-osabi=Linux`; it must still
 be static, linked into the 64 KB program area (`-Ttext=0x30000`, see `loader.md`) and use
 `int 0x80` (no vDSO, no `sysenter`).

@@ -2,7 +2,7 @@
 
 Runs static Linux i386 ELF32 programs (P.1, P.2). Original code.
 
-- `linux.asm` (included from `pm.asm`): `lx_start` builds the Linux initial stack
+- `linux.asm` (included from `pm.asm`): `lx_enter_user` builds the Linux initial stack
   (argc, argv, envp, auxv); `lx_isr` translates Linux `int 0x80` calls (`exit`, `exit_group`,
   `read`, `write`, `open`, `close`, `lseek`, `getpid`, `brk`, `mmap`, `mmap2`, `munmap`) onto
   native services, other numbers return `-ENOSYS`.
