@@ -347,9 +347,9 @@ From P.1–P.12 in `ROADMAP.md` and epic #118 (stream OS2-FOREIGN). Each box shi
 - [x] **P.5-win32-crt** — The TEB through FS (`SYS_SETTLS`, per-process TLS segment) and an msvcrt subset (start-up, stdio and printf, strings, memory, atexit/exit) plus the KERNEL32 start-up calls, so MinGW-built console programs run.
   **Acceptance:** `run wincrt acorn` prints `crt: -5 acorn 00ab x  |` and `wincrt: PASS`. Checks `win-crt`, `win-printf`.
 - [x] **P.8-dos-design** — DOS `.COM` personality design (V86 monitor, `INT 21h` subset, memory map, tests) in `documentation/architecture/dos-personality.md`. Building it waits for 2.4.
-- [ ] **P.2-linux-signals** — Linux signals: `rt_sigaction`, `rt_sigprocmask`, `rt_sigpending`, `kill`/`tkill`/`tgkill`, delivery on the way back to ring 3 with an i386 signal frame, `sigreturn`/`rt_sigreturn`, default actions, `pause`, `getppid`.
+- [x] **P.2-linux-signals** — Linux signals: `rt_sigaction`, `rt_sigprocmask`, `rt_sigpending`, `kill`/`tkill`/`tgkill`, delivery on the way back to ring 3 with an i386 signal frame, `sigreturn`/`rt_sigreturn`, default actions, `pause`, `getppid`.
   **Acceptance:** `run lxsig` prints `lxsig: PASS` and then `Program ended by signal 15`, never `lxsig: still here`. Checks `lx-sig`, `lx-sig-term`, `lx-sig-after`.
-- [ ] **P.10-freebsd** — FreeBSD i386 static ELF32 (`EI_OSABI` 9): a call table over the Linux handlers with FreeBSD numbers, stack arguments and CF + errno results.
+- [x] **P.10-freebsd** — FreeBSD i386 static ELF32 (`EI_OSABI` 9): a call table over the Linux handlers with FreeBSD numbers, stack arguments and CF + errno results.
   **Acceptance:** `run bsdhello` prints `Hello from FreeBSD land!` and `bsdhello: PASS`. Checks `bsd-hello`, `bsd-after`.
 
 ## Installer (unscheduled)
@@ -386,7 +386,7 @@ From P.8 in `ROADMAP.md` and epic #118 (stream OS2-FOREIGN). Notes: `documentati
 - [x] **P.8-dosrun** — `dosrun`, an 8086/186 interpreter with the `INT 21h`/BIOS subset, runs DOS `.COM` and MZ `.EXE` programs as a user program (V86 waits for the low kernel image to leave the first megabyte).
   **Acceptance:** `run dosrun doshello.com acorns`, `doscpu.com`, `dosfile.com` and `dosexe.exe` each print their PASS line, and the shell works afterwards. Checks `dos-hello`, `dos-cpu`, `dos-file`, `dos-exe`, `dos-missing`, `dos-after`.
 - [x] **P.8-dos-launch** — `run prog.com` and `run prog.exe` (MZ without PE) go to dosrun without naming it.
-- [ ] **P.8-dos-gfx** — VGA mode 13h for DOS programs: `A000` shown through `SYS_GUI`, INT 10h pixels and DAC calls, ports 3C8h/3C9h/3DAh, BIOS teletype in graphics, non-blocking keyboard polls, the BIOS tick count from the real timer.
+- [x] **P.8-dos-gfx** — VGA mode 13h for DOS programs: `A000` shown through `SYS_GUI`, INT 10h pixels and DAC calls, ports 3C8h/3C9h/3DAh, BIOS teletype in graphics, non-blocking keyboard polls, the BIOS tick count from the real timer.
   **Acceptance:** `run dosgfx.com` draws and writes `dosgfx: drawn` in graphics (read by `<gfx>`), and after a key prints `dosgfx: PASS` in text. Checks `dos-gfx`, `dos-gfx-after`.
 - [ ] **P.8-dos-window** — the DOS screen (text or mode 13h) inside a window of its own, once programs own windows (2.2).
 
