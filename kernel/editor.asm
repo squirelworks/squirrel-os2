@@ -492,15 +492,18 @@ ed_load:
     mov edi, ED_BUF
     mov ecx, ED_CAP
     call fs_read
-    mov edx, eax
+    push eax
+    xor ecx, ecx                ; its size, on SQFS or a FAT drive (2.7)
+    mov edx, SEEK_END
+    call fs_seek
+    mov ecx, eax
+    pop edx
     call fs_close
     cmp edx, -1
     je .err
     mov [ed_len], edx
-    mov esi, ed_name
-    call fs_lookup
     mov esi, ed_m_loaded
-    cmp dword [edi+DE_SIZE], ED_CAP
+    cmp ecx, ED_CAP
     jbe .msg
     mov esi, ed_m_truncated
 .msg:

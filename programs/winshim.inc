@@ -26,27 +26,7 @@ k_FreeLibrary:
     mov eax, 1
     ret 4
 
-; HMODULE GetModuleHandleW(name): only NULL (this program) is known
-k_GetModuleHandleW:
-    jmp k_GetModuleHandleA
-
-; HMODULE LoadLibraryA/W(name), LoadLibraryExA(name, file, flags): no DLLs
-k_LoadLibraryA:
-k_LoadLibraryW:
-    mov dword [last_error], 126     ; ERROR_MOD_NOT_FOUND
-    xor eax, eax
-    ret 4
-k_LoadLibraryExA:
-k_LoadLibraryExW:
-    mov dword [last_error], 126
-    xor eax, eax
-    ret 12
-
-; FARPROC GetProcAddress(h, name): nothing to find
-k_GetProcAddress:
-    mov dword [last_error], 127     ; ERROR_PROC_NOT_FOUND
-    xor eax, eax
-    ret 8
+; LoadLibrary*, GetProcAddress, GetModuleHandle*: winrun.asm (the DLL loader)
 
 ; BOOL IsDBCSLeadByteEx(codepage, byte): single-byte code pages only
 k_IsDBCSLeadByteEx:
@@ -410,6 +390,13 @@ m___p__commode:
 m___p__fmode:
     mov eax, m__fmode
     ret
+m___p__acmdln:                  ; char ** to the command line (GUI start-up)
+    mov dword [acmdln], cmdline
+    mov eax, acmdln
+    ret
+m__ismbblead:                   ; no multibyte code page: never a lead byte
+    xor eax, eax
+    ret
 m__errno:
     mov eax, errno_v
     ret
@@ -468,8 +455,7 @@ m_exit:
 .x:
 m__exit:
     mov ebx, [esp+4]
-    mov eax, SYS_EXIT
-    int 0x80
+    jmp win_exit
 
 ; void _amsg_exit(n) / abort(void)
 m__amsg_exit:
@@ -477,8 +463,7 @@ m_abort:
     mov ebx, m_aborted
     call puts
     mov ebx, 3
-    mov eax, SYS_EXIT
-    int 0x80
+    jmp win_exit
 
 ; void (*signal(int, void (*)(int)))(int): no signals; SIG_DFL back
 m_signal:
@@ -1421,6 +1406,8 @@ format:
     M _fpreset
     M __p__commode
     M __p__fmode
+    M __p__acmdln
+    M _ismbblead
     M _errno
     M _initterm
     M _onexit
@@ -1500,6 +1487,7 @@ m_aborted db 'winrun: the program aborted', 10, 0
 %macro WINSHIM_BSS 0
 alignb 4
 tick_fake resd 1
+acmdln resd 1
 errno_v resd 1
 argc_cache resd 1
 natexit resd 1

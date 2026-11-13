@@ -166,7 +166,7 @@ Each app is first built in squirrelsoft as a desktop program, then ported.
 - [x] **A.1** (2.1+) — Calculator with standard and scientific modes in a window (the existing `calc` / `sci` engines), Clock, Notepad (GUI `edit`)
 - [x] **A.2** (2.2+) — Paint (bitmap tools, palette, save as BMP or an own format), image viewer, character map
 - [ ] **A.3** (2.3+) — Settings / Control Panel, File Manager, Terminal (several shells in windows)
-- [ ] **A.4** (2.4+) — Debugger: process list, INT3 breakpoints, single step, registers, memory view, an original disassembler, symbols from SQX / ELF
+- [x] **A.4** (2.4+) — Debugger: process list, INT3 breakpoints, single step, registers, memory view, an original disassembler, symbols from SQX / ELF
 - [x] **A.5** (2.5+) — Task / system monitor (CPU, memory, processes, priorities), disk utility, log viewer
 - [ ] **A.6** (3.0+) — Media player (WAV first), sound recorder, spectrum analyser (port of SquirrelSound)
 - [x] **A.7** (3.0+) — Text editor with syntax highlighting, hex editor, a simple word processor

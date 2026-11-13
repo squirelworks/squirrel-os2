@@ -34,6 +34,14 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `calculator.asm` | SQX | Calculator in a window, standard and scientific keypads on the `sci` engine (`run calculator`, A.1) |
 | `clock.asm` | SQX | Analogue clock with the time and date (`run clock`, `run clock test`, A.1) |
 | `notepad.asm` | SQX | Text editor in a window, with syntax highlighting for .asm/.inc, .c/.h and .bas (`run notepad [file]`, `run notepad -test`, A.1, A.7) |
+| `debugger.asm` | SQX | Debugger: breakpoints, single step, registers, memory, disassembly, backtrace, symbols (`run debugger dbgtgt`, A.4, `documentation/apps/debugger.md`) |
+| `terminal.asm` | SQX | Terminal: up to four shell sessions in windows, programs' output and input through `SYS_TTY` (`run terminal`, A.3, `documentation/apps/terminal.md`) |
+| `disasm.inc` | include | The debugger's x86 disassembler (A.4) |
+| `debug.inc` | include | `SYS_DEBUG` operations and the register block (A.4) |
+| `dbgtest.asm` | SQX | Checks `SYS_DEBUG` on `dbgtgt` (`run dbgtest`, A.4) |
+| `dbgtgt.asm` | SQX | A program to trace: `run dbgtgt [f\|s\|b]` faults, spins or runs an `INT3` (A.4) |
+| `dbgelf.asm` | ELF32 | Hand-made ELF with a `.symtab`, for the debugger's ELF symbols (A.4) |
+| `distest.asm` | SQX | Checks the disassembler against 70 expected lines (`run distest`, A.4) |
 | `grapher.asm` | SQX | 2D graphing calculator: explicit, polar, parametric and implicit functions, inequalities, sliders, zoom, pan, trace, roots, extrema, intersections (`run grapher [f]`, `run grapher test`, C.2) |
 | `charmap.asm` | SQX | Character map of the system font; collects characters, F2 saves them (`run charmap`, A.2) |
 | `paint.asm` | SQX | Bitmap painter: pen, line, box, solid box, fill, eraser, undo; 16 colours; saves and opens BMP (`run paint [f]`, `run paint test`, A.2) |
@@ -66,6 +74,8 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `dosfile.asm` | DOS .COM | DOS files, memory blocks and buffered input (`run dosfile.com`, P.8) |
 | `dosgfx.asm` | DOS .COM | VGA mode 13h: A000, INT 10h pixels and DAC, ports, teletype text in graphics (`run dosgfx.com`, then a key; P.8) |
 | `dosexe.asm` | DOS .EXE | Hand-written MZ with relocations, three segments and a far call (`run dosexe.exe`, P.8) |
+| `os2run.asm` | SQX | OS/2 32-bit LX loader with DOSCALLS shims; the kernel runs it for `MZ` files with an `LX` header (`run os2run prog.exe`, P.9) |
+| `os2hello.asm` | LX | Hand-written OS/2 text-mode program: objects, fixups, DOSCALLS by ordinal, TIB/PIB, files, memory (`run os2hello`, P.9) |
 | `winhello.asm` | PE32 | Hand-written Win32 console program: console, files, heap, relocations, imports (`run winhello`, P.5) |
 | `wincrt.asm` | PE32 | Hand-written Win32 program on msvcrt: TEB via `fs:`, `__getmainargs`, printf/sprintf, malloc, FILE I/O, atexit/exit (`run wincrt acorn`, P.5) |
 | `winshim.inc` | — | The KERNEL32 start-up calls and the msvcrt subset that `winrun` binds imports to |

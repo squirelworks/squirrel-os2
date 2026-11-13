@@ -83,6 +83,11 @@ from the data disk with the argument `<file> <argument>` instead, and returns it
 `winrun` loads Win32 PE32 console programs (`../architecture/foreign-compatibility.md`). When
 `winrun` is not on the disk, `run prog.exe` reports `Unknown command or program`.
 
+### MZ with LX (OS/2 programs)
+
+An `MZ` file whose `e_lfanew` points at `LX` is an OS/2 32-bit program: the loader runs
+`os2run <file> <argument>` for it (P.9, `../architecture/foreign-compatibility.md`).
+
 ### MZ without PE, and .COM (DOS programs)
 
 An `MZ` file without `PE`,0,0 at its `e_lfanew` offset (or too short to have one) is a DOS

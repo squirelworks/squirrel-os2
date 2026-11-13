@@ -224,7 +224,7 @@ main:
     mov esi, m_notrace
     mov edi, status
     call scopy0
-    jmp .view
+    jmp .msgonly
 .cantrace:
     mov byte [tracing], 1
     mov dword [tpos], PW / 2
@@ -233,14 +233,33 @@ main:
     mov dword [tpos], 0
     jmp .view
 .roots:
+    mov byte [msgonly], 0
     call find_roots
-    jmp .view
+    jmp .found
 .ext:
+    mov byte [msgonly], 0
     call find_extrema
-    jmp .view
+.found:
+    cmp byte [msgonly], 0
+    je .view
+; Only the status row changed (a message): it alone is drawn and shown,
+; at once, instead of the whole plot again (an inequality's or an
+; implicit curve's field takes long enough that a slow machine would
+; still be showing the old row a second later).
+.msgonly:
+    call row2
+    pushad
+    mov eax, PX
+    mov ebx, ROW2_Y
+    mov ecx, PW
+    mov edx, CELL_H
+    call gui_flip_rect
+    popad
+    jmp .key
 .inter:
+    mov byte [msgonly], 0
     call find_inter
-    jmp .view
+    jmp .found
 .quit:
     call gui_close
     xor eax, eax
@@ -1945,6 +1964,7 @@ need_explicit:
     mov esi, m_explicit
     mov edi, status
     call scopy0
+    mov byte [msgonly], 1
     stc
     ret
 
@@ -1989,6 +2009,7 @@ find_inter:
     mov esi, m_two
     mov edi, status
     call scopy0
+    mov byte [msgonly], 1
 .r:
     ret
 .got:
@@ -2551,6 +2572,7 @@ fmt_buf resb 40
 edit_buf resb TEXT_MAX + 2
 line resb 80
 status resb 256
+msgonly resb 1
 slots resb S_SIZE * SLOTS
 vcur resb NCOL
 vprev resb NCOL

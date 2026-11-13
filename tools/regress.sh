@@ -66,7 +66,20 @@ for prog in doshello doscpu dosfile dosgfx; do nasm -f bin "$root/programs/$prog
 nasm -f bin "$root/programs/dosexe.asm" -o "$out/dosexe.exe"
 nasm -f bin -i "$root/programs/" "$root/programs/lxsig.asm" -o "$out/lxsig"    # P.2 signals ride along on this disk
 nasm -f bin -i "$root/programs/" "$root/programs/bsdhello.asm" -o "$out/bsdhello"    # P.10 FreeBSD rides along on this disk
-for f in dosrun winrun doshello.com doscpu.com dosfile.com dosgfx.com dosexe.exe lxsig bsdhello; do python3 "$root/tools/sqfs.py" "$out/dos.img" put "$out/$f"; done
+for prog in os2run os2hello; do nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"; done    # P.9 OS/2 rides along on this disk
+nasm -f bin "$root/programs/winwnd.asm" -o "$out/winwnd"    # P.6 Win32 GUI rides along on this disk
+nasm -f bin "$root/programs/winreg.asm" -o "$out/winreg"    # P.6 registry emulation
+nasm -f bin "$root/programs/windll.asm" -o "$out/windll"    # P.6 DLL loader: a program ...
+nasm -f bin "$root/programs/winlib.asm" -o "$out/acorn.dll" # ... and its DLL
+# A.4: the debugger, its tests and the programs it traces (with a symbol file) on a disk of their own
+python3 "$root/tools/sqfs.py" "$out/dev.img" format 1024
+for prog in debugger dbgtest dbgtgt distest terminal hello wc; do    # A.3 terminal too
+    nasm -f bin -i "$root/programs/" --before "[map symbols $out/$prog.map]" "$root/programs/$prog.asm" -o "$out/$prog"
+    python3 "$root/tools/sqfs.py" "$out/dev.img" put "$out/$prog"
+done
+python3 "$root/tools/mksym.py" "$out/dbgtgt.map" "$out/dbgtgt.sym"
+nasm -f bin "$root/programs/dbgelf.asm" -o "$out/dbgelf"    # ELF .symtab instead of a .sym file
+for f in dbgtgt.sym dbgelf; do python3 "$root/tools/sqfs.py" "$out/dev.img" put "$out/$f"; done
 # OS2-HW H.1: the UEFI loaders carry this os.img; an EFI system partition image holds both
 (cd "$root/boot/uefi" && nasm -f bin -DOS_IMG="\"$out/os.img\"" bootx64.asm -o "$out/BOOTX64.EFI" \
     && nasm -f bin -DOS_IMG="\"$out/os.img\"" bootia32.asm -o "$out/BOOTIA32.EFI")
@@ -87,6 +100,7 @@ sector5() {  # sector5 NAME FILE: the pattern blkdev wrote must be in the image 
     if python3 -c "import sys; d = open(sys.argv[1], 'rb').read()[2560:2568]; sys.exit(d != bytes.fromhex('05005a5a06015b5b'))" "$2"
     then echo "ok   $1"; else echo "FAIL $1 (sector 5 of $2 not written)"; fail=1; fi
 }
+for f in dosrun winrun doshello.com doscpu.com dosfile.com dosgfx.com dosexe.exe lxsig bsdhello os2run os2hello winwnd winreg windll acorn.dll; do python3 "$root/tools/sqfs.py" "$out/dos.img" put "$out/$f"; done
 rm -f "$out/data.img"
 dd if=/dev/zero of="$out/data.img" bs=1024 count=1024 2>/dev/null
 
@@ -693,7 +707,8 @@ check topo-stub     'Scaffolded. Simplicial homology'  'run topo' '<ret>'
 check sh-usage      'Usage: mkdir <dir>'    mkdir '<ret>'
 check sh-unknown    'Unknown command'       bogus '<ret>'
 check fs-e-exists   'Already exists'        'mkdir e1' '<ret>' 'mkdir e1' '<ret>'
-check fs-e-name     'Bad name'              'mk abcdefghijklmnopq' '<ret>'
+# (2.7: names may be 63 characters long, so 64 is the shortest bad one)
+check fs-e-name     'Bad name'              'mk nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn' '<ret>'
 check fs-e-nodir    'No such directory'     'mk nod/x' '<ret>'
 check fs-e-isdir    'Is a directory'        'cat e1' '<ret>'
 check fs-e-notempty 'Directory not empty'   'mkdir e1/sub' '<ret>' 'put e1/sub/f x' '<ret>' 'rm e1' '<ret>'
@@ -926,6 +941,8 @@ check checkers-test 'checkers: PASS'        'run checkers test' '<ret>' '<pause>
 check_all checkers-play 'Computer plays f6-g5|You (b): 12   Computer (w): 12' 'run checkers 1' '<ret>' c3d4 '<ret>' '<pause>' '<pause>'
 check go-test       'go: PASS'              'run go test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>'
 check_all go-play   'Computer plays f3|You cannot play there' 'run go 1' '<ret>' e5 '<ret>' e5 '<ret>'
+# the directory checks' scratch entries go: progs.img's 64-entry directory is full by now
+for f in d2/n d2/s d2 d3 d5/e d5/g d5 la1 t1 edir; do python3 "$root/tools/sqfs.py" "$out/progs.img" rm "$f" >/dev/null 2>&1 || true; done
 disk=$out/progs.img
 # 1.0.6: calc, edit and draw titles follow lang
 check l10n-calc-tlh "mI' De'wI' (Esc to exit)" 'lang tlh' '<ret>' 'run calc' '<ret>'
@@ -1023,6 +1040,74 @@ check_all write-count 'gfx: Write - wdoc.swp|gfx: words 5|gfx: chars 22 *' 'run 
 check_all write-styles 'gfx: Opened|gfx: Centred line' 'run write wdoc.swp' '<ret>' '<pause>' 'Plain ' '<ctrl-i>' 'italic ' '<ctrl-i>' '<ctrl-u>' 'under' '<ctrl-u>' '<ret>' 'Centred line' '<ctrl-e>' '<ctrl-s>' '<pause>' '<esc>' '<pause>' 'run write wdoc.swp' '<ret>' '<pause>' '<pause>' '<gfx>'
 check write-ask     'gfx: Save changes? y/n' 'run write' '<ret>' '<pause>' 'x' '<esc>' '<pause>' '<gfx>'
 check write-quit    'systest: PASS'         'run write' '<ret>' '<pause>' 'x' '<esc>' '<pause>' 'n' '<pause>' systest '<ret>'
+# 2.7 (OS2-FS): long names in SQFS, FAT12/16/32 drives. tools/fatimg.py makes
+# the FAT images and checks them afterwards (chains, sizes, long names), so
+# no dosfstools or mtools are needed; each check gets its own disks.
+saved_disk=$disk; saved_target=$target
+sq=$out/fs27.img; disk=$sq; target=
+python3 "$root/tools/sqfs.py" "$sq" format 1024
+python3 "$root/tools/sqfs.py" "$sq" mkdir 'My Documents'
+printf 'one two\nthree\n' > "$out/notes27"
+python3 "$root/tools/sqfs.py" "$sq" put "$out/notes27" 'My Documents/notes about the winter stores.txt'
+check lfntest        'lfntest: PASS'        lfntest '<ret>'
+check_all lfn-host   'notes about the winter stores.txt 14|one two' 'cd "My Documents"' '<ret>' ls '<ret>' 'cat "notes about the winter stores.txt"' '<ret>'
+check_all lfn-kernel 'a folder with a long name/|ok' 'mkdir "a folder with a long name"' '<ret>' 'put "a folder with a long name/and a file in it too" acorns' '<ret>' ls '<ret>'
+lfnout=$(python3 "$root/tools/sqfs.py" "$sq" get 'a folder with a long name/and a file in it too' 2>&1)
+if [ "$lfnout" = acorns ]; then echo "ok   lfn-sqfs-py"; else echo "FAIL lfn-sqfs-py ($lfnout)"; fail=1; fi
+python3 - "$sq" <<'PYEOF'    # an orphaned long-name part (its owner, entry 60, is free)
+import sys
+f = open(sys.argv[1], 'r+b'); f.seek(512 + 63 * 32)
+f.write(b'left behind by an old kernel'[:23] + bytes([0x5A]) + bytes(4) + bytes([0xFF, 2, 60, 1])); f.close()
+PYEOF
+check lfn-sweep      'Files:'               ls '<ret>'
+sweep=$(python3 -c "import sys; f=open(sys.argv[1],'rb'); f.seek(512+63*32); print(f.read(1)[0])" "$sq")
+if [ "$sweep" = 0 ]; then echo "ok   lfn-sweep-freed"; else echo "FAIL lfn-sweep-freed"; fail=1; fi
+fat() { python3 "$root/tools/fatimg.py" "$@"; }
+fatok() {   # fatok NAME IMAGE: the image passes fatimg.py check
+    if r=$(fat "$2" check 2>&1); then echo "ok   $1"; else echo "FAIL $1 ($r)"; fail=1; fi
+}
+printf 'Hello from a FAT floppy\n' > "$out/fatreadme"
+for spec in "12 1440" "16 16384 --part" "32 40960 --part"; do
+    set -- $spec
+    fat "$out/fat$1.img" format $2 $1 $3
+    fat "$out/fat$1.img" mkdir docs
+    fat "$out/fat$1.img" put "$out/fatreadme" README.TXT
+    fat "$out/fat$1.img" put "$out/notes27" 'docs/A Long Document Name.txt'
+done
+target=$out/fat12.img
+check_all fat12-read 'D: FAT12, 1440 KB, hd2|README.TXT|docs/|Hello from a FAT floppy|one two' 'mount d: hd2' '<ret>' 'ls d:/' '<ret>' 'cat d:/readme.txt' '<ret>' 'cat "d:/DOCS/a long document name.txt"' '<ret>'
+check fat12-write    'fattest: PASS'        'mount d: hd2' '<ret>' 'fattest d:' '<ret>' '<pause>' '<pause>'
+check_all fat12-cp   '24 bytes copied|14 bytes copied|Hello from a FAT floppy' 'mount d: hd2' '<ret>' 'cp d:/readme.txt "fat copy with a long name"' '<ret>' 'cp "My Documents/notes about the winter stores.txt" "d:/docs/Copied From SQFS.txt"' '<ret>' 'cat "fat copy with a long name"' '<ret>'
+fatout=$(fat "$out/fat12.img" get 'docs/copied from sqfs.txt' 2>&1)
+if [ "$fatout" = "$(cat "$out/notes27")" ]; then echo "ok   fat12-host-read"; else echo "FAIL fat12-host-read ($fatout)"; fail=1; fi
+check_all fat12-mv   'ok|Read Me First.txt|New Folder/' 'mount d: hd2' '<ret>' 'mv d:/readme.txt "Read Me First.txt"' '<ret>' 'mkdir "d:/New Folder"' '<ret>' 'ls d:' '<ret>'
+check fat-xdev       'Cannot move between drives' 'mount d: hd2' '<ret>' 'mv "fat copy with a long name" d:/x' '<ret>'
+check fat-nodrive    'No such drive'        'cat e:/nothing' '<ret>'
+check_all fat-letter 'That drive letter is in use|Already mounted on another drive letter' 'mount d: hd2' '<ret>' 'mount d: hd2' '<ret>' 'mount f: hd2' '<ret>'
+fatok fat12-fsck "$out/fat12.img"
+target=$out/fat16.img
+check_all fat16-part 'D: FAT16, 15 MB, hd2|fattest: PASS' 'mount d: hd2' '<ret>' 'fattest d:' '<ret>' '<pause>' '<pause>'
+fatok fat16-fsck "$out/fat16.img"
+# drive and shredder objects (fsobj.asm)
+check fsobjtest      'fsobjtest: PASS'      fsobjtest '<ret>'
+check_all drive-obj  'class Drive|name: Drive D|path: D:/|shredder.obj' 'mount d: hd2' '<ret>' 'objcat /desktop/drive-d.obj' '<ret>' 'ls /desktop' '<ret>'
+check_none drive-obj-boot 'drive-d.obj' 'shredder.obj' 'ls /desktop' '<ret>'
+check_all drive-browse 'd:/docs|> A Long Document Name.txt 14|Esc: close' 'mount d: hd2' '<ret>' 'drive d:' '<ret>' '<ret>'
+check_all drive-show 'one two|(press a key)' 'mount d: hd2' '<ret>' 'drive d:' '<ret>' '<ret>' '<ret>'
+check_all drive-up   '> docs/|  README.TXT 24' 'mount d: hd2' '<ret>' 'drive d:' '<ret>' '<ret>' '<backspace>'
+target=$out/fat32.img
+check_all fat32-part 'D: FAT32, 39 MB, hd2|A Long Document Name.txt|fattest: PASS' 'mount d: hd2' '<ret>' 'ls d:/docs' '<ret>' 'fattest d:' '<ret>' '<pause>' '<pause>'
+check_all fat32-cp   '14 bytes copied|notes about the winter stores.txt 14' 'mount d: hd2' '<ret>' 'cp "My Documents/notes about the winter stores.txt" d:/docs' '<ret>' 'ls d:/docs' '<ret>'
+fatok fat32-fsck "$out/fat32.img"
+# a FAT image file on the SQFS disk, mounted as a drive
+fat "$out/floppy27.img" format 160 12
+fat "$out/floppy27.img" put "$out/fatreadme" inside.txt
+python3 "$root/tools/sqfs.py" "$sq" put "$out/floppy27.img" 'disk image.img'
+target=
+check_all fat-loop   'E: FAT12, 160 KB, disk image.img|inside.txt|fattest: PASS|File is open|ok' 'mount e: "disk image.img"' '<ret>' 'ls e:' '<ret>' 'fattest e:' '<ret>' '<pause>' 'rm "disk image.img"' '<ret>' 'umount e:' '<ret>'
+python3 "$root/tools/sqfs.py" "$sq" get 'disk image.img' "$out/floppy27b.img"
+fatok fat-loop-fsck "$out/floppy27b.img"
+disk=$saved_disk; target=$saved_target
 # C.4: spreadsheet with charts
 check sheet         'sheet: PASS'           'run sheet test' '<ret>' '<pause>' '<pause>' '<pause>'
 check_all sheet-calc 'gfx: A3: =A1*A2+1|gfx: = 7' 'run sheet' '<ret>' '<pause>' '2' '<ret>' '3' '<ret>' '=A1*A2+1' '<ret>' '<up>' '<pause>' '<gfx>'
@@ -1088,6 +1173,43 @@ check dos-gfx-after   'systest: PASS'         'run dosgfx.com' '<ret>' '<pause>'
 # P.10: a FreeBSD i386 ELF: arguments on the stack, errors as CF + errno
 check_all bsd-hello   'Hello from FreeBSD land!|bsdhello: PASS'  'run bsdhello' '<ret>'
 check bsd-after       'Hello from DOS land!'  'run bsdhello' '<ret>' 'run doshello.com' '<ret>'
+# P.9: an OS/2 32-bit LX program: objects, fixups, DOSCALLS by ordinal, TIB/PIB
+check_all os2-hello   'Hello from OS/2 land!|arguments: acorns|os2hello: PASS'  'run os2hello acorns' '<ret>'
+check os2-missing     'os2run: DOSCALLS.1 is not implemented'  'run os2hello stub' '<ret>'
+check os2-notlx       'not an OS/2 32-bit LX program'  'run os2run doshello.com' '<ret>'
+check os2-after       'Hello from DOS land!'  'run os2hello' '<ret>' 'run doshello.com' '<ret>'
+# P.6: a Win32 GUI program: window, WM_PAINT with GDI, timer, keys, DestroyWindow
+check_all win-gui     'gfx: Acorn window|gfx: Hello from Win32 GUI|gfx: winwnd: PASS'  'run winwnd' '<ret>' '<pause>' q '<pause>' '<gfx>'
+check win-gui-after   'systest: PASS'         'run winwnd' '<ret>' '<pause>' x '<pause>' systest '<ret>'
+check_all win-reg     'winreg: PASS|winreg: count 2'  'run winreg' '<ret>' 'run winreg again' '<ret>'
+check win-reg-file    'HKCU\Software\Acorn|count|4|02000000'  'run winreg' '<ret>' 'run winreg again' '<ret>' 'cat registry.dat' '<ret>'
+check_all win-dll     'windll: Hello from acorn.dll|windll: PASS'  'run windll' '<ret>'
+check win-dll-gone    'not implemented: Gone' 'run windll gone' '<ret>'
+# A.4: SYS_DEBUG, the disassembler and the debugger
+disk=$out/dev.img
+check dbg-api       'dbgtest: PASS'         'run dbgtest' '<ret>' '<pause>'
+check dbg-api-after 'systest: PASS'         'run dbgtest' '<ret>' '<pause>' systest '<ret>'
+check dbg-disasm    'distest: PASS'         'run distest' '<ret>'
+check_all dbg-entry '10 symbols loaded|pid 2 stopped at its entry|main:|00030010  B801000000        mov eax,0x1'  'run debugger dbgtgt' '<ret>' '<pause>'
+check_all dbg-break 'breakpoint 1 at 0003001C <here>|pid 2 hit breakpoint 1|0003001C  89C1              mov ecx,eax'  'run debugger dbgtgt' '<ret>' '<pause>' 'b here' '<ret>' c '<ret>' '<pause>'
+check_all dbg-step  '0003001A  01D8              add eax,ebx|eax=00000003 ebx=00000002|eip=0003001C <here>'  'run debugger dbgtgt' '<ret>' '<pause>' 's 2' '<ret>' s '<ret>' r '<ret>'
+check_all dbg-set   'eax=00000007|dbgtgt result 7|pid 2 ended (exit code 7)'  'run debugger dbgtgt' '<ret>' '<pause>' 'b here' '<ret>' c '<ret>' '<pause>' 'set eax 7' '<ret>' 'bd 1' '<ret>' c '<ret>' '<pause>'
+check_all dbg-next  'call 0x3007b <level1>|00030029  8B742404          mov esi,[esp+0x4]'  'run debugger dbgtgt' '<ret>' '<pause>' 'b here' '<ret>' c '<ret>' '<pause>' n '<ret>' n '<ret>' n '<ret>'
+check_all dbg-bt    'at 00030085 <level2>|at 00030083 <level1+8>|at 00030029 <here+d>'  'run debugger dbgtgt' '<ret>' '<pause>' 'b level2' '<ret>' c '<ret>' '<pause>' bt '<ret>'
+check_all dbg-mem   '0003009F  03 00 00 00|00030090  64 62 67 74 67 74 20 72 65 73 75 6C 74 20 00 03  dbgtgt result ..'  'run debugger dbgtgt' '<ret>' '<pause>' 'b level1' '<ret>' c '<ret>' '<pause>' 'x result 4' '<ret>' 'x msg 16' '<ret>'
+check_all dbg-fault 'stopped by CPU exception 14 at address 00000010|pid 2 ended (exit code -1)'  'run debugger dbgtgt f' '<ret>' '<pause>' c '<ret>' '<pause>' kill '<ret>'
+check_all dbg-esc   'pid 2 stopped|<here.spin>'  'run debugger dbgtgt s' '<ret>' '<pause>' c '<ret>' '<pause>' '<esc>' '<pause>'
+check dbg-quit      'systest: PASS'         'run debugger dbgtgt s' '<ret>' '<pause>' c '<ret>' '<pause>' '<esc>' '<pause>' q '<ret>' '<pause>' systest '<ret>'
+check_all dbg-elf   '3 symbols loaded|start:|00030059 loop_top|00030073 value'  'run debugger dbgelf' '<ret>' '<pause>' sym '<ret>'
+check_all dbg-elf-run 'loop 0x30059 <loop_top>|dbgelf done|pid 2 ended (exit code 6)'  'run debugger dbgelf' '<ret>' '<pause>' 'u start 4' '<ret>' g '<ret>' '<pause>'
+# A.3: the terminal (SYS_TTY): programs in windows, their output and input
+check_all term-run  'gfx: Terminal 1|gfx: 1> hello world|gfx: Hello from a loaded program!|gfx: Argument: world'  'run terminal' '<ret>' '<pause>' '<pause>' 'hello world' '<ret>' '<pause>' '<gfx>'
+check_all term-builtin 'gfx: hi there|gfx: Unknown command or program|gfx: F1-F4 sessions, F5 one/all windows, F10 quit'  'run terminal' '<ret>' '<pause>' '<pause>' 'echo hi there' '<ret>' nothing '<ret>' help '<ret>' '<pause>' '<gfx>'
+check_all term-input 'gfx: 1> wc|gfx: 2 3 14'  'run terminal' '<ret>' '<pause>' '<pause>' wc '<ret>' '<pause>' 'one two' '<ret>' three '<ret>' '<ctrl-d>' '<pause>' '<gfx>'
+check_all term-sessions 'gfx: Terminal 1 - dbgtgt|gfx: 1> dbgtgt s|gfx: Terminal 2|gfx: 2> hello two|gfx: Argument: two'  'run terminal' '<ret>' '<pause>' '<pause>' 'dbgtgt s' '<ret>' '<pause>' '<f2>' '<pause>' 'hello two' '<ret>' '<pause>' '<f5>' '<pause>' '<gfx>'
+check_all term-ctrlc 'gfx: ^C|gfx: *** CPU exception 14 (page fault) in pid 3 (dbgtgt)|gfx: [exit code -1]'  'run terminal' '<ret>' '<pause>' '<pause>' 'dbgtgt s' '<ret>' '<pause>' '<ctrl-c>' '<pause>' 'dbgtgt f' '<ret>' '<pause>' '<pause>' '<gfx>'
+check_all term-debugger 'gfx: pid 3 hit breakpoint 1|gfx: pid 3 stopped|gfx: jmp 0x30073 <here.spin>|gfx: pid 3 ended (exit code -1)'  'run terminal' '<ret>' '<pause>' '<pause>' 'debugger dbgtgt s' '<ret>' '<pause>' 'b level1' '<ret>' c '<ret>' '<pause>' 'bd 1' '<ret>' c '<ret>' '<pause>' '<esc>' '<pause>' q '<ret>' '<pause>' '<gfx>'
+check_all term-quit 'systest: PASS|0        running  shell'  'run terminal' '<ret>' '<pause>' '<pause>' 'dbgtgt s' '<ret>' '<f2>' '<pause>' exit '<ret>' '<pause>' '<f10>' '<pause>' '<pause>' systest '<ret>' ps '<ret>'
 # 3.0 (OS2-NET-AUDIO): sound. AC'97 and Intel HDA under QEMU (-audiodev none paces the DMA in
 # real time; -audiodev wav writes what was played, which tools/wavcheck.py listens to)
 python3 "$root/tools/sqfs.py" "$out/snd.img" format 1024
