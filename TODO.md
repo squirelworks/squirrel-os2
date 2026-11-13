@@ -417,3 +417,16 @@ Scheduled in the 64-bit bridge, 2.8–2.9 in `ROADMAP.md`. Each box is one PR, a
   **Acceptance:** the shell takes input from `usb-kbd` with no PS/2 keyboard attached.
 - [x] **H.6-usb-storage** — USB mass storage, so the system can boot from and read the stick it was written to.
   **Acceptance:** SQFS on a `usb-storage` disk lists its files.
+
+## 3.0 — Networking and sound (OS2-NET-AUDIO)
+
+From the 3.0 line in `ROADMAP.md` (audio, a network settings GUI, DHCP, DNS and an HTTP client). Worked by the OS2-NET-AUDIO stream; each box is a branch the condenser folds into a PR. Design notes go in `documentation/kernel/network.md`, `documentation/kernel/audio.md` and `documentation/apps/network.md` / `documentation/apps/audio.md`.
+
+- [x] **3.0-dhcp** — A DHCP client (`dhcp`): DISCOVER/OFFER/REQUEST/ACK over broadcasts, setting address, mask, gateway, DNS server and lease. Checks `dhcp`, `dhcp-dns`, `dhcp-nonic`.
+- [x] **3.0-dns** — A DNS resolver: A queries, CNAME and compressed names, a cache, `host <name>`, `dns [ip [port]]`, names in `ping` and `fetch`. Checks `host-*`, `ping-name`, `fetch-name`.
+- [x] **3.0-http** — `SYS_NET` for programs and an HTTP/1.1 client (`http.inc`: Content-Length, chunked, redirects) with `run wget`. Checks `wget-*`.
+- [x] **3.0-netcfg** — The network settings program: a window with the four values, DHCP, Apply and Save, and `show`/`dhcp`/`set`/`save`/`load` from the shell. Checks `netcfg-*`.
+- [x] **3.0-ac97** — An AC'97 driver (QEMU `-device AC97`): PCI bus mastering, a buffer descriptor list, PCM out and in, the codec's mixer registers.
+- [x] **3.0-hda** — An Intel HDA driver (QEMU `-device intel-hda -device hda-duplex`): CORB/RIRB, codec widget walk, an output and an input stream.
+- [x] **3.0-mixer** — A mixer: master and PCM volume and mute, read back from the codec, in a window and from the shell.
+- [x] **3.0-media** — A.6 media apps: a WAV player, a sound recorder that saves WAV, and a spectrum analyser.

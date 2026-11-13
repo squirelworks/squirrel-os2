@@ -525,6 +525,18 @@ run_simple:
     mov edi, cmd_ifconfig       ; 1.9.11 bare
     call streq
     je .ifconfig
+    mov edi, cmd_dhcp           ; 3.0
+    call streq
+    je .dhcp
+    mov edi, cmd_dnsbare        ; 3.0
+    call streq
+    je .dnsbare
+    mov edi, cmd_audio          ; 3.0
+    call streq
+    je .audio
+    mov edi, cmd_audiotest      ; 3.0
+    call streq
+    je .audiotest
     mov edi, cmd_objs           ; 1.7.2
     call streq
     je .objs
@@ -809,6 +821,18 @@ run_simple:
     jmp .empty
 .ifconfig:
     call cmd_ifconfig_show
+    jmp .empty
+.dhcp:
+    call cmd_dhcp_run
+    jmp .empty
+.dnsbare:
+    call cmd_dns_show
+    jmp .empty
+.audio:
+    call cmd_audio_run
+    jmp .empty
+.audiotest:
+    call cmd_audiotest_run
     jmp .empty
 .objs:
     call cmd_objs_run
@@ -1243,6 +1267,7 @@ usage_cmds:                     ; command, syntax, hint key or -1
     dd u_arp, u_arp_t, -1
     dd u_ping, u_ping_t, -1
     dd u_fetch, u_fetch_t, -1
+    dd u_host, u_host_t, -1
     dd u_run, u_run_t, LS_USAGE_RUN, u_batch, u_batch_t, -1, u_echo, u_echo_t, -1, 0
 u_put db 'put', 0
 u_mk db 'mk', 0
@@ -1256,6 +1281,7 @@ u_batch db 'batch', 0
 u_arp db 'arp', 0
 u_ping db 'ping', 0
 u_fetch db 'fetch', 0
+u_host db 'host', 0
 u_echo db 'echo', 0
 u_put_t db 'put <file> <text>', 0
 u_mk_t db 'mk <file>', 0
@@ -1268,7 +1294,8 @@ u_run_t db 'run <app|file> [text]', 0
 u_batch_t db 'batch <file>', 0
 u_arp_t db 'arp <ip>', 0
 u_ping_t db 'ping <ip>', 0
-u_fetch_t db 'fetch <ip> <port> <path>', 0
+u_fetch_t db 'fetch <host> <port> <path>', 0
+u_host_t db 'host <name>', 0
 u_echo_t db 0
 u_gap db '   ', 0
 
@@ -1288,6 +1315,8 @@ arg_cmds:
     dd cmd_ping, cmd_ping_run
     dd cmd_fetch, cmd_fetch_run
     dd cmd_ifconfig_arg, cmd_ifconfig_run
+    dd cmd_host, cmd_host_run
+    dd cmd_dns_arg, cmd_dns_run
     dd 0, 0
 cmd_disk db 'disk', 0
 cmd_blktest db 'blktest', 0
@@ -1330,6 +1359,12 @@ cmd_arp db 'arp ', 0
 cmd_ping db 'ping ', 0
 cmd_fetch db 'fetch ', 0
 cmd_ifconfig_arg db 'ifconfig ', 0
+cmd_host db 'host ', 0
+cmd_dns_arg db 'dns ', 0
+cmd_dhcp db 'dhcp', 0
+cmd_dnsbare db 'dns', 0
+cmd_audio db 'audio', 0
+cmd_audiotest db 'audiotest', 0
 cmd_desktop db 'desktop', 0
 cmd_proctest db 'proctest', 0
 proc_full db 'Too many processes', 10, 0
@@ -1535,6 +1570,13 @@ khigh_start:
 %include "ip.asm"
 %include "udp.asm"
 %include "tcp.asm"
+%include "dhcp.asm"                 ; 3.0 (OS2-NET-AUDIO)
+%include "dns.asm"
+%include "netsys.asm"
+%include "audio/pci.asm"           ; 3.0 (OS2-NET-AUDIO)
+%include "audio/ac97.asm"
+%include "audio/hda.asm"
+%include "audio/audio.asm"
 %include "appsys.asm"
 %include "drivers/hw.asm"
 %include "drivers/pci.asm"
