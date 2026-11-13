@@ -288,6 +288,9 @@ gfx_putpixel:
     sub edx, [gfx_clip_y]
     cmp edx, [gfx_clip_h]
     jae .done
+    cmp dword [gfx_occn], 0     ; rectangles drawing must leave alone: the
+    jne .occ                    ; windows above a program's (2.2-progwin)
+.put:
     imul ebx, [gfx_pitch]
     add ebx, [gfx_base]
     cmp byte [gfx_bpp], 32
@@ -311,6 +314,31 @@ gfx_putpixel:
     pop eax
 .r:
     ret
+.occ:
+    push esi
+    push edi
+    mov esi, gfx_occ
+    mov edi, [gfx_occn]
+.o:
+    mov edx, eax
+    sub edx, [esi]
+    cmp edx, [esi+8]
+    jae .onext
+    mov edx, ebx
+    sub edx, [esi+4]
+    cmp edx, [esi+12]
+    jb .ohit                    ; under a window above: not drawn
+.onext:
+    add esi, 16
+    dec edi
+    jnz .o
+    pop edi
+    pop esi
+    jmp .put
+.ohit:
+    pop edi
+    pop esi
+    jmp .done
 
 ; eax = x, ebx = y -> cl = colour (0 off screen). At 16/32 bpp, cl is the
 ; low byte of the pixel. eax and ebx are preserved.
@@ -459,6 +487,28 @@ gfx_fillrect:
     jns .yok
     xor ebx, ebx                ; clip the top edge to y = 0
 .yok:
+    cmp dword [gfx_clip_w], -1  ; a clip set: only loop over its part
+    je .noclip                  ; (2.2-clip-z; putpixel would drop the rest)
+    cmp eax, [gfx_clip_x]
+    jge .cl
+    mov eax, [gfx_clip_x]
+.cl:
+    cmp ebx, [gfx_clip_y]
+    jge .ct
+    mov ebx, [gfx_clip_y]
+.ct:
+    mov edx, [gfx_clip_x]
+    add edx, [gfx_clip_w]
+    cmp esi, edx
+    jle .cr
+    mov esi, edx
+.cr:
+    mov edx, [gfx_clip_y]
+    add edx, [gfx_clip_h]
+    cmp edi, edx
+    jle .noclip
+    mov edi, edx
+.noclip:
     mov edx, eax                ; left edge
 .row:
     cmp ebx, edi
@@ -716,6 +766,8 @@ gfx_clip_x dd 0
 gfx_clip_y dd 0
 gfx_clip_w dd -1
 gfx_clip_h dd -1
+gfx_occn dd 0                   ; occluding rectangles (2.2-progwin)
+gfx_occ times 16 * 4 dd 0       ; x, y, w, h each
 
 ; eax, ebx = top left, ecx = width, edx = height. Later draws are cut to it.
 gfx_setclip:
@@ -726,6 +778,7 @@ gfx_setclip:
     ret
 
 gfx_noclip:
+    and dword [gfx_occn], 0     ; and no occluders (2.2-progwin)
     and dword [gfx_clip_x], 0
     and dword [gfx_clip_y], 0
     or dword [gfx_clip_w], -1

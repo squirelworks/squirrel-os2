@@ -150,6 +150,7 @@ proc_trampoline:
     ; fall through
 ; ebx = exit code. Does not return.
 proc_exit:
+    call ws_procgone            ; its windows close (2.2-progwin)
     cli
     mov esi, [proc_cur]
     mov [esi+PCB_CODE], ebx
