@@ -20,6 +20,11 @@
 ;   nut_compile    esi = expression text -> eax = its first token, or CF
 ;   nut_eval_x     eax = first token, qword [nut_x] = x -> st0, or CF
 ;                  (x is a global variable while it runs)
+;   nut_eval       eax = first token -> eax = V_NUM (st0) or V_STR
+;                  (edx, ecx), or CF
+;   nut_setvar     esi, ecx = a name, eax = V_NUM (st0) or V_STR (edx,
+;                  ebx = length) -> a global variable, or CF
+;   n_numtext      st0 (popped) -> esi = its text (the FPU is reset)
 ; Values are numbers in st0 or strings (edx = text, ecx = length); eax
 ; says which (V_NUM, V_STR). The left side of an operator is spilled to
 ; the CPU stack while the right side is worked out, so the FPU never
@@ -2262,10 +2267,63 @@ nut_compile:
     ret
 
 ; eax = an expression's first token, [nut_x] = x -> st0, or CF
+; (eax = V_NUM; x is left as a global variable)
 nut_eval_x:
     pushad
     mov [nut_sp], esp
     mov [nut_pos], eax
+    call n_evinit
+    fld qword [nut_x]           ; x is a global
+    mov edi, nt_x
+    mov eax, V_NUM
+    call n_assign
+    mov eax, [nut_vtop]
+    mov [nut_gend], eax
+    call n_num
+    mov eax, V_NUM
+    jmp n_evtail
+
+; eax = an expression's first token -> eax = V_NUM (st0) or V_STR
+; (edx = text, ecx = length), or CF (nut_errmsg)
+nut_eval:
+    pushad
+    mov [nut_sp], esp
+    mov [nut_pos], eax
+    call n_evinit
+    call n_expr
+n_evtail:
+    mov [nut_vtype], eax
+    mov [nut_vstr], edx
+    mov [nut_vlen], ecx
+    call n_tok
+    cmp byte [edi], TK_EOF
+    je .ok
+    cmp byte [edi], TK_NL
+    je .ok
+    cmp eax, V_STR
+    je .bad
+    fstp st0
+.bad:
+    mov esi, ne_syntax
+    jmp nut_error
+.ok:
+    cmp eax, V_STR
+    je .s
+    fstp qword [nut_x2]
+    popad
+    mov eax, V_NUM
+    fld qword [nut_x2]
+    clc
+    ret
+.s:
+    popad
+    mov eax, V_STR
+    mov edx, [nut_vstr]
+    mov ecx, [nut_vlen]
+    clc
+    ret
+
+n_evinit:
     mov byte [nut_skip], 0
     mov byte [nut_ret], 0
     mov byte [nut_brk], 0
@@ -2274,26 +2332,68 @@ nut_eval_x:
     mov eax, [nut_vtop]
     mov [nut_fbase], eax
     mov [nut_gend], eax
-    fld qword [nut_x]           ; x is a global
-    mov edi, nt_x
-    mov eax, V_NUM
+    ret
+
+; esi = a name, ecx = its length, eax = V_NUM (st0, popped) or V_STR
+; (edx = text, ebx = length): a global variable is set. The name and a
+; string are copied. CF when there is no room.
+nut_setvar:
+    pushad
+    mov [nut_sp], esp
+    push eax
+    call n_evinit
+    pop eax
+    call n_hold                 ; esi, ecx -> esi = the copy
+    jc .full
+    mov [nut_ftok+4], esi
+    mov [nut_ftok+8], ecx
+    mov byte [nut_ftok], TK_NAME
+    cmp eax, V_STR
+    jne .set
+    mov esi, edx
+    mov ecx, ebx
+    call n_hold
+    jc .full
+    mov edx, esi
+.set:
+    mov edi, nut_ftok
     call n_assign
     mov eax, [nut_vtop]
     mov [nut_gend], eax
-    call n_num
-    call n_tok
-    cmp byte [edi], TK_EOF
-    je .ok
-    cmp byte [edi], TK_NL
-    je .ok
-    fstp st0
-    mov esi, ne_syntax
-    jmp nut_error
-.ok:
-    fstp qword [nut_x2]
     popad
-    fld qword [nut_x2]
     clc
+    ret
+.full:
+    cmp eax, V_STR
+    je .f2
+    fstp st0
+.f2:
+    mov dword [nut_errmsg], ne_toolong
+    popad
+    stc
+    ret
+
+; esi = text, ecx = length -> esi = a copy among the atoms, or CF
+n_hold:
+    push edi
+    push ecx
+    mov edi, [nut_atop]
+    add edi, ecx
+    cmp edi, NUT_ATOMS
+    ja .no
+    xchg edi, [nut_atop]
+    add edi, [nut_atoms]
+    push edi
+    rep movsb
+    pop esi
+    pop ecx
+    pop edi
+    clc
+    ret
+.no:
+    pop ecx
+    pop edi
+    stc
     ret
 
 ; ---------- data ----------
@@ -2382,6 +2482,10 @@ nut_tmpi    resd 1
 nut_seed    resd 1
 nut_errmsg  resd 1
 nut_errline resd 1
+nut_vtype   resd 1
+nut_vstr    resd 1
+nut_vlen    resd 1
+nut_ftok    resb TK_SIZE
 nut_skip    resb 1
 nut_ret     resb 1
 nut_brk     resb 1
