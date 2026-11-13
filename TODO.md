@@ -399,6 +399,17 @@ Roadmap 2.7 and the FAT/long-name side of A.5's disk utility. The desktop parts 
 - [x] **2.7-objects** — Drive objects (one per mounted drive, opening lists it) and a shredder object (a file dropped on it is deleted).
 - [ ] **2.7-diskutil** — `diskutil` understands FAT volumes and long names (partition types, format FAT, check a FAT volume).
 
+## 2.8–2.9 core — 64-bit kernel and SMP (OS2-K)
+
+From the 2.8–2.9 bridge in `ROADMAP.md` (the hardware drivers H.1–H.6 are the next section). Each box is a branch the condenser folds into a PR; the BIOS boot path and every regression check keep passing, and checks that need x86-64 run under `qemu-system-x86_64`. Design notes in `documentation/kernel/long-mode.md` and `documentation/kernel/smp.md`.
+
+- [x] **2.8-lm-entry** — Enter long mode from the 32-bit kernel (4-level identity tables, EFER.LME, 64-bit code segment), run a 64-bit routine and come back. Checks `lm-test`, `lm-again`, `lm-nolm`.
+- [x] **2.8-smp-ap** — Find the CPUs (ACPI MADT), start the application processors (INIT-SIPI-SIPI through a real-mode trampoline) into the kernel's protected mode and paging with a stack and per-CPU data each, and park them. `cpus` lists them; a check under `-smp 4` sees four CPUs online.
+- [x] **2.8-smp-sched** — Per-CPU run queues: the APs run ring-3 threads, the kernel is entered under one lock, IPIs wake idle CPUs. A check runs four spinning threads at once on four CPUs.
+- [ ] **2.8-pae** — The 32-bit kernel's paging on PAE (64-bit entries), the format long mode shares; NX on the heap and stacks.
+- [ ] **2.9-lm-kernel** — The kernel stays in long mode: 64-bit IDT and TSS (IST for double faults), 4-level per-process address spaces, the 32-bit kernel code reached through compatibility-mode thunks until it is ported, and 32-bit programs in compatibility mode. The whole regression suite passes under `qemu-system-x86_64`.
+- [ ] **2.9-syscall64** — 64-bit programs: an ELF64 loader and the `syscall`/`sysret` ABI (STAR/LSTAR, 64-bit call table, pointer checks), with `int 0x80` unchanged for 32-bit programs. A `hello64` check.
+
 ## Modern hardware (2.8–2.9)
 
 Scheduled in the 64-bit bridge, 2.8–2.9 in `ROADMAP.md`. Each box is one PR, and the BIOS boot path and its regression checks keep passing. QEMU covers each one: OVMF for UEFI, `-device ahci`, `-device nvme`, `-device qemu-xhci` with `usb-kbd` and `usb-storage`.
