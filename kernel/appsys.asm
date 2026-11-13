@@ -68,13 +68,44 @@ gui_leave:
 
 ; ecx = rect block. Both copies walk the rectangle pixel by pixel through
 ; gfx_putpixel / gfx_getpixel, which skip what is off the screen.
+; The block is copied to the stack first, so a ring-3 caller's buffer is
+; checked (pitch * (height - 1) + width bytes) on the values then used.
+; Width and height up to 4096, pitch up to 65536; otherwise -> -1.
 gui_blit:
-    mov byte [gui_dir], 0
+    xor eax, eax
     jmp gui_rect
 gui_read:
-    mov byte [gui_dir], 1
+    mov eax, 1
 gui_rect:
-    mov ebp, ecx
+    sub esp, 28
+    mov [esp+24], eax           ; direction: 0 blit, 1 read
+    mov esi, ecx
+    mov edi, esp
+    mov ecx, 6
+    rep movsd
+    mov ebp, esp
+    mov ecx, [ebp+GB_W]
+    test ecx, ecx
+    jle .done
+    mov edx, [ebp+GB_H]
+    test edx, edx
+    jle .done
+    cmp ecx, 4096
+    ja .bad
+    cmp edx, 4096
+    ja .bad
+    mov eax, [ebp+GB_PITCH]
+    cmp eax, 65536
+    ja .bad
+    call gui_ring3
+    jz .go
+    dec edx
+    imul edx, eax
+    add ecx, edx
+    mov esi, [ebp+GB_BUF]
+    call ua_range
+    jc .bad
+.go:
     mov esi, [ebp+GB_BUF]
     xor edx, edx                ; row
 .row:
@@ -88,7 +119,7 @@ gui_rect:
     add eax, edi
     mov ebx, [ebp+GB_Y]
     add ebx, edx
-    cmp byte [gui_dir], 0
+    cmp byte [ebp+24], 0
     jne .rd
     mov cl, [esi+edi]
     call gfx_putpixel
@@ -105,6 +136,63 @@ gui_rect:
     jmp .row
 .done:
     xor eax, eax
+.r:
+    add esp, 28
+    ret
+.bad:
+    or eax, -1
+    jmp .r
+
+; -> ZF clear when the caller is a ring-3 program (it has an address
+; space of its own, ring3.md). Keeps every register.
+gui_ring3:
+    push eax
+    mov eax, [proc_cur]
+    cmp dword [eax+PCB_AS], 0
+    pop eax
+    ret
+
+; Ring-3 pointer checks for SYS_GUI (sys_uargs, kind UA_GUI): ebx = op,
+; ecx / edx its arguments -> CF if a buffer is not the caller's. The
+; rect block's buffer and the eval block's strings are checked by the
+; operations themselves, on their own copies of the pointers.
+gui_uargs:
+    pushad
+    mov esi, ecx
+    cmp ebx, GUI_BLIT
+    je .rect
+    cmp ebx, GUI_READ
+    je .rect
+    cmp ebx, GUI_FONT
+    je .font
+    cmp ebx, GUI_EVAL
+    je .eval
+    cmp ebx, GUI_PALETTE
+    jne .ok
+    shr ecx, 16                 ; count
+    cmp ecx, 256
+    ja .ok                      ; GUI_PALETTE refuses it itself
+    lea ecx, [ecx+ecx*2]
+    mov esi, edx
+    jmp .range
+.rect:
+    mov ecx, 24
+    jmp .range
+.font:
+    mov ecx, (FONT_LAST - FONT_FIRST + 1) * FONT_H
+    jmp .range
+.eval:
+    mov ecx, 40
+.range:
+    call ua_range
+    jc .bad
+.ok:
+    popad
+    clc
+    ret
+.bad:
+    popad
+    stc
     ret
 
 ; A key press without waiting. Releases, Shift and Ctrl give 0 (Shift and
@@ -237,6 +325,21 @@ gui_rtc_date db 9, 8, 7
 ; functions do. Resets the FPU.
 gui_eval:
     mov ebp, ecx
+    mov eax, [ebp+GE_TEXT]      ; the pointers, read once
+    mov [gui_ev_text], eax
+    mov esi, [ebp+GE_EXPR]
+    mov [gui_ev_expr], esi
+    call gui_ring3
+    jz .checked
+    call ua_str
+    jc .bad
+    test eax, eax
+    jz .checked
+    mov esi, eax
+    mov ecx, 40
+    call ua_range
+    jc .bad
+.checked:
     fninit
     mov al, [sci_deg]
     push eax
@@ -248,7 +351,7 @@ gui_eval:
     mov [sci_deg], al
     fld qword [ebp+GE_Y]
     fstp qword [sci_y]
-    mov eax, [ebp+GE_EXPR]
+    mov eax, [gui_ev_expr]
     mov [diff_f], eax
     fld qword [ebp+GE_X]
     call diff_f_at
@@ -267,7 +370,7 @@ gui_eval:
 .err:
     fninit
     mov eax, [calc_errpos]
-    sub eax, [ebp+GE_EXPR]
+    sub eax, [gui_ev_expr]
     inc eax
     mov [ebp+GE_COL], eax
     mov esi, [calc_errmsg]
@@ -275,7 +378,7 @@ gui_eval:
 .text:
     pop eax
     mov [sci_deg], al
-    mov edi, [ebp+GE_TEXT]
+    mov edi, [gui_ev_text]
     test edi, edi
     jz .r
     mov ecx, 39
@@ -287,6 +390,9 @@ gui_eval:
     mov byte [edi], 0
 .r:
     mov eax, ebx
+    ret
+.bad:
+    or eax, -1
     ret
 
 ; ecx = first entry | count << 16, edx = 3 bytes (red, green, blue, 0-63)
@@ -312,4 +418,5 @@ gui_palette:
     or eax, -1
     ret
 
-gui_dir db 0
+gui_ev_expr dd 0
+gui_ev_text dd 0

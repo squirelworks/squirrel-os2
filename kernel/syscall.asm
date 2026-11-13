@@ -99,6 +99,7 @@ UA_DEV      equ 8           ; ecx -> edx bytes (char) or a sector (block)
 UA_NETSEND  equ 9           ; ebx -> 16-byte block, its +8 -> its +12 bytes
 UA_NETRECV  equ 10          ; ebx -> 20-byte block, its +4 -> its +8 bytes
 UA_KERNEL   equ 11          ; refused from ring 3
+UA_GUI      equ 12          ; per GUI_* operation (gui_uargs, appsys.asm)
 
 SYS_EFAULT  equ -1
 
@@ -112,6 +113,7 @@ sys_uarg_kind:
     db UA_DEV, UA_NONE, UA_B_C, UA_NONE         ; devwrite seek fserror send
     db UA_NONE, UA_NONE, UA_NETSEND, UA_NETRECV ; recv keyevents netsendto netrecvfrom
     db UA_NONE, UA_BZ, UA_BZ                    ; setprio devreg devunreg
+    db UA_GUI                                   ; gui
 %if $-sys_uarg_kind != SYS_COUNT
 %error sys_uarg_kind needs one byte per system call
 %endif
@@ -121,11 +123,15 @@ sys_uarg_kind:
 sys_uargs:
     pushad
     movzx eax, byte [sys_uarg_kind+eax]
-    cmp eax, UA_KERNEL
+    cmp eax, UA_GUI
     ja .ok
     jmp [.kinds+eax*4]
 .kinds:
-    dd .ok, .bz, .bz_cz, .bz_cz0, .c_d, .b_c, .c_512, .c_20, .dev, .netsend, .netrecv, .bad
+    dd .ok, .bz, .bz_cz, .bz_cz0, .c_d, .b_c, .c_512, .c_20, .dev, .netsend, .netrecv, .bad, .gui
+.gui:
+    call gui_uargs
+    jc .bad
+    jmp .ok
 .bz_cz0:
     test ecx, ecx
     jz .bz

@@ -6,7 +6,8 @@
 ; screen: a frame pixel, the title bar, an ink pixel of the text's first
 ; glyph and the client area beside it. Also checks that a key poll with
 ; nothing typed gives 0, that the clock ticks and the date looks sane,
-; that GUI_EVAL computes 2^10 and reports a syntax error, then returns to
+; that GUI_EVAL computes 2^10 and reports a syntax error, and, in ring 3,
+; that SYS_GUI refuses buffers in kernel memory (-1), then returns to
 ; text mode and prints "guitest: PASS" (or FAIL and the first bad check).
 ; "run guitest hold" waits for a key before leaving graphics mode, so the
 ; regression run can read the window's text.
@@ -138,6 +139,31 @@ main:
     cmp word [outbuf], '9'
     jne .fail
 
+    mov ax, cs                  ; ring 3 (2.4): kernel pointers are refused
+    test al, 3
+    jz .done
+    mov byte [bad], 'p'
+    mov ebp, refuse
+.ref:
+    mov ebx, [ebp]
+    cmp ebx, -1
+    je .done
+    mov eax, [ebp+12]           ; patch the eval block or the rect block
+    test eax, eax
+    jz .call
+    mov edx, [ebp+16]
+    mov [eax], edx
+.call:
+    mov eax, SYS_GUI
+    mov ecx, [ebp+4]
+    mov edx, [ebp+8]
+    int 0x80
+    cmp eax, -1
+    jne .fail
+    inc byte [bad]
+    add ebp, 20
+    jmp .ref
+.done:
     call gui_close
     mov esi, pass
     call gui_puts
@@ -156,6 +182,20 @@ main:
     call gui_puts
     mov eax, 1
     ret
+
+KMEM equ 0x8000                 ; the kernel's low image
+; op, ecx, edx, address to patch first (0: none), value: each must give -1
+refuse:
+    dd GUI_FONT, KMEM, 0, 0, 0                          ; p
+    dd GUI_PALETTE, 64 | 1 << 16, KMEM, 0, 0            ; q
+    dd GUI_BLIT, KMEM, 0, 0, 0                          ; r: the block
+    dd GUI_READ, rb, 0, rb+16, KMEM                     ; s: its buffer
+    dd GUI_READ, rb, 0, rb+16, 0x3FFF0                  ; t: past the program
+    dd GUI_EVAL, KMEM, 0, 0, 0                          ; u: the block
+    dd GUI_EVAL, ev, 0, ev+GE_TEXT, KMEM                ; v: the text buffer
+    dd GUI_EVAL, ev, 0, ev+GE_EXPR, KMEM                ; w: the expression
+    dd -1
+rb dd 0, 0, 8, 8, 0, 8          ; x y w h buffer pitch
 
 title db 'Gui test', 0
 hello db 'Hello from a program', 0

@@ -113,8 +113,10 @@ through headless QEMU.
 | 10 | `GUI_EVAL` | eval block | 0, or −1 on an error. Evaluates an expression with the `sci` engine |
 | 11 | `GUI_PALETTE` | first entry \| count << 16; `edx` = 3 bytes an entry (red, green, blue, 0–63) | 0, or −1 if the entries are not all within 64–255. Sets VGA DAC entries; 0–63 are refused because text mode uses them |
 
-Rect block: six dwords, `x`, `y`, `width`, `height`, `buffer`, `pitch` (bytes from one buffer row to the next).
+Rect block: six dwords, `x`, `y`, `width`, `height`, `buffer`, `pitch` (bytes from one buffer row to the next). Width and height up to 4096 and pitch up to 65536, or the call returns −1.
 
 Eval block (40 bytes): `+0` the expression (zero-terminated); `+4` flags: bits 0–1 the variables allowed (0 none, 1 `x`, 2 `x` and `y`), bit 8 degrees, bit 9 store the result as `ans`; `+8` x and `+16` y (doubles); `+24` the result (double, out); `+32` the address of a 40-byte buffer for the result as `sci` prints it, or for the error message (`syntax at column `, `division by zero`, `outside the function domain`, ...), or 0; `+36` (out) the column of a syntax error, from 1. The call resets the FPU.
 
-Check: `guitest` (`run guitest`: a window drawn by a program, five pixels read back from the screen, a key poll with nothing typed, the ticks and the date, `2^10` = `1024`, a syntax error at column 4, and `x^2` at x = 3; it prints `guitest: PASS`), and `guitest-gfx` (`run guitest hold` keeps the window up so the run reads its title and text).
+From ring 3 (`ring3.md`) every buffer must be the program's own memory, or the call returns −1 without running: the rect block and the `pitch × (height − 1) + width` bytes of its buffer, the font buffer, the eval block with its expression and its text buffer, and the palette bytes. The block's pointers are read once and checked on that copy.
+
+Check: `guitest` (`run guitest`: a window drawn by a program, five pixels read back from the screen, a key poll with nothing typed, the ticks and the date, `2^10` = `1024`, a syntax error at column 4, and `x^2` at x = 3; in ring 3, that kernel-memory buffers are refused for each operation that takes one; it prints `guitest: PASS`), and `guitest-gfx` (`run guitest hold` keeps the window up so the run reads its title and text).

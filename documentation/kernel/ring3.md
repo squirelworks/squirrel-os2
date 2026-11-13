@@ -79,6 +79,7 @@ and end (zero byte) inside the same one. One byte per call in `sys_uarg_kind` sa
 | `ecx` sector / 20 bytes | `bread`, `bwrite` / `readdir` |
 | block and the buffer it points to | `netsendto` (16-byte block), `netrecvfrom` (20-byte block) |
 | kernel-only | `palloc`, `pfree`: they deal in physical pages. Programs use `SYS_SBRK` |
+| per operation | `gui`: the rect block and its buffer, the font buffer, the eval block and its strings, the palette bytes (`syscalls.md`) |
 
 A call that fails the check does not run and returns −1 (`SYS_EFAULT`). Calls from ring 0 are
 not checked.
