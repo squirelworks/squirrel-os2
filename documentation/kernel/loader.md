@@ -46,7 +46,7 @@ yet (see 2.x).
 
 ## Formats
 
-The first four bytes select the format.
+The first bytes select the format: `SQX1`, `0x7F ELF`, or `MZ`.
 
 ### SQX (flat binary)
 
@@ -70,8 +70,17 @@ file and the rest of `p_memsz` reads as zero (the whole area is cleared first). 
 types are ignored. The entry point must be inside the area. There is no dynamic linking,
 interpreter or relocation. `PT_INTERP` is ignored and such a program will not run correctly.
 
-`kernel/loaders/elf_stub.asm` remains the separate design sketch for a Linux personality.
-The native loader here takes no Linux ABI. Programs use the Squirrel-OS/2 `int 0x80` calls.
+An ELF whose `EI_OSABI` byte is 3 (`ELFOSABI_LINUX`) is loaded the same way but runs under
+the Linux personality (P.1): it starts with the Linux initial stack and its `int 0x80` calls
+use Linux numbers. Other ELF programs use the Squirrel-OS/2 `int 0x80` calls. See
+`../architecture/foreign-compatibility.md`.
+
+### MZ (Windows programs)
+
+A file starting with `MZ` is not loaded by the kernel: the loader runs the program `winrun`
+from the data disk with the argument `<file> <argument>` instead, and returns its pid (P.5).
+`winrun` loads Win32 PE32 console programs (`../architecture/foreign-compatibility.md`). When
+`winrun` is not on the disk, `run prog.exe` reports `Unknown command or program`.
 
 ## Program ABI
 
