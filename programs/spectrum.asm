@@ -3,7 +3,7 @@
 ;   run spectrum <file.wav>         play the file and show its spectrum
 ;   run spectrum live               show the spectrum of the sound input
 ;   run spectrum <file.wav> test    print the strongest frequency of the
-;                                   file's first FFT_N frames, no window
+;                                   file's first FFT_N frames (no graphics, no sound)
 ; Each block of FFT_N frames (mixed to mono) gets a Hann window and a
 ; radix-2 FFT (x87, doubles); the window shows 64 bars (the magnitude in
 ; decibels over 8 bins each, 0 to 90 dB) and the strongest frequency,

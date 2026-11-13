@@ -40,4 +40,4 @@ Plays a WAV file and shows the spectrum of each block of 1024 frames as it goes:
 
 Each block is mixed to mono, given a Hann window, and run through a 1024-point radix-2 FFT (decimation in time, x87 doubles, twiddles from `fsincos`). A bar is the loudest bin of its eight, as 20 log10 of the magnitude (full scale = 90 dB). The peak frequency is the loudest bin from 2 up, moved by a parabola through it and its two neighbours (in dB), which finds a 1 kHz tone at 22050 Hz as 1000 Hz although the bins are 21.5 Hz apart.
 
-`run spectrum <file.wav> test` prints the first block's peak without a window or sound: `spectrum: peak 1000 Hz, 80 dB`. Checks: `spectrum-test`, `spectrum-8bit`, `spectrum-gui`.
+`run spectrum <file.wav> test` prints the first block's peak without graphics or sound: `spectrum: peak 1000 Hz, 80 dB`. Checks: `spectrum-test`, `spectrum-8bit`, `spectrum-gui`.
