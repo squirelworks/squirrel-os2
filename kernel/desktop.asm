@@ -951,6 +951,8 @@ dk_trykey:
     call dk_wmreply
     jmp dk_trykey
 .map:
+    call clip_key               ; the clipboard keys (2.3-clipboard)
+    jnc .clipk
     mov ah, 27
     cmp al, 0x01
     je .got
@@ -974,6 +976,7 @@ dk_trykey:
     ret
 .got:
     mov al, ah
+.clipk:
     clc
     ret
 .none:
@@ -1031,6 +1034,8 @@ wg_getkey:
     mov ah, WK_DOWN
     cmp al, 0x50
     je .r
+    call clip_key               ; the clipboard keys (2.3-clipboard)
+    jnc .clip
     mov ah, WK_DEL              ; Delete (1.9.2)
     cmp al, 0x53
     je .r
@@ -1040,6 +1045,7 @@ wg_getkey:
     jz wg_getkey
 .r:
     mov al, ah
+.clip:
     ret
 
 DK_NAPPS equ 5                  ; programs
