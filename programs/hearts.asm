@@ -1,6 +1,8 @@
 ; hearts — Hearts against three computer players (G.4). Original code.
 ;
 ;   run hearts [seed]      play to 100 points; the lowest score wins
+;   run hearts gui [seed]  the same game on the graphics screen: click cards
+;                        (or use the arrows and Enter); n new game, q quit
 ;   run hearts test        rules and AI self-check, prints "hearts: PASS"
 ;
 ; You sit South; West, North and East are the computer. Play goes
@@ -20,6 +22,8 @@
 SQX_HEADER main
 %include "games.inc"
 %include "cards.inc"
+%include "gui.inc"
+%include "gamegui.inc"
 
 HAND   equ 13
 S_CLUB equ 0x00
@@ -34,6 +38,8 @@ main:
     mov ebx, m_name
     call g_start
     jc selftest
+    cmp byte [g_gui], 0
+    jne gui_play
     mov esi, m_title
     call g_puts
 .newgame:
@@ -1031,6 +1037,472 @@ winner_text:                    ; the lowest score wins
     popad
     ret
 
+; ---------- graphics ----------
+
+; Your hand fans out along the bottom (cards to pass are raised), the
+; trick lies in the middle with each card in front of its player, and
+; the scores are on the top line.
+HX0     equ 4
+HAND_Y  equ 140
+RAISE   equ 8
+HSTEP   equ 22
+DELAY   equ 35                  ; ticks between the computer's cards
+
+; After gui_event: q or Esc quits, n starts a new game
+%macro GCOMMON 0
+    cmp al, 27
+    je .quit
+    cmp al, 'q'
+    je .quit
+    cmp al, 'n'
+    je .newgame
+%endmacro
+
+gui_play:
+    call gui_open
+    jnc .newgame
+    mov esi, m_nogui
+    call g_puts
+    mov eax, 1
+    ret
+.newgame:
+    xor eax, eax
+    mov [score], eax
+    mov [score+4], eax
+    mov [score+8], eax
+    mov [score+12], eax
+    mov [round], eax
+.newround:
+    call deal
+    xor eax, eax
+    mov [nplayed], eax
+    mov [trick], eax
+    mov [gsel], eax
+    mov [gcur], eax
+    mov eax, [round]
+    and eax, 3
+    mov [passdir], eax
+    cmp eax, 3
+    je .play
+    call pass_target
+    mov eax, [gpassmsg+eax*4]
+    mov [gmsg], eax
+    ; passing: pick three cards
+.pass:
+    call gdraw
+    call gui_flip
+    xor ecx, ecx
+    call gui_event
+    GCOMMON
+    cmp eax, EV_CLICK
+    jne .pkey
+    mov eax, [gui_mx]
+    mov ebx, [gui_my]
+    call ghand
+    cmp eax, -1
+    je .pass
+    jmp .toggle
+.pkey:
+    cmp al, 13
+    je .passgo
+    cmp al, ' '
+    je .tcur
+    shr eax, 8
+    cmp al, K_ENTER
+    je .passgo
+    cmp al, K_UP
+    je .tcur
+    cmp al, K_DOWN
+    je .tcur
+    call gmovecur
+    jmp .pass
+.tcur:
+    mov eax, [gcur]
+.toggle:
+    mov [gcur], eax
+    btr [gsel], eax
+    jc .pass
+    call gselcount
+    cmp ecx, 3
+    jae .pass
+    bts [gsel], eax
+    jmp .pass
+.passgo:
+    call gselcount
+    cmp ecx, 3
+    jne .pass
+    xor ebx, ebx
+    call handptr
+    xor ecx, ecx
+    xor edx, edx
+.pb:bt [gsel], ecx
+    jnc .pbn
+    mov al, [edi+ecx]
+    mov [passbuf+edx], al
+    inc edx
+.pbn:
+    inc ecx
+    cmp ecx, HAND
+    jb .pb
+    mov ebx, 1
+.aip:
+    call ai_pass
+    inc ebx
+    cmp ebx, 4
+    jb .aip
+    call exchange
+    ; raise what came in, and say what it was
+    mov dword [gsel], 0
+    mov edi, gbuf
+    call gg_sb_start
+    mov esi, m_g_got
+    call gg_sb_str
+    xor edx, edx
+.rc:mov al, [recv+edx]
+    push edx
+    xor ebx, ebx
+    call findcard
+    bts [gsel], eax
+    mov al, [recv+edx]
+    call gg_sb_card
+    mov al, ' '
+    call gg_sb_chr
+    pop edx
+    inc edx
+    cmp edx, 3
+    jb .rc
+    mov esi, m_g_click
+    call gg_sb_str
+    mov dword [gmsg], gbuf
+.gotw:
+    call gdraw
+    call gui_flip
+    xor ecx, ecx
+    call gui_event
+    GCOMMON
+    cmp eax, EV_DRAG
+    je .gotw
+    mov dword [gsel], 0
+    ; playing
+.play:
+    call start_play
+.trick:
+    mov dword [nplayed], 0
+    mov eax, [leader]
+    mov [cur], eax
+    mov dword [trick], 0
+.turn:
+    cmp dword [nplayed], 4
+    je .endtrick
+    cmp dword [cur], YOU
+    je .human
+    mov ebx, [cur]
+    call ai_choose
+    call play
+    call gdraw
+    call gui_flip
+    mov ecx, DELAY
+    call gui_event
+    GCOMMON
+    jmp .next
+.human:
+    mov dword [gmsg], m_g_turn
+.hloop:
+    call gdraw
+    call gui_flip
+    xor ecx, ecx
+    call gui_event
+    GCOMMON
+    cmp eax, EV_CLICK
+    jne .hkey
+    mov eax, [gui_mx]
+    mov ebx, [gui_my]
+    call ghand
+    cmp eax, -1
+    je .hloop
+    mov [gcur], eax
+    jmp .try
+.hkey:
+    cmp al, 13
+    je .try
+    cmp al, ' '
+    je .try
+    shr eax, 8
+    cmp al, K_ENTER
+    je .try
+    cmp al, K_UP
+    je .try
+    call gmovecur
+    jmp .hloop
+.try:
+    xor ebx, ebx
+    call handptr
+    mov eax, [gcur]
+    mov al, [edi+eax]
+    call legal
+    jc .illegal
+    call play
+    mov dword [gmsg], m_g_blank
+    jmp .next
+.illegal:
+    mov dword [gmsg], m_g_illegal
+    jmp .hloop
+.next:
+    mov eax, [cur]
+    inc eax
+    and eax, 3
+    mov [cur], eax
+    jmp .turn
+.endtrick:
+    call end_trick              ; eax = winner, edx = points
+    mov edi, gbuf
+    call gg_sb_start
+    mov esi, m_g_youtake
+    test eax, eax
+    jz .tk
+    mov esi, [names+eax*4]
+    call gg_sb_str
+    mov esi, m_takes
+.tk:call gg_sb_str
+    mov eax, edx
+    call gg_sb_num
+    mov esi, m_g_pts
+    call gg_sb_str
+    mov dword [gmsg], gbuf
+    call .wait
+    jc .quit
+    jz .newgame
+    cmp dword [trickno], HAND
+    jb .trick
+    call end_round
+    mov dword [trick], 0
+    call game_done
+    test eax, eax
+    jnz .over
+    mov dword [gmsg], m_g_round
+    call .wait
+    jc .quit
+    jz .newgame
+    jmp .newround
+.over:
+    xor ebx, ebx                ; the lowest score wins
+    xor ecx, ecx
+.lo:mov eax, [score+ecx*4]
+    cmp eax, [score+ebx*4]
+    jge .lon
+    mov ebx, ecx
+.lon:
+    inc ecx
+    cmp ecx, 4
+    jb .lo
+    mov edi, gbuf
+    call gg_sb_start
+    mov esi, [names+ebx*4]
+    call gg_sb_str
+    mov esi, m_g_wins
+    call gg_sb_str
+    mov dword [gmsg], gbuf
+.overw:
+    call .wait
+    jc .quit
+    jz .newgame
+    jmp .overw
+.quit:
+    call gui_close
+    xor eax, eax
+    ret
+; Shows the table until a key or a click: CF set for q / Esc, ZF set
+; for n, otherwise go on
+.wait:
+    call gdraw
+    call gui_flip
+    xor ecx, ecx
+    call gui_event
+    cmp eax, EV_DRAG
+    je .wait
+    cmp al, 27
+    je .wq
+    cmp al, 'q'
+    je .wq
+    cmp al, 'n'                 ; ZF set for n
+    clc
+    ret
+.wq:stc
+    ret
+
+; eax = an event key: Left / Right move the cursor along the hand
+gmovecur:
+    push eax
+    cmp al, K_LEFT
+    je .l
+    cmp al, K_RIGHT
+    jne .r
+    mov eax, [gcur]
+    inc eax
+    cmp eax, [hn]
+    jae .r
+    mov [gcur], eax
+    jmp .r
+.l: cmp dword [gcur], 0
+    je .r
+    dec dword [gcur]
+.r: pop eax
+    ret
+
+; -> ecx = how many cards are picked for passing
+gselcount:
+    push eax
+    xor ecx, ecx
+    mov eax, [gsel]
+.l: test eax, eax
+    jz .r
+    lea ecx, [ecx+1]
+    lea edx, [eax-1]
+    and eax, edx
+    jmp .l
+.r: pop eax
+    ret
+
+; -> edx = the step between the cards of your hand
+ghstep:
+    push eax
+    push ecx
+    mov edx, HSTEP
+    mov ecx, [hn]
+    dec ecx
+    jle .r
+    mov eax, SCR_W - 2 * HX0 - CARD_W
+    push edx
+    xor edx, edx
+    div ecx
+    pop edx
+    cmp eax, edx
+    jae .r
+    mov edx, eax
+.r: pop ecx
+    pop eax
+    ret
+
+; eax, ebx = a point -> eax = the card of your hand there, or -1
+ghand:
+    push ecx
+    push edx
+    cmp ebx, HAND_Y - RAISE
+    jl .no
+    cmp ebx, HAND_Y + CARD_H
+    jge .no
+    cmp dword [hn], 0
+    je .no
+    sub eax, HX0
+    js .no
+    call ghstep                 ; edx = step
+    mov ecx, [hn]
+    dec ecx                     ; the last card
+    push ecx
+    imul ecx, edx               ; its x
+    sub eax, ecx
+    jae .last
+    add eax, ecx
+    mov ecx, edx
+    xor edx, edx
+    div ecx
+    pop ecx
+    jmp .r
+.last:
+    pop ecx
+    cmp eax, CARD_W             ; the last card is a whole card wide
+    jae .no
+    mov eax, ecx
+    jmp .r
+.no:
+    mov eax, -1
+.r: pop edx
+    pop ecx
+    ret
+
+gdraw:
+    pushad
+    call gg_table
+    ; the scores on the top line
+    mov edi, gtitle
+    call gg_sb_start
+    xor ebx, ebx
+.sc:mov esi, [names+ebx*4]
+    call gg_sb_str
+    mov al, ' '
+    call gg_sb_chr
+    mov eax, [score+ebx*4]
+    call gg_sb_num
+    mov esi, m_g_gap
+    cmp ebx, 3
+    je .sn
+    call gg_sb_str
+.sn:inc ebx
+    cmp ebx, 4
+    jb .sc
+    mov esi, gtitle
+    call gg_title
+    ; the trick, and the names of the computer players
+    xor ecx, ecx
+.t: mov eax, [gtx+ecx*4]
+    mov ebx, [gty+ecx*4]
+    movzx edx, byte [trick+ecx]
+    test dl, dl
+    jz .tn
+    mov dh, 1
+    call gg_card
+.tn:test ecx, ecx
+    jz .tl
+    mov esi, [names+ecx*4]
+    mov eax, [glx+ecx*4]
+    mov ebx, [gly+ecx*4]
+    push ecx
+    mov cl, C_WHITE
+    call gg_textc
+    pop ecx
+.tl:inc ecx
+    cmp ecx, 4
+    jb .t
+    ; your hand
+    call ghstep
+    xor ebx, ebx
+    call handptr
+    mov esi, edi
+    xor ecx, ecx
+.h: cmp ecx, [hn]
+    jae .hd
+    imul eax, ecx, 1
+    imul eax, edx
+    add eax, HX0
+    mov ebx, HAND_Y
+    bt [gsel], ecx
+    jnc .hy
+    sub ebx, RAISE
+.hy:push edx
+    movzx edx, byte [esi+ecx]
+    mov dh, 1
+    call gg_card
+    pop edx
+    cmp ecx, [gcur]
+    jne .hn
+    mov [gcx], eax
+    mov [gcy], ebx
+.hn:inc ecx
+    jmp .h
+.hd:
+    cmp dword [hn], 0           ; the cursor, on top of the hand
+    je .nc
+    mov eax, [gcx]
+    mov ebx, [gcy]
+    mov ecx, CARD_W
+    mov edx, CARD_H
+    call gg_cursor
+.nc:
+    mov esi, [gmsg]
+    call gg_status
+    popad
+    ret
+
 ; ---------- self-test ----------
 
 %macro EXPECT 1
@@ -1298,6 +1770,25 @@ n_north db 'North', 0
 n_east db 'East', 0
 
 m_name db 'hearts', 0
+m_nogui db 'hearts: no graphics screen', 10, 0
+gpassmsg dd 0, m_g_pw, m_g_pn, m_g_pe
+gtx dd 144, 96, 144, 192
+gty dd 86, 50, 14, 50
+glx dd 0, 66, 182, 230
+gly dd 0, 66, 30, 66
+m_g_pw db 'Pass three cards to West: click them, then Enter', 0
+m_g_pn db 'Pass three cards to North: click them, then Enter', 0
+m_g_pe db 'Pass three cards to East: click them, then Enter', 0
+m_g_got db 'You got ', 0
+m_g_click db '- click to go on', 0
+m_g_turn db 'Your turn: click a card (or arrows and Enter)', 0
+m_g_blank db 0
+m_g_youtake db 'You take the trick: ', 0
+m_g_illegal db 'You cannot play that card now', 0
+m_g_pts db ' points - click', 0
+m_g_round db 'Round over - click for the next round', 0
+m_g_wins db ' wins the game! n new game, q quit', 0
+m_g_gap db '   ', 0
 m_title db 'Squirrel Hearts - take as few hearts (1) and the queen of spades (13)', 10
         db 'as you can. Play a card by name (qs, 10h, 2c), n new game, q quits', 10, 0
 m_pass1 db 'Pass three cards to ', 0
@@ -1345,4 +1836,14 @@ deck resb 52
 passbuf resb 12
 recv resb 12
 seen resb 64
+alignb 4
+gsel resd 1
+gcur resd 1
+gcx resd 1
+gcy resd 1
+gmsg resd 1
+gbuf resb GG_SBMAX
+gtitle resb GG_SBMAX
+GUI_BSS
+GG_BSS
 SQX_END

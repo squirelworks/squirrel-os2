@@ -764,6 +764,15 @@ check chess-test    'chess: PASS'           'run chess test' '<ret>' '<pause>' '
 check_all chess-pgn '[Black "Squirrel Chess"]|1. e4 d5 *' 'run chess 1' '<ret>' e2e4 '<ret>' '<pause>' 'save g.pgn' '<ret>' q '<ret>' 'cat g.pgn' '<ret>'
 check mahjongg-test 'mahjongg: PASS'        'run mahjongg test' '<ret>' '<pause>'
 check_all mahjongg-play 'Try j1 a3|Tiles left: 106' 'run mahjongg 2' '<ret>' h '<ret>' 'j1 a3' '<ret>'
+# OS2-GAMES: the graphical front ends (run <game> gui [seed]), read off the screen
+check klondike-gui  'gfx: That move is not allowed' 'run klondike gui 3' '<ret>' '<pause>' '<ret>' '<right>' '<ret>' '<pause>' '<gfx>'
+check freecell-gui  'gfx: That move is not allowed' 'run freecell gui 2' '<ret>' '<pause>' '<ret>' '<right>' '<ret>' '<pause>' '<gfx>'
+check hearts-gui    'gfx: You got JH 6H 4H - click to go on' 'run hearts gui 3' '<ret>' '<pause>' ' ' '<right>' ' ' '<right>' ' ' '<ret>' '<pause>' '<gfx>'
+check_all mines-gui 'gfx: Mines left: 9|gfx: Click or Enter: open' 'run mines gui 5' '<ret>' '<pause>' '<ret>' '<up>' '<up>' '<up>' '<up>' '<left>' '<left>' '<left>' '<left>' f '<pause>' '<gfx>'
+check mines-gui-big 'gfx: Boom! You hit a mine.' 'run mines gui 5 big' '<ret>' '<pause>' '<ret>' '<down>' '<down>' '<down>' '<ret>' '<pause>' '<gfx>'
+check_all reversi-gui 'gfx: You 3|gfx: Computer 3' 'run reversi gui 1' '<ret>' '<pause>' '<ret>' '<pause>' '<pause>' '<gfx>'
+check_all chess-gui 'gfx: You: e4|gfx: d5' 'run chess gui 1' '<ret>' '<pause>' '<ret>' '<up>' '<up>' '<ret>' '<pause>' '<pause>' '<pause>' '<gfx>'
+check mahjongg-gui  'gfx: Tiles left: 106' 'run mahjongg gui 2' '<ret>' '<pause>' '<right>' '<right>' '<right>' '<right>' '<right>' '<right>' '<right>' '<right>' '<right>' '<ret>' '<down>' '<down>' '<left>' '<left>' '<left>' '<left>' '<left>' '<left>' '<left>' '<left>' '<left>' '<ret>' '<pause>' '<gfx>'
 disk=$out/progs.img
 # 1.0.6: calc, edit and draw titles follow lang
 check l10n-calc-tlh "mI' De'wI' (Esc to exit)" 'lang tlh' '<ret>' 'run calc' '<ret>'

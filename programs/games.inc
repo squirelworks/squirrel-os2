@@ -378,13 +378,15 @@ g_m_failed db ' failed', 10, 0
 g_m_pass db ': PASS', 10, 0
 g_m_fail db ': FAIL', 10, 0
 g_w_test db 'test', 0
+g_w_gui db 'gui', 0
 g_w_quit db 'q', 0
 g_w_new db 'n', 0
 g_w_help db '?', 0
 
 ; Common start of a game's main: esi = argument. Sets the seed from a
 ; number in the argument (or the clock) and returns CF set when the
-; argument is "test".
+; argument is "test". "gui" before the number sets g_gui to 1 (the
+; graphical front end); esi is left after what was read.
 g_start:
     push eax
     mov [g_name], ebx
@@ -392,6 +394,12 @@ g_start:
     mov edi, g_w_test
     call g_word
     jnc .test
+    mov byte [g_gui], 0
+    mov edi, g_w_gui
+    call g_word
+    jc .num
+    mov byte [g_gui], 1
+.num:
     call g_parsenum
     jnc .seed
     xor eax, eax
@@ -412,5 +420,6 @@ g_seed resd 1
 g_check resd 1
 g_name resd 1
 g_failed resb 1
+g_gui resb 1
 alignb 4
 %endmacro
