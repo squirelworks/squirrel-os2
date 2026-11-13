@@ -60,8 +60,13 @@ All are original, hand-written programs in `programs/`, built with
 
 Regress checks: `dos-hello`, `dos-cpu`, `dos-file`, `dos-exe`, `dos-missing`, `dos-after`.
 
-## Next
+## Starting a DOS program
 
-The kernel loader hands `.com` files to dosrun by name, and `winrun` passes
-an MZ file without a PE header on to dosrun, so `run prog.com` works without
-naming dosrun. Both wait for the Win32 loader work to reach main.
+`run prog.com [arguments]` and `run prog.exe [arguments]` work without naming dosrun: the
+kernel loader runs `dosrun <file> <arguments>` for a headerless file named `*.com` and for an
+`MZ` file without a PE header (`../kernel/loader.md`). `run winrun prog.exe` on a DOS `.EXE`
+passes it on to dosrun and returns its exit code. Regress checks: `dos-run-com`,
+`dos-run-exe`, `dos-winrun`, `dos-run-after`.
+
+Not yet: DOS programs larger than 64 KB (the loader's staging limit refuses them before
+dosrun sees them; `run dosrun big.exe` works up to dosrun's own limit).

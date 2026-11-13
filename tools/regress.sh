@@ -57,7 +57,7 @@ python3 "$root/tools/sqfs.py" "$out/dos.img" format 1024    # P.8: DOS programs 
 nasm -f bin -i "$root/programs/" "$root/programs/dosrun.asm" -o "$out/dosrun"
 for prog in doshello doscpu dosfile; do nasm -f bin "$root/programs/$prog.asm" -o "$out/$prog.com"; done
 nasm -f bin "$root/programs/dosexe.asm" -o "$out/dosexe.exe"
-for f in dosrun doshello.com doscpu.com dosfile.com dosexe.exe; do python3 "$root/tools/sqfs.py" "$out/dos.img" put "$out/$f"; done
+for f in dosrun winrun doshello.com doscpu.com dosfile.com dosexe.exe; do python3 "$root/tools/sqfs.py" "$out/dos.img" put "$out/$f"; done
 rm -f "$out/data.img"
 dd if=/dev/zero of="$out/data.img" bs=1024 count=1024 2>/dev/null
 
@@ -832,6 +832,11 @@ check_all dos-file  'got: acorn|dosfile: PASS'  'run dosrun dosfile.com' '<ret>'
 check_all dos-exe   'Hello from an MZ .EXE!|dosexe: PASS'  'run dosrun dosexe.exe' '<ret>'
 check dos-missing   'dosrun: cannot open'   'run dosrun nothere.com' '<ret>'
 check dos-after     'systest: PASS'         'run dosrun doscpu.com' '<ret>' systest '<ret>'
+# P.8-dos-launch: .com files and MZ files without a PE header go to dosrun by themselves
+check_all dos-run-com 'Hello from DOS land!|#! tail: acorns|doshello: PASS'  'run doshello.com acorns' '<ret>'
+check_all dos-run-exe 'Hello from an MZ .EXE!|dosexe: PASS'  'run dosexe.exe' '<ret>'
+check_all dos-winrun  'Hello from an MZ .EXE!|dosexe: PASS'  'run winrun dosexe.exe' '<ret>'
+check dos-run-after   'systest: PASS'         'run doscpu.com' '<ret>' systest '<ret>'
 disk=$out/auto.img
 check bat-autoexec  'autoexec ran'
 check lang-autoexec 'Tabulae:'              ls '<ret>'

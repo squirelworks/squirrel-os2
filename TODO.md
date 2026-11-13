@@ -381,7 +381,7 @@ From P.8 in `ROADMAP.md` and epic #118 (stream OS2-FOREIGN). Notes: `documentati
 
 - [x] **P.8-dosrun** — `dosrun`, an 8086/186 interpreter with the `INT 21h`/BIOS subset, runs DOS `.COM` and MZ `.EXE` programs as a user program (V86 waits for the low kernel image to leave the first megabyte).
   **Acceptance:** `run dosrun doshello.com acorns`, `doscpu.com`, `dosfile.com` and `dosexe.exe` each print their PASS line, and the shell works afterwards. Checks `dos-hello`, `dos-cpu`, `dos-file`, `dos-exe`, `dos-missing`, `dos-after`.
-- [ ] **P.8-dos-launch** — `run prog.com` and `run prog.exe` (MZ without PE) go to dosrun without naming it.
+- [x] **P.8-dos-launch** — `run prog.com` and `run prog.exe` (MZ without PE) go to dosrun without naming it.
 
 ## Modern hardware (2.8–2.9)
 
