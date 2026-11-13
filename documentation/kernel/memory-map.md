@@ -6,7 +6,8 @@ every address below is both virtual and physical. Only the program area differs 
 | Range | Use |
 |-------|-----|
 | `0x00000–0x004FF` | Real-mode IVT / BIOS data (left alone) |
-| `0x01000–0x012FF` | BIOS E820 memory map, copied by `stage2` (0.6.0) |
+| `0x01000–0x012FF` | BIOS E820 memory map, copied by `stage2` (0.6.0), or converted from the UEFI map by `boot/uefi/` (H.1) |
+| `0x01300–0x01317` | `UEFI_INFO`: the GOP framebuffer from the UEFI loader, signature `S2EF`; cleared by `stage2` (H.2, `hardware.md`) |
 | `0x07C00–0x07DFF` | Boot sector |
 | `0x08000–0x1FFFF` | Low kernel image (`pm.asm` section `.text`, 96 KB after 1.7.2; 64 KB from 0.5.1; 32 KB from 0.2.1), loaded by the boot sector |
 | `0x20000–0x2FFFF` | `KSCRATCH`: kernel scratch buffers (ATA identify/test buffers, later FS cache) |
@@ -19,7 +20,7 @@ every address below is both virtual and physical. Only the program area differs 
 | `0x7C000–0x91FFF` | Process stacks, 12 KB per slot: an unmapped guard page, then 8 KB of stack (slot *i* top = `0x7C000 + i*0x3000`, guard pages at `0x7C000 + k*0x3000`, k = 0–7; KB-17) |
 | `0x92000–0x9EFFF` | Boot / shell (pid 0) stack, down from `0x9F000` to the guard page at `0x91000` |
 | `0xB8000–0xB8F9F` | VGA text buffer |
-| `0x100000–0x1FFFFF` | High kernel image (`pm.asm` section `.high`, 2.4), copied here by `stage2`; the rest of the megabyte is reserved for it (`kernel-image.md`) |
+| `0x100000–0x1FFFFF` | High kernel image (`pm.asm` section `.high`, 2.4), copied here by `stage2`; the rest of the megabyte is reserved for it (`kernel-image.md`). After a UEFI boot its last 32 KB, `0x1F8000–0x1FFFFF`, is the text screen (`GOP_SHADOW`, mapped at `0xB8000`; H.2) |
 | `0x200000` and up | Pages handed out by the page allocator (usable RAM up to 256 MB), including page directories and tables. Before 2.4 they started at `0x100000` |
 | `0x10000000` and up | Not mapped: any access faults (0.6.1) |
 | `0x40000000–0x403FFFFF` | A program's heap, mapped page by page as `SYS_SBRK` grows it (0.6.2, `memory.md`) |
