@@ -190,7 +190,7 @@ sh_redirs:
     je .ndone
     cmp al, '>'
     je .ndone
-    cmp ecx, FS_NAMELEN-1
+    cmp ecx, FS_PATHMAX-1       ; (2.7: paths, long names)
     jae .skip
     mov [edx+ecx], al
     inc ecx
@@ -395,6 +395,6 @@ sh_stage dd 0
 sh_inlen dd 0
 sh_seg dd 0
 sh_next dd 0
-sh_inname times 16 db 0         ; FS_NAMELEN
-sh_outname times 16 db 0
+sh_inname times FS_PATHMAX db 0
+sh_outname times FS_PATHMAX db 0
 sh_line times SH_LINE db 0

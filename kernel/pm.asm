@@ -541,6 +541,8 @@ run_simple:
     call [ebx+4]
     jmp .empty
 .unknown:
+    call vol_command            ; mount, umount, cp, lfntest, fattest (2.7)
+    jnc .empty
     call sh_usage               ; a command word without its arguments?
     jnc .empty
     mov esi, [lstr+LS_UNKNOWN*4]
@@ -1056,7 +1058,7 @@ cmd_trap db 'trap', 0
 cmd_overflow db 'overflow', 0
 
 ; argument for the next app started with run (e.g. run edit notes)
-run_arg times 64 db 0           ; FS_PATHMAX
+run_arg times 96 db 0           ; FS_PATHMAX (fs.asm)
 run_rest dd 0                   ; whole argument text, for loaded programs
 cmd_ps db 'ps', 0
 cmd_mem db 'mem', 0
@@ -1398,6 +1400,9 @@ khigh_start:
 %include "udp.asm"
 %include "tcp.asm"
 %include "appsys.asm"
+%include "fslfn.asm"
+%include "volume.asm"
+%include "fat.asm"
 
 
 ; the high image ends on a sector boundary, with its signature last

@@ -35,12 +35,15 @@ DE_SIZE       equ 20            ; bytes
 DE_CAP        equ 24            ; sectors allocated
 DE_PARENT     equ 28            ; byte: directory id it is in (0.8.0)
 DE_KIND       equ 29            ; byte: DK_FILE or DK_DIR (0.8.0)
+DE_LFN        equ 30            ; byte: continuation entries of a long name (2.7)
 
 DK_FILE       equ 0
 DK_DIR        equ 1
+DK_LFN        equ 2             ; a long name's continuation (2.7, fslfn.asm)
 ; A directory's id is its entry index + 1; the root is 0. Entries
 ; written before 0.8.0 have zeros there: files in the root.
-FS_PATHMAX    equ 64
+FS_PATHMAX    equ 96            ; (2.7: was 64)
+FS_LNAMEMAX   equ 63            ; longest name (2.7; 15 before)
 
 ; open flags
 O_CREATE      equ 1
@@ -108,6 +111,7 @@ fs_load:
     mov eax, [FS_SB+SB_TOTAL]
     mov [fs_total], eax
     mov byte [fs_mounted], 1
+    call lfn_sweep              ; drop orphaned long-name parts (2.7)
     popad
     clc
     ret
@@ -330,27 +334,10 @@ fs_step:
     stc
     ret
 
-; esi = name, dl = directory -> edi = its entry, or 0
+; esi = name, dl = directory -> edi = its entry, or 0. A long name
+; matches by its whole name or its short alias (2.7, fslfn.asm).
 fs_find_in:
-    push ecx
-    mov edi, FS_DIR
-    mov ecx, FS_MAXFILES
-.l:
-    cmp byte [edi], 0
-    je .n
-    cmp [edi+DE_PARENT], dl
-    jne .n
-    push edi
-    call streq_bounded
-    pop edi
-    je .hit
-.n:
-    add edi, FS_DIRENT
-    loop .l
-    xor edi, edi
-.hit:
-    pop ecx
-    ret
+    jmp lfn_find_in
 
 ; edi = directory entry -> dl = its id
 fs_dir_id:
@@ -450,7 +437,7 @@ fs_check_name:
     call strlen
     test eax, eax
     jz .bad
-    cmp eax, FS_NAMELEN-1
+    cmp eax, FS_LNAMEMAX        ; (2.7: long names)
     ja .bad
     cmp byte [esi], '.'
     jne .ok
@@ -599,6 +586,8 @@ fs_create:
 fs_mkdir:
     mov al, DK_DIR
 fs_make:
+    call vol_path               ; "d:..." is a FAT drive (2.7, fat.asm)
+    jnc fat_make
     pushad
     mov bl, al
     mov byte [fs_errno], FE_NOFS
@@ -632,11 +621,12 @@ fs_make:
     pop edi
     mov [edi+DE_PARENT], dl
     mov [edi+DE_KIND], bl
-    push edi
-    call strlen
-    mov ecx, eax
-    rep movsb
-    pop edi
+    call lfn_set_name           ; short name, or alias + parts (2.7)
+    jnc .named
+    mov byte [edi], 0
+    mov byte [fs_errno], FE_TABLE
+    jmp .fail
+.named:
     call fs_flush_dir
     mov byte [fs_errno], FE_IO
     jc .fail
@@ -651,6 +641,8 @@ fs_make:
 ; esi = path -> 0 or -1. Refused while the file is open, and for a
 ; directory that is not empty or is the current one.
 fs_delete:
+    call vol_path
+    jnc fat_delete
     pushad
     mov byte [fs_errno], FE_NOFS
     cmp byte [fs_mounted], 0
@@ -671,6 +663,7 @@ fs_delete:
     mov byte [fs_errno], FE_NOTEMPTY
     jc .fail
 .gone:
+    call lfn_drop               ; its long name's parts (2.7)
     mov byte [edi], 0
     mov dword [edi+DE_CAP], 0
     call fs_flush_dir
@@ -688,6 +681,12 @@ fs_delete:
 ; another directory, but a directory not into itself. A new path that
 ; names a directory moves the entry into it under its old name (0.9.2).
 fs_rename:
+    call vol_path
+    jnc fat_rename
+    xchg esi, edi               ; SQFS to a drive: not by renaming
+    call vol_path
+    xchg esi, edi
+    jnc fs_rename_xdev
     pushad
     mov byte [fs_errno], FE_NOFS
     cmp byte [fs_mounted], 0
@@ -717,7 +716,7 @@ fs_rename:
     test edi, edi
     jnz .fail
     mov edi, fs_newname         ; keep it: the path buffer is reused
-    mov ecx, FS_NAMELEN
+    mov ecx, FS_LNAMEMAX+1
     rep movsb
     mov bh, dl
     mov esi, ebp
@@ -740,15 +739,11 @@ fs_rename:
     jmp .up
 .move:
     mov [edi+DE_PARENT], bh
-    push edi
-    mov ecx, FS_NAMELEN/4
-    xor eax, eax
-    rep stosd
-    pop edi
     mov esi, fs_newname
-    call strlen
-    mov ecx, eax
-    rep movsb
+    mov dl, bh
+    call lfn_set_name           ; (2.7: checks room before it changes)
+    mov byte [fs_errno], FE_TABLE
+    jc .fail
     call fs_flush_dir
     mov byte [fs_errno], FE_IO
     jc .fail
@@ -784,9 +779,12 @@ fs_is_open:
 ; descriptor table: 16 bytes each: dirent (0 = free), position
 FD_DIRENT     equ 0
 FD_POS        equ 4
+FD_VOL        equ 8             ; FAT drive (2.7), 0 for SQFS
 
 ; esi = name, ecx = flags (O_CREATE, O_TRUNC, O_APPEND) -> eax = fd or -1
 fs_open:
+    call vol_path
+    jnc fat_open
     pushad
     mov byte [fs_errno], FE_NOFS
     cmp byte [fs_mounted], 0
@@ -818,6 +816,7 @@ fs_open:
 .slot:
     mov [ebx+FD_DIRENT], edi
     mov dword [ebx+FD_POS], 0
+    mov dword [ebx+FD_VOL], 0
     test ecx, O_TRUNC
     jz .notrunc
     mov dword [edi+DE_SIZE], 0
@@ -852,6 +851,8 @@ fs_fd:
     ret
 
 fs_close:
+    call fs_fd_fat
+    jnc fat_close
     push edi
     call fs_fd
     jc .bad
@@ -870,6 +871,8 @@ SEEK_SET      equ 0
 SEEK_CUR      equ 1
 SEEK_END      equ 2
 fs_seek:
+    call fs_fd_fat
+    jnc fat_seek
     push edi
     push esi
     call fs_fd
@@ -901,6 +904,8 @@ fs_seek:
 
 ; ebx = fd, edi = buffer, ecx = length -> eax = bytes read, or -1
 fs_read:
+    call fs_fd_fat
+    jnc fat_read
     pushad
     mov ebp, edi                ; ebp = destination
     call fs_fd
@@ -967,6 +972,8 @@ fs_read:
 
 ; ebx = fd, esi = buffer, ecx = length -> eax = bytes written, or -1
 fs_write:
+    call fs_fd_fat
+    jnc fat_write
     pushad
     mov byte [fs_errno], FE_IO
     mov ebp, esi                ; ebp = source
@@ -1071,11 +1078,16 @@ fs_list_dir:
     je .n
     cmp [ebx+DE_PARENT], dl
     jne .n
-    mov esi, ebx
+    push edi
+    mov edi, ebx
+    call lfn_name               ; the whole name (2.7)
+    pop edi
     call puts
     cmp byte [ebx+DE_KIND], DK_DIR
     jne .file
     mov al, '/'
+    call putc
+    mov al, ' '                 ; (a name of 18 or more: one space)
     call putc
     mov al, 18
     call puts_pad
@@ -1083,6 +1095,8 @@ fs_list_dir:
     call puts
     jmp .eol
 .file:
+    mov al, ' '                 ; (a name of 18 or more: one space)
+    call putc
     mov al, 18
     call puts_pad
     mov eax, [ebx+DE_SIZE]
@@ -1132,7 +1146,8 @@ fs_cat:
 FS_CATBUF equ KSCRATCH+0x1800
 
 ; Splits the first word off esi: returns esi = word (zero-terminated in
-; place), edi = rest of the line (leading spaces skipped).
+; place), edi = rest of the line (leading spaces skipped). A word in
+; double quotes may hold spaces: "My Documents/a b.txt" (2.7).
 next_word:
 .skip:
     cmp byte [esi], ' '
@@ -1140,6 +1155,8 @@ next_word:
     inc esi
     jmp .skip
 .start:
+    cmp byte [esi], '"'
+    je .quoted
     mov edi, esi
 .w:
     cmp byte [edi], 0
@@ -1148,6 +1165,16 @@ next_word:
     je .cut
     inc edi
     jmp .w
+.quoted:
+    inc esi
+    mov edi, esi
+.q:
+    cmp byte [edi], 0
+    je .end
+    cmp byte [edi], '"'
+    je .cut
+    inc edi
+    jmp .q
 .cut:
     mov byte [edi], 0
     inc edi
@@ -1274,9 +1301,11 @@ cmd_rm_run:
 
 ; ls <dir>
 cmd_ls_run:
+    call next_word
+    call vol_path               ; ls d:/dir (2.7)
+    jnc fat_list
     call fs_need
     jc .r
-    call next_word
     call fs_find_dir
     jc fs_no_dir
     jmp fs_list_dir
@@ -1344,7 +1373,8 @@ fs_print_path:
 .p:
     pop eax
     shl eax, 5
-    lea esi, [FS_DIR-FS_DIRENT+eax]
+    lea edi, [FS_DIR-FS_DIRENT+eax]
+    call lfn_name               ; (2.7)
     call puts
     cmp ecx, 1
     je .last
@@ -1500,7 +1530,7 @@ align 4
 fs_base dd 0
 fs_dev dd FS_DEV
 fs_pathbuf times FS_PATHMAX db 0
-fs_newname times FS_NAMELEN db 0
+fs_newname times FS_LNAMEMAX+1 db 0
 fs_m_dir db '<dir>', 0
 fs_cat_last db 0
 fs_total dd 0
@@ -1529,11 +1559,13 @@ FE_IO       equ 11
 FE_FULL     equ 12
 FE_ISDIR    equ 13
 FE_NOFD     equ 14
+FE_NODRIVE  equ 15              ; 2.7: no drive mounted on that letter
+FE_XDEV     equ 16              ; 2.7: rename from one drive to another
 fs_errno db 0
 align 4
 fs_errkey:                      ; FE_* code -> string key (1.0.5)
     db LS_FE_ERROR, LS_FE_NOFS, LS_FE_NAME, LS_FE_EXISTS, LS_FE_NODIR, LS_FE_TABLE
     db LS_NOTFOUND, LS_FE_BUSY, LS_FE_NOTEMPTY, LS_FE_CWD, LS_FE_LOOP, LS_FE_IO
-    db LS_FE_FULL, LS_FE_ISDIR, LS_FE_NOFD
+    db LS_FE_FULL, LS_FE_ISDIR, LS_FE_NOFD, LS_FE_NODRIVE, LS_FE_XDEV
 fs_msg_formatted db 'Data disk was blank: formatted SQFS and added the built-in files.', 10, 0
 fs_msg_foreign db 'Data disk is not SQFS; type format to erase it.', 10, 0
