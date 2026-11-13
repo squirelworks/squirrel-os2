@@ -185,18 +185,18 @@ The window record gains `WIN_STATE` (`WS_NORMAL`, `WS_MIN`, `WS_MAX`), `WIN_REST
 
 ### Programs (syscalls, **2.2-progwin**, in the kernel since 2.2-progwin)
 
-The calls are in `kernel/winsys.asm`, numbers 48–55 (`SYS_COUNT` is 56; 36–47 return `SYS_ENOSYS` until other streams use them; 35 is `SYS_GUI`). A window belongs to the process that opened it (`WIN_OWNER`, its pid; −1 for the kernel's own windows) and is closed when that process exits (`proc_exit` calls `ws_procgone`). Only the owner may use a window. Coordinates are relative to the client area. From ring 3 every pointer (the blocks, the title, a string, blit bytes, the event buffer) must be the program's own memory (`ua_range` / `ua_str`, `ring3.md`), or the call returns −1.
+The calls are in `kernel/winsys.asm`, numbers 37–44 (`SYS_COUNT` is 45; 35 is `SYS_GUI`, 36 is kept for `SYS_SETTLS`). A window belongs to the process that opened it (`WIN_OWNER`, its pid; −1 for the kernel's own windows) and is closed when that process exits (`proc_exit` calls `ws_procgone`). Only the owner may use a window. Coordinates are relative to the client area. From ring 3 every pointer (the blocks, the title, a string, blit bytes, the event buffer) must be the program's own memory (`ua_range` / `ua_str`, `ring3.md`), or the call returns −1.
 
 | No. | Name | In | Out |
 |-----|------|----|-----|
-| 48 | `SYS_WINOPEN` | ebx = block: x, y, width, height (outer size), title address, flags (0 = `WF_DEFAULT`), six dwords | window id, or −1. In text mode the first window enters the window manager's screen (`wm_screen`); when the last program window closes the screen goes back to text. The title is copied into the record (`WIN_TBUF`, up to 31 characters). |
-| 49 | `SYS_WINCLOSE` | ebx = id | 0, or −1 if not the caller's |
-| 50 | `SYS_WINMOVE` | ebx = id, ecx = x \| y << 16, edx = width \| height << 16 (0 keeps that pair) | 0 or −1 (`wm_place` refused) |
-| 51 | `SYS_WINTITLE` | ebx = id, ecx = title | 0 or −1 |
-| 52 | `SYS_WINDRAW` | ebx = id, ecx = command block | 0 (`WD_PIXEL`: the colour), or −1 |
-| 53 | `SYS_WINFLUSH` | ebx = id | 0 or −1: the window manager's pending repaints (`ws_update`), then the window's area is flipped to the visible page |
-| 54 | `SYS_WINEVENT` | ebx = 16-byte buffer, ecx = 0 wait / 1 poll | 0 and the buffer filled, or −1 (poll, nothing waiting) |
-| 55 | `SYS_WININFO` | ebx = id (−1 for the screen), ecx = 16-byte buffer | 0 and the client area's x, y, width, height on the screen (the screen: 0, 0, width, height) |
+| 37 | `SYS_WINOPEN` | ebx = block: x, y, width, height (outer size), title address, flags (0 = `WF_DEFAULT`), six dwords | window id, or −1. In text mode the first window enters the window manager's screen (`wm_screen`); when the last program window closes the screen goes back to text. The title is copied into the record (`WIN_TBUF`, up to 31 characters). |
+| 38 | `SYS_WINCLOSE` | ebx = id | 0, or −1 if not the caller's |
+| 39 | `SYS_WINMOVE` | ebx = id, ecx = x \| y << 16, edx = width \| height << 16 (0 keeps that pair) | 0 or −1 (`wm_place` refused) |
+| 40 | `SYS_WINTITLE` | ebx = id, ecx = title | 0 or −1 |
+| 41 | `SYS_WINDRAW` | ebx = id, ecx = command block | 0 (`WD_PIXEL`: the colour), or −1 |
+| 42 | `SYS_WINFLUSH` | ebx = id | 0 or −1: the window manager's pending repaints (`ws_update`), then the window's area is flipped to the visible page |
+| 43 | `SYS_WINEVENT` | ebx = 16-byte buffer, ecx = 0 wait / 1 poll | 0 and the buffer filled, or −1 (poll, nothing waiting) |
+| 44 | `SYS_WININFO` | ebx = id (−1 for the screen), ecx = 16-byte buffer | 0 and the client area's x, y, width, height on the screen (the screen: 0, 0, width, height) |
 
 `SYS_WINDRAW` command block, seven dwords: `op`, `x`, `y`, `a`, `b`, `colour`, `ptr`. Every draw is clipped to the client area (`gfx_setclip`) and kept off the windows above it and an open menu (`gfx_occ`, `gfx_occn`: `gfx_putpixel` skips pixels inside those rectangles). Nothing reaches the visible page until `SYS_WINFLUSH`.
 

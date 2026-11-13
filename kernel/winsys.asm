@@ -1,7 +1,7 @@
 ; Squirrel-OS/2 — windows for programs (2.2-progwin)
 ; Included from pm.asm (high image). Original code.
 ;
-; Syscalls 48-55 let a loaded program open windows, draw in their client
+; Syscalls 37-44 let a loaded program open windows, draw in their client
 ; areas and read window events. The window manager runs in the program's
 ; own syscalls: SYS_WINEVENT pumps the mouse and keyboard through it while
 ; it waits. There is no backing store: when part of a program's window has
