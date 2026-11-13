@@ -314,16 +314,16 @@ From the 2.2 milestone in `ROADMAP.md` and epic #114. Start after the last 2.1 b
 - [x] **2.2-minmax** — Minimised windows become icons along the bottom of the desktop (double-click restores); maximise fills the screen and remembers the old rectangle. `winmin` checks the list states and rectangles → `winmin: PASS`.
 - [x] **2.2-sysmenu** — System menu (Restore, Move, Size, Minimise, Maximise, Close) from the sysmenu box or Alt+Space, with keyboard move and size (arrows, Enter, Esc). A menu is a reusable pop-up (`wg_menu`) other programs can use. `winmenu` → `winmenu: PASS`.
 - [x] **2.2-alttab** — Alt+Tab shows a switcher with the window titles and raises the chosen window on release; Alt+Esc sends the top window to the bottom. `winalttab` checks the focus order → `alttab: PASS`.
-- [ ] **2.2-propfont** — Original proportional bitmap fonts: a 9-pixel and a 12-pixel face drawn from `tools/fontp*.txt` by `tools/mkfont.py` (width table plus bitmaps), `gfx_drawstr_p` and `gfx_strwidth_p`. Title bars, menus and widgets use the proportional face; the 5×7 font stays for consoles and the regress screen reader. `qemu_screen.py` learns to read the proportional face. `pfont` reads back ink and spacing pixels and checks string widths → `pfont: PASS`.
+- [x] **2.2-propfont** — Original proportional bitmap fonts: a 9-pixel and a 12-pixel face drawn from `tools/fontp*.txt` by `tools/mkfont.py` (width table plus bitmaps), `gfx_drawstr_p` and `gfx_strwidth_p`. Title bars, menus and widgets use the proportional face; the 5×7 font stays for consoles and the regress screen reader. `qemu_screen.py` learns to read the proportional face. `pfont` reads back ink and spacing pixels and checks string widths → `pfont: PASS`.
 - [x] **2.2-progwin** — Programs open windows: syscalls to create, close, move, set the title, draw (fill, line, text, blit) in the client area, and receive window events (`MSG_WIN*`: key, mouse, close, resize, redraw) through the message queue. A test program in `programs/` opens a window, draws, gets a scripted click and a close → `progwin: PASS`. `documentation/kernel/syscalls.md` lists the calls.
 
 ## 2.3 — Program Manager / Warp 3 desktop
 
 From the 2.3 milestone in `ROADMAP.md`. Start after **2.2-progwin** is on `main`. Design notes in `documentation/apps/desktop.md` and new pages under `documentation/apps/`.
 
-- [ ] **2.3-icons** — An original 32×32, 16-colour icon format, `tools/mkicon.py` (text art → icon file), `gfx_drawicon` with a transparent colour, and original icons for the built-in programs, folders and files. `icontest` reads back pixels → `icon: PASS`.
-- [ ] **2.3-groups** — Program Manager: the desktop shows `/desktop` folders as group windows full of icons with captions; double-click (or Enter) launches, drag moves an icon (saved), groups open, close and arrange. The 1.9 object model (`Program`, `Folder`) stays underneath. Checks for launch, move-and-reboot, and arrange (`pm-*`).
-- [ ] **2.3-filemgr** — Two-pane File Manager: directory tree left, file list right, copy / move / delete / rename / make directory by menu, keys and drag between panes. Checks on a data disk of their own (`fm-*`).
+- [x] **2.3-icons** — An original 32×32, 16-colour icon format, `tools/mkicon.py` (text art → icon file), `gfx_drawicon` with a transparent colour, and original icons for the built-in programs, folders and files. `icontest` reads back pixels → `icon: PASS`.
+- [x] **2.3-groups** — Program Manager: the desktop shows `/desktop` folders as group windows full of icons with captions; double-click (or Enter) launches, drag moves an icon (saved), groups open, close and arrange. The 1.9 object model (`Program`, `Folder`) stays underneath. Checks for launch, move-and-reboot, and arrange (`pm-*`).
+- [x] **2.3-filemgr** — Two-pane File Manager: directory tree left, file list right, copy / move / delete / rename / make directory by menu, keys and drag between panes. Checks on a data disk of their own (`fm-*`).
 - [ ] **2.3-clipboard** — Clipboard: kernel text clipboard with syscalls to put and get, Ctrl+Ins / Shift+Ins / Shift+Del (and Ctrl+C / Ctrl+V) in field widgets and the editors, and a Clipboard viewer program. `cliptest` copies from a field and pastes into another → `clip: PASS`.
 - [ ] **2.3-control** — Control Panel v1: colours (theme scheme from **W.1-theme**), mouse (double-click time, button swap, speed), date and time (reads and sets the RTC), keyboard (repeat rate and delay). Settings saved in `/desktop/control.cfg` and applied at boot. Checks that a change survives a reboot (`cp-*`).
 - [ ] **2.3-bevel-default** — Warp-style bevelled 3D controls are the default for every widget (buttons press in, fields and lists are sunken, group boxes etched), all through `gfx_bevel` and `theme.inc`. Pixel-probe check `bevwidgets` → `bevwidgets: PASS`.
@@ -400,6 +400,17 @@ From P.8 in `ROADMAP.md` and epic #118 (stream OS2-FOREIGN). Notes: `documentati
   **Acceptance:** `run dosgfx.com` draws and writes `dosgfx: drawn` in graphics (read by `<gfx>`), and after a key prints `dosgfx: PASS` in text. Checks `dos-gfx`, `dos-gfx-after`.
 - [ ] **P.8-dos-window** — the DOS screen (text or mode 13h) inside a window of its own, once programs own windows (2.2).
 
+## 2.8–2.9 core — 64-bit kernel and SMP (OS2-K)
+
+From the 2.8–2.9 bridge in `ROADMAP.md` (the hardware drivers H.1–H.6 are the next section). Each box is a branch the condenser folds into a PR; the BIOS boot path and every regression check keep passing, and checks that need x86-64 run under `qemu-system-x86_64`. Design notes in `documentation/kernel/long-mode.md` and `documentation/kernel/smp.md`.
+
+- [x] **2.8-lm-entry** — Enter long mode from the 32-bit kernel (4-level identity tables, EFER.LME, 64-bit code segment), run a 64-bit routine and come back. Checks `lm-test`, `lm-again`, `lm-nolm`.
+- [x] **2.8-smp-ap** — Find the CPUs (ACPI MADT), start the application processors (INIT-SIPI-SIPI through a real-mode trampoline) into the kernel's protected mode and paging with a stack and per-CPU data each, and park them. `cpus` lists them; a check under `-smp 4` sees four CPUs online.
+- [x] **2.8-smp-sched** — Per-CPU run queues: the APs run ring-3 threads, the kernel is entered under one lock, IPIs wake idle CPUs. A check runs four spinning threads at once on four CPUs.
+- [ ] **2.8-pae** — The 32-bit kernel's paging on PAE (64-bit entries), the format long mode shares; NX on the heap and stacks.
+- [ ] **2.9-lm-kernel** — The kernel stays in long mode: 64-bit IDT and TSS (IST for double faults), 4-level per-process address spaces, the 32-bit kernel code reached through compatibility-mode thunks until it is ported, and 32-bit programs in compatibility mode. The whole regression suite passes under `qemu-system-x86_64`.
+- [ ] **2.9-syscall64** — 64-bit programs: an ELF64 loader and the `syscall`/`sysret` ABI (STAR/LSTAR, 64-bit call table, pointer checks), with `int 0x80` unchanged for 32-bit programs. A `hello64` check.
+
 ## Modern hardware (2.8–2.9)
 
 Scheduled in the 64-bit bridge, 2.8–2.9 in `ROADMAP.md`. Each box is one PR, and the BIOS boot path and its regression checks keep passing. QEMU covers each one: OVMF for UEFI, `-device ahci`, `-device nvme`, `-device qemu-xhci` with `usb-kbd` and `usb-storage`.
@@ -416,3 +427,16 @@ Scheduled in the 64-bit bridge, 2.8–2.9 in `ROADMAP.md`. Each box is one PR, a
   **Acceptance:** the shell takes input from `usb-kbd` with no PS/2 keyboard attached.
 - [x] **H.6-usb-storage** — USB mass storage, so the system can boot from and read the stick it was written to.
   **Acceptance:** SQFS on a `usb-storage` disk lists its files.
+
+## 3.0 — Networking and sound (OS2-NET-AUDIO)
+
+From the 3.0 line in `ROADMAP.md` (audio, a network settings GUI, DHCP, DNS and an HTTP client). Worked by the OS2-NET-AUDIO stream; each box is a branch the condenser folds into a PR. Design notes go in `documentation/kernel/network.md`, `documentation/kernel/audio.md` and `documentation/apps/network.md` / `documentation/apps/audio.md`.
+
+- [x] **3.0-dhcp** — A DHCP client (`dhcp`): DISCOVER/OFFER/REQUEST/ACK over broadcasts, setting address, mask, gateway, DNS server and lease. Checks `dhcp`, `dhcp-dns`, `dhcp-nonic`.
+- [x] **3.0-dns** — A DNS resolver: A queries, CNAME and compressed names, a cache, `host <name>`, `dns [ip [port]]`, names in `ping` and `fetch`. Checks `host-*`, `ping-name`, `fetch-name`.
+- [x] **3.0-http** — `SYS_NET` for programs and an HTTP/1.1 client (`http.inc`: Content-Length, chunked, redirects) with `run wget`. Checks `wget-*`.
+- [x] **3.0-netcfg** — The network settings program: a window with the four values, DHCP, Apply and Save, and `show`/`dhcp`/`set`/`save`/`load` from the shell. Checks `netcfg-*`.
+- [x] **3.0-ac97** — An AC'97 driver (QEMU `-device AC97`): PCI bus mastering, a buffer descriptor list, PCM out and in, the codec's mixer registers.
+- [x] **3.0-hda** — An Intel HDA driver (QEMU `-device intel-hda -device hda-duplex`): CORB/RIRB, codec widget walk, an output and an input stream.
+- [x] **3.0-mixer** — A mixer: master and PCM volume and mute, read back from the codec, in a window and from the shell.
+- [x] **3.0-media** — A.6 media apps: a WAV player, a sound recorder that saves WAV, and a spectrum analyser.

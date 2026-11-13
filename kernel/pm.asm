@@ -114,6 +114,10 @@ gdt_tss_df:                     ; 0x20: the double-fault task
     dw 0xFFFF,0,0xF200,0x00CF   ; 0x30: ring-3 data, flat; the kernel's DS/ES too
 gdt_tls:                        ; 0x38: per-process TLS segment, FS/GS (P.5, tls.asm)
     dw 0xFFFF,0,0xF200,0x00CF
+gdt_cs64:                       ; 0x40: 64-bit kernel code, long mode (2.8, lm.asm)
+    dw 0xFFFF,0,0x9A00,0x00AF
+gdt_tss_cpu:                    ; 0x48 on: one TSS per CPU record (2.8, smp.asm)
+    times 16 dq 0               ; SMP_MAX
 gdt_desc:
     dw $-gdt-1
     dd gdt
@@ -225,6 +229,7 @@ pm:
     call hist_load
     mov byte [shell_up], 1      ; from here a crash can restart the shell
     sti                         ; autoexec.bat may run apps that need keys
+    call smp_init               ; start the other CPUs and park them (2.8)
     call bat_autoexec
     call sh_prompt
     sti
@@ -442,6 +447,12 @@ run_simple:
     mov edi, cmd_vbetest        ; 2.1
     call streq
     je .vbetest
+    mov edi, cmd_cpus           ; 2.8-smp-ap
+    call streq
+    je .cpus
+    mov edi, cmd_lmtest         ; 2.8-lm-entry
+    call streq
+    je .lmtest
     mov edi, cmd_cliptest       ; 2.1-blit-clip
     call streq
     je .cliptest
@@ -466,6 +477,24 @@ run_simple:
     mov edi, cmd_winmenu        ; 2.2-sysmenu
     call streq
     je .winmenu
+    mov edi, cmd_pfont          ; 2.2-propfont
+    call streq
+    je .pfont
+    mov edi, cmd_icontest       ; 2.3-icons
+    call streq
+    je .icontest
+    mov edi, cmd_filemgr        ; 2.3-filemgr
+    call streq
+    je .filemgr
+    mov edi, cmd_fmtest
+    call streq
+    je .fmtest
+    mov edi, cmd_progman        ; 2.3-groups
+    call streq
+    je .progman
+    mov edi, cmd_pmtest
+    call streq
+    je .pmtest
     mov edi, cmd_winalttab      ; 2.2-alttab
     call streq
     je .winalttab
@@ -496,6 +525,18 @@ run_simple:
     mov edi, cmd_ifconfig       ; 1.9.11 bare
     call streq
     je .ifconfig
+    mov edi, cmd_dhcp           ; 3.0
+    call streq
+    je .dhcp
+    mov edi, cmd_dnsbare        ; 3.0
+    call streq
+    je .dnsbare
+    mov edi, cmd_audio          ; 3.0
+    call streq
+    je .audio
+    mov edi, cmd_audiotest      ; 3.0
+    call streq
+    je .audiotest
     mov edi, cmd_objs           ; 1.7.2
     call streq
     je .objs
@@ -730,11 +771,35 @@ run_simple:
 .winmenu:
     call cmd_winmenu_run
     jmp .empty
+.pfont:
+    call cmd_pfont_run
+    jmp .empty
+.icontest:
+    call cmd_icontest_run
+    jmp .empty
+.filemgr:
+    call cmd_filemgr_run
+    jmp .empty
+.fmtest:
+    call cmd_fmtest_run
+    jmp .empty
+.progman:
+    call cmd_progman_run
+    jmp .empty
+.pmtest:
+    call cmd_pmtest_run
+    jmp .empty
 .winalttab:
     call cmd_winalttab_run
     jmp .empty
 .vbetest:
     call cmd_vbetest_run
+    jmp .empty
+.cpus:
+    call cmd_cpus_run
+    jmp .empty
+.lmtest:
+    call cmd_lmtest_run
     jmp .empty
 .desktop:
     call cmd_desktop_run
@@ -756,6 +821,18 @@ run_simple:
     jmp .empty
 .ifconfig:
     call cmd_ifconfig_show
+    jmp .empty
+.dhcp:
+    call cmd_dhcp_run
+    jmp .empty
+.dnsbare:
+    call cmd_dns_show
+    jmp .empty
+.audio:
+    call cmd_audio_run
+    jmp .empty
+.audiotest:
+    call cmd_audiotest_run
     jmp .empty
 .objs:
     call cmd_objs_run
@@ -1190,6 +1267,7 @@ usage_cmds:                     ; command, syntax, hint key or -1
     dd u_arp, u_arp_t, -1
     dd u_ping, u_ping_t, -1
     dd u_fetch, u_fetch_t, -1
+    dd u_host, u_host_t, -1
     dd u_run, u_run_t, LS_USAGE_RUN, u_batch, u_batch_t, -1, u_echo, u_echo_t, -1, 0
 u_put db 'put', 0
 u_mk db 'mk', 0
@@ -1203,6 +1281,7 @@ u_batch db 'batch', 0
 u_arp db 'arp', 0
 u_ping db 'ping', 0
 u_fetch db 'fetch', 0
+u_host db 'host', 0
 u_echo db 'echo', 0
 u_put_t db 'put <file> <text>', 0
 u_mk_t db 'mk <file>', 0
@@ -1215,7 +1294,8 @@ u_run_t db 'run <app|file> [text]', 0
 u_batch_t db 'batch <file>', 0
 u_arp_t db 'arp <ip>', 0
 u_ping_t db 'ping <ip>', 0
-u_fetch_t db 'fetch <ip> <port> <path>', 0
+u_fetch_t db 'fetch <host> <port> <path>', 0
+u_host_t db 'host <name>', 0
 u_echo_t db 0
 u_gap db '   ', 0
 
@@ -1235,6 +1315,8 @@ arg_cmds:
     dd cmd_ping, cmd_ping_run
     dd cmd_fetch, cmd_fetch_run
     dd cmd_ifconfig_arg, cmd_ifconfig_run
+    dd cmd_host, cmd_host_run
+    dd cmd_dns_arg, cmd_dns_run
     dd 0, 0
 cmd_disk db 'disk', 0
 cmd_blktest db 'blktest', 0
@@ -1251,6 +1333,12 @@ cmd_windrag db 'windrag', 0
 cmd_winmin db 'winmin', 0
 cmd_winmenu db 'winmenu', 0
 cmd_winalttab db 'winalttab', 0
+cmd_progman db 'progman', 0
+cmd_filemgr db 'filemgr', 0
+cmd_fmtest db 'fmtest', 0
+cmd_pmtest db 'pmtest', 0
+cmd_pfont db 'pfont', 0
+cmd_icontest db 'icontest', 0
 cmd_wintest db 'wintest', 0
 cmd_winmove db 'winmove', 0
 cmd_winfocus db 'winfocus', 0
@@ -1271,6 +1359,12 @@ cmd_arp db 'arp ', 0
 cmd_ping db 'ping ', 0
 cmd_fetch db 'fetch ', 0
 cmd_ifconfig_arg db 'ifconfig ', 0
+cmd_host db 'host ', 0
+cmd_dns_arg db 'dns ', 0
+cmd_dhcp db 'dhcp', 0
+cmd_dnsbare db 'dns', 0
+cmd_audio db 'audio', 0
+cmd_audiotest db 'audiotest', 0
 cmd_desktop db 'desktop', 0
 cmd_proctest db 'proctest', 0
 proc_full db 'Too many processes', 10, 0
@@ -1446,6 +1540,8 @@ puthex:
 ; part at KHIGH_LIMIT. See documentation/kernel/kernel-image.md.
 section .high vstart=KHIGH_BASE follows=.text align=16
 khigh_start:
+%include "smp.asm"
+%include "lm.asm"
 %include "browser.asm"
 %include "calc.asm"
 %include "editor.asm"
@@ -1459,10 +1555,14 @@ khigh_start:
 %include "matrix.asm"
 %include "diff.asm"
 %include "graph.asm"
+%include "pfont.asm"
+%include "icon.asm"
 %include "wm.asm"
 %include "winsys.asm"
 %include "widget.asm"
 %include "desktop.asm"
+%include "progman.asm"
+%include "filemgr.asm"
 %include "object.asm"
 %include "net.asm"
 %include "ne2k.asm"
@@ -1470,6 +1570,13 @@ khigh_start:
 %include "ip.asm"
 %include "udp.asm"
 %include "tcp.asm"
+%include "dhcp.asm"                 ; 3.0 (OS2-NET-AUDIO)
+%include "dns.asm"
+%include "netsys.asm"
+%include "audio/pci.asm"           ; 3.0 (OS2-NET-AUDIO)
+%include "audio/ac97.asm"
+%include "audio/hda.asm"
+%include "audio/audio.asm"
 %include "appsys.asm"
 %include "drivers/hw.asm"
 %include "drivers/pci.asm"
