@@ -25,5 +25,5 @@ everything on the BSP. Per-CPU run queues are the next box, 2.8-smp-sched.
 `boot processor`, or `did not start`) and `N CPU(s) online`. Regress: `cpus-one`, and under
 `-smp 4` `smp-4` and `smp-4-systest`.
 
-Memory: the page at `0x7000` holds the trampoline after boot; each AP stack is one page from the
+Memory: the trampoline (under 64 bytes) sits at `0x7000` after boot, clear of the boot sector at `0x7C00`; each AP stack is one page from the
 allocator (so `mem` shows 4 KB less free per AP).
