@@ -13,6 +13,7 @@
 
 PG_P        equ 1                   ; present
 PG_W        equ 2                   ; writable
+PG_U        equ 4                   ; ring 3 may use it (2.4)
 PG_PS       equ 0x80                ; 4 MB page (needs CR4.PSE)
 VM_IDENT    equ MM_LIMIT >> 22      ; identity-mapped 4 MB slots: 64
 
@@ -30,6 +31,17 @@ AS_MAX      equ PROC_MAX
 HEAP_BASE   equ 0x40000000          ; heap: one page table, PDE 256
 HEAP_MAX    equ 0x400000
 HEAP_PDE    equ HEAP_BASE >> 22
+
+; Ring-3 stacks (2.4): one 512 KB window per process slot in the top 4 MB
+; below 2 GB, one page table (PDE 511). Pages are mapped when first
+; touched (vm_ustack_fault); the lowest page of each window never is, so
+; a runaway stack faults there and is reported as a stack overflow.
+USTACK_BASE equ 0x7FC00000
+USTACK_SIZE equ 0x80000
+USTACK_PDE  equ USTACK_BASE >> 22
+%if PROC_MAX*USTACK_SIZE > 0x400000
+%error the ring-3 stack windows must fit one page table
+%endif
 
 ; Builds the kernel page directory and turns paging on.
 vm_init:
@@ -127,14 +139,14 @@ as_create:
     rep movsd
     mov esi, [ebx+AS_PD]
     lea edi, [eax+PROG_PTE*4]
-    or eax, PG_P|PG_W
+    or eax, PG_P|PG_W|PG_U      ; the identity entries in it stay kernel-only
     mov [esi], eax
     mov ecx, PROG_PAGES
 .area:
     call pg_alloc
     test eax, eax
     jz .fail
-    or eax, PG_P|PG_W
+    or eax, PG_P|PG_W|PG_U
     stosd
     inc dword [ebx+AS_PAGES]
     loop .area
@@ -179,22 +191,9 @@ as_teardown:
     test esi, esi
     jz .done
     mov edx, [esi+HEAP_PDE*4]   ; heap pages and their table
-    test edx, edx
-    jz .low
-    and edx, -PAGE_SIZE
-    mov ecx, 1024
-    mov edi, edx
-.heap:
-    mov eax, [edi]
-    test eax, eax
-    jz .hnext
-    and eax, -PAGE_SIZE
-    call pg_free
-.hnext:
-    add edi, 4
-    loop .heap
-    mov eax, edx
-    call pg_free
+    call as_free_table
+    mov edx, [esi+USTACK_PDE*4] ; ring-3 stack pages and their table (2.4)
+    call as_free_table
 .low:
     mov edx, [esi]
     and edx, -PAGE_SIZE         ; its 0-4 MB table
@@ -221,6 +220,28 @@ as_teardown:
     mov dword [ebx+AS_REFS], 0
     mov dword [ebx+AS_PAGES], 0
     popad
+    ret
+
+; edx = a page directory entry (0: none): frees every page its table
+; maps, then the table. Clobbers eax, ecx, edi.
+as_free_table:
+    test edx, edx
+    jz .r
+    and edx, -PAGE_SIZE
+    mov ecx, 1024
+    mov edi, edx
+.p:
+    mov eax, [edi]
+    test eax, eax
+    jz .n
+    and eax, -PAGE_SIZE
+    call pg_free
+.n:
+    add edi, 4
+    loop .p
+    mov eax, edx
+    call pg_free
+.r:
     ret
 
 ; edi = PCB: loads its page directory (if not already loaded).
@@ -316,7 +337,7 @@ heap_map:
     call pg_alloc
     test eax, eax
     jz .no
-    or eax, PG_P|PG_W
+    or eax, PG_P|PG_W|PG_U
     mov [ebx], eax
     inc dword [ebp+AS_PAGES]
     add esi, PAGE_SIZE
@@ -349,16 +370,26 @@ heap_unmap:
 ; ebp = address space, esi = heap address -> ebx = its page table
 ; entry; the table is made on first use. CF if there is no memory for it.
 heap_pte:
+    push edx
+    mov edx, HEAP_PDE
+    call as_pte
+    pop edx
+    ret
+
+; ebp = address space, esi = address, edx = its directory index -> ebx =
+; its page table entry; a ring-3 table is made on first use. CF if there
+; is no memory for it.
+as_pte:
     mov ebx, [ebp+AS_PD]
-    mov eax, [ebx+HEAP_PDE*4]
+    mov eax, [ebx+edx*4]
     test eax, eax
     jnz .have
     call pg_alloc
     test eax, eax
     jz .no
     inc dword [ebp+AS_PAGES]
-    or eax, PG_P|PG_W
-    mov [ebx+HEAP_PDE*4], eax
+    or eax, PG_P|PG_W|PG_U
+    mov [ebx+edx*4], eax
 .have:
     and eax, -PAGE_SIZE
     mov ebx, esi
@@ -369,6 +400,79 @@ heap_pte:
     ret
 .no:
     stc
+    ret
+
+; ---------- ring-3 stacks (2.4) ----------
+
+; edi = PCB -> eax = the top of its ring-3 stack window
+vm_ustack_top:
+    mov eax, edi
+    sub eax, proc_table
+    shr eax, 6                  ; / PCB_SIZE: the slot
+    inc eax
+    imul eax, USTACK_SIZE
+    add eax, USTACK_BASE
+    ret
+
+; eax = fault address (CR2) -> eax = 0 when it was in the current
+; thread's own ring-3 stack window and a zeroed page is now mapped there,
+; 1 when it hit that window's guard page, 2 for anything else (also out
+; of memory), 3 when that page is already mapped (a fault there is a
+; protection fault). Keeps the other registers.
+vm_ustack_fault:
+    push ebx
+    push ecx
+    push edx
+    push esi
+    push edi
+    push ebp
+    mov esi, eax
+    mov eax, 2
+    mov edi, [proc_cur]
+    mov ebp, [edi+PCB_AS]
+    test ebp, ebp
+    jz .out                     ; kernel processes have no ring-3 stack
+    push eax
+    call vm_ustack_top
+    mov ecx, eax                ; top
+    pop eax
+    cmp esi, ecx
+    jae .out
+    lea edx, [ecx-USTACK_SIZE]  ; the window's bottom: the guard page
+    cmp esi, edx
+    jb .out
+    sub esi, edx
+    cmp esi, PAGE_SIZE
+    jb .guard
+    add esi, edx
+    and esi, -PAGE_SIZE
+    mov edx, USTACK_PDE
+    call as_pte
+    jc .no
+    mov eax, 3
+    cmp dword [ebx], 0
+    jne .out                    ; already mapped
+    call pg_alloc
+    test eax, eax
+    jz .no
+    or eax, PG_P|PG_W|PG_U
+    mov [ebx], eax
+    inc dword [ebp+AS_PAGES]
+    invlpg [esi]
+    xor eax, eax
+    jmp .out
+.guard:
+    mov eax, 1
+    jmp .out
+.no:
+    mov eax, 2
+.out:
+    pop ebp
+    pop edi
+    pop esi
+    pop edx
+    pop ecx
+    pop ebx
     ret
 
 ; ---------- framebuffer map (2.1) ----------
