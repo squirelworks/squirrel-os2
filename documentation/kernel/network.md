@@ -129,7 +129,7 @@ The server is QEMU's resolver 10.0.2.3 at boot, or what DHCP said. `dns` shows i
 
 ## SYS_NET
 
-`SYS_NET` (37, `kernel/netsys.asm`) gives programs the resolver, the TCP connection and the settings. `ebx` is the operation, as with `SYS_GUI`; pointers from ring 3 are checked per operation (`UA_NET`). `programs/net.inc` has the numbers and address helpers, and `programs/http.inc` builds an HTTP/1.1 client on it (`../apps/network.md`).
+`SYS_NET` (45, `kernel/netsys.asm`) gives programs the resolver, the TCP connection and the settings. `ebx` is the operation, as with `SYS_GUI`; pointers from ring 3 are checked per operation (`UA_NET`). `programs/net.inc` has the numbers and address helpers, and `programs/http.inc` builds an HTTP/1.1 client on it (`../apps/network.md`).
 
 | `ebx` | Name | Arguments | Returns |
 |-------|------|-----------|---------|

@@ -1,7 +1,7 @@
 ; Squirrel-OS/2 — SYS_NET: names, TCP and settings for programs (3.0)
 ; Included from pm.asm. Original code.
 ;
-; One system call, SYS_NET (37), with the operation in ebx, as SYS_GUI.
+; One system call, SYS_NET (45), with the operation in ebx, as SYS_GUI.
 ; Programs get the resolver, the kernel's TCP connection (one at a time,
 ; owned by the program that opened it until it closes it or ends) and
 ; the interface settings. See documentation/kernel/network.md.

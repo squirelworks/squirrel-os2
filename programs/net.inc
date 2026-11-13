@@ -7,7 +7,7 @@
 ;
 ; See documentation/kernel/network.md (SYS_NET).
 
-SYS_NET     equ 37
+SYS_NET     equ 45
 NET_RESOLVE equ 0               ; ecx = name -> address, or -1
 NET_CONNECT equ 1               ; ecx = address, edx = port -> 0, -1, -2 busy
 NET_SEND    equ 2               ; ecx = bytes, edx = length -> length, or -1

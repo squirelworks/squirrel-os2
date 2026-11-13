@@ -33,6 +33,8 @@ WGK_CONSOLE     equ 5           ; an 80 x 25 text screen buffer, shown in part
 WK_UP           equ 0x18        ; wg_key codes for the arrow keys (the
 WK_DOWN         equ 0x19        ; ASCII control codes CAN and EM)
 WK_DEL          equ 0x7F        ; Delete (1.9.2)
+WK_LEFT         equ 0x11        ; DC1 / DC2 for the side arrows (2.2-sysmenu)
+WK_RIGHT        equ 0x12
 
 MSG_BUTTON      equ 0x42000000  ; 'B' in the top byte, the button's code below
 WG_BTN_PAD      equ 2           ; pixels between a button's box and its text

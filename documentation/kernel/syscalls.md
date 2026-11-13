@@ -58,8 +58,9 @@ add its `SYS_*` constant, bump `SYS_COUNT`.
 | 34 | `SYS_DEVUNREG` | `ebx` = name | 0, or −1 | Added in 2.0.2: remove a device `SYS_DEVREG` made and free its slot, see `drivers.md` |
 | 35 | `SYS_GUI` | `ebx` = operation, `ecx` = its argument | depends on the operation | Graphics for programs (OS2-APPS): see [SYS_GUI](#sys_gui) below |
 | 36 | `SYS_SETTLS` | `ebx` = base address | the selector (`0x3B`) | Added for P.5: the caller's FS/GS segment base, kept per process and reloaded on every switch; FS and GS are loaded at once. Used for the Win32 TEB, see `../architecture/foreign-compatibility.md` |
-| 37 | `SYS_NET` | `ebx` = operation, `ecx`/`edx` = its arguments | depends on the operation | Added in 3.0: names, the TCP connection and the interface settings for programs, see [SYS_NET in `network.md`](network.md#sys_net) |
-| 38 | `SYS_AUDIO` | `ebx` = operation, `ecx`/`edx` = its arguments | depends on the operation | Added in 3.0: sound for programs, see [SYS_AUDIO in `audio.md`](audio.md#sys_audio) |
+| 37–44 | `SYS_WINOPEN`, `SYS_WINCLOSE`, `SYS_WINMOVE`, `SYS_WINTITLE`, `SYS_WINDRAW`, `SYS_WINFLUSH`, `SYS_WINEVENT`, `SYS_WININFO` | see `windows.md` | see `windows.md` | Added in 2.2 (**2.2-progwin**): windows for programs |
+| 45 | `SYS_NET` | `ebx` = operation, `ecx`/`edx` = its arguments | depends on the operation | Added in 3.0: names, the TCP connection and the interface settings for programs, see [SYS_NET in `network.md`](network.md#sys_net) |
+| 46 | `SYS_AUDIO` | `ebx` = operation, `ecx`/`edx` = its arguments | depends on the operation | Added in 3.0: sound for programs, see [SYS_AUDIO in `audio.md`](audio.md#sys_audio) |
 
 Example:
 

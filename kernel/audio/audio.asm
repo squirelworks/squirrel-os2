@@ -29,7 +29,7 @@ DRV_RECSTART equ 28                 ; eax = rate, esi = pages, ecx = bytes each 
 DRV_RECDONE equ 32                  ; -> eax = pages filled
 DRV_RECSTOP equ 36
 
-; SYS_AUDIO (38) operations, in ebx
+; SYS_AUDIO (46) operations, in ebx
 AU_INFO     equ 0                   ; ecx = 16-byte block -> 0, or -1 (no device)
 AU_OPEN     equ 1                   ; ecx = rate, edx = channels | bits << 8 -> 0, -1 bad, -2 busy
 AU_WRITE    equ 2                   ; ecx = bytes, edx = count -> count, or -1

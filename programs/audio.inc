@@ -7,7 +7,7 @@
 ;
 ; See documentation/kernel/audio.md (SYS_AUDIO) and documentation/apps/audio.md.
 
-SYS_AUDIO   equ 38
+SYS_AUDIO   equ 46
 AU_INFO     equ 0               ; ecx = 16-byte block -> 0, or -1 (no device)
 AU_OPEN     equ 1               ; ecx = rate, edx = channels | bits << 8 -> 0, -1, -2 busy
 AU_WRITE    equ 2               ; ecx = bytes, edx = count -> count, or -1

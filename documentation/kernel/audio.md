@@ -53,7 +53,7 @@ Checks: `audio-none`, `audio-ac97`, `audiotest-ac97`, `audio-hda`, `audiotest-hd
 
 ## SYS_AUDIO
 
-`SYS_AUDIO` (38) takes the operation in `ebx`, as `SYS_GUI` does; ring-3 pointers are checked per operation (`UA_AUDIO`). `programs/audio.inc` has the numbers and WAV file helpers.
+`SYS_AUDIO` (46) takes the operation in `ebx`, as `SYS_GUI` does; ring-3 pointers are checked per operation (`UA_AUDIO`). `programs/audio.inc` has the numbers and WAV file helpers.
 
 | `ebx` | Name | Arguments | Returns |
 |-------|------|-----------|---------|
