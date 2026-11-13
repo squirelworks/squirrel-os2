@@ -206,7 +206,7 @@ check_all ed-undo-once "ab${nl}~|Nothing to undo." 'run edit' '<ret>' abc '<ctrl
 check_all ed-undo-bs "abc${nl}~|Undone."        'run edit' '<ret>' abc '<backspace>' '<ctrl-z>'
 check_all ed-undo-tab 'L1 C3 off 2|Undone.' 'run vedit' '<ret>' ab '<tab>' '<ctrl-z>'
 check ed-undo-save  'Unsaved changes'       'run edit memo3' '<ret>' x '<ctrl-s>' '<ctrl-z>' '<esc>'
-check ed-undo-mem   '129912 KB free'        'run edit' '<ret>' x '<ctrl-z>' '<esc>' mem '<ret>'
+check ed-undo-mem   '128888 KB free'        'run edit' '<ret>' x '<ctrl-z>' '<esc>' mem '<ret>'
 # 1.0.12: vedit Ctrl+T shows control characters; the buffer stays the same
 check_all ved-ctl   "    1 ab\$${nl}|5/16384|Control characters shown" 'run vedit' '<ret>' ab '<ret>' cd '<ctrl-t>'
 check_all ved-ctl-off "    1 ab${nl}|Control characters hidden" 'run vedit' '<ret>' ab '<ret>' cd '<ctrl-t>' '<ctrl-t>'
@@ -353,7 +353,7 @@ check_all graph     'graph> y = x|Plotted y = x for x from -10 to 10: 320 points
 check graph-domain  'Plotted y = sqrt(x) for x from -10 to 10: 160 points, 160 on screen' \
                     'run graph' '<ret>' 'y = sqrt(x)' '<ret>' '<pause>' ' ' '<pause>'
 check graph-syntax  'Error: syntax at column 8'  'run graph' '<ret>' 'y = x +' '<ret>'
-check graph-mem     '129912 KB free'        'run graph' '<ret>' 'y = x' '<ret>' '<pause>' ' ' '<pause>' '<esc>' mem '<ret>'
+check graph-mem     '128888 KB free'        'run graph' '<ret>' 'y = x' '<ret>' '<pause>' ' ' '<pause>' '<esc>' mem '<ret>'
 # 1.4.0: a window created, a frame pixel read back, closed, read again
 check wintest      'win: PASS'             wintest '<ret>'
 check wintest-text 'systest: PASS'         wintest '<ret>' systest '<ret>'
@@ -394,7 +394,7 @@ check_all desktop-calc 'gfx: calc> 2 + 2|gfx: = 4' \
                    desktop '<ret>' '<pause>' '<down>' '<ret>' '<pause>' '2 + 2' '<ret>' '<pause>' '<gfx>'
 check desktop-calc-back 'gfx: Squirrel-OS/2 Desktop' \
                    desktop '<ret>' '<pause>' '<down>' '<ret>' '<pause>' '2 + 2' '<ret>' '<esc>' '<pause>' '<gfx>'
-check desktop-calc-mem '129912 KB free'    desktop '<ret>' '<pause>' '<down>' '<ret>' '<pause>' '2 + 2' '<ret>' '<esc>' '<pause>' '<esc>' mem '<ret>'
+check desktop-calc-mem '128888 KB free'    desktop '<ret>' '<pause>' '<down>' '<ret>' '<pause>' '2 + 2' '<ret>' '<esc>' '<pause>' '<esc>' mem '<ret>'
 check desktop-calc-text 'systest: PASS'    desktop '<ret>' '<pause>' '<down>' '<ret>' '<pause>' '<esc>' '<pause>' '<esc>' systest '<ret>'
 # 1.6.3: draw in a window on the desktop: plot two cells, save, Esc back
 check desktop-draw  'gfx: |**' \
@@ -403,7 +403,7 @@ check desktop-draw-save "> cat dkdraw${nl}**" \
                    desktop '<ret>' '<pause>' '<down>' '<down>' '<down>' '<down>' '<ret>' '<pause>' ' ' '<right>' ' ' '<f2>' '<pause>' dkdraw '<ret>' '<esc>' '<pause>' '<esc>' 'cat dkdraw' '<ret>'
 check desktop-draw-back 'gfx: Squirrel-OS/2 Desktop' \
                    desktop '<ret>' '<pause>' '<down>' '<down>' '<down>' '<down>' '<ret>' '<pause>' '<esc>' '<pause>' '<gfx>'
-check desktop-draw-mem '129912 KB free'    desktop '<ret>' '<pause>' '<down>' '<down>' '<down>' '<down>' '<ret>' '<pause>' ' ' '<esc>' d '<pause>' '<esc>' mem '<ret>'
+check desktop-draw-mem '128888 KB free'    desktop '<ret>' '<pause>' '<down>' '<down>' '<down>' '<down>' '<ret>' '<pause>' ' ' '<esc>' d '<pause>' '<esc>' mem '<ret>'
 check desktop-draw-text 'systest: PASS'    desktop '<ret>' '<pause>' '<down>' '<down>' '<down>' '<down>' '<ret>' '<pause>' '<esc>' '<pause>' '<esc>' systest '<ret>'
 # 1.6.4: edit and vedit in a window: type, save, close; cat sees the text
 check_all desktop-edit 'gfx: Text Editor: (untitled) [modified]|gfx: Typed in a window' \
@@ -412,11 +412,11 @@ check desktop-edit-save 'Saved from edit'  desktop '<ret>' '<pause>' '<down>' '<
                    '<ctrl-s>' dkedit '<ret>' '<pause>' '<esc>' '<pause>' '<esc>' 'cat dkedit' '<ret>'
 check desktop-vedit-save 'Saved from vedit' desktop '<ret>' '<pause>' '<down>' '<down>' '<down>' '<ret>' '<pause>' 'Saved from vedit' \
                    '<f2>' dkvedit '<ret>' '<pause>' '<esc>' '<pause>' '<esc>' 'cat dkvedit' '<ret>'
-check desktop-edit-mem '129912 KB free'    desktop '<ret>' '<pause>' '<down>' '<down>' '<ret>' '<pause>' x '<esc>' d '<pause>' '<esc>' mem '<ret>'
+check desktop-edit-mem '128888 KB free'    desktop '<ret>' '<pause>' '<down>' '<down>' '<ret>' '<pause>' x '<esc>' d '<pause>' '<esc>' mem '<ret>'
 # 1.6.5: pixel drawing in draw: the self-check, the canvas from draw (g), and over the desktop
 check drawpx        'drawpx: PASS'          drawpx '<ret>'
 check drawpx-text   'systest: PASS'         drawpx '<ret>' systest '<ret>'
-check drawpx-mem    '129912 KB free'        drawpx '<ret>' mem '<ret>'
+check drawpx-mem    '128888 KB free'        drawpx '<ret>' mem '<ret>'
 check draw-pixels   'dpx.px'                'run draw dpx' '<ret>' g '<pause>' p '<right>' '<f2>' '<esc>' '<pause>' '<esc>' ls '<ret>'
 check_all desktop-draw-pixels 'gfx: Pixels: drawing.px|gfx: Pen down: moving draws.' \
                    desktop '<ret>' '<pause>' '<down>' '<down>' '<down>' '<down>' '<ret>' '<pause>' g '<pause>' p '<pause>' '<gfx>'
@@ -429,13 +429,13 @@ check objfields     'obj fields: PASS'      objtest '<ret>'
 # 1.7.3: objs lists the classes and the live objects; objtest frees its objects
 check_all objs-empty 'Classes:|Objects:|0 live' objs '<ret>'
 check_all objs-tree  'Square < Shape|0 live'    objtest '<ret>' objs '<ret>'
-check objtest-mem   '129912 KB free'        objtest '<ret>' mem '<ret>'
+check objtest-mem   '128888 KB free'        objtest '<ret>' mem '<ret>'
 check objtest-text  'systest: PASS'         objtest '<ret>' objtest '<ret>' systest '<ret>'
 # 1.8.0: objtest saves a square, frees it and loads it back
 check objstore      'obj store: PASS'       objtest '<ret>'
 # 1.9.3: the network layer's loopback; frames' pages are given back
 check nettest       'net: PASS'             nettest '<ret>'
-check nettest-mem   '129912 KB free'        nettest '<ret>' nettest '<ret>' mem '<ret>'
+check nettest-mem   '128888 KB free'        nettest '<ret>' nettest '<ret>' mem '<ret>'
 # 1.9.4: an NE2000 card on QEMU's user network
 check nic-absent    'ne0     net     absent' devices '<ret>'
 nic=1
@@ -598,11 +598,11 @@ check vm-crash-addr 'address=C0000000 (read, page not present)'  'run crash' '<r
 check crash-name    'in pid 1 (crash)'      'run crash' '<ret>'
 check crash-regs    'EAX=00000022'          'run crash' '<ret>'
 check vm-after      'systest: PASS'         'run crash' '<ret>' systest '<ret>'
-check vm-no-leak    '129912 KB free'        'run nest' '<ret>' 'run crash' '<ret>' 'run hello' '<ret>' mem '<ret>'
+check vm-no-leak    '128888 KB free'        'run nest' '<ret>' 'run crash' '<ret>' 'run hello' '<ret>' mem '<ret>'
 check vm-ps         'kernel'                ps '<ret>'
 check heap          'heap: PASS (1024 KB)'  'run heap' '<ret>'
 check heap-limit-after 'Program ended: pid'  'run heap after' '<ret>'
-check heap-keep-leak '129912 KB free'       'run heap keep' '<ret>' 'run heap after' '<ret>' mem '<ret>'
+check heap-keep-leak '128888 KB free'       'run heap keep' '<ret>' 'run heap after' '<ret>' mem '<ret>'
 # 1.0.1: each process keeps its own x87 registers across a switch
 check fpu-switch    'fpu: PASS'             'run fpu' '<ret>' '<pause>'
 # 1.0.2: SYS_SEEK

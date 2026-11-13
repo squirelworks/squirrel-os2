@@ -35,7 +35,7 @@ Both run with interrupts off, so a timer or keyboard interrupt never sees a half
 
 ### Shell
 
-- `mem` prints the BIOS map and the page totals (`Pages above 2 MB: 128896 KB total, ...` with QEMU's default 128 MB; the allocator starts at 2 MB since 2.4, above the high kernel image).
+- `mem` prints the BIOS map and the page totals (`Pages above 2 MB: 128896 KB total, 128888 KB free` with QEMU's default 128 MB; the allocator starts at 2 MB since 2.4, above the high kernel image).
 - `memtest` allocates every page and checks that each comes back zeroed and distinct. It then frees them all, checks the free count is restored, and checks that a double free and a misaligned free are refused.
 
 The bump allocator from 0.0.6 (`kmalloc`) no longer exists in the current kernel. The page allocator replaces it.
