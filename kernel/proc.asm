@@ -97,6 +97,7 @@ proc_spawn:
     mov dword [edi+PCB_PRIO], PRIO_NORM
     call proc_stamp             ; its wait for the CPU starts now (2.0.2)
     mov dword [edi+PCB_FPU], 0  ; starts with a freshly reset FPU
+    mov dword [edi+PCB_LINUX], 0    ; native ABI unless the loader says so (P.1)
     call msg_reset              ; and an empty message queue (1.2)
     mov ebx, [proc_cur]
     push eax

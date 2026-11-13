@@ -96,6 +96,7 @@ prog_exec:
     test eax, eax
     jz .nomem
     mov [ld_as], eax
+    mov dword [ld_linux], 0
     mov eax, [eax+AS_PD]
     mov cr3, eax
     cmp dword [LD_STAGE], SQX_MAGIC
@@ -152,6 +153,12 @@ prog_exec:
     call as_release
     mov eax, [ld_as]
     mov [edi+PCB_AS], eax
+    mov eax, [ld_linux]         ; a Linux ELF starts in lx_start (P.1)
+    test eax, eax
+    jz .native
+    mov [edi+PCB_LINUX], eax
+    mov dword [edi+PCB_ENTRY], lx_start
+.native:
     mov esi, [esp+12]           ; the file name (saved esi), for ps and crash reports
     call proc_set_name
     mov eax, edi
@@ -286,6 +293,10 @@ ld_elf:
     cmp eax, PROG_MAX
     jae .bad
     mov eax, [LD_STAGE+24]
+    cmp byte [LD_STAGE+7], 3        ; EI_OSABI = ELFOSABI_LINUX (P.1)
+    jne .r
+    mov [ld_linux], eax
+.r:
     ret
 .bad:
     mov eax, LD_EFORMAT
@@ -314,6 +325,7 @@ sys_exec:                       ; ebx = name, ecx = argument (or 0)
     jmp prog_exec
 
 ld_as dd 0
+ld_linux dd 0
 prog_arg times LD_ARGMAX db 0
 prog_args times PROC_MAX*LD_ARGMAX db 0
 ld_probe db 0

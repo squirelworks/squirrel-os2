@@ -1326,6 +1326,7 @@ puthex:
 %include "draw.asm"
 %include "drawpx.asm"
 %include "loader.asm"
+%include "personalities/linux/linux.asm"
 %include "sci.asm"
 %include "matrix.asm"
 %include "diff.asm"

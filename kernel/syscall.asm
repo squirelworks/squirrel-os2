@@ -56,6 +56,11 @@ syscall_init:
     ret
 
 syscall_isr:
+    push esi                    ; a Linux process uses its own table (P.1)
+    mov esi, [proc_cur]
+    cmp dword [esi+PCB_LINUX], 0
+    pop esi
+    jne lx_isr
     cmp eax, SYS_COUNT
     jae .bad
     pushad
