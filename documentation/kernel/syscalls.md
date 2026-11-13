@@ -56,6 +56,7 @@ add its `SYS_*` constant, bump `SYS_COUNT`.
 | 32 | `SYS_SETPRIO` | `ebx` = 0..3 | 0, or −1 | Added in 1.9.9: set the caller's scheduling priority, see `processes.md` |
 | 33 | `SYS_DEVREG` | `ebx` = name | 0, or −1 | Added in 1.9.12: register a null char device, see `drivers.md` |
 | 34 | `SYS_DEVUNREG` | `ebx` = name | 0, or −1 | Added in 2.0.2: remove a device `SYS_DEVREG` made and free its slot, see `drivers.md` |
+| 35 | `SYS_GUI` | `ebx` = operation, `ecx` = its argument | depends on the operation | Graphics for programs (OS2-APPS): see [SYS_GUI](#sys_gui) below |
 
 Example:
 
@@ -92,3 +93,30 @@ through headless QEMU.
 - No ring-3 code exists yet, so no privilege transition or pointer checks are exercised.
 - (0.1.2) `yield` now switches processes; see `processes.md`.
 - Do not call `SYS_GETC` from an interrupt handler; it needs IRQ1 to be deliverable.
+
+## SYS_GUI
+
+`SYS_GUI` (35, `kernel/appsys.asm`) gives a program on the data disk what the built-in graphical apps use. `ebx` selects the operation; `ecx` is its argument. The program draws into a buffer of its own, one byte a pixel, and copies it to the screen with `GUI_BLIT`; `programs/gui.inc` wraps all of it (`../apps/gui-programs.md`).
+
+| `ebx` | Name | `ecx` | Returns |
+|-------|------|-------|---------|
+| 0 | `GUI_ENTER` | — | 0, or −1 when there are no pages for the text copy. VGA mode 13h, 320 × 200, as `gfx_mode13` (the text screen and the font are saved) |
+| 1 | `GUI_LEAVE` | — | 0. Text mode, with the text screen as it was |
+| 2 | `GUI_BLIT` | rect block | 0. Copies the block's buffer to the screen; pixels off the screen are skipped |
+| 3 | `GUI_READ` | rect block | 0. Copies the screen into the block's buffer (0 off the screen): read-back for self-checks |
+| 4 | `GUI_KEY` | — | 0 when no key is waiting, else ASCII \| scancode << 8 \| Ctrl << 16. Does not wait. Releases, Shift and Ctrl give 0 (both are tracked); Esc and Backspace give 27 and 8; keys without ASCII (arrows, F-keys) give 0 in the low byte and their scancode |
+| 5 | `GUI_MOUSE` | — | x \| y << 10 \| buttons << 20 (bit 0 left, 1 right, 2 middle; 320 × 200), or −1 without a mouse |
+| 6 | `GUI_FONT` | buffer | bytes copied: the kernel's 5 × 7 font, 7 bytes a glyph from `0x20` to `0x7E`, column 0 in bit 4 |
+| 7 | `GUI_TICKS` | — | the timer's ticks since boot (100 a second) |
+| 8 | `GUI_TIME` | — | hours << 16 \| minutes << 8 \| seconds, from the CMOS clock (BCD or binary) |
+| 9 | `GUI_DATE` | — | year << 16 \| month << 8 \| day (the century register, or 20) |
+| 10 | `GUI_EVAL` | eval block | 0, or −1 on an error. Evaluates an expression with the `sci` engine |
+| 11 | `GUI_PALETTE` | first entry \| count << 16; `edx` = 3 bytes an entry (red, green, blue, 0–63) | 0, or −1 if the entries are not all within 64–255. Sets VGA DAC entries; 0–63 are refused because text mode uses them |
+
+Rect block: six dwords, `x`, `y`, `width`, `height`, `buffer`, `pitch` (bytes from one buffer row to the next). Width and height up to 4096 and pitch up to 65536, or the call returns −1.
+
+Eval block (40 bytes): `+0` the expression (zero-terminated); `+4` flags: bits 0–1 the variables allowed (0 none, 1 `x`, 2 `x` and `y`), bit 8 degrees, bit 9 store the result as `ans`; `+8` x and `+16` y (doubles); `+24` the result (double, out); `+32` the address of a 40-byte buffer for the result as `sci` prints it, or for the error message (`syntax at column `, `division by zero`, `outside the function domain`, ...), or 0; `+36` (out) the column of a syntax error, from 1. The call resets the FPU.
+
+From ring 3 (`ring3.md`) every buffer must be the program's own memory, or the call returns −1 without running: the rect block and the `pitch × (height − 1) + width` bytes of its buffer, the font buffer, the eval block with its expression and its text buffer, and the palette bytes. The block's pointers are read once and checked on that copy.
+
+Check: `guitest` (`run guitest`: a window drawn by a program, five pixels read back from the screen, a key poll with nothing typed, the ticks and the date, `2^10` = `1024`, a syntax error at column 4, and `x^2` at x = 3; in ring 3, that kernel-memory buffers are refused for each operation that takes one; it prints `guitest: PASS`), and `guitest-gfx` (`run guitest hold` keeps the window up so the run reads its title and text).
