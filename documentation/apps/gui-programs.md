@@ -45,6 +45,18 @@ A text editor in a full-screen window, the graphical counterpart of `edit`: up t
 
 The title is `Notepad - <file>`; the status row shows the name, `*` while there are unsaved changes, `Ln` and `Col`, and the last message (`Saved`, `Opened`, `New file`, `Not saved!`). Checks: `notepad`, `notepad-save` (the file holds the text afterwards), `notepad-open`, `notepad-ask`, `notepad-quit`.
 
+### Syntax highlighting (A.7)
+
+The name's extension picks a language; other names stay black on white.
+
+| Extension | Comments (green) | Strings (magenta) | Numbers (red) | Blue | Other |
+|-----------|------------------|-------------------|---------------|------|-------|
+| `.asm`, `.inc` | `;` to the line's end | `"…"` and `'…'` | a word starting with a digit (`10`, `0x3F`) | common instructions and data words (`mov`, `jne`, `db`, `equ`, `dword`, …) | registers and labels (a word at the line's start followed by `:`) brown; `%` directives cyan |
+| `.c`, `.h` | `//` to the line's end, `/* … */` over lines | `"…"` with `\` escapes | as above | keywords (`int`, `if`, `return`, `struct`, …) | `#` lines' first word cyan |
+| `.bas` | `REM` and `'` to the line's end | `"…"` | as above | keywords (`PRINT`, `IF`, `GOTO`, …, any case) | |
+
+Each redraw runs the highlighter from the start of the text, so a `/* … */` comment that begins above the view is still green. `run notepad -test` draws a line of each language and reads back the colour of a character of each kind (label, instruction, register, number, comment, directive, keyword, string, block comment over two lines, `REM`); it prints `notepad: PASS`, or `notepad: FAIL`, the case's file name and a letter for the character that failed. Check: `notepad-hl`.
+
 ## Character map (`run charmap`)
 
 The 95 characters of the system font (0x20–0x7E) in a grid of 16 columns, the chosen one four times larger beside it with its code in hex and decimal (`0x7E`, `126`), and a field of collected characters underneath.

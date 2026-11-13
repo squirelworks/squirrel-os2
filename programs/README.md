@@ -27,7 +27,7 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `guitest.asm` | SQX | Self-check of `SYS_GUI` and `gui.inc`: draws a window, reads pixels back from the screen, the clock and `GUI_EVAL` (`run guitest`, `run guitest hold`) |
 | `calculator.asm` | SQX | Calculator in a window, standard and scientific keypads on the `sci` engine (`run calculator`, A.1) |
 | `clock.asm` | SQX | Analogue clock with the time and date (`run clock`, `run clock test`, A.1) |
-| `notepad.asm` | SQX | Text editor in a window (`run notepad [file]`, A.1) |
+| `notepad.asm` | SQX | Text editor in a window, with syntax highlighting for .asm/.inc, .c/.h and .bas (`run notepad [file]`, `run notepad -test`, A.1, A.7) |
 | `grapher.asm` | SQX | 2D graphing calculator: explicit, polar, parametric and implicit functions, inequalities, sliders, zoom, pan, trace, roots, extrema, intersections (`run grapher [f]`, `run grapher test`, C.2) |
 | `charmap.asm` | SQX | Character map of the system font; collects characters, F2 saves them (`run charmap`, A.2) |
 | `paint.asm` | SQX | Bitmap painter: pen, line, box, solid box, fill, eraser, undo; 16 colours; saves and opens BMP (`run paint [f]`, `run paint test`, A.2) |
