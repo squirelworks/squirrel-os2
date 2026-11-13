@@ -13,7 +13,7 @@ Mouse bytes are drained everywhere, not only on the desktop. In 1.9.10 they were
 | Symbol | Meaning |
 |--------|---------|
 | `mouse_up` | 1 after a successful enable at boot |
-| `mouse_x`, `mouse_y` | cursor in mode-13h pixels (0..319, 0..199) |
+| `mouse_x`, `mouse_y` | cursor in live graphics pixels (`0..gfx_width-1`, `0..gfx_height-1`; mode 13h defaults until a graphics mode is entered). `mouse_clamp` keeps them in range (2.2-vbe-wm). |
 | `mouse_btns` | bits 0–2: left, right, middle |
 | `mouse_clicks` | count of left-button make edges |
 | `mouse_irqs` | count of IRQ 12 interrupts (2.0.1) |

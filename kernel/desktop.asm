@@ -1,4 +1,4 @@
-; Squirrel-OS/2 — desktop shell (1.6)
+; Squirrel-OS/2 — desktop shell (1.6, VBE since 2.2-vbe-wm)
 ; Included from pm.asm. Original code.
 ;
 ; The desktop command: graphics mode, a window listing the programs, keys
@@ -6,7 +6,8 @@
 ; (calc since 1.6.1, draw since 1.6.3); Esc returns to the text shell.
 ; Since 1.7.6 the entries are Program objects and Enter sends them open.
 ; Since 1.9.10 a mouse click selects a row (a second click opens it).
-; See documentation/apps/desktop.md.
+; Since 2.2-vbe-wm it enters through wm_gfx_enter (VBE 640×480×8, or
+; mode 13h when VBE is refused). See documentation/apps/desktop.md.
 
 DK_X equ 40                     ; the desktop's window
 DK_Y equ 24
@@ -14,7 +15,7 @@ DK_W equ 240
 DK_H equ 150
 
 cmd_desktop_run:
-    call gfx_mode13
+    call wm_gfx_enter
     jnc .ok
     mov esi, dk_nomem
     jmp puts

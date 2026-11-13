@@ -8,8 +8,36 @@
 ; are kept in mouse_x / mouse_y for the desktop.
 ; See documentation/kernel/mouse.md.
 
-MOUSE_W     equ 320
+MOUSE_W     equ 320             ; text-mode / mode-13h default bounds
 MOUSE_H     equ 200
+
+; Clamp mouse_x / mouse_y into the live graphics screen (gfx_width /
+; gfx_height). The window manager and desktop set those when they enter
+; VBE or mode 13h; in text mode they stay at the mode-13h defaults.
+mouse_clamp:
+    push eax
+    cmp dword [mouse_x], 0
+    jge .xhi
+    mov dword [mouse_x], 0
+.xhi:
+    mov eax, [gfx_width]
+    dec eax
+    cmp [mouse_x], eax
+    jle .ylo
+    mov [mouse_x], eax
+.ylo:
+    cmp dword [mouse_y], 0
+    jge .yhi
+    mov dword [mouse_y], 0
+.yhi:
+    mov eax, [gfx_height]
+    dec eax
+    cmp [mouse_y], eax
+    jle .done
+    mov [mouse_y], eax
+.done:
+    pop eax
+    ret
 
 ; Wait until the input buffer (bit 1 of 0x64) is clear.
 mouse_wait_in:
@@ -166,22 +194,7 @@ mouse_byte:
     jc .btns                    ; overflowed: buttons only
     add [mouse_x], eax
     add [mouse_y], ebx
-    ; clamp
-    cmp dword [mouse_x], 0
-    jge .xhi
-    mov dword [mouse_x], 0
-.xhi:
-    cmp dword [mouse_x], MOUSE_W - 1
-    jle .ylo
-    mov dword [mouse_x], MOUSE_W - 1
-.ylo:
-    cmp dword [mouse_y], 0
-    jge .yhi
-    mov dword [mouse_y], 0
-.yhi:
-    cmp dword [mouse_y], MOUSE_H - 1
-    jle .btns
-    mov dword [mouse_y], MOUSE_H - 1
+    call mouse_clamp            ; live gfx_width / gfx_height (2.2-vbe-wm)
 .btns:
     mov al, [mouse_pkt]
     and al, 7

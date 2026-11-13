@@ -487,6 +487,9 @@ run_simple:
     mov edi, cmd_wintest
     call streq
     je .wintest
+    mov edi, cmd_winvbe         ; 2.2-vbe-wm
+    call streq
+    je .winvbe
     ; format
     mov edi, cmd_format
     call streq
@@ -732,6 +735,9 @@ run_simple:
     jmp .empty
 .wintest:
     call cmd_wintest_run
+    jmp .empty
+.winvbe:
+    call cmd_winvbe_run
     jmp .empty
 .proctest:
     call cmd_proctest_run
@@ -1042,7 +1048,7 @@ banner_rest db ' 2.0.2', 10  ; OS version: here only (see releases/PROCESS.md)
        db '          objcat', 10
        db 'Tests: systest | proctest | blktest | fstest | memtest | keys', 10
        db '       gfxtest | gfxprim | gfxtext | vbetest | wintest | winmove | winfocus | nettest', 10
-       db '       labeltest | buttontest | fieldtest | listtest | drawpx | objtest | objs', 10
+       db '       winvbe | labeltest | buttontest | fieldtest | listtest | drawpx | objtest | objs', 10
        db 'Apps: files, calc, sci, graph, matrix, diff, edit, vedit, draw   (planned: topo)', 10, 0
 msg_partial db 'Warning: kernel image only partly loaded', 10, 0
 cmd_ls db 'ls', 0
@@ -1182,6 +1188,7 @@ cmd_bevtest db 'bevtest', 0
 cmd_wintest db 'wintest', 0
 cmd_winmove db 'winmove', 0
 cmd_winfocus db 'winfocus', 0
+cmd_winvbe db 'winvbe', 0
 cmd_labeltest db 'labeltest', 0
 cmd_buttontest db 'buttontest', 0
 cmd_fieldtest db 'fieldtest', 0

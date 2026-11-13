@@ -20,7 +20,7 @@ Location: `../../kernel/gfx.asm` (included from `kernel/pm.asm`)
 - PCI BAR discovery probes function 0 of each bus/dev first and only scans functions 1–7 when function 0 exists, so a missing VGA is not a full 65,536-slot walk.
 - `gfx_putpixel` / `gfx_getpixel` honour 8, 16 and 32 bpp (at 16/32 bpp the colour byte is the low byte of the pixel).
 - `gfx_text` disables DISPI when `gfx_vbe` is set, then loads the text registers and restores the saved screen/font.
-- The desktop and window manager still use mode 13h. The remaining 2.1 box is a blitter with clipping.
+- Since **2.2-vbe-wm**, the window manager and desktop enter through `wm_gfx_enter`: VBE 640×480×8 when DISPI accepts it, otherwise mode 13h. Theme colours stay the EGA palette indices in `theme.inc`.
 
 ## Clip rectangle and blitter (2.1-blit-clip)
 

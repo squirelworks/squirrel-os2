@@ -1,6 +1,6 @@
 # Windows
 
-The window manager (`kernel/wm.asm`, since 1.4.0) draws windows in graphics mode with the primitives in `graphics.md`. Keyboard only; there is no mouse. It still runs in VGA mode 13h (320×200); VBE modes from 2.1 are exercised by `vbetest` and are not yet the window manager's display.
+The window manager (`kernel/wm.asm`, since 1.4.0) draws windows in graphics mode with the primitives in `graphics.md`. Keyboard only for window management until later 2.2 boxes; a soft cursor follows the mouse on the desktop. Since **2.2-vbe-wm**, `wm_gfx_enter` selects VBE 640×480 at 8 bpp (theme palette indices in `theme.inc`) when DISPI accepts it, and falls back to VGA mode 13h (320×200) otherwise. Window placement and the desktop fill use the live `gfx_width` / `gfx_height`.
 
 ## Windows
 
@@ -33,6 +33,7 @@ Since 1.4.2 the kernel keeps the open windows in a z-order list (`wm_z`, bottom 
 | `wm_focus` | — | eax = the focused (top) window's id, or −1 |
 | `wm_putc` | al = character | appends it to the focused window's text if there is room |
 | `wm_redraw` | — | paints the desktop, then every open window, lowest slot first |
+| `wm_gfx_enter` (2.2-vbe-wm) | — | VBE 640×480×8, or mode 13h if VBE is refused; clamps the mouse into the live screen; CF if both fail |
 
 None of these draw; the caller calls `wm_redraw`. A title longer than the bar is cut at the last character that fits.
 
@@ -43,6 +44,8 @@ These are kernel routines. Programs cannot open windows yet.
 `wintest` switches to graphics mode, draws an empty desktop, creates a 200 × 120 window titled `Test window` at (60, 40) and redraws. It reads back a pixel of the left frame and a pixel of the title's first letter, closes the window, redraws, and reads the frame pixel again, which must now be the desktop colour. It returns to text mode and prints `win: PASS` or `win: FAIL`. Checks `wintest` and `wintest-text` (`systest` after it).
 
 `winmove` (1.4.1) creates the same window, moves it to (100, 60) and then resizes it to 100 × 60. After each step it reads back a pixel where the frame was, which must now be the desktop, and a pixel of the new frame. It then tries a move past the right edge and a width below the minimum; both must be refused and leave the window where it was. It prints `winmove: PASS` or `winmove: FAIL`. Checks `winmove` and `winmove-text`.
+
+`winvbe` (2.2-vbe-wm) enters VBE 640×480×8 (not the 13h fallback), draws a window titled `VBE window`, and reads a frame pixel and a title-ink pixel from the visible front buffer (`vbe_front_getpixel`). After close and redraw, the frame pixel must be the desktop colour. It prints `winvbe: PASS` or `winvbe: FAIL`. Without VBE it fails (mode 13h is covered by `wintest`). Checks `winvbe` and `winvbe-text`.
 
 `winfocus` (1.4.2) is interactive. It opens two overlapping windows, One and then Two, so Two is on top. Tab swaps which window is on top and focused, other keys type into the focused window, and Enter or Esc ends. It then reads the pixel where Two's left edge crosses One's client area: the frame colour there means Two was drawn last. It closes both windows, returns to text mode and prints, for example:
 
@@ -65,7 +68,7 @@ This section is the window, event and drawing interface that the 2.2 boxes in `T
 
 ### Screen and theme
 
-- The window manager draws on the VBE back buffer, 640×480 at 8 bpp, and flips only the dirty rectangles (**2.2-vbe-wm**). Mode 13h (320×200) is the fallback, so programs read the screen size from `gfx_width` / `gfx_height` (or `SYS_WININFO`) and never assume one.
+- The window manager draws on a VBE screen, 640×480 at 8 bpp (**2.2-vbe-wm**); mode 13h (320×200) is the fallback. Programs read the screen size from `gfx_width` / `gfx_height` (or `SYS_WININFO`) and never assume one. Double buffering and dirty-rectangle flips arrive with **2.2-clip-z**.
 - Colours are palette indices named in `kernel/theme.inc` (**W.1-theme**): `TH_DESKTOP`, `TH_FACE` (3D face grey), `TH_LIGHT`, `TH_SHADOW`, `TH_DARK`, `TH_TITLE` / `TH_TITLE_TEXT` (active), `TH_TITLE_IDLE` / `TH_TITLE_IDLE_TEXT`, `TH_CLIENT`, `TH_TEXT`, `TH_SELECT` / `TH_SELECT_TEXT`, `TH_BORDER` (sizing border). Sizes: `TH_BORDER_W`, `TH_TITLE_H`, `TH_BOX_W` (the title-bar boxes), `TH_BEVEL_W`. Code uses the names, never the numbers.
 
 ### Drawing (kernel)

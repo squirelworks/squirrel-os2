@@ -43,7 +43,7 @@ Done and covered by `tools/regress.sh`: 32-bit x86 in ring 0, preemptive priorit
 
 2.0.1 and 2.0.2 closed every follow-up from 1.9.10–1.9.12: the mouse runs on IRQ 12 and is drained everywhere, the cursor has a save-under, PS/2 sign bits are handled, clicks in a scrolled list pick the right row, priority aging stops starvation, `SYS_DEVUNREG` frees device slots, and `ifconfig` refuses an off-subnet gateway (402 checks at 2.0.2).
 
-**2.1 in progress:** `2.1-vbe-mode` / `2.1-modes` / `2.1-dblbuf` / `2.1-dirty` map VBE linear framebuffers (640×480, 800×600, 1024×768 at 8/16/32 bpp via Bochs/QEMU DISPI + PCI BAR0), double-buffer with a VRAM back page, blit present with dirty rectangles, and check them with `vbetest`; mode 13h remains the desktop fallback. Remaining box: `2.1-blit-clip`.
+**2.1 done (awaiting release):** `2.1-vbe-mode` … `2.1-blit-clip` map VBE linear framebuffers (640×480, 800×600, 1024×768 at 8/16/32 bpp), double-buffer with dirty rectangles, and a clipped blitter (`vbetest` / `cliptest`). **2.2 started:** `2.2-api` and `W.1-theme` are on `main`; **2.2-vbe-wm** puts the window manager and desktop on VBE 640×480×8 (`wm_gfx_enter`, `winvbe`), with mode 13h as the fallback. Next box: `2.2-clip-z`.
 
 Still scaffolds: `graph` and `topo` (replaced by C.2 and C.9 below).
 

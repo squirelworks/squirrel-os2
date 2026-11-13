@@ -1,11 +1,13 @@
-; Squirrel-OS/2 — window manager (1.4)
+; Squirrel-OS/2 — window manager (1.4, VBE screen since 2.2-vbe-wm)
 ; Included from pm.asm. Original code.
 ;
 ; Windows in graphics mode, drawn with the 1.3 primitives (gfx.asm). A
 ; window is a rectangle with a one-pixel frame, a title bar with its title,
 ; and a client area. wm_redraw paints the desktop and then every open
 ; window, bottom of the z-order first. The top window has the keyboard
-; focus. Keyboard only. See documentation/kernel/windows.md.
+; focus. Since 2.2-vbe-wm the display is VBE 640×480×8 when available
+; (theme palette indices), else mode 13h; sizes come from gfx_width /
+; gfx_height. See documentation/kernel/windows.md.
 
 WM_MAX          equ 4           ; open windows at most
 
@@ -77,7 +79,7 @@ wm_create:
     ret
 
 ; eax = x, ebx = y, ecx = width, edx = height -> CF if the window would be
-; smaller than WM_MIN_W x WM_MIN_H or not wholly on the screen.
+; smaller than WM_MIN_W x WM_MIN_H or not wholly on the screen (live mode).
 wm_fits:
     push ebp
     cmp ecx, WM_MIN_W
@@ -89,10 +91,10 @@ wm_fits:
     test ebx, ebx
     js .no
     lea ebp, [eax+ecx]
-    cmp ebp, GFX_W
+    cmp ebp, [gfx_width]
     jg .no
     lea ebp, [ebx+edx]
-    cmp ebp, GFX_H
+    cmp ebp, [gfx_height]
     jg .no
     pop ebp
     clc
@@ -100,6 +102,29 @@ wm_fits:
 .no:
     pop ebp
     stc
+    ret
+
+; Enter the window manager's graphics mode (2.2-vbe-wm): VBE 640×480 at
+; 8 bpp when DISPI accepts it, otherwise mode 13h. Clamps the soft cursor
+; into the live screen. CF set only if both paths fail (no pages for 13h).
+wm_gfx_enter:
+    push eax
+    push ebx
+    push ecx
+    mov eax, 640
+    mov ebx, 480
+    mov cl, 8
+    call vbe_mode
+    jnc .ok
+    call gfx_mode13
+    jc .out
+.ok:
+    call mouse_clamp
+    clc
+.out:
+    pop ecx
+    pop ebx
+    pop eax
     ret
 
 ; eax = window id -> edi = its record, or CF if the id is not an open window.
@@ -253,8 +278,8 @@ wm_redraw:
     mov byte [ptr_vis], 0       ; the repaint covers the pointer (2.0.1)
     xor eax, eax
     xor ebx, ebx
-    mov ecx, GFX_W
-    mov edx, GFX_H
+    mov ecx, [gfx_width]
+    mov edx, [gfx_height]
     mov byte [gfx_colour], WM_DESKTOP
     call gfx_fillrect
     xor ebp, ebp
@@ -352,7 +377,7 @@ WT_W equ 200
 WT_H equ 120
 
 cmd_wintest_run:
-    call gfx_mode13
+    call wm_gfx_enter
     mov esi, wt_fail
     jc .say                     ; no memory for graphics: still in text mode
     mov byte [gfxt_ok], 1
@@ -409,7 +434,7 @@ WM2_W equ 100
 WM2_H equ 60
 
 cmd_winmove_run:
-    call gfx_mode13
+    call wm_gfx_enter
     mov esi, wtm_fail
     jc .say
     mov byte [gfxt_ok], 1
@@ -442,7 +467,9 @@ cmd_winmove_run:
     mov esi, wtm_sized
     call wt_probes
     mov eax, [wt_id]            ; off the right edge: refused
-    mov ebx, GFX_W - WM2_W + 1
+    mov ebx, [gfx_width]
+    sub ebx, WM2_W
+    inc ebx
     mov ecx, WM2_Y
     call wm_move
     jnc .fail
@@ -524,7 +551,7 @@ WF_W equ 160
 WF_H equ 100
 
 cmd_winfocus_run:
-    call gfx_mode13
+    call wm_gfx_enter
     jnc .ok
     mov esi, wf_nomem
     jmp puts
@@ -633,11 +660,73 @@ wf_nl db 10, 0
 wf_out db 'winfocus:', 10           ; then a line for each window and 'top: '
 wf_tail times 2 * (WM_BUF + 16) + 16 db 0
 
+; winvbe (2.2-vbe-wm): enter VBE 640×480×8, draw a window, read frame and
+; title pixels from the front buffer (vbe_front; same as the draw target
+; until 2.2-clip-z arms double buffering), close it and confirm the desktop
+; colour. Mode 13h alone is not a PASS (that path is covered by wintest).
+WV_X equ 80
+WV_Y equ 60
+WV_W equ 240
+WV_H equ 140
+
+cmd_winvbe_run:
+    mov eax, 640
+    mov ebx, 480
+    mov cl, 8
+    call vbe_mode
+    mov esi, wv_fail
+    jc .say                     ; no VBE: refuse (wintest covers 13h)
+    call mouse_clamp
+    mov byte [gfxt_ok], 1
+    call wm_redraw
+    mov eax, WV_X
+    mov ebx, WV_Y
+    mov ecx, WV_W
+    mov edx, WV_H
+    mov esi, wv_title
+    call wm_create
+    cmp eax, -1
+    je .fail
+    mov [wt_id], eax
+    call wm_redraw
+    mov eax, WV_X               ; left frame mid-height, front buffer
+    mov ebx, WV_Y + WV_H / 2
+    call vbe_front_getpixel
+    cmp cl, WM_FRAME
+    jne .fail
+    mov eax, WV_X + 3           ; title ink: left column of 'V' (top row #...#)
+    mov ebx, WV_Y + 2
+    call vbe_front_getpixel
+    cmp cl, WM_BAR_TEXT
+    jne .fail
+    mov eax, [wt_id]
+    call wm_close
+    call wm_redraw
+    mov eax, WV_X
+    mov ebx, WV_Y + WV_H / 2
+    call vbe_front_getpixel
+    cmp cl, WM_DESKTOP
+    jne .fail
+    jmp .end
+.fail:
+    mov byte [gfxt_ok], 0
+.end:
+    call gfx_text
+    mov esi, wv_pass
+    cmp byte [gfxt_ok], 1
+    je .say
+    mov esi, wv_fail
+.say:
+    jmp puts
+
 wtm_pass db 'winmove: PASS', 10, 0
 wtm_fail db 'winmove: FAIL', 10, 0
 wt_title db 'Test window', 0
 wt_pass db 'win: PASS', 10, 0
 wt_fail db 'win: FAIL', 10, 0
+wv_title db 'VBE window', 0
+wv_pass db 'winvbe: PASS', 10, 0
+wv_fail db 'winvbe: FAIL', 10, 0
 align 4
 wt_id dd 0
 wm_table times WM_MAX * WIN_SIZE db 0

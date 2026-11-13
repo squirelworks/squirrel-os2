@@ -384,6 +384,9 @@ check wintest-text 'systest: PASS'         wintest '<ret>' systest '<ret>'
 # 1.4.1: a window moved and resized, frame pixels read back
 check winmove      'winmove: PASS'         winmove '<ret>'
 check winmove-text 'systest: PASS'         winmove '<ret>' systest '<ret>'
+# 2.2-vbe-wm: a window on VBE 640×480×8, frame and title from the front buffer
+check winvbe       'winvbe: PASS'          winvbe '<ret>'
+check winvbe-text  'systest: PASS'         winvbe '<ret>' systest '<ret>'
 # 1.4.2: two windows; Tab moves the focus and the top, typing goes to the focused one
 check_all winfocus 'One got "cd"|Two got "ab"|top: One' \
                    winfocus '<ret>' '<pause>' ab '<tab>' cd '<ret>'
