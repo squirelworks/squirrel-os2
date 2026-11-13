@@ -332,6 +332,14 @@ Kept here so they are not added as tasks by accident. Reasons are in `ROADMAP.md
 - Classic OS/2 binary compatibility, except the optional late P.9 text-mode personality.
 - `topo` (C.9) and foreign personalities (P.1–P.12) are now on the plan in `ROADMAP.md`; they are split into boxes when they come up, not before.
 
+## P.8 — DOS programs
+
+From P.8 in `ROADMAP.md` and epic #118 (stream OS2-FOREIGN). Notes: `documentation/architecture/dosrun.md`.
+
+- [ ] **P.8-dosrun** — `dosrun`, an 8086/186 interpreter with the `INT 21h`/BIOS subset, runs DOS `.COM` and MZ `.EXE` programs as a user program (V86 waits for the low kernel image to leave the first megabyte).
+  **Acceptance:** `run dosrun doshello.com acorns`, `doscpu.com`, `dosfile.com` and `dosexe.exe` each print their PASS line, and the shell works afterwards. Checks `dos-hello`, `dos-cpu`, `dos-file`, `dos-exe`, `dos-missing`, `dos-after`.
+- [ ] **P.8-dos-launch** — `run prog.com` and `run prog.exe` (MZ without PE) go to dosrun without naming it.
+
 ## Modern hardware (2.8–2.9)
 
 Scheduled in the 64-bit bridge, 2.8–2.9 in `ROADMAP.md`. Each box is one PR, and the BIOS boot path and its regression checks keep passing. QEMU covers each one: OVMF for UEFI, `-device ahci`, `-device nvme`, `-device qemu-xhci` with `usb-kbd` and `usb-storage`.
