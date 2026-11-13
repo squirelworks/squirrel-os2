@@ -51,9 +51,10 @@ SYS_WINDRAW  equ 41         ; ebx = id, ecx = 28-byte command -> 0, a colour (WD
 SYS_WINFLUSH equ 42         ; ebx = id -> 0 or -1: what was drawn reaches the screen
 SYS_WINEVENT equ 43         ; ebx = 16-byte buffer, ecx = 0 wait / 1 poll -> 0, or -1 nothing
 SYS_WININFO  equ 44         ; ebx = id or -1, ecx = 16-byte buffer -> 0 or -1
-; SYS_DEBUG  45: ebx = DBG_* op, ecx/edx = args: tracing for debuggers (debug.asm, A.4)
-; SYS_TTY    46: ebx = TTY_* op | tty << 8: terminals for programs (tty.asm, A.3)
-SYS_COUNT   equ 47
+; 45-46: reserved for SYS_NET and SYS_AUDIO (OS2-NET-AUDIO)
+; SYS_DEBUG  47: ebx = DBG_* op, ecx/edx = args: tracing for debuggers (debug.asm, A.4)
+; SYS_TTY    48: ebx = TTY_* op | tty << 8: terminals for programs (tty.asm, A.3)
+SYS_COUNT   equ 49
 
 SYS_ENOSYS  equ -1
 SYSCALL_VEC equ 0x80
@@ -134,6 +135,7 @@ sys_uarg_kind:
     db UA_GUI                                   ; gui
     db UA_NONE                                  ; settls
     times 8 db UA_NONE                          ; 37-44 windows: checked in winsys.asm
+    db UA_NONE, UA_NONE                         ; 45-46 reserved (net, audio)
     db UA_DEBUG                                 ; debug
     db UA_TTY                                   ; tty
 %if $-sys_uarg_kind != SYS_COUNT
@@ -401,6 +403,7 @@ syscall_table:
     dd sys_settls
     dd sys_winopen, sys_winclose, sys_winmove, sys_wintitle   ; 2.2-progwin
     dd sys_windraw, sys_winflush, sys_winevent, sys_wininfo
+    dd sys_reserved, sys_reserved               ; 45-46: SYS_NET, SYS_AUDIO (OS2-NET-AUDIO)
     dd sys_debug
     dd sys_tty
 %if $-syscall_table != SYS_COUNT*4
@@ -453,6 +456,10 @@ sys_exit:
 
 sys_wait:
     jmp proc_wait
+
+sys_reserved:                   ; a number kept for a call another branch adds
+    mov eax, SYS_ENOSYS
+    ret
 
 sys_getpid:
     mov eax, [proc_cur]

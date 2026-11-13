@@ -8,7 +8,7 @@
 ; keyboard. The terminal drains the output into its window and feeds the
 ; keys typed in it. See documentation/kernel/tty.md.
 
-SYS_TTY         equ 46
+SYS_TTY         equ 48
 
 ; ebx = operation | tty << 8
 TTY_OPEN        equ 0           ; -> tty number (1..TTY_MAX), or -1

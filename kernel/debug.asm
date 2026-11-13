@@ -20,7 +20,7 @@
 ; is traced, by a process of another address space, one tracer at a time.
 ; A tracer's tracees are let go (detached, resumed) when it exits.
 
-SYS_DEBUG       equ 45
+SYS_DEBUG       equ 47
 
 DBG_ATTACH      equ 0           ; ecx = pid -> 0, or -1
 DBG_DETACH      equ 1           ; ecx = pid -> 0, or -1: resumes it untraced

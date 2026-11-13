@@ -20,7 +20,7 @@ programs on it print on the console again and a waiting `SYS_GETC` returns −1.
 
 ## The call
 
-`int 0x80` with `eax = SYS_TTY` (38), `ebx` = operation `| tty << 8`, `ecx`, `edx` = arguments.
+`int 0x80` with `eax = SYS_TTY` (48), `ebx` = operation `| tty << 8`, `ecx`, `edx` = arguments.
 Only the process that opened a tty may use it; the shell and programs already on a tty cannot open
 one. Anything else returns −1.
 

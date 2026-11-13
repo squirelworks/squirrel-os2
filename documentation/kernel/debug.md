@@ -21,7 +21,7 @@ it instead of ending it.
 
 ## The call
 
-`int 0x80` with `eax = SYS_DEBUG` (37), `ebx` = operation, `ecx` = pid (or file name), `edx` =
+`int 0x80` with `eax = SYS_DEBUG` (47), `ebx` = operation, `ecx` = pid (or file name), `edx` =
 argument. Unknown operations and processes the caller does not trace return −1.
 
 | # | Operation | `ecx`, `edx` | Returns |
