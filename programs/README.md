@@ -57,16 +57,19 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `lxfile.asm` | ELF32 (Linux) | Linux `open`/`write`/`close`/`lseek`/`read`, `brk`, `mmap2`, `-errno` results (`run lxfile`, P.2) |
 | `lxcat.asm` | ELF32 (Linux) | Copies Linux stdin to stdout with `read(0)` (`echo hi \| run lxcat`, P.2) |
 | `lxsys.asm` | ELF32 (Linux) | More Linux calls: `writev`, `ioctl`, `uname`, `stat64`, `openat`, `rename`/`unlink`/`mkdir`, `set_thread_area` + GS (`run lxsys`, P.2) |
+| `lxsig.asm` | ELF32 (Linux) | Linux signals: handlers with and without a restorer, `SA_SIGINFO`, masks and pending, `SIG_IGN`, `SA_RESETHAND`, then `SIGTERM` ends it (`run lxsig`, P.2) |
 | `winrun.asm` | SQX | Win32 PE32 console loader and KERNEL32 shim; the kernel runs it for `MZ` files with a PE header, and it passes DOS `MZ` files on to `dosrun` (`run winrun prog.exe`, P.5) |
 | `dosrun.asm` | SQX | DOS `.COM`/`.EXE` runner: an 8086/186 interpreter with the `INT 21h`/BIOS subset; the kernel runs it for `*.com` and DOS `MZ` files (`run prog.com`, P.8, `../documentation/architecture/dosrun.md`) |
 | `doshello.asm` | DOS .COM | INT 21h output, the BIOS teletype, the command tail (`run doshello.com acorns`, P.8) |
 | `doscpu.asm` | DOS .COM | 8086/186 instructions and flags, steps a–k (`run doscpu.com`, P.8) |
 | `dosfile.asm` | DOS .COM | DOS files, memory blocks and buffered input (`run dosfile.com`, P.8) |
+| `dosgfx.asm` | DOS .COM | VGA mode 13h: A000, INT 10h pixels and DAC, ports, teletype text in graphics (`run dosgfx.com`, then a key; P.8) |
 | `dosexe.asm` | DOS .EXE | Hand-written MZ with relocations, three segments and a far call (`run dosexe.exe`, P.8) |
 | `winhello.asm` | PE32 | Hand-written Win32 console program: console, files, heap, relocations, imports (`run winhello`, P.5) |
 | `wincrt.asm` | PE32 | Hand-written Win32 program on msvcrt: TEB via `fs:`, `__getmainargs`, printf/sprintf, malloc, FILE I/O, atexit/exit (`run wincrt acorn`, P.5) |
 | `winshim.inc` | — | The KERNEL32 start-up calls and the msvcrt subset that `winrun` binds imports to |
-| `lxelf.inc` | — | ELF header macro and Linux call numbers for the Linux test programs |
+| `bsdhello.asm` | ELF32 (FreeBSD) | FreeBSD i386 calls with stack arguments and CF + errno: files, lseek, break, mmap, isatty, errors (`run bsdhello`, P.10) |
+| `lxelf.inc` | — | ELF header macro (Linux, or FreeBSD with `EI_OSABI` 9) and Linux call numbers for the test programs |
 | `mines.asm` | SQX | Minesweeper-class game, G.3 (`run mines [seed] [big]`, `run mines test`); see `documentation/apps/games.md` |
 | `reversi.asm` | SQX | Reversi against a two-ply computer player, G.8 (`run reversi [seed]`, `run reversi test`) |
 | `klondike.asm` | SQX | Klondike solitaire, draw one, G.1 (`run klondike [seed]`, `run klondike test`) |
