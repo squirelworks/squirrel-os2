@@ -120,7 +120,7 @@ The GUI grows in generations, and each generation is a shippable milestone (epic
 ### 2.1–2.3 — Generation 1: "Windows 3.1 / OS/2 Warp 3 class"
 
 - [x] **2.1 Framebuffer graphics** — A VBE linear framebuffer at 640×480, 800×600 and 1024×768 in 8, 16 and 32 bpp (from SquirrelBIOS or a real VGA BIOS). Mode 13h stays as the fallback. Double buffering, dirty rectangles, a blitter and clip regions. Test: set a mode, draw, read pixels back; regress in both 13h and VBE. PR-sized boxes: `TODO.md` **2.1-vbe-mode** … **2.1-blit-clip**.
-- [ ] **2.2 Real windows** — Overlapping windows that move and resize, with title bar, minimise / maximise / close, a system menu, z-order by mouse, focus, and Alt+Tab. Original proportional bitmap fonts. Test: scripted window-manager operations produce the expected window list and pixel probes.
+- [x] **2.2 Real windows** — Overlapping windows that move and resize, with title bar, minimise / maximise / close, a system menu, z-order by mouse, focus, and Alt+Tab. Original proportional bitmap fonts. Test: scripted window-manager operations produce the expected window list and pixel probes.
 - [ ] **2.3 Program Manager / Warp 3 desktop** — Icon groups, double-click to launch, a two-pane File Manager, a clipboard, Control Panel v1 (colours, mouse, date and time, keyboard). Warp-style bevelled 3D controls are the default theme.
 
 ### 2.4 — Ring 3 and protection
