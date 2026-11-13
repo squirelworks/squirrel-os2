@@ -135,7 +135,7 @@ The kernel is not reentrant: kernel code, including system calls a program makes
 ## Limitations
 
 - Kernel code is not preempted (see "Preemption" above). A built-in app or a long system call that never yields still holds the CPU.
-- Everything runs in ring 0. Since 0.6.1 each loaded program has its own address space for its 64 KB at `0x30000` (`memory.md`), but the kernel is mapped in every one and a program can still write over it.
+- Since 2.4 loaded programs and their threads run in ring 3 on growing stacks of their own, and the kernel is mapped supervisor-only in their address spaces (`ring3.md`). The 8 KB slot stack is then the thread's kernel stack. The shell and built-in apps still run in ring 0.
 - Keyboard input goes to whichever process reads the ring first; with the shell waiting on
   a foreground app this is always the app.
 - A wait for a zombie that was reclaimed (see above) returns −1 instead of its exit code.

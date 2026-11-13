@@ -133,6 +133,8 @@ proc_spawn:
 
 proc_trampoline:
     mov ebx, [proc_cur]
+    cmp dword [ebx+PCB_AS], 0
+    jne proc_enter_user         ; a loaded program's thread: ring 3 (2.4)
     push dword [ebx+PCB_ARG]
     call [ebx+PCB_ENTRY]
     add esp, 4
@@ -161,6 +163,59 @@ proc_exit:
 
 ; ebx = pid -> eax = its exit code (slot is freed), or -1 if there is
 ; no such process or it is the caller.
+; ebx = the current PCB, whose address space is a program's: starts its
+; entry in ring 3 on the slot's ring-3 stack, as entry(arg) with a return
+; address that exits with the returned value (2.4). The kernel stack is
+; empty from here on; TSS.ESP0 (proc_switch) points at its top.
+proc_enter_user:
+    mov edi, ebx
+    call vm_ustack_top
+    lea esi, [eax-16]           ; the exit stub, at the stack's top
+    mov eax, esi
+    call vm_ustack_fault        ; map that page now, unless an earlier
+    test eax, eax               ; thread in this slot did
+    jz .mapped
+    cmp eax, 3
+    jne .fail
+.mapped:
+    mov edi, esi
+    mov dword [edi], 0xB8C389   ; mov ebx, eax / mov eax, SYS_EXIT ...
+    mov dword [edi+3], SYS_EXIT
+    mov word [edi+7], 0x80CD    ; ... / int 0x80
+    sub edi, LD_ARGMAX          ; the argument string under it
+    mov eax, [ebx+PCB_ARG]
+    mov ecx, eax                ; the loader's copy is kernel memory:
+    sub ecx, prog_args          ; copy it into the program's stack
+    cmp ecx, PROC_MAX*LD_ARGMAX
+    jae .arg                    ; a thread's argument: passed as it is
+    push esi
+    mov esi, eax
+    mov eax, edi
+    mov ecx, LD_ARGMAX/4
+    rep movsd
+    pop esi
+    mov edi, eax
+.arg:
+    mov [edi-4], eax            ; entry(arg)
+    mov [edi-8], esi            ; returns into the stub
+    lea eax, [edi-8]
+    push dword USER_DS          ; ss
+    push eax                    ; esp
+    push dword 0x202            ; eflags: IF, IOPL 0
+    push dword USER_CS
+    push dword [ebx+PCB_ENTRY]
+    xor eax, eax                ; no kernel values leak into ring 3
+    xor ebx, ebx
+    xor ecx, ecx
+    xor edx, edx
+    xor esi, esi
+    xor edi, edi
+    xor ebp, ebp
+    iretd
+.fail:
+    mov ebx, -1
+    jmp proc_exit
+
 proc_wait:
     push esi
     push edi
@@ -407,10 +462,26 @@ proc_switch:
     mov dword [sched_left], SLICE_TICKS     ; a full slice for the next one
     mov [proc_cur], edi
     call vm_load
+    call proc_set_esp0
     mov esp, [edi+PCB_ESP]
     popad
     popfd
     clc
+    ret
+
+; edi = PCB: TSS.ESP0 = the top of its kernel stack, where ring-3 code
+; enters the kernel (2.4). Clobbers eax.
+proc_set_esp0:
+    mov eax, edi
+    sub eax, proc_table
+    jz .shell
+    shr eax, 6                  ; / PCB_SIZE: the slot
+    imul eax, PROC_STACK_SIZE
+    add eax, PROC_STACK_BASE
+    mov [tss_main+TSS_ESP0], eax
+    ret
+.shell:
+    mov dword [tss_main+TSS_ESP0], SHELL_STACK
     ret
 
 ; Priority aging (2.0.2). Each slot keeps the tick at which it last got

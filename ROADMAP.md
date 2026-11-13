@@ -127,7 +127,7 @@ The GUI grows in generations, and each generation is a shippable milestone (epic
 
 ### 2.4 — Ring 3 and protection
 
-- [ ] **2.4 Ring 3** — The prerequisite for everything after it. User mode, per-process page tables with the kernel protected, a syscall gate, growing stacks, and ending a misbehaving program without bringing the system down.
+- [x] **2.4 Ring 3** — The prerequisite for everything after it. User mode, per-process page tables with the kernel protected, a syscall gate, growing stacks, and ending a misbehaving program without bringing the system down.
 
 ### 2.5–2.7 — Generation 2: "Windows 95 / OS/2 Warp 4 class"
 
