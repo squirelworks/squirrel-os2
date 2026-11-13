@@ -20,7 +20,7 @@ The code in this tree is project-native. Early releases are not described as OS/
 | **4.x** | The "Windows 10/11 class" generation: HiDPI, touch, accessibility, a package manager. |
 
 1.0.0 is released (2026-10-31, `documentation/releases/1.0.0.md`).
-**2.0.0** is released (2026-11-01, `documentation/releases/2.0.0.md`), and so are **2.0.1** and **2.0.2** (2026-11-04), which finish the 2.0.x clean-up.
+**2.0.0** is released (2026-11-01, `documentation/releases/2.0.0.md`), and so are **2.0.1** and **2.0.2** (2026-11-04), which finish the 2.0.x clean-up. **2.1.0** (2.1 framebuffer graphics and 2.4 ring 3, plus apps, games and foreign programs) is prepared in `documentation/releases/2.1.0.md`.
 **Resumed 2026-11-07:** work continues at **2.1** (framebuffer graphics), then the GUI generations below. Modern hardware H.1–H.6 is scheduled in the 64-bit bridge (2.8–2.9). The PR-sized boxes for 2.1 are in `TODO.md`.
 
 SquirrelBIOS (github.com/squirelworks/squirrelbios) is the firmware this system is meant to sit on; booting Squirrel-OS/2 is its main acceptance test. Squirrel-OS/2 keeps booting under SeaBIOS in QEMU as well. Many built-in applications are first built as desktop programs in squirrelsoft and then ported here.
@@ -37,13 +37,11 @@ Every change follows these:
 
 Also already true of this project: document hardware assumptions, keep accepted limits in `documentation/specifications.md`, and follow `documentation/releases/PROCESS.md`.
 
-## Where things are (2.1 started)
+## Where things are (2.1.0)
 
-Done and covered by `tools/regress.sh`: 32-bit x86 in ring 0, preemptive priority scheduling and threads, messages, VGA mode 13h (320×200×256) graphics, the window manager (`kernel/wm.asm`), widgets, the desktop (`kernel/desktop.asm`) with an object model and persistent objects, a polled PS/2 mouse, SQFS with the file browser, the installer, `calc` / `sci` / `matrix` / `diff`, `edit` / `vedit` / `draw`, the NE2000 driver with ARP, IPv4, UDP, a TCP client and `ifconfig`, `SYS_DEVREG`, and en / la / tlh localization.
+Done and covered by `tools/regress.sh`: everything through 2.0.2 (32-bit x86, preemptive priority scheduling, the 13h window manager, widgets and object desktop, SQFS, the installer, networking, en / la / tlh), plus 2.1 (VBE framebuffers with double buffering, dirty rectangles, blitter and clipping), 2.4 (kernel high image above 1 MB, programs in ring 3 with checked syscall pointers and growing stacks), the A.1/A.2/C.9 graphical apps and the C.2 grapher, games G.1–G.5, G.7 and G.8, and foreign programs P.1/P.5 with first parts of P.2 and P.8.
 
-2.0.1 and 2.0.2 closed every follow-up from 1.9.10–1.9.12: the mouse runs on IRQ 12 and is drained everywhere, the cursor has a save-under, PS/2 sign bits are handled, clicks in a scrolled list pick the right row, priority aging stops starvation, `SYS_DEVUNREG` frees device slots, and `ifconfig` refuses an off-subnet gateway (402 checks at 2.0.2).
-
-**2.1 in progress:** `2.1-vbe-mode` / `2.1-modes` / `2.1-dblbuf` / `2.1-dirty` map VBE linear framebuffers (640×480, 800×600, 1024×768 at 8/16/32 bpp via Bochs/QEMU DISPI + PCI BAR0), double-buffer with a VRAM back page, blit present with dirty rectangles, and check them with `vbetest`; mode 13h remains the desktop fallback. Remaining box: `2.1-blit-clip`.
+**Next:** 2.2 (real windows on the VBE framebuffer) and 2.3 (Program Manager / Warp 3 desktop), with their boxes in `TODO.md`.
 
 Still scaffolds: `graph` and `topo` (replaced by C.2 and C.9 below).
 
@@ -171,7 +169,7 @@ Each app is first built in squirrelsoft as a desktop program, then ported.
 - [ ] **A.4** (2.4+) — Debugger: process list, INT3 breakpoints, single step, registers, memory view, an original disassembler, symbols from SQX / ELF
 - [ ] **A.5** (2.5+) — Task / system monitor (CPU, memory, processes, priorities), disk utility, log viewer
 - [ ] **A.6** (3.0+) — Media player (WAV first), sound recorder, spectrum analyser (port of SquirrelSound)
-- [ ] **A.7** (3.0+) — Text editor with syntax highlighting, hex editor, a simple word processor
+- [x] **A.7** (3.0+) — Text editor with syntax highlighting, hex editor, a simple word processor
 
 ### Games (G.1–G.9, epic #116)
 
@@ -190,12 +188,12 @@ Each has its rules core with unit tests in squirrelsoft first; card and board gr
 ### Calculator suite — Desmos and TI-Nspire class (C.1–C.9, epic #119)
 
 - [ ] **C.1** — Expression engine v2: real and complex numbers, arbitrary-precision decimals, units, variables, user functions (a shared C core, `sqmath`, in squirrelsoft).
-- [ ] **C.2** — 2D graphing: y = f(x), implicit, parametric, polar, inequalities, sliders, zoom and pan, trace, intersections, roots and extrema. This replaces the `graph` scaffold.
-- [ ] **C.3** — Tables and lists, 1- and 2-variable statistics, regressions (linear, polynomial, exponential, logarithmic, power, logistic), histograms and box plots.
+- [x] **C.2** — 2D graphing: y = f(x), implicit, parametric, polar, inequalities, sliders, zoom and pan, trace, intersections, roots and extrema. This replaces the `graph` scaffold.
+- [x] **C.3** — Tables and lists, 1- and 2-variable statistics, regressions (linear, polynomial, exponential, logarithmic, power, logistic), histograms and box plots.
 - [ ] **C.4** — A spreadsheet linked to graphs.
 - [ ] **C.5** — CAS: simplify, expand, factor, solve, symbolic derivatives and integrals, limits, series.
 - [ ] **C.6** — Geometry: points, lines, circles, constructions, measurements, dynamic dragging.
-- [ ] **C.7** — 3D graphing: surfaces and parametric curves.
+- [x] **C.7** — 3D graphing: surfaces and parametric curves.
 - [ ] **C.8** — Notebooks whose pages mix notes, graphs, geometry and spreadsheets; scripting in an original BASIC- or Lua-like interpreter.
 - [x] **C.9** — `topo` (topology / surveying calculator) and a matrix / linear-algebra GUI.
 
@@ -214,11 +212,11 @@ Foreign programs should show up as ordinary Squirrel windows.
 
 Each P step ships a tiny original test binary in the tree and a regression `PASS`. All of them need 2.4 (ring 3) first.
 
-- [ ] **P.1** (= F.1–F.4) — Linux static ELF32 (`write` / `exit`).
+- [x] **P.1** (= F.1–F.4) — Linux static ELF32 (`write` / `exit`).
 - [ ] **P.2** — Linux file I/O, `mmap`, `brk`, signals.
 - [ ] **P.3** — Dynamic ELF with a glibc / musl loader, ELF64.
 - [ ] **P.4** — An X11-protocol (or Wayland) server that maps foreign windows onto Squirrel windows.
-- [ ] **P.5** (= F.5 / F.9) — Win32 PE console subset.
+- [x] **P.5** (= F.5 / F.9) — Win32 PE console subset.
 - [ ] **P.6** — Win32 GUI subset (USER / GDI onto the Squirrel window manager and graphics), registry emulation, an original DLL loader (a Wine-like design, no Wine code).
 - [ ] **P.7** — PE64.
 - [ ] **P.8** — A DOS personality (V86 mode or an emulator) for DOS programs in a window.

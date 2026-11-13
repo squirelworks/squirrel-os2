@@ -41,7 +41,7 @@ See `documentation/README.md` for the living documentation set.
 
 ## Current release
 
-**2.0.2** — 2.0.0 (Warp-style system: preemption, windowing, object desktop, networking) with the 2.0.x clean-up: mouse fixes (2.0.1: IRQ 12, no pointer trail, 9-bit motion), then scrolling lists, priority aging, `SYS_DEVUNREG` and an `ifconfig` subnet check (2.0.2).  
+**2.1.0** — framebuffer graphics (VBE 640×480 to 1024×768, double buffering, dirty rectangles, clipping), the kernel above 1 MB, programs in ring 3, graphical apps (calculator, clock, notepad, paint, viewer, grapher, topology, matrix), seven games, and Linux ELF, Win32 console and DOS programs. Before it: 2.0.2 (the 2.0.x clean-up) and 2.0.0 (Warp-style system).  
 Build and run with `tools/build.sh` and `tools/run.sh` (`documentation/guides/getting-started.md`).  
-Notes: `documentation/releases/2.0.2.md`, `2.0.1.md`, `2.0.0.md` (1.0: `1.0.0.md` … `1.0.12.md`; 1.1–1.9 through `1.9.12.md`). Limits: `documentation/specifications.md`. What to do next: [TODO.md](TODO.md).  
+Notes: `documentation/releases/2.1.0.md`, `2.0.2.md`, `2.0.1.md`, `2.0.0.md` (1.0: `1.0.0.md` … `1.0.12.md`; 1.1–1.9 through `1.9.12.md`). Limits: `documentation/specifications.md`. What to do next: [TODO.md](TODO.md).  
 Font: lowercase `q` now has a straight stem with a right-hand tail on its descender, so it no longer reads as `9`.

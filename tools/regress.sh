@@ -41,7 +41,7 @@ mkdir -p "$out/dk" && printf 'desktop\n' > "$out/dk/autoexec.bat"
 python3 "$root/tools/sqfs.py" "$out/dkauto.img" put "$out/dk/autoexec.bat"
 # OS2-APPS: graphical programs (SYS_GUI) on a data disk of their own
 python3 "$root/tools/sqfs.py" "$out/apps.img" format 1024
-for prog in guitest calculator clock notepad grapher charmap paint viewer topology matrixgui; do
+for prog in guitest calculator clock notepad grapher charmap paint viewer topology matrixgui stats graph3d hexedit write; do
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
     python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/$prog"
 done
@@ -57,7 +57,7 @@ python3 "$root/tools/sqfs.py" "$out/dos.img" format 1024    # P.8: DOS programs 
 nasm -f bin -i "$root/programs/" "$root/programs/dosrun.asm" -o "$out/dosrun"
 for prog in doshello doscpu dosfile; do nasm -f bin "$root/programs/$prog.asm" -o "$out/$prog.com"; done
 nasm -f bin "$root/programs/dosexe.asm" -o "$out/dosexe.exe"
-for f in dosrun doshello.com doscpu.com dosfile.com dosexe.exe; do python3 "$root/tools/sqfs.py" "$out/dos.img" put "$out/$f"; done
+for f in dosrun winrun doshello.com doscpu.com dosfile.com dosexe.exe; do python3 "$root/tools/sqfs.py" "$out/dos.img" put "$out/$f"; done
 rm -f "$out/data.img"
 dd if=/dev/zero of="$out/data.img" bs=1024 count=1024 2>/dev/null
 
@@ -603,7 +603,7 @@ check ed-path-r     'deep'                  'cat e1/long-name.txt' '<ret>'
 check fb-dir        'in /e1'                'cd e1' '<ret>' 'run files' '<ret>'
 check fb-dir-up     '[app]'                 'cd e1' '<ret>' 'run files' '<ret>' '<ret>'
 # 0.9.3: release readiness
-check ver-banner    'Squirrel-OS/2 2.0.2'  systest '<ret>'
+check ver-banner    'Squirrel-OS/2 2.1.0'  systest '<ret>'
 check ver-planned   '(planned: topo)'  systest '<ret>'
 check calc-hist-root '1 + 1 = 2'            'mkdir c1' '<ret>' 'cd c1' '<ret>' 'run calc' '<ret>' '1 + 1' '<ret>' '<esc>' 'cat /calc.hist' '<ret>'
 boot="--floppy $out/floppy.img"
@@ -737,7 +737,7 @@ check l10n-hint-la  '(lineam tabulae addit)'  'lang la' '<ret>' put '<ret>'
 check l10n-fe-tlh   "tu'lu'pu'"             'lang tlh' '<ret>' 'mkdir t1' '<ret>' 'mkdir t1' '<ret>'
 check l10n-rm-tlh   "tu'lu'be'"             'lang tlh' '<ret>' 'rm nosuch' '<ret>'
 check lang-bad      'Unknown language (en la tlh)'  'lang fr' '<ret>'
-check lang-banner   'Sciurus-OS/2 2.0.2'   'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
+check lang-banner   'Sciurus-OS/2 2.1.0'   'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
 # 1.9.9: higher priority keeps a lower-priority child from running
 check prio          'prio: PASS'            'run priotest' '<ret>' '<pause>'
 # 2.0.2: aging lets a priority-0 child run beside a priority-3 spinner
@@ -811,8 +811,9 @@ check notepad-save  'Hello notepad!'        'run notepad memo' '<ret>' '<pause>'
 check notepad-open  'gfx: Hello notepad!'   'run notepad memo' '<ret>' '<pause>' '<gfx>'
 check notepad-ask   'gfx: Save changes? y/n' 'run notepad' '<ret>' '<pause>' 'x' '<esc>' '<pause>' '<gfx>'
 check notepad-quit  'systest: PASS'         'run notepad' '<ret>' '<pause>' 'x' '<esc>' 'n' '<pause>' systest '<ret>'
-# C.2: grapher (explicit, polar, parametric; roots, extrema, intersections, trace)
-check grapher       'grapher: PASS'         'run grapher test' '<ret>' '<pause>' '<pause>' '<pause>'
+check notepad-hl    'notepad: PASS'         'run notepad -test' '<ret>' '<pause>' '<pause>'
+# C.2: grapher (explicit, polar, parametric, implicit, inequalities, sliders; roots, extrema, intersections, trace)
+check grapher       'grapher: PASS'         'run grapher test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
 check_all grapher-roots 'gfx: 1: sin(x)|gfx: roots: -9.4248|gfx: -3.1416' 'run grapher sin(x)' '<ret>' '<pause>' 'z' '<pause>' '<gfx>'
 check_all grapher-ext 'gfx: min(-7.854, -1)|gfx: max(-4.7124, 1)' 'run grapher sin(x)' '<ret>' '<pause>' 'm' '<pause>' '<gfx>'
 check_all grapher-meet 'gfx: meet: (-1, 0)|gfx: (2, 3)' 'run grapher x^2-1' '<ret>' '<pause>' '<tab>' '<ret>' 'y = x + 1' '<ret>' '<tab>' '<tab>' '<tab>' 'i' '<pause>' '<gfx>'
@@ -820,6 +821,10 @@ check_all grapher-trace 'gfx: 2: x = 4*cos(t), y = 2*sin(t)|gfx: t=0.0262|gfx: x
 check grapher-zoom  'gfx: roots: -3.1416'   'run grapher sin(x)' '<ret>' '<pause>' '+' 'z' '<pause>' '<gfx>'
 check grapher-syn   'gfx: Error: syntax at column 4' 'run grapher' '<ret>' '<pause>' 'y = 2*(' '<ret>' '<pause>' '<gfx>'
 check grapher-quit  'systest: PASS'         'run grapher sin(x)' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
+check_all grapher-impl 'gfx: 1: x^2+y^2=25|gfx: only for y = f(x)' 'run grapher x^2+y^2=25' '<ret>' '<pause>' 'z' '<pause>' '<gfx>'
+check_all grapher-ineq 'gfx: 1: y >= x^2|gfx: Trace is for y =, r = and x =, y =' 'run grapher' '<ret>' '<pause>' 'y >= x^2' '<ret>' '<pause>' 't' '<pause>' '<gfx>'
+check grapher-slider 'gfx: a = 2.2'         'run grapher y=a*sin(x)' '<ret>' '<pause>' 'a' '<pause>' '<right>' '<pause>' '<right>' '<pause>' '<up>' '<pause>' '<pause>' '<gfx>'
+check grapher-form  'gfx: Use y = f(x), r = f(t), x = f(t), y = g(t), = < >' 'run grapher' '<ret>' '<pause>' 'y < x < 2' '<ret>' '<pause>' '<gfx>'
 # A.2: character map, paint, image viewer
 check_all charmap   'gfx: Character map|gfx: AB~|gfx: 0x7E|gfx: 126' 'run charmap' '<ret>' '<pause>' '<ret>' '<right>' '<ret>' 'z' '<down>' '<ret>' '<pause>' '<gfx>'
 check charmap-save  'AB~'                   'run charmap' '<ret>' '<pause>' '<ret>' '<right>' '<ret>' 'z' '<down>' '<ret>' '<f2>' '<pause>' '<esc>' '<pause>' 'cat charmap.txt' '<ret>'
@@ -844,6 +849,34 @@ check_all matrixgui-inv 'gfx: inv A =|gfx: -2|gfx: 1.5|gfx: -0.5' 'run matrixgui
 check matrixgui-det 'gfx: det A = -2'      'run matrixgui' '<ret>' '<pause>' '1' '<right>' '2' '<down>' '4' '<left>' '3' '<ret>' 'd' '<pause>' '<gfx>'
 check matrixgui-sing 'gfx: The matrix is singular' 'run matrixgui' '<ret>' '<pause>' 'i' '<pause>' '<gfx>'
 check matrixgui-quit 'systest: PASS'        'run matrixgui' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
+# C.3: statistics (lists, one- and two-variable statistics, regressions, histogram, box plot, CSV)
+check stats         'stats: PASS'           'run stats test' '<ret>' '<pause>' '<pause>' '<pause>'
+check_all stats-one 'gfx: n = 5|gfx: mean = 3|gfx: sx = 1.581139|gfx: Q1 = 1.5|gfx: Q3 = 4.5' 'run stats' '<ret>' '<pause>' '1' '<ret>' '2' '<ret>' '3' '<ret>' '4' '<ret>' '5' '<ret>' 'v' '<pause>' '<gfx>'
+check_all stats-reg 'gfx: linear: y = a*x + b|gfx: a = 0.6|gfx: b = 2.2|gfx: r^2 = 0.6' 'run stats' '<ret>' '<pause>' '1' '<ret>' '2' '<ret>' '3' '<ret>' '4' '<ret>' '5' '<ret>' '<tab>' '2' '<ret>' '4' '<ret>' '5' '<ret>' '4' '<ret>' '5' '<ret>' 'r' '<pause>' '<gfx>'
+check_all stats-quad 'gfx: quadratic: y=a*x^2+b*x+c|gfx: a = -0.285714|gfx: b = 2.314286|gfx: c = 0.2' 'run stats' '<ret>' '<pause>' '1' '<ret>' '2' '<ret>' '3' '<ret>' '4' '<ret>' '5' '<ret>' '<tab>' '2' '<ret>' '4' '<ret>' '5' '<ret>' '4' '<ret>' '5' '<ret>' 'r' 'r' '<pause>' '<gfx>'
+check stats-differ  'gfx: L1 and L2 must have the same length' 'run stats' '<ret>' '<pause>' '1' '<ret>' '2' '<ret>' 'x' '<pause>' '<gfx>'
+check_all stats-csv 'gfx: Saved|gfx: n = 2|gfx: mean = 7.5' 'run stats' '<ret>' '<pause>' '7' '<ret>' '8' '<ret>' '<ctrl-s>' '<pause>' '<gfx>' '<esc>' '<pause>' 'run stats stats.csv' '<ret>' '<pause>' 'v' '<pause>' '<gfx>'
+check stats-quit    'systest: PASS'         'run stats' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
+# C.7: 3D graphing (surfaces, space curves)
+check graph3d       'graph3d: PASS'         'run graph3d test' '<ret>' '<pause>' '<pause>' '<pause>'
+check_all graph3d-surf 'gfx: sin(x)*cos(y)|gfx: x, y: -3 to 3|gfx: z: -0.9975 to 0.9975' 'run graph3d sin(x)*cos(y)' '<ret>' '<pause>' '<left>' '<up>' '<pause>' '<gfx>'
+check_all graph3d-curve 'gfx: t: 0 to 2 pi|gfx: z: 0 to 1.2566' 'run graph3d' '<ret>' '<pause>' 'x = cos(t), y = sin(t), z = t/5' '<ret>' '<pause>' '<gfx>'
+check_all graph3d-size 'gfx: x, y: -6 to 6|gfx: z: 0 to 72' 'run graph3d x^2+y^2' '<ret>' '<pause>' '<pgup>' '<pause>' '<gfx>'
+check graph3d-syn   'gfx: Error: syntax at column 4' 'run graph3d' '<ret>' '<pause>' 'z = x*(' '<ret>' '<pause>' '<gfx>'
+check graph3d-quit  'systest: PASS'         'run graph3d x*y' '<ret>' '<pause>' 'w' '<pause>' '<esc>' '<pause>' systest '<ret>'
+# A.7: hex editor
+check hexedit       'hexedit: PASS'         'run hexedit test' '<ret>' '<pause>' '<pause>'
+check_all hexedit-view 'gfx: Hex: htest.bin|gfx: 00020: 20 21 22 23 24 25 26 27|gfx: @00011 = AB 171' 'run hexedit htest.bin' '<ret>' '<pause>' '<down>' '<down>' '<right>' '<pause>' '<gfx>'
+check hexedit-goto  'gfx: @00080 = 80 128'  'run hexedit htest.bin' '<ret>' '<pause>' '<ctrl-g>' '80' '<ret>' '<pause>' '<gfx>'
+check_all hexedit-new 'gfx: Saved|gfx: @00000 = 41 65' 'run hexedit hnew.bin' '<ret>' '<pause>' '4' '1' '4' '2' '<ctrl-s>' '<pause>' '<gfx>' '<esc>' '<pause>' 'run hexedit hnew.bin' '<ret>' '<pause>' '<gfx>'
+check hexedit-quit  'systest: PASS'         'run hexedit htest.bin' '<ret>' '<pause>' '7' '<esc>' '<pause>' 'n' '<pause>' systest '<ret>'
+check hexedit-usage 'usage: run hexedit <file>' 'run hexedit' '<ret>'
+# A.7: word processor
+check write         'write: PASS'           'run write test' '<ret>' '<pause>' '<pause>'
+check_all write-count 'gfx: Write - wdoc.swp|gfx: words 5|gfx: chars 22 *' 'run write wdoc.swp' '<ret>' '<pause>' 'Two words' '<ret>' 'and two more' '<pause>' '<gfx>'
+check_all write-styles 'gfx: Opened|gfx: Centred line' 'run write wdoc.swp' '<ret>' '<pause>' 'Plain ' '<ctrl-i>' 'italic ' '<ctrl-i>' '<ctrl-u>' 'under' '<ctrl-u>' '<ret>' 'Centred line' '<ctrl-e>' '<ctrl-s>' '<pause>' '<esc>' '<pause>' 'run write wdoc.swp' '<ret>' '<pause>' '<pause>' '<gfx>'
+check write-ask     'gfx: Save changes? y/n' 'run write' '<ret>' '<pause>' 'x' '<esc>' '<pause>' '<gfx>'
+check write-quit    'systest: PASS'         'run write' '<ret>' '<pause>' 'x' '<esc>' '<pause>' 'n' '<pause>' systest '<ret>'
 # P.8: DOS .COM and .EXE programs run in the dosrun 8086 interpreter
 disk=$out/dos.img
 check_all dos-hello 'Hello from DOS land!|#! tail: acorns|doshello: PASS'  'run dosrun doshello.com acorns' '<ret>'
@@ -852,6 +885,11 @@ check_all dos-file  'got: acorn|dosfile: PASS'  'run dosrun dosfile.com' '<ret>'
 check_all dos-exe   'Hello from an MZ .EXE!|dosexe: PASS'  'run dosrun dosexe.exe' '<ret>'
 check dos-missing   'dosrun: cannot open'   'run dosrun nothere.com' '<ret>'
 check dos-after     'systest: PASS'         'run dosrun doscpu.com' '<ret>' systest '<ret>'
+# P.8-dos-launch: .com files and MZ files without a PE header go to dosrun by themselves
+check_all dos-run-com 'Hello from DOS land!|#! tail: acorns|doshello: PASS'  'run doshello.com acorns' '<ret>'
+check_all dos-run-exe 'Hello from an MZ .EXE!|dosexe: PASS'  'run dosexe.exe' '<ret>'
+check_all dos-winrun  'Hello from an MZ .EXE!|dosexe: PASS'  'run winrun dosexe.exe' '<ret>'
+check dos-run-after   'systest: PASS'         'run doscpu.com' '<ret>' systest '<ret>'
 disk=$out/auto.img
 check bat-autoexec  'autoexec ran'
 check lang-autoexec 'Tabulae:'              ls '<ret>'

@@ -140,6 +140,7 @@ This avoids retargeting chains and confirmation steps.
 | 2.0.0   | 2026-11-01 | Warp-style system                    |
 | 2.0.1   | 2026-11-04 | Mouse on IRQ 12, no pointer trail    |
 | 2.0.2   | 2026-11-04 | 2.0 clean-up, part two               |
+| 2.1.0   | 2026-11-13 | Framebuffer, ring 3, apps, games, foreign programs |
 
 ## Next planned release
 

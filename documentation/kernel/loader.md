@@ -46,7 +46,8 @@ touch kernel memory (`ring3.md`); the slot's 8 KB stack is their kernel stack.
 
 ## Formats
 
-The first bytes select the format: `SQX1`, `0x7F ELF`, or `MZ`.
+The first bytes select the format: `SQX1`, `0x7F ELF`, or `MZ`. A file with none of these
+whose name ends in `.com` (any case) is a DOS program.
 
 ### SQX (flat binary)
 
@@ -81,6 +82,14 @@ A file starting with `MZ` is not loaded by the kernel: the loader runs the progr
 from the data disk with the argument `<file> <argument>` instead, and returns its pid (P.5).
 `winrun` loads Win32 PE32 console programs (`../architecture/foreign-compatibility.md`). When
 `winrun` is not on the disk, `run prog.exe` reports `Unknown command or program`.
+
+### MZ without PE, and .COM (DOS programs)
+
+An `MZ` file without `PE`,0,0 at its `e_lfanew` offset (or too short to have one) is a DOS
+`.EXE`, and a headerless file named `*.com` is a DOS `.COM`. The loader runs `dosrun <file>
+<argument>` for both, the same way (P.8, `../architecture/dosrun.md`). `winrun` given such a
+file directly passes it on to `dosrun` and waits for it. Files over 64 KB are refused before
+any of this (`LD_EBIG`), DOS ones included.
 
 ## Program ABI
 
