@@ -63,6 +63,7 @@ WE_PAINT    equ 8
 WD_FILL     equ 0
 WD_LINE     equ 1
 WD_TEXT     equ 2
+WD_PTEXT    equ 3
 WD_BLIT     equ 4
 WD_BEVEL    equ 5
 WD_PIXEL    equ 7

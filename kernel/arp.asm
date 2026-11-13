@@ -101,9 +101,12 @@ net_pump:
     push ebx
     cmp byte [ne_up], 0
     je .lo
-    call ne_poll
+.card:
+    call ne_poll                ; eax = frames it queued
     mov ebx, ne_if
     call net_drain
+    test eax, eax               ; 3.0: more may be waiting in the card
+    jnz .card
 .lo:
     mov ebx, net_lo
     call net_drain

@@ -22,6 +22,12 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `stackover.asm` | SQX | Starts a thread that overflows its stack; the kernel must end only that thread, and the program's own memory and stack must be intact (`run stackover`, KB-17) |
 | `devtest.asm` | SQX | Uses devices by name: writes through `con`, reads `hd1`, checks `hd0` refuses writes (0.7.x) |
 | `udptest.asm` | SQX | Sends a UDP datagram to 127.0.0.1 and reads it back; a second process is refused that port (`run udptest`, 1.9.7) |
+| `wget.asm` | SQX | HTTP/1.1 download: Content-Length, chunked, redirects; saves the body or prints it (`run wget <url> [file\|-]`, 3.0) |
+| `netcfg.asm` | SQX | Network settings: a window with the address, mask, gateway and DNS server, DHCP, and `network.cfg` (`run netcfg [show\|dhcp\|set\|save\|load]`, 3.0) |
+| `wavplay.asm` | SQX | Plays an 8- or 16-bit PCM WAV file on the sound device (`run wavplay <file.wav>`, 3.0 A.6) |
+| `sndrec.asm` | SQX | Records 1–10 s from the sound input and saves a WAV file (`run sndrec <file.wav> [s]`, 3.0 A.6) |
+| `mixer.asm` | SQX | Master, PCM and record volume and mute, in a window or from the shell (`run mixer [show\|<control> <0-100>\|mute\|unmute]`, 3.0) |
+| `spectrum.asm` | SQX | Spectrum analyser: FFT bars and the peak frequency while a WAV file plays, or of the input (`run spectrum <file.wav> [test]`, `run spectrum live`, 3.0 A.6) |
 | `priotest.asm` | SQX | High-priority spin must keep a low-priority child from running until the priority drops (`run priotest`, 1.9.9) |
 | `drvtest.asm` | SQX | Registers a null char device with `SYS_DEVREG`, writes and reads it (`run drvtest`, 1.9.12) |
 | `guitest.asm` | SQX | Self-check of `SYS_GUI` and `gui.inc`: draws a window, reads pixels back from the screen, the clock and `GUI_EVAL` (`run guitest`, `run guitest hold`) |
@@ -71,6 +77,9 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `winhello.asm` | PE32 | Hand-written Win32 console program: console, files, heap, relocations, imports (`run winhello`, P.5) |
 | `wincrt.asm` | PE32 | Hand-written Win32 program on msvcrt: TEB via `fs:`, `__getmainargs`, printf/sprintf, malloc, FILE I/O, atexit/exit (`run wincrt acorn`, P.5) |
 | `winshim.inc` | — | The KERNEL32 start-up calls and the msvcrt subset that `winrun` binds imports to |
+| `net.inc` | — | `SYS_NET` numbers and address helpers (3.0) |
+| `http.inc` | — | HTTP/1.1 client library on `SYS_NET` (3.0, `../documentation/apps/network.md`) |
+| `audio.inc` | — | `SYS_AUDIO` numbers and WAV file helpers (3.0) |
 | `bsdhello.asm` | ELF32 (FreeBSD) | FreeBSD i386 calls with stack arguments and CF + errno: files, lseek, break, mmap, isatty, errors (`run bsdhello`, P.10) |
 | `lxelf.inc` | — | ELF header macro (Linux, or FreeBSD with `EI_OSABI` 9) and Linux call numbers for the test programs |
 | `mines.asm` | SQX | Minesweeper-class game, G.3 (`run mines [seed] [big]`, `run mines test`); see `documentation/apps/games.md` |

@@ -7,6 +7,7 @@ out=${TMPDIR:-/tmp}/squirrel-os2-build
 mkdir -p "$out"
 python3 "$root/tools/mkstrings.py" --check || exit 1
 python3 "$root/tools/mkfont.py" --check || exit 1
+python3 "$root/tools/mkicon.py" --check || exit 1   # 2.3-icons
 (cd "$root/kernel" && nasm -f bin boot.asm -o "$out/boot.bin" \
     && nasm -f bin pm.asm -o "$out/pm.bin" 2>/dev/null)
 cat "$out/boot.bin" "$out/pm.bin" > "$out/os.img"
@@ -409,6 +410,11 @@ check cliptest      'clip: PASS'            cliptest '<ret>'                  # 
 check cliptest-text 'systest: PASS'         cliptest '<ret>' systest '<ret>'
 check bevtest       'bevel: PASS'           bevtest '<ret>'                   # W.1-theme
 check bevtest-text  'systest: PASS'         bevtest '<ret>' systest '<ret>'
+check pfont         'pfont: PASS'           pfont '<ret>' '<pause>' '<spc>'   # 2.2-propfont
+check_all pfont-read 'gfx: Wg Squirrel window face|gfx: Wg Display face, bold' pfont '<ret>' '<pause>' '<gfx>' '<spc>'
+check pfont-text    'systest: PASS'         pfont '<ret>' '<pause>' '<spc>' systest '<ret>'
+check icontest      'icon: PASS'            icontest '<ret>'                  # 2.3-icons
+check icontest-text 'systest: PASS'         icontest '<ret>' systest '<ret>'
 check winvbe        'winvbe: PASS'          winvbe '<ret>'                    # 2.2-vbe-wm
 check winvbe-text   'systest: PASS'         winvbe '<ret>' systest '<ret>'
 check winclip       'winclip: PASS'         winclip '<ret>'                   # 2.2-clip-z
@@ -528,12 +534,52 @@ check arp-none      'No reply'              'arp 10.0.2.99' '<ret>' '<pause>' '<
 check arp-bad       'Bad address'           'arp nope' '<ret>'
 check ping-gw       '4 of 4'                'ping 10.0.2.2' '<ret>' '<pause>'
 # 1.9.8: the host answers one HTTP/1.0 GET; slirp delivers 10.0.2.2 to it
-python3 -u "$root/tools/fileserve.py" 18080 'hello from squirrel' >"$out/fileserve.log" 2>&1 &
+# FETCH_PORT picks the host port; by default a free one, so two runs at once do not clash
+fetch_port=${FETCH_PORT:-$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')}
+python3 -u "$root/tools/fileserve.py" $fetch_port 'hello from squirrel' >"$out/fileserve.log" 2>&1 &
 fetch_pid=$!
-check fetch-hello   'hello from squirrel'   'fetch 10.0.2.2 18080 /hello.txt' '<ret>' '<pause>' '<pause>' '<pause>'
+check fetch-hello   'hello from squirrel'   "fetch 10.0.2.2 $fetch_port /hello.txt" '<ret>' '<pause>' '<pause>' '<pause>'
 kill $fetch_pid 2>/dev/null || true
 wait $fetch_pid 2>/dev/null || true
+# 3.0 (OS2-NET-AUDIO): DHCP from slirp; DNS and HTTP/1.1 from tools/netserve.py on the host
+# (slirp delivers 10.0.2.2:<port> to 127.0.0.1:<port>); wget and netcfg on a disk of their own
+python3 "$root/tools/sqfs.py" "$out/net.img" format 1024
+for prog in wget netcfg; do
+    nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
+    python3 "$root/tools/sqfs.py" "$out/net.img" put "$out/$prog"
+done
+python3 -u "$root/tools/netserve.py" 18081 18053 >"$out/netserve.log" 2>&1 &
+net_pid=$!
+net_disk=$disk; disk=$out/net.img
+ns='dns 10.0.2.2 18053'
+check_all dhcp      'dhcp: bound|inet 10.0.2.15|mask 255.255.255.0|gw 10.0.2.2' 'ifconfig 10.0.2.99 255.255.0.0 10.0.2.9' '<ret>' dhcp '<ret>' '<pause>' '<pause>'
+check dhcp-dns      'dns 10.0.2.3'          "$ns" '<ret>' dhcp '<ret>' '<pause>' '<pause>' dns '<ret>'
+check host-name     'squirrel.test is 10.0.2.2'      "$ns" '<ret>' 'host squirrel.test' '<ret>' '<pause>'
+check host-cname    'www.squirrel.test is 10.0.2.2'  "$ns" '<ret>' 'host www.squirrel.test' '<ret>' '<pause>'
+check host-nx       'Host not found'        "$ns" '<ret>' 'host nothere.test' '<ret>' '<pause>'
+check host-quad     '10.1.2.3 is 10.1.2.3'  'host 10.1.2.3' '<ret>'
+check host-local    'localhost is 127.0.0.1' 'host localhost' '<ret>'
+check ping-name     '4 of 4'                "$ns" '<ret>' 'ping squirrel.test' '<ret>' '<pause>' '<pause>'
+check fetch-name    'hello from squirrel over HTTP/1.1' "$ns" '<ret>' 'fetch squirrel.test 18081 /hello.txt' '<ret>' '<pause>' '<pause>' '<pause>'
+check wget-len      'wget: 200, 34 bytes, sum 2948 -> hello.txt' "$ns" '<ret>' 'run wget http://squirrel.test:18081/hello.txt' '<ret>' '<pause>' '<pause>'
+check wget-saved    'hello from squirrel over HTTP/1.1' "$ns" '<ret>' 'run wget squirrel.test:18081/hello.txt' '<ret>' '<pause>' '<pause>' 'cat hello.txt' '<ret>'
+check_all wget-chunked 'chunked transfer works|wget: 200, 23 bytes, sum 2247' "$ns" '<ret>' 'run wget squirrel.test:18081/chunked.txt -' '<ret>' '<pause>' '<pause>'
+check wget-redirect 'wget: 200, 34 bytes, sum 2948 -> moved' "$ns" '<ret>' 'run wget http://www.squirrel.test:18081/moved' '<ret>' '<pause>' '<pause>'
+check_none wget-404 'nope    ' 'wget: 404'  "$ns" '<ret>' 'run wget http://squirrel.test:18081/nope' '<ret>' '<pause>' '<pause>' ls '<ret>'
+check wget-big      'wget: 200, 20000 bytes, sum 59120 -> big.bin' "$ns" '<ret>' 'run wget http://squirrel.test:18081/big.bin' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
+check_all wget-headers 'Host: squirrel.test:18081|User-Agent: SquirrelOS2-wget/3.0' "$ns" '<ret>' 'run wget squirrel.test:18081/echo -' '<ret>' '<pause>' '<pause>'
+check wget-nohost   'wget: host not found'  "$ns" '<ret>' 'run wget http://nothere.test/' '<ret>' '<pause>' '<pause>'
+check wget-https    'wget: not an http:// URL' 'run wget https://squirrel.test/' '<ret>'
+check_all netcfg-set 'method  manual|address 10.0.2.20|dns     10.0.2.2' 'run netcfg set 10.0.2.20 255.255.255.0 10.0.2.2 10.0.2.2' '<ret>'
+check netcfg-offnet 'not on that subnet'    'run netcfg set 1.2.3.4 255.255.255.0 10.0.2.2 1.1.1.1' '<ret>'
+check_all netcfg-load 'netcfg: saved network.cfg|address 10.0.2.21' 'run netcfg set 10.0.2.21 255.255.255.0 10.0.2.2 10.0.2.3' '<ret>' 'run netcfg save' '<ret>' 'run netcfg dhcp' '<ret>' '<pause>' 'run netcfg load' '<ret>'
+check_all netcfg-gui-dhcp 'gfx: Network Settings|gfx: DHCP: bound|gfx: dhcp, lease 1440 min' 'ifconfig 10.0.2.99 255.255.255.0 10.0.2.2' '<ret>' 'run netcfg' '<ret>' '<pause>' '<f2>' '<pause>' '<pause>' '<gfx>'
+check_all netcfg-gui-apply 'gfx: Applied|inet 10.0.2.77' 'run netcfg' '<ret>' '<pause>' '<backspace>' '<backspace>' '77' '<ret>' '<pause>' '<gfx>' '<esc>' '<pause>' ifconfig '<ret>'
+disk=$net_disk
+kill $net_pid 2>/dev/null || true
+wait $net_pid 2>/dev/null || true
 nic=
+check dhcp-nonic    'No DHCP server answered' dhcp '<ret>'
 check arp-nonic     'No reply'              'arp 10.0.2.2' '<ret>'
 # 1.9.6: ICMP echo. Loopback does not need the card.
 check ping-lo       '4 of 4'                'ping 127.0.0.1' '<ret>'
@@ -553,6 +599,32 @@ check_all desktop-objs 'Program < DesktopObject|0 live' desktop '<ret>' '<pause>
 # "Program < DesktopObject" (one space after "<").
 check_once desktop-objs-2 'Program < DesktopObject|  DesktopObject|0 live' \
                    desktop '<ret>' '<pause>' '<esc>' desktop '<ret>' '<pause>' '<esc>' objs '<ret>'
+# 2.3-groups: the Program Manager on a disk of its own (its places file in /desktop)
+pm_disk=$disk
+python3 "$root/tools/sqfs.py" "$out/pm.img" format 1024 >/dev/null
+disk=$out/pm.img
+check pmtest        'pm: PASS'              pmtest '<ret>' '<pause>'
+check_all pm-groups 'gfx: Main|gfx: Tools|gfx: calc|gfx: draw' progman '<ret>' '<pause>' '<gfx>'
+check_all pm-launch 'gfx: calc> 2 + 2|gfx: = 4' \
+                   progman '<ret>' '<pause>' '<right>' '<ret>' '<pause>' '2 + 2' '<ret>' '<pause>' '<gfx>'
+check pm-move       'calc 88 12'            progman '<ret>' '<pause>' '<right>' m '<right>' '<right>' '<down>' '<ret>' '<esc>' 'cat /desktop/progman.pos' '<ret>'
+check pm-move-reboot 'calc 96 12'           progman '<ret>' '<pause>' '<right>' m '<right>' '<ret>' '<esc>' 'cat /desktop/progman.pos' '<ret>'
+check pm-arrange    'calc 72 4'             progman '<ret>' '<pause>' a '<esc>' 'cat /desktop/progman.pos' '<ret>'
+check pm-text       'systest: PASS'         progman '<ret>' '<pause>' '<esc>' systest '<ret>'
+# 2.3-filemgr: the File Manager on a disk of its own: /w holds a.txt and sub
+python3 "$root/tools/sqfs.py" "$out/fm.img" format 1024 >/dev/null
+disk=$out/fm.img
+check fmtest        'fm: PASS'              fmtest '<ret>'
+check fm-setup      'sub/'                  'mkdir w' '<ret>' 'put w/a.txt hello' '<ret>' 'mkdir w/sub' '<ret>' 'ls w' '<ret>'
+check_all fm-panes  'gfx: File Manager|gfx: sub|gfx: <dir>|gfx: a.txt' 'cd w' '<ret>' filemgr '<ret>' '<pause>' '<gfx>'
+check fm-copy       'hello'                 'cd w' '<ret>' filemgr '<ret>' '<pause>' '<down>' c sub '<ret>' '<esc>' 'cat sub/a.txt' '<ret>'
+check fm-rename     'hello'                 'cd w' '<ret>' filemgr '<ret>' '<pause>' '<down>' r b.txt '<ret>' '<esc>' 'cat b.txt' '<ret>'
+check fm-move       'hello'                 'cd w' '<ret>' filemgr '<ret>' '<pause>' '<down>' m / '<ret>' '<esc>' 'cat /b.txt' '<ret>'
+check fm-mkdir      '/w/new'                'cd w' '<ret>' filemgr '<ret>' '<pause>' n new '<ret>' '<esc>' 'cd new' '<ret>' pwd '<ret>'
+check fm-delete     'Not found'             'cd w' '<ret>' filemgr '<ret>' '<pause>' '<ret>' '<delete>' y '<esc>' 'cat sub/a.txt' '<ret>'
+check fm-menu       'Not found'             'put w/m.txt x' '<ret>' 'cd w' '<ret>' filemgr '<ret>' '<pause>' '<down>' '<down>' f '<pause>' '<down>' '<down>' '<down>' '<down>' '<ret>' y '<esc>' 'cat m.txt' '<ret>'
+check fm-text       'systest: PASS'         filemgr '<ret>' '<pause>' '<esc>' systest '<ret>'
+disk=$pm_disk
 # 1.8.3: the desktop's entries are object files in /desktop, written the
 # first time; a removed file's entry is gone. A disk of their own, so the
 # other desktop checks keep all five entries.
@@ -1040,6 +1112,60 @@ check_all term-sessions 'gfx: Terminal 1 - dbgtgt|gfx: 1> dbgtgt s|gfx: Terminal
 check_all term-ctrlc 'gfx: ^C|gfx: *** CPU exception 14 (page fault) in pid 3 (dbgtgt)|gfx: [exit code -1]'  'run terminal' '<ret>' '<pause>' '<pause>' 'dbgtgt s' '<ret>' '<pause>' '<ctrl-c>' '<pause>' 'dbgtgt f' '<ret>' '<pause>' '<pause>' '<gfx>'
 check_all term-debugger 'gfx: pid 3 hit breakpoint 1|gfx: pid 3 stopped|gfx: jmp 0x30073 <here.spin>|gfx: pid 3 ended (exit code -1)'  'run terminal' '<ret>' '<pause>' '<pause>' 'debugger dbgtgt s' '<ret>' '<pause>' 'b level1' '<ret>' c '<ret>' '<pause>' 'bd 1' '<ret>' c '<ret>' '<pause>' '<esc>' '<pause>' q '<ret>' '<pause>' '<gfx>'
 check_all term-quit 'systest: PASS|0        running  shell'  'run terminal' '<ret>' '<pause>' '<pause>' 'dbgtgt s' '<ret>' '<f2>' '<pause>' exit '<ret>' '<pause>' '<f10>' '<pause>' '<pause>' systest '<ret>' ps '<ret>'
+# 3.0 (OS2-NET-AUDIO): sound. AC'97 and Intel HDA under QEMU (-audiodev none paces the DMA in
+# real time; -audiodev wav writes what was played, which tools/wavcheck.py listens to)
+python3 "$root/tools/sqfs.py" "$out/snd.img" format 1024
+for prog in wavplay sndrec mixer spectrum; do
+    nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
+    python3 "$root/tools/sqfs.py" "$out/snd.img" put "$out/$prog"
+done
+python3 - "$out" <<'PYEOF'    # test tones: 1 kHz 16-bit mono 22050 Hz, 440 Hz 8-bit stereo 11025 Hz
+import math, struct, sys
+def wav(name, rate, ch, bits, freq, secs, amp):
+    data = bytearray()
+    for i in range(int(rate * secs)):
+        v = math.sin(2 * math.pi * freq * i / rate)
+        for _ in range(ch):
+            data += struct.pack('<h', int(v * amp)) if bits == 16 else bytes([128 + int(v * amp / 256)])
+    fmt = struct.pack('<HHIIHH', 1, ch, rate, rate * ch * bits // 8, ch * bits // 8, bits)
+    open(sys.argv[1] + '/' + name, 'wb').write(b'RIFF' + struct.pack('<I', 36 + len(data)) + b'WAVEfmt '
+        + struct.pack('<I', 16) + fmt + b'data' + struct.pack('<I', len(data)) + data)
+wav('tone1k.wav', 22050, 1, 16, 1000, 0.5, 12000)
+wav('tone8.wav', 11025, 2, 8, 440, 0.5, 20000)
+PYEOF
+for f in tone1k.wav tone8.wav; do python3 "$root/tools/sqfs.py" "$out/snd.img" put "$out/$f"; done
+snd_disk=$disk; disk=$out/snd.img
+check audio-none    'audio: no device'      audio '<ret>'
+check spectrum-test 'spectrum: peak 1000 Hz, 80 dB' 'run spectrum tone1k.wav test' '<ret>' '<pause>'
+check spectrum-8bit 'spectrum: peak 440 Hz' 'run spectrum tone8.wav test' '<ret>' '<pause>'
+check wavplay-nodev 'wavplay: no sound device' 'run wavplay tone1k.wav' '<ret>'
+export QEMU_EXTRA='-audiodev none,id=snd0 -device AC97,audiodev=snd0'
+check audio-ac97    'audio: ac97'           audio '<ret>'
+check audiotest-ac97 'audio: PASS ac97'     audiotest '<ret>' '<pause>'
+check_all wavplay-ac97 'wavplay: 22050 Hz, 16-bit, mono, 0.50 s|wavplay: played 11025 frames' 'run wavplay tone1k.wav' '<ret>' '<pause>' '<pause>'
+check_all wavplay-ac97-8 'wavplay: 11025 Hz, 8-bit, stereo, 0.49 s|wavplay: played 5512 frames' 'run wavplay tone8.wav' '<ret>' '<pause>' '<pause>'
+check_all sndrec-ac97 'sndrec: 1.00 s, 88200 bytes, peak 0 -> rec.wav|wavplay: 22050 Hz, 16-bit, stereo, 1.00 s' 'run sndrec rec.wav 1' '<ret>' '<pause>' '<pause>' 'run wavplay rec.wav' '<ret>' '<pause>' '<pause>'
+check_all mixer-ac97 'master  39%  39%  on|pcm     74%  74%  muted|record  100%  100%  on' 'run mixer master 40' '<ret>' 'run mixer pcm mute' '<ret>' 'run mixer record 100' '<ret>'
+check_all mixer-gui-ac97 'gfx: Mixer|gfx: Device: ac97|gfx: 65%|gfx: muted' 'run mixer' '<ret>' '<pause>' '<down>' '<down>' '<pgdn>' '<right>' m '<pause>' '<gfx>'
+check mixer-quit    'systest: PASS'         'run mixer' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
+check_all spectrum-gui 'gfx: Spectrum Analyser|gfx: Peak 1000 Hz|gfx: 11025 Hz' 'run spectrum tone1k.wav' '<ret>' '<pause>' '<gfx>'
+export QEMU_EXTRA='-audiodev none,id=snd0 -device intel-hda -device hda-duplex,audiodev=snd0'
+check audio-hda     'audio: hda codec 0, dac 2, pin 3, adc 4' audio '<ret>'
+check audiotest-hda 'audio: PASS hda'       audiotest '<ret>' '<pause>'
+check_all wavplay-hda 'wavplay: 11025 Hz, 8-bit, stereo, 0.49 s|wavplay: played 5512 frames' 'run wavplay tone8.wav' '<ret>' '<pause>' '<pause>'
+check sndrec-hda    'sndrec: 1.00 s, 88200 bytes, peak 0 -> rec.wav' 'run sndrec rec.wav 1' '<ret>' '<pause>' '<pause>'
+check_all mixer-hda 'master  41%  41%  on|record  30%  30%  on' 'run mixer master 40' '<ret>' 'run mixer record 30' '<ret>'
+check_all mixer-hda-mute 'master  100%  100%  muted|pcm     100%  100%  muted' 'run mixer master mute' '<ret>'
+# what reached QEMU's audio backend: the 1 kHz tone, from both drivers
+for snd in "AC97,audiodev=snd0" "intel-hda -device hda-output,audiodev=snd0"; do
+    rm -f "$out/played.wav"
+    export QEMU_EXTRA="-audiodev wav,id=snd0,path=$out/played.wav -device $snd"
+    python3 "$root/tools/qemu_screen.py" --disk "$disk" "$out/os.img" 'run wavplay tone1k.wav' '<ret>' '<pause>' '<pause>' >/dev/null 2>&1 || true
+    name=wavout-${snd%%,*}; name=${name%% *}
+    if result=$(python3 "$root/tools/wavcheck.py" "$out/played.wav" 1000 0.25); then echo "ok   $name"; else echo "FAIL $name ($result)"; fail=1; fi
+done
+unset QEMU_EXTRA
+disk=$snd_disk
 # OS2-HW H.3/H.4: AHCI and NVMe disks as sd0 and nv0 (drivers/ahci.asm, drivers/nvme.asm)
 disk=$out/hw.img
 hwdisk "$out/sata.img"; hwdisk "$out/nvme.img"

@@ -19,6 +19,7 @@ WE_PAINT    equ 8
 WD_FILL     equ 0
 WD_LINE     equ 1
 WD_TEXT     equ 2
+WD_PTEXT    equ 3
 WD_BLIT     equ 4
 WD_BEVEL    equ 5
 WD_PIXEL    equ 7
@@ -563,6 +564,8 @@ sys_windraw:
     je .line
     cmp esi, WD_TEXT
     je .text
+    cmp esi, WD_PTEXT
+    je .ptext
     cmp esi, WD_BEVEL
     je .bevel
     cmp esi, WD_BLIT
@@ -589,6 +592,24 @@ sys_windraw:
     mov [gfx_bg], dl
     call gfx_drawstr
     jmp .done
+.ptext:                         ; a = background (-1 none), b = face (2.2-propfont)
+    mov esi, [ebp+24]
+    call ws_ustr
+    jc .badc
+    mov dl, [ebp+12]
+    cmp dword [ebp+12], -1
+    jne .pbg
+    mov dl, 0xFF                ; transparent
+.pbg:
+    mov [gfx_bg], dl
+    mov ecx, [ebp+16]
+    cmp ecx, FONTP_FACES
+    jae .badc
+    call gfx_drawstr_p
+    sub eax, [ebp+4]
+    sub eax, [ws_cx]            ; -> the string's width
+    mov byte [gfx_bg], 0
+    jmp gfx_noclip              ; (keeps eax)
 .bevel:
     movzx esi, byte [ebp+20]    ; colour: 0 raised, 1 sunken
     call gfx_bevel
