@@ -604,6 +604,12 @@ boot="$out/lowonly.img"
 check khigh-missing 'cannot read the high kernel image'
 boot=
 check khigh-mem     'Pages above 2 MB:'     mem '<ret>'
+# 2.8-lm-entry: a round trip through long mode (qemu-system-x86_64), and a clean refusal without it
+export QEMU_BIN=qemu-system-x86_64
+check lm-test       'lm: PASS'              lmtest '<ret>'
+check_all lm-again  'lm: PASS|systest: PASS' lmtest '<ret>' lmtest '<ret>' systest '<ret>'
+unset QEMU_BIN
+check lm-nolm       'lm: no long mode'      lmtest '<ret>'
 export QEMU_EXTRA='-cpu 486,-pse'
 check cpu-nopse     'needs a Pentium-class CPU'
 export QEMU_EXTRA='-cpu pentium,-fpu'

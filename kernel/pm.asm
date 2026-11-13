@@ -113,6 +113,8 @@ gdt_tss_df:                     ; 0x20: the double-fault task
     dw 0xFFFF,0,0xF200,0x00CF   ; 0x30: ring-3 data, flat; the kernel's DS/ES too
 gdt_tls:                        ; 0x38: per-process TLS segment, FS/GS (P.5, tls.asm)
     dw 0xFFFF,0,0xF200,0x00CF
+gdt_cs64:                       ; 0x40: 64-bit kernel code, long mode (2.8, lm.asm)
+    dw 0xFFFF,0,0x9A00,0x00AF
 gdt_desc:
     dw $-gdt-1
     dd gdt
@@ -435,6 +437,9 @@ run_simple:
     mov edi, cmd_vbetest        ; 2.1
     call streq
     je .vbetest
+    mov edi, cmd_lmtest         ; 2.8-lm-entry
+    call streq
+    je .lmtest
     mov edi, cmd_cliptest       ; 2.1-blit-clip
     call streq
     je .cliptest
@@ -686,6 +691,9 @@ run_simple:
     jmp .empty
 .vbetest:
     call cmd_vbetest_run
+    jmp .empty
+.lmtest:
+    call cmd_lmtest_run
     jmp .empty
 .desktop:
     call cmd_desktop_run
@@ -1375,6 +1383,7 @@ puthex:
 ; part at KHIGH_LIMIT. See documentation/kernel/kernel-image.md.
 section .high vstart=KHIGH_BASE follows=.text align=16
 khigh_start:
+%include "lm.asm"
 %include "browser.asm"
 %include "calc.asm"
 %include "editor.asm"
