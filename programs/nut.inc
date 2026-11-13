@@ -24,6 +24,7 @@
 ;                  (edx, ecx), or CF
 ;   nut_setvar     esi, ecx = a name, eax = V_NUM (st0) or V_STR (edx,
 ;                  ebx = length) -> a global variable, or CF
+;   nut_getnum     esi, ecx = a name -> st0 = that global number, or CF
 ;   n_numtext      st0 (popped) -> esi = its text (the FPU is reset)
 ; Values are numbers in st0 or strings (edx = text, ecx = length); eax
 ; says which (V_NUM, V_STR). The left side of an operator is spilled to
@@ -2369,6 +2370,32 @@ nut_setvar:
     fstp st0
 .f2:
     mov dword [nut_errmsg], ne_toolong
+    popad
+    stc
+    ret
+
+; esi = a name, ecx = its length -> st0 = the global number of that
+; name, or CF (none, or a string)
+nut_getnum:
+    pushad
+    mov [nut_ftok+4], esi
+    mov [nut_ftok+8], ecx
+    mov byte [nut_ftok], TK_NAME
+    mov dword [nut_depth], 0
+    mov eax, [nut_vtop]
+    mov [nut_fbase], eax
+    mov edi, nut_ftok
+    call n_lookup
+    jc .no
+    cmp dword [ebx+8], V_NUM
+    jne .no
+    fld qword [ebx+16]
+    fstp qword [nut_x2]
+    popad
+    fld qword [nut_x2]
+    clc
+    ret
+.no:
     popad
     stc
     ret

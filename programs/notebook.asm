@@ -56,6 +56,7 @@ K_CODE      equ 1
 K_GRAPH     equ 2
 K_TABLE     equ 3
 K_GEO       equ 4
+K_MATH      equ 5
 
 X0          equ 8                       ; the page
 COLS        equ 51
@@ -87,6 +88,10 @@ main:
     fninit
     call nut_init
     jc .nomem
+    call sqm_init
+    jc .nomem
+    mov dword [sqm_get], nut_getnum
+    mov dword [sqm_set], math_set
     mov eax, SYS_SBRK
     mov ebx, MAXCELL * SLOT + OUTPOOL + GPOOL + FBUF
     int 0x80
@@ -283,6 +288,7 @@ run_all:
     pushad
     fninit
     call nut_reset
+    call sqm_reset
     mov dword [opos], 0
     mov dword [gpos], 0
     xor eax, eax
@@ -310,6 +316,50 @@ run_all:
     popad
     ret
 run_none:
+    ret
+
+; ebp = a math cell: each line through sqmath
+run_math:
+    pushad
+    mov eax, [ebp+C_SRC]
+    mov [lp], eax
+.l:
+    call src_line
+    jc .r
+    mov esi, lbuf
+    call skipsp
+    push esi
+    call sqm_line
+    pop esi
+    jc .err
+    mov eax, [sqm_kind]
+    cmp eax, SK_NONE
+    je .l
+    cmp eax, SK_VALUE
+    jne .show
+    call out_s                  ; "the line = its value"
+    mov esi, s_eq
+    call out_s
+.show:
+    mov esi, sqm_out
+    call out_s
+    mov al, 10
+    call out_c
+    jmp .l
+.err:
+    mov esi, [sqm_err]
+    call out_err
+    jmp .l
+.r:
+    popad
+    ret
+
+; esi, ecx = a name, st0 = a value from a math cell: a Nut variable too
+math_set:
+    push eax
+    mov eax, V_NUM
+    call nut_setvar
+    pop eax
     ret
 
 ; ebp = a code cell
@@ -2016,6 +2066,8 @@ draw_cell:
     je .graph
     cmp eax, K_TABLE
     je .table
+    cmp eax, K_MATH
+    je .math
     call draw_geo
     add ebx, GEOH + 2
     jmp .out
@@ -2027,6 +2079,11 @@ draw_cell:
     cmp dword [ebp+C_OLEN], 0
     jne .out
     mov esi, s_etable
+    jmp .ph
+.math:
+    cmp dword [ebp+C_OLEN], 0
+    jne .out
+    mov esi, s_emath
     jmp .ph
 .note:
     mov esi, [ebp+C_SRC]
@@ -2872,6 +2929,9 @@ key:
     mov ecx, K_GEO
     cmp dl, 'o'
     je .new
+    mov ecx, K_MATH
+    cmp dl, 'm'
+    je .new
     jmp .ok
 .ctrl:
     cmp bl, K_UP
@@ -3650,6 +3710,7 @@ strend:
     ret
 
 %include "nut.inc"
+%include "sqmath.inc"
 
 ; ---------- self-check ----------
 ; esi = keys: bytes; 0xE0 n = scancode n, 0xE1 n = Ctrl + scancode n,
@@ -3832,13 +3893,70 @@ selftest:
     pop esi
     inc dword [nfail]
     jmp .n
-.nb:                            ; a notebook with every kind of cell
+.nb:                            ; sqmath, line by line (C.1)
+    call sqm_reset
+    mov byte [bad], 'a'
+    mov esi, mtests
+.m:
+    cmp byte [esi], 0
+    je .nb2
+    push esi
+    call sqm_line
+    pop esi
+    mov edi, sqm_out
+    jnc .mr
+    mov edi, tbuf
+    mov byte [edi], '!'
+    push esi
+    mov esi, [sqm_err]
+    inc edi
+    call scopy
+    pop esi
+    mov edi, tbuf
+.mr:
+    lodsb                       ; past the line
+    test al, al
+    jnz .mr
+    push esi
+    push edi
+.mc:
+    mov al, [esi]
+    cmp al, [edi]
+    jne .mfail
+    inc esi
+    inc edi
+    test al, al
+    jnz .mc
+    pop edi
+    pop esi
+.mn:
+    lodsb
+    test al, al
+    jnz .mn
+    inc byte [bad]
+    jmp .m
+.mfail:
+    pop edi
+    pop esi
+    push esi
+    mov esi, m_mfail
+    call gui_puts
+    mov esi, bad
+    call gui_puts
+    mov esi, edi
+    call gui_puts
+    mov esi, nl
+    call gui_puts
+    pop esi
+    inc dword [nfail]
+    jmp .mn
+.nb2:                           ; a notebook with every kind of cell
     call gui_open
     jc .nogfx
     mov byte [bad], 'A'
     mov esi, tnb
     call parse_nb
-    cmp dword [ncell], 8
+    cmp dword [ncell], 9
     jne .fail
     call run_all
     mov byte [bad], 'B'
@@ -3854,6 +3972,7 @@ selftest:
     mov byte [bad], 'F'         ; variables from a table and a figure
     WOUT 6, {'8 45', 10}
     WOUT 7, {'! line 1: unknown variable', 10}
+    WOUT 8, {'w = 10 m', 10, 's + w / [m] = 25', 10}
     mov byte [bad], 'G'         ; drawn: the line y = x through the
     call draw                   ; middle of its box
     mov eax, 3
@@ -3882,12 +4001,12 @@ selftest:
     WOUT 2, {'32', 10}
     mov byte [bad], 'K'         ; a new cell, two lines
     FEED {'c', 'print "hi"', 0xE0, K_ENTER, 'print 2', 0xE0, K_UP, 0xE0, K_END, '+1', 0xE0, K_ESC}
-    cmp dword [ncell], 9
+    cmp dword [ncell], 10
     jne .fail
     WOUT 3, {'hi1', 10, '2', 10}
     mov byte [bad], 'L'         ; removed again
     FEED {0xE0, K_DEL}
-    cmp dword [ncell], 8
+    cmp dword [ncell], 9
     jne .fail
     WOUT 3, {'y = x', 10, 'x: 0 .. 10   y: 0 .. 10', 10}
     mov byte [bad], 'M'         ; moved down past the graph and back
@@ -3901,7 +4020,7 @@ selftest:
     WOUT 2, {'32', 10}
     mov byte [bad], 'N'         ; to the end: the page scrolls
     FEED {0xE0, K_END}
-    cmp dword [sel], 7
+    cmp dword [sel], 8
     jne .fail
     cmp dword [scroll], 0
     je .fail
@@ -3915,12 +4034,13 @@ selftest:
     jne .fail
     call init_cells
     call load
-    cmp dword [ncell], 8
+    cmp dword [ncell], 9
     jne .fail
     call run_all
     WOUT 2, {'32', 10}
     WOUT 5, {'d = 5', 10, 'area A B C = 6', 10, 'angle B A C = 90', 10}
     WOUT 6, {'8 45', 10}
+    WOUT 8, {'w = 10 m', 10, 's + w / [m] = 25', 10}
     mov byte [bad], 'P'         ; errors in graphs, tables and figures
     mov esi, tbad
     call parse_nb
@@ -3947,6 +4067,8 @@ selftest:
     xor eax, eax
     ret
 .bad:
+    mov esi, m_failall
+    call gui_puts
     mov eax, 1
     ret
 .nogfx:
@@ -3965,12 +4087,12 @@ f_24    dq 24.0
 f_3000  dq 3000.0
 f_tiny  dq 1e-9
 f_big   dq 1e6
-run_fn  dd run_none, run_code, run_graph, run_table, run_geo
+run_fn  dd run_none, run_code, run_graph, run_table, run_geo, run_math
 g_code  dd run_geo.seg, run_geo.line, run_geo.circle, run_geo.poly
         dd run_geo.dist, run_geo.angle, run_geo.area
 g_cmds  db 'seg', 0, 'line', 0, 'circle', 0, 'poly', 0, 'dist', 0
         db 'angle', 0, 'area', 0, 0
-kind_names db 'note', 0, 'code', 0, 'graph', 0, 'table', 0, 'geo', 0, 0
+kind_names db 'note', 0, 'code', 0, 'graph', 0, 'table', 0, 'geo', 0, 'math', 0, 0
 curve_col db C_BLUE, C_RED, C_GREEN, C_MAGENTA
 s_default db 'notebook.nb', 0
 s_tfile db 'nbtest.nb', 0
@@ -3991,12 +4113,13 @@ s_err   db '#ERR    '
 s_lnum  db 'line ', 0
 s_cnum  db ', col ', 0
 s_ekeys db '   Esc: done (the notebook runs)', 0
-s_keys0 db 'N C G T O: a new cell   Esc: quit', 0
-s_keys  db '  Enter edit  NCGTO new  Del  ^S', 0
+s_keys0 db 'N C G T O M: a new cell   Esc: quit', 0
+s_keys  db '  Enter edit  NCGTOM new  Del', 0
 s_hint1 db 'An empty notebook.', 0
-s_hint2 db 'N note  C code  G graph  T table  O geometry', 0
+s_hint2 db 'N note  C code  G graph  T table  O geo  M math', 0
 s_enote db '(an empty note: Enter to write)', 0
 s_etable db '(an empty table: Enter to fill)', 0
+s_emath db '(empty math: Enter to write)', 0
 m_nogfx db 'notebook: no graphics', 10, 0
 m_saved db 'Saved.', 0
 m_nosave db 'Could not save.', 0
@@ -4018,9 +4141,11 @@ m_nopt  db 'there is no point ', 0
 m_few   db 'more points are wanted', 0
 m_three db 'three points are wanted', 0
 m_nfail db 'nut FAIL: ', 0
+m_mfail db 'sqmath FAIL: ', 0
 m_fail  db 'notebook FAIL: ', 0
 m_got   db '  got: ', 0
 m_pass  db 'notebook: PASS', 10, 0
+m_failall db 'notebook: FAIL', 10, 0
 nl      db 10, 0
 bad     db '?', 0
 
@@ -4033,11 +4158,52 @@ tnb:
     db '%% geo', 10, 'A = (0, 0)', 10, 'B = (4, 0)', 10, 'C = (0, 3)', 10
     db 'poly A B C', 10, 'd = dist B C', 10, 'area A B C', 10, 'angle B A C', 10
     db '%% code', 10, 'print d + C1, A2', 10
-    db '%% code', 10, 'print zz', 10, 0
+    db '%% code', 10, 'print zz', 10
+    db '%% math', 10, 'w = d * 2 [m]', 10, 's + w / [m]', 10, 0
 tbad:
     db '%% graph', 10, 'x: 3 1', 10, 'y = sqrt(0-1-x*x)', 10
     db '%% table', 10, '=nope | 1', 10
     db '%% geo', 10, 'seg P Q', 10, 'frob A', 10, 'N = (1, 2', 10, 0
+
+mtests:
+    db '1 + 2*3', 0, '7', 0
+    db 'sqrt(-4)', 0, '2i', 0
+    db '(1+2i)*(3-i)', 0, '5 + 5i', 0
+    db '(1+2i)/(3-4i)', 0, '-0.2 + 0.4i', 0
+    db 'abs(3+4i)', 0, '5', 0
+    db 'e^(i*pi)', 0, '-1', 0
+    db 'ln(-1)/pi', 0, 'i', 0
+    db '2i^2', 0, '-2', 0
+    db 'f(x) = x^2 + 1', 0, 'f(x) = x^2 + 1', 0
+    db 'f(3)', 0, '10', 0
+    db 'g(a, b) = a*b + f(a)', 0, 'g(a, b) = a*b + f(a)', 0
+    db 'g(2, 5)', 0, '15', 0
+    db 'a = 2 [km] + 300 [m]', 0, 'a = 2300 m', 0
+    db 'a to [km]', 0, '2.3 km', 0
+    db 'v = 90 [km/h] to [m/s]', 0, 'v = 25 m/s', 0
+    db 'v * 2 [s]', 0, '50 m', 0
+    db '9.8 [m/s^2] * 70 [kg]', 0, '686 N', 0
+    db '1 [h] to [min]', 0, '60 min', 0
+    db '3 [m] / 2 [s]', 0, '1.5 m/s', 0
+    db '[m] + [s]', 0, '!the units do not match', 0
+    db 'ans * 2 [s]', 0, '3 m', 0
+    db '2e3 + 1.5e-1', 0, '2000.15', 0
+    db 'digits 50', 0, 'digits: 50', 0
+    db '1/3', 0, '0.33333333333333333333333333333333333333333333333333', 0
+    db 'pi', 0, '3.14159265358979323846264338327950288419716939937511', 0
+    db 'sqrt(2)', 0, '1.41421356237309504880168872420969807856967187537695', 0
+    db '2^100', 0, '1267650600228229401496703205376', 0
+    db '30!', 0, '265252859812191058636308480000000', 0
+    db '0.1 + 0.2 - 0.3', 0, '0', 0
+    db '-7/4', 0, '-1.75', 0
+    db 'e', 0, '2.71828182845904523536028747135266249775724709369996', 0
+    db 'digits 0', 0, 'digits: off (doubles)', 0
+    db '1/0', 0, '!division by zero', 0
+    db 'zz + 1', 0, '!unknown name', 0
+    db 'sin(pi/2) + cos(0)', 0, '2', 0
+    db 'asin(2)', 0, '!outside the function domain', 0
+    db '(1 + 2', 0, '!a ) is missing', 0
+    db 0
 
 ntests:
     db 'print 1 + 2 * 3', 0, '7', 10, 0
@@ -4151,4 +4317,5 @@ tbuf    resb 256
 errbuf  resb 512
 GUI_BSS
 NUT_BSS
+SQM_BSS
 SQX_END
