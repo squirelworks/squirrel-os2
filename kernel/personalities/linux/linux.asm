@@ -36,6 +36,9 @@ LX_ENOSYS   equ -38
 LX_ENOTTY   equ -25
 LX_ERANGE   equ -34
 LX_EFAULT   equ -14
+LX_EPERM    equ -1
+LX_ESRCH    equ -3
+LX_EINTR    equ -4
 LX_AT_FDCWD equ -100
 
 ; Linux open() flags that have a native meaning
@@ -121,6 +124,10 @@ lx_isr:
     mov eax, LX_ENOSYS
 .ret:
     mov [esp+28], eax
+    test byte [esp+36], 3       ; back to ring 3: a pending signal first
+    jz .out
+    call lx_deliver
+.out:
     popad
     iretd
 
@@ -144,6 +151,8 @@ LK_S8       equ 15              ; esi -> 8 bytes
 LK_CZ       equ 16              ; ecx -> string
 LK_IOCTL    equ 17              ; edx -> 36 (TCGETS) or 8 (TIOCGWINSZ) bytes
 LK_B24      equ 18              ; ebx -> 24 bytes
+LK_C20_D20  equ 19              ; ecx -> 20 bytes or 0, edx -> 20 bytes or 0
+LK_C8_D8    equ 20              ; ecx -> 8 bytes or 0, edx -> 8 bytes or 0
 
 %macro LXCALL 2-3 LK_NONE       ; number, handler, kind
     dw %1
@@ -158,7 +167,22 @@ lx_uargs:
     jmp [.kinds+eax*4]
 .kinds:
     dd .ok, .bz, .bz_cz, .c_d, .b_c, .bz_c96, .c96, .b390, .iov, .b16
-    dd .d20, .d8, .b4, .b8, .c8, .s8, .cz, .ioctl, .b24
+    dd .d20, .d8, .b4, .b8, .c8, .s8, .cz, .ioctl, .b24, .c20_d20, .c8_d8
+.c20_d20:
+    mov eax, 20
+    jmp .cd
+.c8_d8:
+    mov eax, 8
+.cd:                            ; ecx and edx -> eax bytes each, 0 allowed
+    mov esi, ecx
+    mov ecx, eax
+    test esi, esi
+    jz .cd2
+    call ua_range
+    jc .bad
+.cd2:
+    mov esi, edx
+    jmp .opt
 .bz_cz:
     mov esi, ecx
     call ua_str
@@ -298,8 +322,16 @@ lx_calls:
     LXCALL 145, lx_readv, LK_IOV
     LXCALL 146, lx_writev, LK_IOV
     LXCALL 162, lx_nanosleep
-    LXCALL 174, lx_sigaction, LK_D20
-    LXCALL 175, lx_sigprocmask, LK_D8
+    LXCALL 174, lx_sigaction, LK_C20_D20
+    LXCALL 175, lx_sigprocmask, LK_C8_D8
+    LXCALL 37, lx_kill              ; kill(pid, sig)
+    LXCALL 238, lx_kill             ; tkill(tid, sig): one thread per process
+    LXCALL 270, lx_tgkill           ; tgkill(tgid, tid, sig)
+    LXCALL 119, lx_sigreturn
+    LXCALL 173, lx_rt_sigreturn
+    LXCALL 176, lx_sigpending, LK_B8
+    LXCALL 29, lx_pause
+    LXCALL 64, lx_getppid
     LXCALL 183, lx_getcwd, LK_B_C
     LXCALL 195, lx_stat64, LK_BZ_C96
     LXCALL 196, lx_stat64, LK_BZ_C96; lstat64: no links
@@ -685,23 +717,6 @@ lx_nanosleep:
     xor eax, eax
     ret
 
-; rt_sigaction(sig, act, oldact, size) / rt_sigprocmask(how, set, old, size):
-; no signals are delivered; old values read as "default, nothing blocked"
-lx_sigaction:
-    mov edi, edx
-    mov ecx, 20/4
-    jmp lx_zero_out
-lx_sigprocmask:
-    mov edi, edx
-    mov ecx, 8/4
-lx_zero_out:                    ; edi = buffer or 0, ecx dwords
-    xor eax, eax
-    test edi, edi
-    jz .r
-    rep stosd
-.r:
-    ret
-
 ; getcwd(buf, size): "/" (programs are found from the root)
 lx_getcwd:
     cmp ecx, 2
@@ -840,3 +855,411 @@ lx_uts:                         ; field number, text; 0xFF ends
     db 3, 'Squirrel-OS/2 Linux personality', 0
     db 4, 'i686', 0             ; machine
     db 0xFF
+
+; ---------- signals (P.2) ----------
+; Per slot: 32 actions of 16 bytes (handler, flags, restorer, mask), the
+; blocked mask and the pending set, both with bit n-1 for signal n. A
+; signal is delivered when its process returns from int 0x80 to ring 3:
+; lx_deliver builds a frame on the user stack (return address, signal
+; number, siginfo, ucontext with the i386 sigcontext and the old mask,
+; and a sigreturn stub) and resumes the process at its handler.
+; rt_sigreturn/sigreturn reload the registers from that frame. Only
+; signals 1..32 exist; a process blocked inside a call sees a signal
+; when the call returns.
+LX_SIGKILL  equ 9
+LX_SIGSEGV  equ 11
+LX_SIGSTOP  equ 19
+LX_SA_SIGINFO  equ 4
+LX_SA_RESTORER equ 0x04000000
+LX_SA_NODEFER  equ 0x40000000
+LX_SA_RESETHAND equ 0x80000000
+LX_UNBLOCKABLE equ (1 << (LX_SIGKILL-1)) | (1 << (LX_SIGSTOP-1))
+LX_FRAME    equ 272             ; bytes of a signal frame
+LXF_INFO    equ 16              ; siginfo, 128 bytes
+LXF_UC      equ 144             ; ucontext: flags, link, stack (12)
+LXF_MC      equ 164             ; sigcontext: gs fs es ds edi esi ebp esp
+                                ; ebx edx ecx eax trapno err eip cs eflags
+                                ; esp_at_signal ss fpstate oldmask cr2
+LXF_MASK    equ 252             ; uc_sigmask (8)
+LXF_STUB    equ 260             ; mov eax, 173 / int 0x80
+
+; -> eax = the current slot
+lx_slot:
+    mov eax, [proc_cur]
+    sub eax, proc_table
+    shr eax, 6
+    ret
+
+; edi = PCB of a new process (proc_spawn): default actions, nothing
+; blocked or pending
+lx_sig_clear:
+    pushad
+    mov eax, edi
+    sub eax, proc_table
+    shr eax, 6
+    mov dword [lx_sig_mask+eax*4], 0
+    mov dword [lx_sig_pend+eax*4], 0
+    shl eax, 9
+    lea edi, [lx_sig_act+eax]
+    mov ecx, 512/4
+    xor eax, eax
+    rep stosd
+    popad
+    ret
+
+; rt_sigaction(sig, act, oact, sigsetsize)
+lx_sigaction:
+    lea eax, [ebx-1]
+    cmp eax, 31
+    ja .inval
+    push eax
+    call lx_slot
+    shl eax, 9
+    pop edi
+    shl edi, 4
+    lea edi, [lx_sig_act+eax+edi]
+    test ecx, ecx               ; read the new action before writing the
+    jz .old                     ; old one: they may be the same buffer
+    cmp ebx, LX_SIGKILL
+    je .inval
+    cmp ebx, LX_SIGSTOP
+    je .inval
+    push dword [ecx]            ; handler
+    push dword [ecx+4]          ; flags
+    push dword [ecx+8]          ; restorer
+    push dword [ecx+12]         ; mask, low word
+.old:
+    test edx, edx
+    jz .new
+    mov eax, [edi]
+    mov [edx], eax
+    mov eax, [edi+4]
+    mov [edx+4], eax
+    mov eax, [edi+8]
+    mov [edx+8], eax
+    mov eax, [edi+12]
+    mov [edx+12], eax
+    mov dword [edx+16], 0
+.new:
+    test ecx, ecx
+    jz .ok
+    pop dword [edi+12]
+    pop dword [edi+8]
+    pop dword [edi+4]
+    pop dword [edi]
+    and dword [edi+12], ~LX_UNBLOCKABLE
+.ok:
+    xor eax, eax
+    ret
+.inval:
+    mov eax, LX_EINVAL
+    ret
+
+; rt_sigprocmask(how, set, oset, sigsetsize)
+lx_sigprocmask:
+    call lx_slot
+    lea edi, [lx_sig_mask+eax*4]
+    mov esi, [edi]              ; the old mask
+    test ecx, ecx
+    jz .old
+    mov eax, [ecx]
+    cmp ebx, 0                  ; SIG_BLOCK
+    jne .unblock
+    or eax, esi
+    jmp .set
+.unblock:
+    cmp ebx, 1                  ; SIG_UNBLOCK
+    jne .setmask
+    not eax
+    and eax, esi
+    jmp .set
+.setmask:
+    cmp ebx, 2                  ; SIG_SETMASK
+    jne .inval
+.set:
+    and eax, ~LX_UNBLOCKABLE
+    mov [edi], eax
+.old:
+    test edx, edx
+    jz .r
+    mov [edx], esi
+    mov dword [edx+4], 0
+.r:
+    xor eax, eax
+    ret
+.inval:
+    mov eax, LX_EINVAL
+    ret
+
+; rt_sigpending(set): blocked signals that wait
+lx_sigpending:
+    call lx_slot
+    mov ecx, [lx_sig_pend+eax*4]
+    and ecx, [lx_sig_mask+eax*4]
+    mov [ebx], ecx
+    mov dword [ebx+4], 0
+    xor eax, eax
+    ret
+
+; tgkill(tgid, tid, sig)
+lx_tgkill:
+    mov ebx, ecx
+    mov ecx, edx
+    ; fall through
+; kill(pid, sig): pid 0, -1 or our own is this process; another pid must
+; be a Linux process. Signal 0 only asks whether the process exists.
+lx_kill:
+    cmp ecx, 32
+    ja .inval
+    mov edi, [proc_cur]
+    test ebx, ebx
+    jz .found
+    cmp ebx, -1
+    je .found
+    cmp ebx, [edi+PCB_PID]
+    je .found
+    test ebx, ebx
+    js .srch
+    call proc_find
+    test edi, edi
+    jz .srch
+    cmp dword [edi+PCB_STATE], P_ZOMBIE
+    je .srch
+    cmp dword [edi+PCB_LINUX], 0
+    je .perm                    ; native programs take no signals
+.found:
+    jecxz .ok
+    mov eax, edi
+    sub eax, proc_table
+    shr eax, 6
+    dec ecx
+    lock bts dword [lx_sig_pend+eax*4], ecx
+.ok:
+    xor eax, eax
+    ret
+.inval:
+    mov eax, LX_EINVAL
+    ret
+.srch:
+    mov eax, LX_ESRCH
+    ret
+.perm:
+    mov eax, LX_EPERM
+    ret
+
+; pause(): waits until a signal can be delivered, then -EINTR
+lx_pause:
+    call lx_slot
+    mov ecx, [lx_sig_mask+eax*4]
+    not ecx
+    test [lx_sig_pend+eax*4], ecx
+    jnz .intr
+    call proc_idle
+    jmp lx_pause
+.intr:
+    mov eax, LX_EINTR
+    ret
+
+; getppid()
+lx_getppid:
+    mov eax, [proc_cur]
+    mov eax, [eax+PCB_PARENT]
+    ret
+
+; [esp+4] = lx_isr's pushad frame, from a ring-3 call: delivers one
+; pending, unblocked signal. A default action ends the process (exit
+; code 128 + signal) or ignores the signal.
+lx_deliver:
+    lea ebp, [esp+4]
+    call lx_slot
+    mov ebx, eax
+.again:
+    mov eax, [lx_sig_mask+ebx*4]
+    not eax
+    and eax, [lx_sig_pend+ebx*4]
+    jz .r
+    bsf ecx, eax
+    lock btr dword [lx_sig_pend+ebx*4], ecx
+    mov esi, ebx
+    shl esi, 9
+    shl ecx, 4
+    lea esi, [lx_sig_act+esi+ecx]
+    shr ecx, 4
+    inc ecx                     ; the signal number
+    cmp ecx, LX_SIGKILL
+    je lx_sig_term
+    mov eax, [esi]
+    cmp eax, 1                  ; SIG_IGN
+    je .again
+    test eax, eax
+    jnz .handler
+    ; SIG_DFL: ignored for SIGCHLD, SIGCONT, the stop signals (no job
+    ; control here), SIGURG and SIGWINCH; the end of the process otherwise
+    mov eax, 1
+    shl eax, cl
+    shr eax, 1
+    test eax, (1 << 16) | (1 << 17) | (1 << 18) | (1 << 19) | (1 << 20) | (1 << 21) | (1 << 22) | (1 << 27)
+    jnz .again
+    jmp lx_sig_term
+.r:
+    ret
+.handler:
+    mov edi, [ebp+44]           ; the user stack
+    sub edi, LX_FRAME
+    and edi, -16
+    sub edi, 4                  ; (esp + 4) % 16 == 0 at the handler
+    push esi
+    push ecx
+    mov esi, edi
+    mov ecx, LX_FRAME
+    call ua_range
+    pop ecx
+    pop esi
+    jc .segv
+    push esi
+    push ecx
+    ; siginfo and ucontext start out zero
+    push edi
+    xor eax, eax
+    mov ecx, LX_FRAME/4
+    rep stosd
+    pop edi
+    pop ecx
+    pop esi
+    mov eax, [esi+8]            ; return address: the restorer, or the stub
+    test dword [esi+4], LX_SA_RESTORER
+    jnz .ret
+    lea eax, [edi+LXF_STUB]
+.ret:
+    mov [edi], eax
+    mov [edi+4], ecx
+    lea eax, [edi+LXF_INFO]
+    mov [edi+8], eax
+    lea eax, [edi+LXF_UC]
+    mov [edi+12], eax
+    mov [edi+LXF_INFO], ecx     ; si_signo; si_code 0 = SI_USER
+    mov eax, [proc_cur]
+    mov eax, [eax+PCB_PID]
+    mov [edi+LXF_INFO+12], eax  ; si_pid
+    mov dword [edi+LXF_STUB], 0x0000ADB8    ; mov eax, 173
+    mov dword [edi+LXF_STUB+4], 0x9080CD00  ; int 0x80
+    ; sigcontext: the segments, then pushad's order edi..eax
+    mov eax, gs
+    mov [edi+LXF_MC], eax
+    mov eax, fs
+    mov [edi+LXF_MC+4], eax
+    mov dword [edi+LXF_MC+8], USER_DS
+    mov dword [edi+LXF_MC+12], USER_DS
+    push esi
+    push edi
+    push ecx
+    mov esi, ebp
+    add edi, LXF_MC+16
+    mov ecx, 8
+    rep movsd
+    pop ecx
+    pop edi
+    pop esi
+    mov eax, [ebp+44]
+    mov [edi+LXF_MC+28], eax    ; esp
+    mov [edi+LXF_MC+68], eax    ; esp_at_signal
+    mov eax, [ebp+32]
+    mov [edi+LXF_MC+56], eax    ; eip
+    mov eax, [ebp+36]
+    mov [edi+LXF_MC+60], eax    ; cs
+    mov eax, [ebp+40]
+    mov [edi+LXF_MC+64], eax    ; eflags
+    mov eax, [ebp+48]
+    mov [edi+LXF_MC+72], eax    ; ss
+    mov eax, [lx_sig_mask+ebx*4]
+    mov [edi+LXF_MC+80], eax    ; oldmask
+    mov [edi+LXF_MASK], eax
+    ; the handler runs with its mask added, and its own signal unless
+    ; SA_NODEFER
+    or eax, [esi+12]
+    test dword [esi+4], LX_SA_NODEFER
+    jnz .mask
+    lea edx, [ecx-1]
+    bts eax, edx
+.mask:
+    and eax, ~LX_UNBLOCKABLE
+    mov [lx_sig_mask+ebx*4], eax
+    mov edx, [esi]              ; the handler
+    test dword [esi+4], LX_SA_RESETHAND
+    jz .go
+    mov dword [esi], 0
+.go:
+    mov [ebp+32], edx           ; eip
+    mov [ebp+44], edi           ; esp
+    and dword [ebp+40], ~0x500  ; TF and DF clear
+    mov [ebp+28], ecx           ; eax = sig, edx = siginfo, ecx = ucontext
+    lea eax, [edi+LXF_INFO]
+    mov [ebp+20], eax
+    lea eax, [edi+LXF_UC]
+    mov [ebp+24], eax
+    ret
+.segv:
+    mov ecx, LX_SIGSEGV
+    ; fall through
+; ecx = signal: the process ends with 128 + signal
+lx_sig_term:
+    push ecx
+    mov esi, lx_m_sig
+    call puts
+    pop eax
+    push eax
+    call itoa
+    mov esi, num_buf
+    call puts
+    mov al, 10
+    call putc
+    pop ebx
+    add ebx, 128
+    jmp proc_exit
+
+; rt_sigreturn(): the frame's return address has been popped
+lx_rt_sigreturn:
+    mov esi, [esp+4+44]
+    sub esi, 4
+    jmp lx_sigret
+; sigreturn(): the restorer popped the signal number as well
+lx_sigreturn:
+    mov esi, [esp+4+44]
+    sub esi, 8
+; esi = the frame -> the registers from its sigcontext; eax as it was
+lx_sigret:
+    lea ebp, [esp+4]
+    mov ecx, LX_FRAME
+    call ua_range
+    jnc .ok
+    mov ecx, LX_SIGSEGV
+    jmp lx_sig_term
+.ok:
+    lea edx, [esi+LXF_MC+16]
+    mov edi, ebp
+    mov ecx, 8
+.cp:
+    mov eax, [edx]
+    mov [edi], eax
+    add edx, 4
+    add edi, 4
+    loop .cp
+    mov eax, [esi+LXF_MC+56]
+    mov [ebp+32], eax           ; eip
+    mov eax, [esi+LXF_MC+28]
+    mov [ebp+44], eax           ; esp
+    mov eax, [esi+LXF_MC+64]    ; only the arithmetic flags and DF
+    and eax, 0xCD5
+    and dword [ebp+40], ~0xCD5
+    or [ebp+40], eax
+    call lx_slot
+    mov edx, [esi+LXF_MASK]
+    and edx, ~LX_UNBLOCKABLE
+    mov [lx_sig_mask+eax*4], edx
+    mov eax, [ebp+28]
+    ret
+
+lx_m_sig db 'Program ended by signal ', 0
+lx_sig_act times PROC_MAX*512 db 0
+lx_sig_mask times PROC_MAX dd 0
+lx_sig_pend times PROC_MAX dd 0
