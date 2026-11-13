@@ -41,6 +41,7 @@ SYS_NETRECVFROM equ 31      ; ebx = block -> bytes, -1 port taken, -2 nothing (1
 SYS_SETPRIO equ 32          ; ebx = 0..3 -> 0, or -1 (1.9.9)
 SYS_DEVREG  equ 33          ; ebx = name -> register a null char device (1.9.12)
 SYS_DEVUNREG equ 34         ; ebx = name -> remove a device SYS_DEVREG made (2.0.2)
+SYS_GUI     equ 35          ; ebx = GUI_* op, ecx/edx = args: graphics for programs (appsys.asm)
 SYS_WINOPEN  equ 48         ; ebx = block: x, y, w, h, title, flags -> window id or -1 (2.2-progwin)
 SYS_WINCLOSE equ 49         ; ebx = id -> 0 or -1
 SYS_WINMOVE  equ 50         ; ebx = id, ecx = x | y << 16, edx = w | h << 16 (0 keeps) -> 0 or -1
@@ -49,7 +50,7 @@ SYS_WINDRAW  equ 52         ; ebx = id, ecx = 28-byte command -> 0, a colour (WD
 SYS_WINFLUSH equ 53         ; ebx = id -> 0 or -1: what was drawn reaches the screen
 SYS_WINEVENT equ 54         ; ebx = 16-byte buffer, ecx = 0 wait / 1 poll -> 0, or -1 nothing
 SYS_WININFO  equ 55         ; ebx = id or -1, ecx = 16-byte buffer -> 0 or -1
-SYS_COUNT   equ 56          ; 35-47 free for other calls (windows.md)
+SYS_COUNT   equ 56          ; 36-47 free for other calls (windows.md)
 
 SYS_ENOSYS  equ -1
 SYSCALL_VEC equ 0x80
@@ -106,6 +107,7 @@ UA_DEV      equ 8           ; ecx -> edx bytes (char) or a sector (block)
 UA_NETSEND  equ 9           ; ebx -> 16-byte block, its +8 -> its +12 bytes
 UA_NETRECV  equ 10          ; ebx -> 20-byte block, its +4 -> its +8 bytes
 UA_KERNEL   equ 11          ; refused from ring 3
+UA_GUI      equ 12          ; per GUI_* operation (gui_uargs, appsys.asm)
 
 SYS_EFAULT  equ -1
 
@@ -119,7 +121,8 @@ sys_uarg_kind:
     db UA_DEV, UA_NONE, UA_B_C, UA_NONE         ; devwrite seek fserror send
     db UA_NONE, UA_NONE, UA_NETSEND, UA_NETRECV ; recv keyevents netsendto netrecvfrom
     db UA_NONE, UA_BZ, UA_BZ                    ; setprio devreg devunreg
-    times 48-35 db UA_NONE                      ; 35-47: not used yet
+    db UA_GUI                                   ; gui
+    times 48-36 db UA_NONE                      ; 36-47: not used yet
     times 8 db UA_NONE                          ; 48-55 windows: checked in winsys.asm
 %if $-sys_uarg_kind != SYS_COUNT
 %error sys_uarg_kind needs one byte per system call
@@ -130,11 +133,15 @@ sys_uarg_kind:
 sys_uargs:
     pushad
     movzx eax, byte [sys_uarg_kind+eax]
-    cmp eax, UA_KERNEL
+    cmp eax, UA_GUI
     ja .ok
     jmp [.kinds+eax*4]
 .kinds:
-    dd .ok, .bz, .bz_cz, .bz_cz0, .c_d, .b_c, .c_512, .c_20, .dev, .netsend, .netrecv, .bad
+    dd .ok, .bz, .bz_cz, .bz_cz0, .c_d, .b_c, .c_512, .c_20, .dev, .netsend, .netrecv, .bad, .gui
+.gui:
+    call gui_uargs
+    jc .bad
+    jmp .ok
 .bz_cz0:
     test ecx, ecx
     jz .bz
@@ -242,13 +249,65 @@ ua_range:
     jc .bad                 ; wraps around
     cmp edx, eax
     ja .bad
+    push esi                ; every page of it must be safe to touch
+    and esi, -PAGE_SIZE
+.pg:
+    call ua_page_ok
+    jc .badpg
+    add esi, PAGE_SIZE
+    cmp esi, edx
+    jb .pg
+    pop esi
     clc
     jmp .r
+.badpg:
+    pop esi
 .bad:
     stc
 .r:
     pop edx
     pop eax
+    ret
+
+; esi = an address in one of the caller's regions -> CF if the kernel
+; must not touch its page: a ring-3 stack page that is not mapped and is
+; not in the calling thread's own window above its guard page (there a
+; kernel access just grows the stack, as a ring-3 one would). The
+; program area and the heap up to the break are always mapped. Without
+; this a string or buffer on another thread's untouched stack page, or
+; on a guard page, would fault in the kernel and end the caller instead
+; of failing the call. Keeps every register.
+ua_page_ok:
+    cmp esi, USTACK_BASE
+    jb .ok
+    pushad
+    mov edi, [proc_cur]
+    mov ebx, [edi+PCB_AS]
+    mov ebx, [ebx+AS_PD]
+    mov eax, [ebx+USTACK_PDE*4]
+    test eax, eax
+    jz .own
+    and eax, -PAGE_SIZE
+    mov edx, esi
+    shr edx, 12
+    and edx, 1023
+    test dword [eax+edx*4], PG_P
+    jnz .yes                ; mapped
+.own:
+    call vm_ustack_top      ; eax = top of the caller's own window
+    cmp esi, eax
+    jae .no
+    sub eax, USTACK_SIZE-PAGE_SIZE ; above its guard page
+    cmp esi, eax
+    jb .no
+.yes:
+    popad
+.ok:
+    clc
+    ret
+.no:
+    popad
+    stc
     ret
 
 ; esi = string -> CF unless it starts and ends (zero byte) in one of the
@@ -258,9 +317,16 @@ ua_str:
     push esi
     call ua_region
     jc .r
+    call ua_page_ok
+    jc .r
 .s:
     cmp esi, eax
     jae .bad
+    test esi, PAGE_SIZE-1   ; each new page must be safe to touch too
+    jnz .rd
+    call ua_page_ok
+    jc .r
+.rd:
     cmp byte [esi], 0
     je .ok
     inc esi
@@ -311,7 +377,8 @@ syscall_table:
     dd sys_setprio
     dd sys_devreg
     dd sys_devunreg
-    times 48-35 dd sys_none                     ; 35-47: not used yet
+    dd sys_gui
+    times 48-36 dd sys_none                     ; 36-47: not used yet
     dd sys_winopen, sys_winclose, sys_winmove, sys_wintitle   ; 2.2-progwin
     dd sys_windraw, sys_winflush, sys_winevent, sys_wininfo
 

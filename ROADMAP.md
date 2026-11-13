@@ -165,8 +165,8 @@ The old 2.1–2.9 bridge plan in `documentation/plannedmilestones.md`, renumbere
 
 Each app is first built in squirrelsoft as a desktop program, then ported.
 
-- [ ] **A.1** (2.1+) — Calculator with standard and scientific modes in a window (the existing `calc` / `sci` engines), Clock, Notepad (GUI `edit`)
-- [ ] **A.2** (2.2+) — Paint (bitmap tools, palette, save as BMP or an own format), image viewer, character map
+- [x] **A.1** (2.1+) — Calculator with standard and scientific modes in a window (the existing `calc` / `sci` engines), Clock, Notepad (GUI `edit`)
+- [x] **A.2** (2.2+) — Paint (bitmap tools, palette, save as BMP or an own format), image viewer, character map
 - [ ] **A.3** (2.3+) — Settings / Control Panel, File Manager, Terminal (several shells in windows)
 - [ ] **A.4** (2.4+) — Debugger: process list, INT3 breakpoints, single step, registers, memory view, an original disassembler, symbols from SQX / ELF
 - [ ] **A.5** (2.5+) — Task / system monitor (CPU, memory, processes, priorities), disk utility, log viewer
@@ -197,7 +197,7 @@ Each has its rules core with unit tests in squirrelsoft first; card and board gr
 - [ ] **C.6** — Geometry: points, lines, circles, constructions, measurements, dynamic dragging.
 - [ ] **C.7** — 3D graphing: surfaces and parametric curves.
 - [ ] **C.8** — Notebooks whose pages mix notes, graphs, geometry and spreadsheets; scripting in an original BASIC- or Lua-like interpreter.
-- [ ] **C.9** — `topo` (topology / surveying calculator) and a matrix / linear-algebra GUI.
+- [x] **C.9** — `topo` (topology / surveying calculator) and a matrix / linear-algebra GUI.
 
 ### Warp styling (W.1–W.6, every generation, epic #117)
 

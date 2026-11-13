@@ -79,6 +79,13 @@ and end (zero byte) inside the same one. One byte per call in `sys_uarg_kind` sa
 | `ecx` sector / 20 bytes | `bread`, `bwrite` / `readdir` |
 | block and the buffer it points to | `netsendto` (16-byte block), `netrecvfrom` (20-byte block) |
 | kernel-only | `palloc`, `pfree`: they deal in physical pages. Programs use `SYS_SBRK` |
+| per operation | `gui`: the rect block and its buffer, the font buffer, the eval block and its strings, the palette bytes (`syscalls.md`) |
+
+In the ring-3 stack windows, pages can be unmapped, so every page a buffer or string covers
+must also be safe for the kernel to touch (`ua_page_ok`): either it is mapped, or it lies in the
+calling thread's own window above the guard page, where a kernel access just grows the stack.
+A pointer into another thread's untouched stack page or into a guard page is refused instead of
+faulting inside the kernel (which would end the caller).
 
 A call that fails the check does not run and returns −1 (`SYS_EFAULT`). Calls from ring 0 are
 not checked.
@@ -86,7 +93,7 @@ not checked.
 ## Test
 
 `programs/ring3.asm` (`run ring3`, checks `ring3` and `ring3-after`): checks that CS has RPL 3;
-that `puts`, `fserror` and `readdir` refuse kernel and out-of-area pointers and `palloc` is
-refused; that six threads reading or writing kernel memory, running `cli`, `hlt`, `in` or
+that `puts`, `fserror` and `readdir` refuse kernel and out-of-area pointers, and pointers into
+another slot's untouched stack page or a guard page, and `palloc` is refused; that six threads reading or writing kernel memory, running `cli`, `hlt`, `in` or
 `int 0x21` are each ended with −1 while the program carries on; and that a thread can use 64 KB
 of stack. `stackover` checks the guard page.

@@ -185,7 +185,7 @@ The window record gains `WIN_STATE` (`WS_NORMAL`, `WS_MIN`, `WS_MAX`), `WIN_REST
 
 ### Programs (syscalls, **2.2-progwin**, in the kernel since 2.2-progwin)
 
-The calls are in `kernel/winsys.asm`, numbers 48–55 (`SYS_COUNT` is 56; 35–47 return `SYS_ENOSYS` until other streams use them). A window belongs to the process that opened it (`WIN_OWNER`, its pid; −1 for the kernel's own windows) and is closed when that process exits (`proc_exit` calls `ws_procgone`). Only the owner may use a window. Coordinates are relative to the client area. From ring 3 every pointer (the blocks, the title, a string, blit bytes, the event buffer) must be the program's own memory (`ua_range` / `ua_str`, `ring3.md`), or the call returns −1.
+The calls are in `kernel/winsys.asm`, numbers 48–55 (`SYS_COUNT` is 56; 36–47 return `SYS_ENOSYS` until other streams use them; 35 is `SYS_GUI`). A window belongs to the process that opened it (`WIN_OWNER`, its pid; −1 for the kernel's own windows) and is closed when that process exits (`proc_exit` calls `ws_procgone`). Only the owner may use a window. Coordinates are relative to the client area. From ring 3 every pointer (the blocks, the title, a string, blit bytes, the event buffer) must be the program's own memory (`ua_range` / `ua_str`, `ring3.md`), or the call returns −1.
 
 | No. | Name | In | Out |
 |-----|------|----|-----|

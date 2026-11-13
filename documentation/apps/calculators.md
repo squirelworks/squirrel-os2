@@ -76,7 +76,7 @@ Errors: `syntax at column N`, `division by zero`, `overflow` (result beyond the 
 
 ## Graphing Calculator (`graph`)
 
-Plots one function in graphics mode. Implemented in `kernel/graph.asm` (1.3.3) with the graphics primitives (`../kernel/graphics.md`) and the `sci` evaluator, as `diff` uses it.
+Plots one function in graphics mode. Its C.2 successor, the program `grapher` (up to four functions, polar and parametric curves, zoom, pan, trace, roots, extrema and intersections), is described in `grapher.md`. Implemented in `kernel/graph.asm` (1.3.3) with the graphics primitives (`../kernel/graphics.md`) and the `sci` evaluator, as `diff` uses it.
 
 - At the `graph>` prompt, type `y = <f(x)>`, or just `<f(x)>`. `f` is a `sci` expression in `x`; angles are radians.
 - The screen switches to 320 × 200 graphics and shows the axes, the curve in yellow, the function at the top left and the range at the bottom left. The window is fixed: x and y both run from −10 to 10, so one unit is 16 pixels across and 10 pixels up.
