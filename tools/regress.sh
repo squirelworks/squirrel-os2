@@ -39,6 +39,20 @@ python3 "$root/tools/sqfs.py" "$out/auto.img" put "$out/autoexec.bat"
 python3 "$root/tools/sqfs.py" "$out/dkauto.img" format 1024    # 1.6.0: boot into the desktop
 mkdir -p "$out/dk" && printf 'desktop\n' > "$out/dk/autoexec.bat"
 python3 "$root/tools/sqfs.py" "$out/dkauto.img" put "$out/dk/autoexec.bat"
+# OS2-APPS: graphical programs (SYS_GUI) on a data disk of their own
+python3 "$root/tools/sqfs.py" "$out/apps.img" format 1024
+for prog in guitest calculator clock notepad grapher charmap paint viewer topology matrixgui; do
+    nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
+    python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/$prog"
+done
+python3 - "$out/grad.bmp" <<'PYEOF'    # A.2: a 24-bit test picture, 64 x 48
+import struct, sys
+w, h = 64, 48
+rows = b''.join(bytes(c for x in range(w) for c in (128, y * 255 // (h - 1), x * 255 // (w - 1))) for y in range(h - 1, -1, -1))
+open(sys.argv[1], 'wb').write(b'BM' + struct.pack('<IHHI', 54 + len(rows), 0, 0, 54)
+    + struct.pack('<IiiHHIIiiII', 40, w, h, 1, 24, 0, len(rows), 2835, 2835, 0, 0) + rows)
+PYEOF
+python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/grad.bmp"
 rm -f "$out/data.img"
 dd if=/dev/zero of="$out/data.img" bs=1024 count=1024 2>/dev/null
 
@@ -737,6 +751,59 @@ check l10n-edit-tlh "ghItlhwI': (untitled)" 'lang tlh' '<ret>' 'run edit' '<ret>
 check l10n-draw-la  'Programma pingendi - ASCII canvas' 'lang la' '<ret>' 'run draw' '<ret>'
 check l10n-calc-en  'Basic Calculator (Esc to exit)' 'run calc' '<ret>'
 check lang-systest  'systest: PROBATUM'     'lang la' '<ret>' systest '<ret>'
+# OS2-APPS: graphics for programs (SYS_GUI, programs/gui.inc) and the A.1 apps
+disk=$out/apps.img
+check guitest       'guitest: PASS'         'run guitest' '<ret>' '<pause>'
+check_all guitest-gfx 'gfx: Gui test|gfx: Hello from a program' 'run guitest hold' '<ret>' '<pause>' '<gfx>'
+check_all calculator 'gfx: Calculator|gfx: 2+3*4|gfx: = 14' 'run calculator' '<ret>' '<pause>' '2+3*4' '<ret>' '<pause>' '<gfx>'
+check calculator-ans 'gfx: = 28'            'run calculator' '<ret>' '<pause>' '2+3*4' '<ret>' '*2' '<ret>' '<pause>' '<gfx>'
+check_all calculator-err 'gfx: Error: division by|gfx: zero' 'run calculator' '<ret>' '<pause>' '1/0' '<ret>' '<pause>' '<gfx>'
+check_all calculator-syn 'gfx: Error: syntax at|gfx: column 4' 'run calculator' '<ret>' '<pause>' '2*(' '<ret>' '<pause>' '<gfx>'
+check calculator-keys 'gfx: = 45'           'run calculator' '<ret>' '<pause>' '<spc>' '<right>' '<spc>' '<ret>' '<pause>' '<gfx>'
+check_all calculator-sci 'gfx: sin|gfx: DEG|gfx: = 0.5' 'run calculator' '<ret>' '<pause>' '<tab>' '<f2>' 'sin(30)' '<ret>' '<pause>' '<gfx>'
+check calculator-quit 'systest: PASS'       'run calculator' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
+check clock         'clock: PASS'           'run clock test' '<ret>' '<pause>' '<pause>' '<pause>'
+check_all clock-gfx 'gfx: Clock|gfx: 20'    'run clock' '<ret>' '<pause>' '<gfx>'
+check clock-quit    'systest: PASS'         'run clock' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
+check_all notepad   'gfx: Notepad - memo|gfx: Hello notepad!|gfx: second line|gfx: Ln 1 Col 15' \
+                    'run notepad memo' '<ret>' '<pause>' 'Hello notepad' '<ret>' 'second line' '<up>' '<end>' '!' '<pause>' '<gfx>'
+check notepad-save  'Hello notepad!'        'run notepad memo' '<ret>' '<pause>' 'Hello notepad!' '<ctrl-s>' '<pause>' '<esc>' '<pause>' 'cat memo' '<ret>'
+check notepad-open  'gfx: Hello notepad!'   'run notepad memo' '<ret>' '<pause>' '<gfx>'
+check notepad-ask   'gfx: Save changes? y/n' 'run notepad' '<ret>' '<pause>' 'x' '<esc>' '<pause>' '<gfx>'
+check notepad-quit  'systest: PASS'         'run notepad' '<ret>' '<pause>' 'x' '<esc>' 'n' '<pause>' systest '<ret>'
+# C.2: grapher (explicit, polar, parametric; roots, extrema, intersections, trace)
+check grapher       'grapher: PASS'         'run grapher test' '<ret>' '<pause>' '<pause>' '<pause>'
+check_all grapher-roots 'gfx: 1: sin(x)|gfx: roots: -9.4248|gfx: -3.1416' 'run grapher sin(x)' '<ret>' '<pause>' 'z' '<pause>' '<gfx>'
+check_all grapher-ext 'gfx: min(-7.854, -1)|gfx: max(-4.7124, 1)' 'run grapher sin(x)' '<ret>' '<pause>' 'm' '<pause>' '<gfx>'
+check_all grapher-meet 'gfx: meet: (-1, 0)|gfx: (2, 3)' 'run grapher x^2-1' '<ret>' '<pause>' '<tab>' '<ret>' 'y = x + 1' '<ret>' '<tab>' '<tab>' '<tab>' 'i' '<pause>' '<gfx>'
+check_all grapher-trace 'gfx: 2: x = 4*cos(t), y = 2*sin(t)|gfx: t=0.0262|gfx: x=3.9986' 'run grapher' '<ret>' '<pause>' 'sin(x)' '<ret>' '<tab>' '<ret>' 'x = 4*cos(t), y = 2*sin(t)' '<ret>' 't' '<right>' '<pause>' '<gfx>'
+check grapher-zoom  'gfx: roots: -3.1416'   'run grapher sin(x)' '<ret>' '<pause>' '+' 'z' '<pause>' '<gfx>'
+check grapher-syn   'gfx: Error: syntax at column 4' 'run grapher' '<ret>' '<pause>' 'y = 2*(' '<ret>' '<pause>' '<gfx>'
+check grapher-quit  'systest: PASS'         'run grapher sin(x)' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
+# A.2: character map, paint, image viewer
+check_all charmap   'gfx: Character map|gfx: AB~|gfx: 0x7E|gfx: 126' 'run charmap' '<ret>' '<pause>' '<ret>' '<right>' '<ret>' 'z' '<down>' '<ret>' '<pause>' '<gfx>'
+check charmap-save  'AB~'                   'run charmap' '<ret>' '<pause>' '<ret>' '<right>' '<ret>' 'z' '<down>' '<ret>' '<f2>' '<pause>' '<esc>' '<pause>' 'cat charmap.txt' '<ret>'
+check paint         'paint: PASS'           'run paint test' '<ret>' '<pause>' '<pause>' '<pause>'
+check_all paint-keys 'gfx: Paint - pic.bmp|gfx: Saved' 'run paint' '<ret>' '<pause>' 's' '<spc>' '<ctrl-right>' '<ctrl-down>' '<spc>' '<ctrl-s>' 'pic.bmp' '<ret>' '<pause>' '<gfx>'
+check_all paint-open 'gfx: Paint - pic.bmp|gfx: Opened' 'run paint pic.bmp' '<ret>' '<pause>' '<pause>' '<gfx>'
+check paint-quit    'systest: PASS'         'run paint' '<ret>' '<pause>' '<spc>' '<esc>' '<esc>' 'n' '<pause>' systest '<ret>'
+check_all viewer    'viewer: ptest.bmp 272 x 160, 8 bits|viewer: PASS' 'run viewer ptest.bmp test' '<ret>' '<pause>' '<pause>'
+check_all viewer-24 'viewer: grad.bmp 64 x 48, 24 bits|viewer: PASS' 'run viewer grad.bmp test' '<ret>' '<pause>' '<pause>'
+check_all viewer-gfx 'gfx: grad.bmp|gfx: 64 x 48, 24 bits|gfx: 2:1' 'run viewer grad.bmp' '<ret>' '<pause>' '<pause>' '+' '<pause>' '<gfx>'
+check viewer-bad    'viewer: not an 8- or 24-bit BMP, or not found' 'run viewer nosuch.bmp' '<ret>'
+check viewer-quit   'systest: PASS'         'run viewer grad.bmp' '<ret>' '<pause>' '<pause>' '<esc>' '<pause>' systest '<ret>'
+# C.9: topology (Betti numbers over Z/2 and Q) and the matrix calculator
+check topology      'topology: PASS'        'run topology test' '<ret>' '<pause>' '<pause>' '<pause>'
+check_all topology-gfx 'gfx: Torus|gfx: V 7|gfx: Euler characteristic 0|gfx: Betti over Z/2: 1 2 1' 'run topology' '<ret>' '<pause>' '<pause>' '<gfx>'
+check_all topology-rp2 'gfx: Betti over Z/2: 1 1 1|gfx: Betti over Q:|gfx: 1 0 0|gfx: Z/2 and Q differ: 2-torsion' 'run topology' '<ret>' '<pause>' '<down>' '<down>' '<pause>' '<gfx>'
+check_all topology-custom 'gfx: V 4|gfx: E 5|gfx: F 2|gfx: Euler characteristic 1' 'run topology' '<ret>' '<pause>' '<tab>' '<delete>' '0 1 2, 1 2 3' '<ret>' '<pause>' '<gfx>'
+check topology-bad  'gfx: Vertices are 0 to 15' 'run topology' '<ret>' '<pause>' '<tab>' '0 99' '<ret>' '<pause>' '<gfx>'
+check matrixgui     'matrixgui: PASS'       'run matrixgui test' '<ret>' '<pause>' '<pause>'
+check_all matrixgui-mul 'gfx: A * B =|gfx: 19|gfx: 22|gfx: 43|gfx: 50' 'run matrixgui' '<ret>' '<pause>' '1' '<right>' '2' '<down>' '4' '<left>' '3' '<ret>' '<tab>' '<up>' '5' '<right>' '6' '<down>' '8' '<left>' '7' '<ret>' '*' '<pause>' '<gfx>'
+check_all matrixgui-inv 'gfx: inv A =|gfx: -2|gfx: 1.5|gfx: -0.5' 'run matrixgui' '<ret>' '<pause>' '1' '<right>' '2' '<down>' '4' '<left>' '3' '<ret>' 'i' '<pause>' '<gfx>'
+check matrixgui-det 'gfx: det A = -2'      'run matrixgui' '<ret>' '<pause>' '1' '<right>' '2' '<down>' '4' '<left>' '3' '<ret>' 'd' '<pause>' '<gfx>'
+check matrixgui-sing 'gfx: The matrix is singular' 'run matrixgui' '<ret>' '<pause>' 'i' '<pause>' '<gfx>'
+check matrixgui-quit 'systest: PASS'        'run matrixgui' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
 disk=$out/auto.img
 check bat-autoexec  'autoexec ran'
 check lang-autoexec 'Tabulae:'              ls '<ret>'

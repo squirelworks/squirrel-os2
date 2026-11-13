@@ -1393,6 +1393,7 @@ khigh_start:
 %include "ip.asm"
 %include "udp.asm"
 %include "tcp.asm"
+%include "appsys.asm"
 
 
 ; the high image ends on a sector boundary, with its signature last
