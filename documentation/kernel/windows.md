@@ -58,3 +58,83 @@ after `ab`, Tab, `cd`, Enter. Checks `winfocus` (that sequence), `winfocus-none`
 ## Widgets
 
 Since 1.5.0, `wm_draw` draws a window's widgets after its client area, and `wm_close` drops them (`widgets.md`).
+
+## The 2.2 API (planned)
+
+This section is the window, event and drawing interface that the 2.2 boxes in `TODO.md` build, published before the code so programs (calculator, paint, games) can be written against it. It is a plan: register details can still change while a box is reviewed, and each box updates the section when it lands. Until then the 1.4–2.1 routines above are what the kernel has. Everything above stays valid; 2.2 adds to it.
+
+### Screen and theme
+
+- The window manager draws on the VBE back buffer, 640×480 at 8 bpp, and flips only the dirty rectangles (**2.2-vbe-wm**). Mode 13h (320×200) is the fallback, so programs read the screen size from `gfx_width` / `gfx_height` (or `SYS_WININFO`) and never assume one.
+- Colours are palette indices named in `kernel/theme.inc` (**W.1-theme**): `TH_DESKTOP`, `TH_FACE` (3D face grey), `TH_LIGHT`, `TH_SHADOW`, `TH_DARK`, `TH_TITLE` / `TH_TITLE_TEXT` (active), `TH_TITLE_IDLE` / `TH_TITLE_IDLE_TEXT`, `TH_CLIENT`, `TH_TEXT`, `TH_SELECT` / `TH_SELECT_TEXT`, `TH_BORDER` (sizing border). Sizes: `TH_BORDER_W`, `TH_TITLE_H`, `TH_BOX_W` (the title-bar boxes), `TH_BEVEL_W`. Code uses the names, never the numbers.
+
+### Drawing (kernel)
+
+| Routine | In | Out |
+|---------|----|-----|
+| `gfx_setclip` | eax, ebx = top left, ecx = width, edx = height | every later draw and blit is cut to that rectangle (and to the screen) (**2.1-blit-clip**) |
+| `gfx_noclip` | — | the clip is the whole screen again |
+| `gfx_copyrect` | eax, ebx = source top left, ecx = width, edx = height, esi, edi = destination top left | copies within the draw target, overlapping rectangles allowed; the destination is clipped (**2.1-blit-clip**) |
+| `gfx_bevel` | eax, ebx = top left, ecx = width, edx = height, esi = 0 raised / 1 sunken | a `TH_BEVEL_W` bevel around the rectangle's edge, face not filled (**W.1-theme**) |
+| `gfx_drawstr_p` | esi = string, eax, ebx = top left, ecx = face (`FONT_9` / `FONT_12`), colours in `gfx_colour` / `gfx_bg` (`-1` bg = transparent) | eax = x after the last character (**2.2-propfont**) |
+| `gfx_strwidth_p` | esi = string, ecx = face | eax = width in pixels |
+
+### Windows (kernel)
+
+The window record gains `WIN_STATE` (`WS_NORMAL`, `WS_MIN`, `WS_MAX`), `WIN_RESTORE` (the rectangle to restore from maximised), `WIN_OWNER` (the pid that gets the events, `-1` for kernel windows) and `WIN_FLAGS` (`WF_SIZABLE`, `WF_MINBOX`, `WF_MAXBOX`, `WF_SYSMENU`; `WF_DEFAULT` is all four). `WM_MAX` becomes 16. A window may be partly off the screen as long as part of its title bar is on it.
+
+| Routine | In | Out |
+|---------|----|-----|
+| `wm_create` | as before; `edi` = flags (0 means `WF_DEFAULT`) | as before; the caller's pid becomes the owner |
+| `wm_client` | eax = window id | eax, ebx = client top left on the screen, ecx, edx = client size; CF if not open |
+| `wm_settitle` | eax = window id, esi = title | CF if not open |
+| `wm_setstate` | eax = window id, ebx = `WS_*` | minimise / maximise / restore; CF if not open or the flag is missing |
+| `wm_hit` | eax = x, ebx = y | eax = top window id under the point or −1; ebx = part: `HT_CLIENT`, `HT_TITLE`, `HT_SYSMENU`, `HT_MIN`, `HT_MAX`, `HT_CLOSE`, `HT_L`, `HT_R`, `HT_T`, `HT_B`, `HT_TL`, `HT_TR`, `HT_BL`, `HT_BR` (**2.2-frame**) |
+| `wm_invalidate` | eax = window id, or −1 for the whole screen | marks the window's visible area dirty |
+| `wm_update` | — | redraws every dirty area, bottom window first, each clipped to its visible region, then flips those rectangles (**2.2-clip-z**). `wm_redraw` stays as "invalidate all, then update". |
+| `wm_mouse` | eax = x, ebx = y, cl = buttons | the window manager's handling of one mouse state: raise on click, drag to move or size, the title-bar boxes, client clicks become events for the owner (**2.2-mouse**) |
+| `wm_inject` | as `wm_mouse` | the same, from a script; the regression checks drive windows with it |
+| `wm_key` | al = key, ah = shift state | Alt+Tab, Alt+Esc, Alt+Space, Alt+F4 are the window manager's; anything else goes to the focused window's widgets and then its owner (**2.2-sysmenu**, **2.2-alttab**) |
+
+### Programs (syscalls, **2.2-progwin**)
+
+Window syscalls use the reserved block 48–63 so other streams' new calls (35–47) do not collide. A window belongs to the process that opened it and is closed when that process exits. Coordinates are relative to the client area; every draw is clipped to the client area and to the parts of it not covered by other windows. Nothing reaches the screen until `SYS_WINFLUSH` (or the next `wm_update`).
+
+| No. | Name | In | Out |
+|-----|------|----|-----|
+| 48 | `SYS_WINOPEN` | ebx = block: x, y, width, height (dwords, outer size), title address, flags | window id, or −1 |
+| 49 | `SYS_WINCLOSE` | ebx = id | 0, or −1 if not the caller's |
+| 50 | `SYS_WINMOVE` | ebx = id, ecx = x \| y << 16, edx = width \| height << 16 (0 keeps that pair) | 0 or −1 |
+| 51 | `SYS_WINTITLE` | ebx = id, ecx = title | 0 or −1 |
+| 52 | `SYS_WINDRAW` | ebx = id, ecx = command block (below) | 0 or −1 |
+| 53 | `SYS_WINFLUSH` | ebx = id | 0 or −1; the dirty parts reach the screen |
+| 54 | `SYS_WINEVENT` | ebx = 16-byte buffer, ecx = 0 wait / 1 poll | 0 and the buffer filled, or −1 (poll, nothing waiting) |
+| 55 | `SYS_WININFO` | ebx = id (−1 for the screen), ecx = 16-byte buffer | 0 and client x, y, width, height (screen: 0, 0, width, height) |
+
+`SYS_WINDRAW` command block, dwords: `op`, `x`, `y`, `a`, `b`, `colour`, `ptr`.
+
+| `op` | Meaning |
+|------|---------|
+| `WD_FILL` (0) | filled rectangle at x, y, size a × b |
+| `WD_LINE` (1) | line from x, y to a, b |
+| `WD_TEXT` (2) | the 5×7 font string at `ptr`, bg = `a` (−1 transparent) |
+| `WD_PTEXT` (3) | proportional string at `ptr`, face `b`, bg = `a` |
+| `WD_BLIT` (4) | a × b bytes of 8-bit pixels at `ptr` (one byte per pixel, rows packed) to x, y; `colour` = transparent index or −1 |
+| `WD_BEVEL` (5) | bevel around x, y, a × b; `colour` 0 raised / 1 sunken |
+| `WD_COPY` (6) | copy the client rectangle at (`a` & 0xFFFF, `a` >> 16), size `b` & 0xFFFF × `b` >> 16, to x, y |
+
+Event record from `SYS_WINEVENT`, dwords: `type`, `window`, `p1`, `p2`.
+
+| `type` | `p1` | `p2` |
+|--------|------|------|
+| `WE_KEY` (1) | key, as `wg_key` takes it | shift state |
+| `WE_DOWN` (2) / `WE_UP` (3) / `WE_MOVE` (4) | x \| y << 16, client-relative | buttons |
+| `WE_DBLCLK` (5) | x \| y << 16 | buttons |
+| `WE_CLOSE` (6) | — | — (the close box or Alt+F4; the program decides whether to `SYS_WINCLOSE`) |
+| `WE_SIZE` (7) | new client width \| height << 16 | — |
+| `WE_PAINT` (8) | x \| y << 16 of the area to redraw | width \| height << 16 |
+| `WE_BUTTON` (9) | widget code | — |
+
+Each process has its own ring of 16 events. When an event is queued, the kernel also posts `MSG_WIN` (`0x57000000`, `'W'` in the top byte, the window id in the low byte) to the owner's message queue, so a program already waiting in `SYS_RECV` wakes up; it then reads the events with `SYS_WINEVENT`. A full ring drops the oldest `WE_MOVE` first.
+
+Widgets in program windows (buttons, fields, lists, menus) get syscalls in 2.3; until then a program draws its own controls with `WD_BEVEL` and `WD_PTEXT`.
