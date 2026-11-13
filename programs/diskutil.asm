@@ -57,7 +57,7 @@ MAP_W       equ SCR_W - 8
 MAP_H       equ 14
 TOP_N       equ 6               ; largest files shown
 NPROB       equ 6               ; problems kept for the report
-PLEN        equ 72
+PLEN        equ 52
 
 M_FREE      equ 0               ; sector map kinds
 M_META      equ 1
@@ -561,11 +561,11 @@ mark_bad:
 ; esi = entry, edx = what is wrong: "name: what"
 eproblem:
     pushad
-    mov edi, nm_a               ; (2.7) the whole name, cut to 24
+    mov edi, nm_a               ; (2.7) the whole name, cut to 15
     call full_name
     mov esi, nm_a
     mov edi, pline
-    mov ecx, 24
+    mov ecx, NAMELEN - 1
 .c:
     lodsb
     test al, al
