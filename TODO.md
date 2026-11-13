@@ -297,9 +297,9 @@ From the 2.1 milestone in `ROADMAP.md` and epic #114. Resumed 2026-11-07 after t
 From the 2.4 milestone in `ROADMAP.md`. Worked by the OS2-K stream; each box is a branch the condenser folds into a PR. Design notes go in `documentation/kernel/kernel-image.md` and `documentation/kernel/ring3.md`.
 
 - [x] **2.4-khigh** — Room to grow: the kernel gets a high image above 1 MB that `stage2` loads after the 96 KB low image, from hard disk, floppy and CD; the page allocator starts above it and `install copy` writes it. Checks `floppy-khigh`, `cd-khigh`, `khigh-missing`, `khigh-mem`, and the existing boot/installer checks.
-- [ ] **2.4-user** — Loaded programs and their threads run in ring 3 with their own page tables; kernel pages are supervisor-only, the TSS gives each slot its kernel stack, and privileged instructions or kernel memory end only that program. Check `ring3`, `ring3-after`.
-- [ ] **2.4-ustack** — Growing ring-3 stacks: a 512 KB window per thread, mapped page by page on first touch, with a guard page reported as a stack overflow. Checks `ring3` (64 KB of stack), `stackover`.
-- [ ] **2.4-uptr** — The syscall gate checks every pointer a ring-3 caller passes (strings, buffers, blocks) against the program's own memory and refuses the rest with -1; `SYS_PALLOC`/`SYS_PFREE` are kernel-only. Check `ring3`.
+- [x] **2.4-user** — Loaded programs and their threads run in ring 3 with their own page tables; kernel pages are supervisor-only, the TSS gives each slot its kernel stack, and privileged instructions or kernel memory end only that program. Check `ring3`, `ring3-after`.
+- [x] **2.4-ustack** — Growing ring-3 stacks: a 512 KB window per thread, mapped page by page on first touch, with a guard page reported as a stack overflow. Checks `ring3` (64 KB of stack), `stackover`.
+- [x] **2.4-uptr** — The syscall gate checks every pointer a ring-3 caller passes (strings, buffers, blocks) against the program's own memory and refuses the rest with -1; `SYS_PALLOC`/`SYS_PFREE` are kernel-only. Check `ring3`.
 
 ## Later milestones
 
