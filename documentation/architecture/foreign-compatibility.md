@@ -80,8 +80,8 @@ Two personalities run real programs today, both inside ordinary Squirrel process
 | Step | What runs | Where | Test |
 |------|-----------|-------|------|
 | P.1 | Linux i386 static ELF32: `write`, `exit` | `kernel/personalities/linux/linux.asm` | `programs/lxhello.asm`: `lxhello: PASS` |
-| P.2 | Linux `read`, `open`, `close`, `lseek`, `brk`, `mmap`/`mmap2` (anonymous), `munmap`, `getpid`, `exit_group` | same | `programs/lxfile.asm`: `lxfile: PASS`; `programs/lxcat.asm` reads a pipe |
-| P.5 | Win32 PE32 console programs importing KERNEL32 | `programs/winrun.asm` (user-space loader and shim) | `programs/winhello.asm`: `winhello: PASS` |
+| P.2 | Linux files, memory, `writev`, `ioctl`, `stat64`, `uname`, TLS, time: about 45 calls | same | `programs/lxfile.asm`, `programs/lxsys.asm`: `PASS`; `programs/lxcat.asm` reads a pipe |
+| P.5 | Win32 PE32 console programs (KERNEL32 and msvcrt), MinGW-built ones included | `programs/winrun.asm`, `programs/winshim.inc` (user-space loader and shims) | `programs/winhello.asm`, `programs/wincrt.asm`: `PASS` |
 | P.8 | DOS `.COM` | design only: `dos-personality.md` | — |
 
 ### Linux personality (P.1, P.2)
@@ -132,13 +132,34 @@ public ABI). Arguments in `ebx, ecx, edx, esi, edi, ebp`; the result in `eax`, e
 | 45 | `brk` | moves the native heap break (`SYS_SBRK`); `brk(0)` reports it; refused moves report the old break |
 | 90, 192 | `mmap`, `mmap2` | `MAP_ANONYMOUS` only: page-aligned pages from the heap; anything else `-ENODEV` |
 | 91 | `munmap` | accepted (0); the pages return when the process ends |
+| 10, 40 | `unlink`, `rmdir` | `SYS_DELETE` |
+| 38, 39 | `rename`, `mkdir` | `SYS_RENAME`, `fs_mkdir` |
+| 33 | `access` | 0 when the file opens, else `-ENOENT` |
+| 295 | `openat` | `AT_FDCWD` (−100) or an absolute path, then as `open` |
+| 140 | `_llseek` | as `lseek`, 64-bit result (the high word must be 0) |
+| 145, 146 | `readv`, `writev` | each `iovec` in turn; stops at a short transfer |
+| 54 | `ioctl` | fds 0–2 answer `TCGETS` (zeroed termios), `TIOCGWINSZ` (25 × 80) and accept `TCSETS*`, so `isatty` is true there; files `-ENOTTY` |
+| 195, 196, 197 | `stat64`, `lstat64`, `fstat64` | `st_mode` (regular 0644, or a character device for fds 0–2), `st_size`, `st_blocks`, `st_blksize`; the rest 0 |
+| 122 | `uname` | `Linux`, `squirrel`, `2.6.32-squirrel`, `Squirrel-OS/2 Linux personality`, `i686` |
+| 183 | `getcwd` | `/` |
+| 13, 78, 265 | `time`, `gettimeofday`, `clock_gettime` | time since boot from the 100 Hz tick (there is no clock call yet) |
+| 162 | `nanosleep` | one yield |
+| 174, 175 | `rt_sigaction`, `rt_sigprocmask` | accepted; old values read as default / nothing blocked; no signal is ever delivered |
+| 24, 47, 49, 50, 199–202 | uid and gid calls | 0 |
+| 224, 258 | `gettid`, `set_tid_address` | the pid |
+| 125, 219 | `mprotect`, `madvise` | accepted (0) |
+| 243 | `set_thread_area` | entry −1 or 7: the per-process TLS segment (below) with `base_addr`; the program loads GS with `0x3B` |
 
 File descriptors: Linux 0–2 are the console; Linux fd *n* ≥ 3 is native fd *n*−3. `brk` and
 anonymous `mmap` share the one native heap at `0x40000000`, so shrinking `brk` below a mapping
 returns that mapping's pages too; real programs grow `brk` and do not do this.
 
-Not yet: signals, `openat`, `stat`, `ioctl` (so `isatty` fails), `set_thread_area`/TLS, time,
-`clone`/`fork`/`execve`, dynamic linking (P.3), ELF64.
+Not yet: signal delivery, `clone`/`fork`/`execve`, `dup`/`pipe`, `getdents64`, `chdir`, a real
+clock, dynamic linking (P.3), ELF64.
+
+The TLS segment is the same per-process descriptor the Windows layer uses for FS (see the TEB
+paragraph below): `set_thread_area` sets its base and the kernel reloads FS and GS with it on
+every switch.
 
 ### Windows personality (P.5)
 

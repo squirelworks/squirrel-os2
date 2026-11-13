@@ -313,8 +313,12 @@ From P.1–P.12 in `ROADMAP.md` and epic #118 (stream OS2-FOREIGN). Each box shi
   **Acceptance:** `run lxhello` prints `lxhello: PASS` and its argc/argv; a native program run afterwards in the same slot still uses native calls. Checks `lx-hello`, `lx-argv`, `lx-then-native`.
 - [ ] **P.2-linux-files** — Linux `read`, `open`, `close`, `lseek`, `brk`, anonymous `mmap`/`mmap2`, `munmap`, `getpid`, with `-errno` results.
   **Acceptance:** `run lxfile` prints `lxfile: PASS`; `echo acorns | run lxcat` prints `lx: acorns`. Checks `lx-file`, `lx-pipe`.
+- [ ] **P.2-linux-more** — `writev`/`readv`, `ioctl` (isatty), `uname`, `stat64`/`fstat64`, `openat`, `_llseek`, `access`, `rename`/`unlink`/`mkdir`/`rmdir`, `getcwd`, time calls, uid calls, signal-mask stubs, `set_thread_area` on a per-process TLS segment.
+  **Acceptance:** `run lxsys` prints `lxsys: PASS` (and reads a value through GS). Checks `lx-sys`, `lx-uname`.
 - [ ] **P.5-win32-console** — Win32 PE32 console programs: `winrun` (PE loader with relocations and import binding, KERNEL32 shim), and the kernel loader hands `MZ` files to it.
   **Acceptance:** `run winhello` prints `winhello: PASS`; an import without a shim is named when called. Checks `win-hello`, `win-cmdline`, `win-missing`, `win-notpe`.
+- [ ] **P.5-win32-crt** — The TEB through FS (`SYS_SETTLS`, per-process TLS segment) and an msvcrt subset (start-up, stdio and printf, strings, memory, atexit/exit) plus the KERNEL32 start-up calls, so MinGW-built console programs run.
+  **Acceptance:** `run wincrt acorn` prints `crt: -5 acorn 00ab x  |` and `wincrt: PASS`. Checks `win-crt`, `win-printf`.
 - [ ] **P.8-dos-design** — DOS `.COM` personality design (V86 monitor, `INT 21h` subset, memory map, tests) in `documentation/architecture/dos-personality.md`. Building it waits for 2.4.
 
 ## Installer (unscheduled)
