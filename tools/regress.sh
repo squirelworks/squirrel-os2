@@ -20,7 +20,7 @@ python3 "$root/tools/sqfs.py" "$out/progs.img" format 1024
 for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3 lxhello lxfile lxcat lxsys winrun winhello wincrt winprog; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
 # OS2-GAMES (G.x): the games get a disk of their own, so the file counts above stay put
 python3 "$root/tools/sqfs.py" "$out/games.img" format 1024
-for prog in mines reversi klondike freecell hearts chess mahjongg; do
+for prog in mines reversi klondike freecell hearts chess mahjongg bridge checkers go; do
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
     python3 "$root/tools/sqfs.py" "$out/games.img" put "$out/$prog"
 done
@@ -74,6 +74,26 @@ done
 python3 "$root/tools/mksym.py" "$out/dbgtgt.map" "$out/dbgtgt.sym"
 nasm -f bin "$root/programs/dbgelf.asm" -o "$out/dbgelf"    # ELF .symtab instead of a .sym file
 for f in dbgtgt.sym dbgelf; do python3 "$root/tools/sqfs.py" "$out/dev.img" put "$out/$f"; done
+# OS2-HW H.1: the UEFI loaders carry this os.img; an EFI system partition image holds both
+(cd "$root/boot/uefi" && nasm -f bin -DOS_IMG="\"$out/os.img\"" bootx64.asm -o "$out/BOOTX64.EFI" \
+    && nasm -f bin -DOS_IMG="\"$out/os.img\"" bootia32.asm -o "$out/BOOTIA32.EFI")
+python3 "$root/tools/mkesp.py" "$out/esp.img" "$out/BOOTX64.EFI" "$out/BOOTIA32.EFI"
+# OS2-HW (H.3-H.6): blkdev on a disk of its own; marked scratch disks for the AHCI/NVMe/USB drivers
+python3 "$root/tools/sqfs.py" "$out/hw.img" format 1024
+nasm -f bin -i "$root/programs/" "$root/programs/blkdev.asm" -o "$out/blkdev"
+python3 "$root/tools/sqfs.py" "$out/hw.img" put "$out/blkdev"
+python3 "$root/tools/sqfs.py" "$out/hw.img" put "$out/keyev"
+hwdisk() {  # hwdisk FILE: a 4 MB disk with 'SQHW' in sector 0 and 'S100' in sector 100
+    python3 - "$1" <<'PYEOF'
+import sys
+d = bytearray(4 << 20); d[0:4] = b'SQHW'; d[51200:51204] = b'S100'
+open(sys.argv[1], 'wb').write(d)
+PYEOF
+}
+sector5() {  # sector5 NAME FILE: the pattern blkdev wrote must be in the image itself
+    if python3 -c "import sys; d = open(sys.argv[1], 'rb').read()[2560:2568]; sys.exit(d != bytes.fromhex('05005a5a06015b5b'))" "$2"
+    then echo "ok   $1"; else echo "FAIL $1 (sector 5 of $2 not written)"; fail=1; fi
+}
 rm -f "$out/data.img"
 dd if=/dev/zero of="$out/data.img" bs=1024 count=1024 2>/dev/null
 
@@ -785,7 +805,7 @@ check_none drv-again 'drv: FAIL' 'drv: PASS' 'run drvtest' '<ret>' 'run drvtest'
 disk=$out/games.img
 check mines-test    'mines: PASS'           'run mines test' '<ret>'
 check_all mines-play '  1 F |Mines left: 9' 'run mines 5' '<ret>' e5 '<ret>' 'f a1' '<ret>'
-check reversi-test  'reversi: PASS'         'run reversi test' '<ret>' '<pause>'
+check reversi-test  'reversi: PASS'         'run reversi test' '<ret>' '<pause>' '<pause>'
 check_all reversi-play 'Computer plays c3|You (X): 3   Computer (O): 3' 'run reversi 1' '<ret>' d3 '<ret>'
 check klondike-test 'klondike: PASS'        'run klondike test' '<ret>'
 check_all klondike-play 'Stock 23|That move is not allowed' 'run klondike 3' '<ret>' d '<ret>' 12 '<ret>'
@@ -797,6 +817,21 @@ check chess-test    'chess: PASS'           'run chess test' '<ret>' '<pause>' '
 check_all chess-pgn '[Black "Squirrel Chess"]|1. e4 d5 *' 'run chess 1' '<ret>' e2e4 '<ret>' '<pause>' 'save g.pgn' '<ret>' q '<ret>' 'cat g.pgn' '<ret>'
 check mahjongg-test 'mahjongg: PASS'        'run mahjongg test' '<ret>' '<pause>'
 check_all mahjongg-play 'Try j1 a3|Tiles left: 106' 'run mahjongg 2' '<ret>' h '<ret>' 'j1 a3' '<ret>'
+check bridge-test   'bridge: PASS'          'run bridge test' '<ret>' '<pause>'
+check_all bridge-play 'S pass  W pass  N 1H  E pass  S 3H|Contract: 3H by North|Trick: East AS|Play from South' 'run bridge 1' '<ret>' p '<ret>' 3h '<ret>'
+# OS2-GAMES: the graphical front ends (run <game> gui [seed]), read off the screen
+check klondike-gui  'gfx: That move is not allowed' 'run klondike gui 3' '<ret>' '<pause>' '<ret>' '<right>' '<ret>' '<pause>' '<gfx>'
+check freecell-gui  'gfx: That move is not allowed' 'run freecell gui 2' '<ret>' '<pause>' '<ret>' '<right>' '<ret>' '<pause>' '<gfx>'
+check hearts-gui    'gfx: You got JH 6H 4H - click to go on' 'run hearts gui 3' '<ret>' '<pause>' ' ' '<right>' ' ' '<right>' ' ' '<ret>' '<pause>' '<gfx>'
+check_all mines-gui 'gfx: Mines left: 9|gfx: Click or Enter: open' 'run mines gui 5' '<ret>' '<pause>' '<ret>' '<up>' '<up>' '<up>' '<up>' '<left>' '<left>' '<left>' '<left>' f '<pause>' '<gfx>'
+check mines-gui-big 'gfx: Boom! You hit a mine.' 'run mines gui 5 big' '<ret>' '<pause>' '<ret>' '<down>' '<down>' '<down>' '<ret>' '<pause>' '<gfx>'
+check_all reversi-gui 'gfx: You 3|gfx: Computer 3' 'run reversi gui 1' '<ret>' '<pause>' '<ret>' '<pause>' '<pause>' '<gfx>'
+check_all chess-gui 'gfx: You: e4|gfx: d5' 'run chess gui 1' '<ret>' '<pause>' '<ret>' '<up>' '<up>' '<ret>' '<pause>' '<pause>' '<pause>' '<gfx>'
+check mahjongg-gui  'gfx: Tiles left: 106' 'run mahjongg gui 2' '<ret>' '<pause>' '<right>' '<right>' '<right>' '<right>' '<right>' '<right>' '<right>' '<right>' '<right>' '<ret>' '<down>' '<down>' '<left>' '<left>' '<left>' '<left>' '<left>' '<left>' '<left>' '<left>' '<left>' '<ret>' '<pause>' '<gfx>'
+check checkers-test 'checkers: PASS'        'run checkers test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
+check_all checkers-play 'Computer plays f6-g5|You (b): 12   Computer (w): 12' 'run checkers 1' '<ret>' c3d4 '<ret>' '<pause>' '<pause>'
+check go-test       'go: PASS'              'run go test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>'
+check_all go-play   'Computer plays f3|You cannot play there' 'run go 1' '<ret>' e5 '<ret>' e5 '<ret>'
 disk=$out/progs.img
 # 1.0.6: calc, edit and draw titles follow lang
 check l10n-calc-tlh "mI' De'wI' (Esc to exit)" 'lang tlh' '<ret>' 'run calc' '<ret>'
@@ -980,6 +1015,90 @@ check_all term-sessions 'gfx: Terminal 1 - dbgtgt|gfx: 1> dbgtgt s|gfx: Terminal
 check_all term-ctrlc 'gfx: ^C|gfx: *** CPU exception 14 (page fault) in pid 3 (dbgtgt)|gfx: [exit code -1]'  'run terminal' '<ret>' '<pause>' '<pause>' 'dbgtgt s' '<ret>' '<pause>' '<ctrl-c>' '<pause>' 'dbgtgt f' '<ret>' '<pause>' '<pause>' '<gfx>'
 check_all term-debugger 'gfx: pid 3 hit breakpoint 1|gfx: pid 3 stopped|gfx: jmp 0x30073 <here.spin>|gfx: pid 3 ended (exit code -1)'  'run terminal' '<ret>' '<pause>' '<pause>' 'debugger dbgtgt s' '<ret>' '<pause>' 'b level1' '<ret>' c '<ret>' '<pause>' 'bd 1' '<ret>' c '<ret>' '<pause>' '<esc>' '<pause>' q '<ret>' '<pause>' '<gfx>'
 check_all term-quit 'systest: PASS|0        running  shell'  'run terminal' '<ret>' '<pause>' '<pause>' 'dbgtgt s' '<ret>' '<f2>' '<pause>' exit '<ret>' '<pause>' '<f10>' '<pause>' '<pause>' systest '<ret>' ps '<ret>'
+# OS2-HW H.3/H.4: AHCI and NVMe disks as sd0 and nv0 (drivers/ahci.asm, drivers/nvme.asm)
+disk=$out/hw.img
+hwdisk "$out/sata.img"; hwdisk "$out/nvme.img"
+export QEMU_EXTRA="-device ahci,id=ahci -drive if=none,id=sd,file=$out/sata.img,format=raw -device ide-hd,drive=sd,bus=ahci.0 -drive if=none,id=nv,file=$out/nvme.img,format=raw -device nvme,serial=sqhw,drive=nv"
+check_all hw-devices 'sd0     block   ready 8192 sectors|nv0     block   ready 8192 sectors'  devices '<ret>'
+check hw-ahci       'blkdev: sd0 PASS'      'run blkdev sd0' '<ret>'
+sector5 hw-ahci-disk "$out/sata.img"
+check hw-nvme       'blkdev: nv0 PASS'      'run blkdev nv0' '<ret>'
+sector5 hw-nvme-disk "$out/nvme.img"
+check hw-after      'systest: PASS'         'run blkdev sd0' '<ret>' 'run blkdev nv0' '<ret>' systest '<ret>'
+unset QEMU_EXTRA
+check_none hw-absent 'sd0     block' 'ne0     net' devices '<ret>'
+check hw-missing    'blkdev: FAIL'          'run blkdev nv0' '<ret>'
+# q35: no IDE at all; the boot disk and the data disk are both on AHCI, the data disk becomes the file system
+cp "$out/os.img" "$out/os-q35.img"; truncate -s 2M "$out/os-q35.img"
+cp "$out/hw.img" "$out/hw-q35.img"
+export QEMU_EXTRA="-M q35"; boot=$out/os-q35.img; disk=$out/hw-q35.img
+check_all hw-q35    'hd1     block   absent|sd1     block   ready 2048 sectors|blkdev  '  devices '<ret>' ls '<ret>'
+unset QEMU_EXTRA boot
+# OS2-HW H.5/H.6: xHCI. QEMU sends typed keys to the USB keyboard once it is there (not to the
+# 8042), so these checks only pass if usbkbd.asm turns its reports into scan codes.
+disk=$out/hw.img
+hwdisk "$out/usb.img"
+export QEMU_EXTRA="-device qemu-xhci,id=xhci -device usb-kbd,bus=xhci.0"
+check_all hw-usb-kbd "echo Hello, USB World! (a+b)|${nl}Hello, USB World! (a+b)"  'echo Hello, USB World! (a+b)' '<ret>'
+check hw-usb-kbd-edit "${nl}Hello, USB World! (a+bX"  'echo Hello, USB World! (a+b)' '<ret>' '<up>' '<backspace>' X '<ret>'
+check_all hw-usb-keyev 'keyev: queue Q getc Q|keyev: PASS'  'run keyev' '<ret>' '<pause>' Q '<pause>'
+export QEMU_EXTRA="-device qemu-xhci,id=xhci -device usb-kbd,bus=xhci.0 -drive if=none,id=us,file=$out/usb.img,format=raw -device usb-storage,bus=xhci.0,drive=us"
+check hw-usb-devices 'ud0     block   ready 8192 sectors'  devices '<ret>'
+check hw-usb-msd    'blkdev: ud0 PASS'      'run blkdev ud0' '<ret>'
+sector5 hw-usb-msd-disk "$out/usb.img"
+check hw-usb-after  'systest: PASS'         'run blkdev ud0' '<ret>' systest '<ret>'
+# boot from a USB stick on a machine without IDE (the BIOS reads it; the kernel then finds it as ud0)
+cp "$out/os.img" "$out/stick.img"; truncate -s 4M "$out/stick.img"
+truncate -s 1M "$out/blank.img"; cp "$out/hw.img" "$out/hw-q35.img"
+export QEMU_EXTRA="-M q35 -device qemu-xhci,id=xhci -drive if=none,id=st,file=$out/stick.img,format=raw -device usb-storage,bus=xhci.0,drive=st,bootindex=0"
+boot=$out/blank.img; disk=$out/hw-q35.img
+check_all hw-usb-boot 'hd0     block   absent|ud0     block   ready 8192 sectors|blkdev  '  devices '<ret>' ls '<ret>'
+unset QEMU_EXTRA boot
+# OS2-HW H.1/H.2: boot through UEFI firmware from the EFI system partition. The kernel's text
+# screen is then in RAM at 0x1f8000 and drawn into the GOP framebuffer, which <gop> reads back.
+# Needs OVMF (OVMF_FD, OVMF32_CODE/OVMF32_VARS) and, optionally, SquirrelBIOS (SQUIRRELBIOS_FD);
+# without them these checks print "skip".
+skip() { echo "skip $1 ($2)"; }
+uefi_keys="<pause> <pause> <pause> <pause> <pause> <pause> <pause> <pause>"
+OVMF_FD=${OVMF_FD:-/usr/share/ovmf/OVMF.fd}
+OVMF32_CODE=${OVMF32_CODE:-/usr/share/OVMF/OVMF32_CODE_4M.fd}
+OVMF32_VARS=${OVMF32_VARS:-/usr/share/OVMF/OVMF32_VARS_4M.fd}
+disk=$out/hw.img; boot=$out/esp.img
+export QEMU_TEXT=0x1f8000 QEMU_BIN=qemu-system-x86_64
+if [ -f "$OVMF_FD" ] && command -v qemu-system-x86_64 >/dev/null; then
+    export QEMU_EXTRA="-bios $OVMF_FD"
+    check_all uefi-x64      'Squirrel-OS/2 2.1|systest: PASS|blkdev  '  $uefi_keys systest '<ret>' ls '<ret>'
+    check_all uefi-x64-mem  'BIOS memory map:|usable|KB free'  $uefi_keys mem '<ret>'
+    check_all uefi-x64-gop  'gop: Squirrel-OS/2 2.1|gop: > echo UEFI GOP x|gop: UEFI GOP x'  $uefi_keys 'echo UEFI GOP x' '<ret>' '<pause>' '<gop>'
+else
+    skip uefi-x64 "no OVMF at $OVMF_FD"
+fi
+if [ -f "$OVMF32_CODE" ] && [ -f "$OVMF32_VARS" ] && command -v qemu-system-x86_64 >/dev/null; then
+    cp "$OVMF32_VARS" "$out/ovmf32-vars.fd"
+    export QEMU_EXTRA="-drive if=pflash,format=raw,readonly=on,file=$OVMF32_CODE -drive if=pflash,format=raw,file=$out/ovmf32-vars.fd"
+    check_all uefi-ia32     'Squirrel-OS/2 2.1|systest: PASS|gop: > systest'  $uefi_keys systest '<ret>' '<pause>' '<gop>'
+else
+    skip uefi-ia32 "no 32-bit OVMF at $OVMF32_CODE"
+fi
+if [ -n "$SQUIRRELBIOS_FD" ] && [ -f "$SQUIRRELBIOS_FD" ]; then
+    # SquirrelBIOS 2.1.0 x86_64-uefi reads its ESP from virtio-blk only. It sometimes misses
+    # BOOTX64.EFI and falls back to its CSM, so this check gets three tries.
+    # hd0 is an empty disk with only a boot signature (systest reads it); nothing on it boots
+    python3 -c "import sys; open(sys.argv[1], 'wb').write(bytes(510) + b'\x55\xaa' + bytes(1 << 20))" "$out/sig.img"
+    boot=$out/sig.img
+    export QEMU_EXTRA="-bios $SQUIRRELBIOS_FD -drive if=none,id=esp,format=raw,file=$out/esp.img -device virtio-blk-pci,drive=esp"
+    for try in 1 2 3; do
+        screen=$(python3 "$root/tools/qemu_screen.py" --disk "$disk" "$boot" '<pause>' '<pause>' '<pause>' systest '<ret>' '<pause>' '<gop>')
+        case $screen in *"systest: PASS"*"gop: > systest"*) break ;; esac
+    done
+    case $screen in
+        *"systest: PASS"*"gop: > systest"*) echo "ok   uefi-squirrelbios" ;;
+        *) echo "FAIL uefi-squirrelbios (no shell after 3 boots)"; fail=1 ;;
+    esac
+else
+    skip uefi-squirrelbios "set SQUIRRELBIOS_FD to SquirrelBIOS-2.1.0-x86_64-uefi.fd"
+fi
+unset QEMU_EXTRA QEMU_TEXT QEMU_BIN boot
 disk=$out/auto.img
 check bat-autoexec  'autoexec ran'
 check lang-autoexec 'Tabulae:'              ls '<ret>'
