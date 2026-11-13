@@ -963,6 +963,10 @@ cmd_fattest_run:
     inc dword [ftt_n]
     cmp dword [ftt_n], 20
     jb .many
+    mov edx, ftt_sub            ; the listing sees all 21
+    call rl_count
+    cmp eax, 21
+    call st_check
     mov dword [ftt_n], 17
     call ftt_many_name
     mov ecx, O_APPEND
@@ -1108,3 +1112,134 @@ ftt_n dd 0
 ftt_pass db 'fattest: PASS', 10, 0
 ftt_failmsg db 'fattest: FAIL', 10, 0
 ftt_usage db 'Usage: fattest <x:>', 10, 0
+
+; ---------- listing with long names (2.7) ----------
+
+; SYS_READDIR with bit 31 of ebx set, and for kernel callers: ebx = cursor
+; (0 first) | 0x80000000, ecx = RD_LEN-byte buffer, edx = directory path
+; ("d:/docs", "/notes", ...) or 0 for the current SQFS directory ->
+; the buffer gets the next entry: its whole name (RD_NAME bytes, zero-
+; terminated), size (-1 for a directory) and flags (RDF_DIR); eax = the
+; next cursor (bit 31 set), 0 at the end, -1 if there is no such directory
+RD_NAME       equ 64
+RD_SIZE       equ 64
+RD_FLAGS      equ 68
+RD_LEN        equ 72
+RDF_DIR       equ 1
+fs_readdir_long:
+    pushad
+    and ebx, 0x7FFFFFFF
+    mov [rl_buf], ecx
+    test edx, edx
+    jz .cwd
+    cmp byte [edx], 0
+    je .cwd
+    mov esi, edx
+    call vol_path
+    jnc .fat
+    cmp byte [fs_mounted], 0
+    je .err
+    call fs_find_dir
+    jc .err
+    jmp .sq
+.cwd:
+    cmp byte [fs_mounted], 0
+    je .err
+    mov dl, [fs_cwd]
+.sq:
+    cmp ebx, FS_MAXFILES
+    jae .end
+    mov edi, ebx
+    shl edi, 5
+    add edi, FS_DIR
+    inc ebx
+    cmp byte [edi], 0
+    je .sq
+    cmp byte [edi+DE_KIND], DK_LFN
+    je .sq
+    cmp [edi+DE_PARENT], dl
+    jne .sq
+    call lfn_name
+    mov eax, [edi+DE_SIZE]
+    xor edx, edx
+    cmp byte [edi+DE_KIND], DK_DIR
+    jne .put
+    mov eax, -1
+    mov edx, RDF_DIR
+    jmp .put
+.fat:
+    call fat_find_dir
+    jc .err
+    call fd_start
+    mov ecx, ebx                ; entries to pass over
+.skip:
+    call fd_next
+    jc .end
+    jecxz .got
+    dec ecx
+    jmp .skip
+.got:
+    inc ebx
+    mov esi, fd_name
+    mov eax, [edi+FE_DSIZE]
+    xor edx, edx
+    test byte [edi+FE_DATTR], FA_DIR
+    jz .put
+    mov eax, -1
+    mov edx, RDF_DIR
+.put:
+    mov edi, [rl_buf]
+    mov [edi+RD_SIZE], eax
+    mov [edi+RD_FLAGS], edx
+    mov ecx, RD_NAME-1
+.c:
+    lodsb
+    test al, al
+    jz .cz
+    stosb
+    loop .c
+.cz:
+    mov byte [edi], 0
+    or ebx, 0x80000000
+    mov [esp+28], ebx
+    popad
+    ret
+.end:
+    popad
+    xor eax, eax
+    ret
+.err:
+    popad
+    mov eax, -1
+    ret
+
+; edx = directory path -> eax = its entries (fs_readdir_long), -1 if none
+rl_count:
+    push ebx
+    push ecx
+    push edx
+    xor eax, eax
+    mov [rl_n], eax
+    mov ebx, 0x80000000
+.l:
+    mov ecx, rl_entry
+    call fs_readdir_long
+    cmp eax, -1
+    je .r
+    test eax, eax
+    jz .d
+    inc dword [rl_n]
+    mov ebx, eax
+    jmp .l
+.d:
+    mov eax, [rl_n]
+.r:
+    pop edx
+    pop ecx
+    pop ebx
+    ret
+
+align 4
+rl_buf dd 0
+rl_n dd 0
+rl_entry times RD_LEN db 0

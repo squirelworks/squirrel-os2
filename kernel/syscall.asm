@@ -25,6 +25,7 @@ SYS_DELETE  equ 15          ; ebx = name            -> 0 or -1
 SYS_RENAME  equ 16          ; ebx = old, ecx = new  -> 0 or -1
 SYS_EXEC    equ 17          ; ebx = file name, ecx = argument -> pid or LD_E* (< 0)
 SYS_READDIR equ 18          ; ebx = cursor (0 first), ecx = 20-byte buf -> next cursor, 0 at end, -1 no disk
+                            ; (2.7: ebx bit 31 set: ecx = 72-byte buf, edx = directory path or 0; volume.asm)
 SYS_PALLOC  equ 19          ;                       -> zeroed 4 KB page or 0
 SYS_PFREE   equ 20          ; ebx = page            -> 0 or -1
 SYS_SBRK    equ 21          ; ebx = bytes (signed)   -> old break or -1
@@ -106,6 +107,7 @@ UA_NETSEND  equ 9           ; ebx -> 16-byte block, its +8 -> its +12 bytes
 UA_NETRECV  equ 10          ; ebx -> 20-byte block, its +4 -> its +8 bytes
 UA_KERNEL   equ 11          ; refused from ring 3
 UA_GUI      equ 12          ; per GUI_* operation (gui_uargs, appsys.asm)
+UA_READDIR  equ 13          ; 2.7: ecx -> 20 bytes, or with ebx bit 31 72 bytes and edx -> string or 0
 
 SYS_EFAULT  equ -1
 
@@ -114,7 +116,7 @@ sys_uarg_kind:
     db UA_NONE, UA_NONE, UA_NONE, UA_NONE       ; spawn exit wait getpid
     db UA_C_512, UA_C_512, UA_BZ, UA_C_D        ; bread bwrite open read
     db UA_C_D, UA_NONE, UA_BZ, UA_BZ            ; write close create delete
-    db UA_BZ_CZ, UA_BZ_CZ0, UA_C_20, UA_KERNEL  ; rename exec readdir palloc
+    db UA_BZ_CZ, UA_BZ_CZ0, UA_READDIR, UA_KERNEL ; rename exec readdir palloc
     db UA_KERNEL, UA_NONE, UA_BZ, UA_DEV        ; pfree sbrk devfind devread
     db UA_DEV, UA_NONE, UA_B_C, UA_NONE         ; devwrite seek fserror send
     db UA_NONE, UA_NONE, UA_NETSEND, UA_NETRECV ; recv keyevents netsendto netrecvfrom
@@ -130,11 +132,24 @@ sys_uarg_kind:
 sys_uargs:
     pushad
     movzx eax, byte [sys_uarg_kind+eax]
-    cmp eax, UA_GUI
+    cmp eax, UA_READDIR
     ja .ok
     jmp [.kinds+eax*4]
 .kinds:
     dd .ok, .bz, .bz_cz, .bz_cz0, .c_d, .b_c, .c_512, .c_20, .dev, .netsend, .netrecv, .bad, .gui
+    dd .readdir
+.readdir:
+    test ebx, ebx
+    jns .c_20
+    test edx, edx
+    jz .rd_buf
+    mov esi, edx
+    call ua_str
+    jc .bad
+.rd_buf:
+    mov esi, ecx
+    mov ecx, 72                 ; RD_LEN (volume.asm)
+    jmp .range
 .gui:
     call gui_uargs
     jc .bad
@@ -505,6 +520,8 @@ sys_rename:
 ; the cursor into the buffer and returns the cursor for the next call.
 ; A subdirectory's size reads as -1 (0.8.0).
 sys_readdir:
+    test ebx, ebx
+    js fs_readdir_long          ; bit 31: long names, any directory (2.7)
     mov eax, -1
     cmp byte [fs_mounted], 0
     je .r

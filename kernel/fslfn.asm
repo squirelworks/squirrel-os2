@@ -515,6 +515,17 @@ cmd_lfntest_run:
     call fs_lookup
     test edi, edi
     call st_check
+    ; the listing call gives the whole name
+    mov ebx, 0x80000000
+    mov ecx, rl_entry
+    mov edx, lft_dir
+    call fs_readdir_long
+    test eax, eax
+    jns .fail                   ; (bit 31 set: an entry)
+    mov esi, rl_entry
+    mov edi, lft_moved_name
+    call streq
+    call st_check
     ; and to a short name: its parts are freed
     mov esi, lft_moved
     mov edi, lft_short
@@ -585,6 +596,7 @@ lft_alias2 db 'quarterly-rep~2', 0
 lft_dir db 'lfn-test-directory', 0
 lft_moved db 'lfn-test-directory/acorns-and-other-winter-stores', 0
 lft_short db 'lfnshort', 0
+lft_moved_name db 'acorns-and-other-winter-stores', 0
 lft_toolong db '1234567890123456789012345678901234567890123456789012345678901234', 0
 lft_data db 'Long names, short aliases.', 10
 lft_data_len equ $-lft_data
