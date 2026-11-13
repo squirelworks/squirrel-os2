@@ -296,6 +296,18 @@ From the 2.1 milestone in `ROADMAP.md` and epic #114. Resumed 2026-11-07 after t
 
 The milestones after 2.1 (GUI generations 2.2–4.x, ring 3 in 2.4, the 64-bit bridge 2.8–2.9, built-in apps A.1–A.7, games G.1–G.9, calculator suite C.1–C.9, Warp styling W.1–W.6, foreign programs P.1–P.12) are in `ROADMAP.md` and the epics #114–#119. Each one is split into boxes here, in a docs-only PR, when it comes up.
 
+## P — Foreign programs, first steps
+
+From P.1–P.12 in `ROADMAP.md` and epic #118 (stream OS2-FOREIGN). Each box ships with a hand-written test program in `programs/` and a regression check. Design: `documentation/architecture/foreign-compatibility.md`.
+
+- [ ] **P.1-linux-elf** — Linux i386 static ELF32 (`EI_OSABI` 3): Linux initial stack, `int 0x80` personality with `write` and `exit`/`exit_group`, `-ENOSYS` for the rest.
+  **Acceptance:** `run lxhello` prints `lxhello: PASS` and its argc/argv; a native program run afterwards in the same slot still uses native calls. Checks `lx-hello`, `lx-argv`, `lx-then-native`.
+- [ ] **P.2-linux-files** — Linux `read`, `open`, `close`, `lseek`, `brk`, anonymous `mmap`/`mmap2`, `munmap`, `getpid`, with `-errno` results.
+  **Acceptance:** `run lxfile` prints `lxfile: PASS`; `echo acorns | run lxcat` prints `lx: acorns`. Checks `lx-file`, `lx-pipe`.
+- [ ] **P.5-win32-console** — Win32 PE32 console programs: `winrun` (PE loader with relocations and import binding, KERNEL32 shim), and the kernel loader hands `MZ` files to it.
+  **Acceptance:** `run winhello` prints `winhello: PASS`; an import without a shim is named when called. Checks `win-hello`, `win-cmdline`, `win-missing`, `win-notpe`.
+- [ ] **P.8-dos-design** — DOS `.COM` personality design (V86 monitor, `INT 21h` subset, memory map, tests) in `documentation/architecture/dos-personality.md`. Building it waits for 2.4.
+
 ## Installer (unscheduled)
 
 The author lifted the old gate ("not before the 1.5 and 1.6 boxes above are closed") on 2026-10-31: these boxes now run alongside the 1.x work, and stay out of the desktop and editor files. Each PR carries the OS version it ships in, like any other release (I.1 and I.2 shipped in 1.7.2). Each box is one PR. Design notes go in `documentation/guides/install.md` with the first box. The target is an IDE/ATA disk in BIOS mode; the regression run uses a blank QEMU disk as the target.
