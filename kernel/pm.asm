@@ -1406,6 +1406,9 @@ khigh_start:
 %include "drivers/pci.asm"
 %include "drivers/ahci.asm"
 %include "drivers/nvme.asm"
+%include "drivers/xhci.asm"
+%include "drivers/usbkbd.asm"
+%include "drivers/usbmsd.asm"
 
 
 ; the high image ends on a sector boundary, with its signature last

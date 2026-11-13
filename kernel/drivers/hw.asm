@@ -12,10 +12,11 @@
 hw_init:
     call ahci_init
     call nvme_init
+    call xhci_init
     jmp hw_pick_data_disk
 
 hw_tick:
-    ret
+    jmp xhci_poll
 
 ; With no ATA data disk (hd1 absent, as on a q35 or other AHCI/NVMe-only
 ; machine), the first of the new disks whose sector 0 holds an SQFS
@@ -45,4 +46,4 @@ hw_pick_data_disk:
     popad
     ret
 
-hw_disks dd dev_sd0, dev_sd1, dev_nv0, 0
+hw_disks dd dev_sd0, dev_sd1, dev_nv0, dev_ud0, 0

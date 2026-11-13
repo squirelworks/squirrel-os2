@@ -62,6 +62,7 @@ for f in dosrun winrun doshello.com doscpu.com dosfile.com dosexe.exe; do python
 python3 "$root/tools/sqfs.py" "$out/hw.img" format 1024
 nasm -f bin -i "$root/programs/" "$root/programs/blkdev.asm" -o "$out/blkdev"
 python3 "$root/tools/sqfs.py" "$out/hw.img" put "$out/blkdev"
+python3 "$root/tools/sqfs.py" "$out/hw.img" put "$out/keyev"
 hwdisk() {  # hwdisk FILE: a 4 MB disk with 'SQHW' in sector 0 and 'S100' in sector 100
     python3 - "$1" <<'PYEOF'
 import sys
@@ -903,6 +904,26 @@ cp "$out/os.img" "$out/os-q35.img"; truncate -s 2M "$out/os-q35.img"
 cp "$out/hw.img" "$out/hw-q35.img"
 export QEMU_EXTRA="-M q35"; boot=$out/os-q35.img; disk=$out/hw-q35.img
 check_all hw-q35    'hd1     block   absent|sd1     block   ready 2048 sectors|blkdev  '  devices '<ret>' ls '<ret>'
+unset QEMU_EXTRA boot
+# OS2-HW H.5/H.6: xHCI. QEMU sends typed keys to the USB keyboard once it is there (not to the
+# 8042), so these checks only pass if usbkbd.asm turns its reports into scan codes.
+disk=$out/hw.img
+hwdisk "$out/usb.img"
+export QEMU_EXTRA="-device qemu-xhci,id=xhci -device usb-kbd,bus=xhci.0"
+check_all hw-usb-kbd "echo Hello, USB World! (a+b)|${nl}Hello, USB World! (a+b)"  'echo Hello, USB World! (a+b)' '<ret>'
+check hw-usb-kbd-edit "${nl}Hello, USB World! (a+bX"  'echo Hello, USB World! (a+b)' '<ret>' '<up>' '<backspace>' X '<ret>'
+check_all hw-usb-keyev 'keyev: queue Q getc Q|keyev: PASS'  'run keyev' '<ret>' '<pause>' Q '<pause>'
+export QEMU_EXTRA="-device qemu-xhci,id=xhci -device usb-kbd,bus=xhci.0 -drive if=none,id=us,file=$out/usb.img,format=raw -device usb-storage,bus=xhci.0,drive=us"
+check hw-usb-devices 'ud0     block   ready 8192 sectors'  devices '<ret>'
+check hw-usb-msd    'blkdev: ud0 PASS'      'run blkdev ud0' '<ret>'
+sector5 hw-usb-msd-disk "$out/usb.img"
+check hw-usb-after  'systest: PASS'         'run blkdev ud0' '<ret>' systest '<ret>'
+# boot from a USB stick on a machine without IDE (the BIOS reads it; the kernel then finds it as ud0)
+cp "$out/os.img" "$out/stick.img"; truncate -s 4M "$out/stick.img"
+truncate -s 1M "$out/blank.img"; cp "$out/hw.img" "$out/hw-q35.img"
+export QEMU_EXTRA="-M q35 -device qemu-xhci,id=xhci -drive if=none,id=st,file=$out/stick.img,format=raw -device usb-storage,bus=xhci.0,drive=st,bootindex=0"
+boot=$out/blank.img; disk=$out/hw-q35.img
+check_all hw-usb-boot 'hd0     block   absent|ud0     block   ready 8192 sectors|blkdev  '  devices '<ret>' ls '<ret>'
 unset QEMU_EXTRA boot
 disk=$out/auto.img
 check bat-autoexec  'autoexec ran'
