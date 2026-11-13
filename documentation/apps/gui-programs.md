@@ -1,6 +1,6 @@
 # Graphical programs (A.1)
 
-Programs on the data disk that draw in graphics mode through `SYS_GUI` (`../kernel/syscalls.md`) and the toolkit in `programs/gui.inc`. They run with `run <name>` from the shell, take over the screen in VGA mode 13h (320 × 200) and give the text screen back as it was when they quit. The grapher (C.2) is described in `grapher.md`, Paint and the image viewer (A.2) in `paint.md`. Each draws a window in the window manager's look (white frame, blue title bar, light grey client area) and uses the kernel's 5 × 7 font, so the regression run reads their text with `<gfx>`. A mouse moves a pointer and left clicks work where the program says so.
+Programs on the data disk that draw in graphics mode through `SYS_GUI` (`../kernel/syscalls.md`) and the toolkit in `programs/gui.inc`. They run with `run <name>` from the shell, take over the screen in VGA mode 13h (320 × 200) and give the text screen back as it was when they quit. The grapher (C.2) is described in `grapher.md`, Paint and the image viewer (A.2) in `paint.md`, the statistics program (C.3) in `stats.md`, the 3D grapher (C.7) in `graph3d.md`, the hex editor (A.7) in `hexedit.md`, the word processor Write (A.7) in `write.md`. Each draws a window in the window manager's look (white frame, blue title bar, light grey client area) and uses the kernel's 5 × 7 font, so the regression run reads their text with `<gfx>`. A mouse moves a pointer and left clicks work where the program says so.
 
 They are separate files, not kernel code, so they do not use kernel image space. Build and install one as any program (`../../programs/README.md`).
 
@@ -44,6 +44,18 @@ A text editor in a full-screen window, the graphical counterpart of `edit`: up t
 | Esc | quit; with unsaved changes it asks `Save changes? y/n` first (Esc there goes back) |
 
 The title is `Notepad - <file>`; the status row shows the name, `*` while there are unsaved changes, `Ln` and `Col`, and the last message (`Saved`, `Opened`, `New file`, `Not saved!`). Checks: `notepad`, `notepad-save` (the file holds the text afterwards), `notepad-open`, `notepad-ask`, `notepad-quit`.
+
+### Syntax highlighting (A.7)
+
+The name's extension picks a language; other names stay black on white.
+
+| Extension | Comments (green) | Strings (magenta) | Numbers (red) | Blue | Other |
+|-----------|------------------|-------------------|---------------|------|-------|
+| `.asm`, `.inc` | `;` to the line's end | `"…"` and `'…'` | a word starting with a digit (`10`, `0x3F`) | common instructions and data words (`mov`, `jne`, `db`, `equ`, `dword`, …) | registers and labels (a word at the line's start followed by `:`) brown; `%` directives cyan |
+| `.c`, `.h` | `//` to the line's end, `/* … */` over lines | `"…"` with `\` escapes | as above | keywords (`int`, `if`, `return`, `struct`, …) | `#` lines' first word cyan |
+| `.bas` | `REM` and `'` to the line's end | `"…"` | as above | keywords (`PRINT`, `IF`, `GOTO`, …, any case) | |
+
+Each redraw runs the highlighter from the start of the text, so a `/* … */` comment that begins above the view is still green. `run notepad -test` draws a line of each language and reads back the colour of a character of each kind (label, instruction, register, number, comment, directive, keyword, string, block comment over two lines, `REM`); it prints `notepad: PASS`, or `notepad: FAIL`, the case's file name and a letter for the character that failed. Check: `notepad-hl`.
 
 ## Character map (`run charmap`)
 
