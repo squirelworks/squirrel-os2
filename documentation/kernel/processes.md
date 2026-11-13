@@ -21,7 +21,7 @@ Location: `../../kernel/proc.asm` (included from `kernel/pm.asm`)
 | Offset | Field | Meaning |
 |--------|-------|---------|
 | 0 | `pid` | Process id |
-| 4 | `state` | `free` 0, `ready` 1, `running` 2, `waiting` 3, `zombie` 4, `stopped` 5 (for its debugger, A.4: `debug.md`) |
+| 4 | `state` | `free` 0, `ready` 1, `running` 2, `waiting` 3, `zombie` 4, `running (AP)` 5 (on an application processor, 2.8: `smp.md`), `stopped` 6 (for its debugger, A.4: `debug.md`) |
 | 8 | `esp` | Saved stack pointer while not running |
 | 12 | `entry` | Entry function |
 | 16 | `arg` | Argument passed to `entry` |

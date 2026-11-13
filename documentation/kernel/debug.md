@@ -62,7 +62,7 @@ the buffer it names.
   program with the usual report (`CPU exception 3 (breakpoint)`).
 - Every exception goes to `exc_report` (`crash.asm`). For a traced process interrupted in ring 3 it
   calls `dbg_trap` first (after a ring-3 stack has been grown, which is not a stop): the process is
-  parked in the new state `P_STOPPED` (5, `ps` shows `stopped`) with the exception frame left on its
+  parked in the new state `P_STOPPED` (6, `ps` shows `stopped`) with the exception frame left on its
   kernel stack, its tracer is woken if it waits in `DBG_WAIT`, and the CPU goes to someone else.
   `DBG_GETREGS`/`DBG_SETREGS` read and change that frame. `DBG_CONT` makes it READY; it returns to
   ring 3 through the frame, with the trap flag set for a single step. After a fault the faulting

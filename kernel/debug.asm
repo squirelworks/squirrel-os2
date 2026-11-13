@@ -59,7 +59,7 @@ DBG_REGS_SIZE   equ 52
 
 DBG_XFER_MAX    equ 4096        ; DBG_READ / DBG_WRITE: bytes per call
 
-P_STOPPED       equ 5           ; process state: stopped for its debugger
+P_STOPPED       equ 6           ; process state: stopped for its debugger (5 is P_APRUN, 2.8)
 
 DBGF_STOP       equ 1           ; stop when it next runs
 DBGF_KILL       equ 2           ; end it when it next runs

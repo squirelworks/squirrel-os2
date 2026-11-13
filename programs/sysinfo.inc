@@ -36,6 +36,7 @@ PS_READY        equ 1
 PS_RUNNING      equ 2
 PS_WAITING      equ 3
 PS_ZOMBIE       equ 4
-PS_STOPPED      equ 5           ; stopped for its debugger (A.4)
+PS_APRUN        equ 5           ; running on an application processor (2.8)
+PS_STOPPED      equ 6           ; stopped for its debugger (A.4)
 
 KLOG_SIZE       equ 4096
