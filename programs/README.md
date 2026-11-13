@@ -47,7 +47,8 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `winhello.asm` | PE32 | Hand-written Win32 console program: console, files, heap, relocations, imports (`run winhello`, P.5) |
 | `wincrt.asm` | PE32 | Hand-written Win32 program on msvcrt: TEB via `fs:`, `__getmainargs`, printf/sprintf, malloc, FILE I/O, atexit/exit (`run wincrt acorn`, P.5) |
 | `winshim.inc` | — | The KERNEL32 start-up calls and the msvcrt subset that `winrun` binds imports to |
-| `lxelf.inc` | — | ELF header macro and Linux call numbers for the Linux test programs |
+| `bsdhello.asm` | ELF32 (FreeBSD) | FreeBSD i386 calls with stack arguments and CF + errno: files, lseek, break, mmap, isatty, errors (`run bsdhello`, P.10) |
+| `lxelf.inc` | — | ELF header macro (Linux, or FreeBSD with `EI_OSABI` 9) and Linux call numbers for the test programs |
 | `mines.asm` | SQX | Minesweeper-class game, G.3 (`run mines [seed] [big]`, `run mines test`); see `documentation/apps/games.md` |
 | `reversi.asm` | SQX | Reversi against a two-ply computer player, G.8 (`run reversi [seed]`, `run reversi test`) |
 | `klondike.asm` | SQX | Klondike solitaire, draw one, G.1 (`run klondike [seed]`, `run klondike test`) |

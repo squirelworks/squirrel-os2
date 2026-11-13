@@ -347,6 +347,8 @@ From P.1–P.12 in `ROADMAP.md` and epic #118 (stream OS2-FOREIGN). Each box shi
 - [x] **P.5-win32-crt** — The TEB through FS (`SYS_SETTLS`, per-process TLS segment) and an msvcrt subset (start-up, stdio and printf, strings, memory, atexit/exit) plus the KERNEL32 start-up calls, so MinGW-built console programs run.
   **Acceptance:** `run wincrt acorn` prints `crt: -5 acorn 00ab x  |` and `wincrt: PASS`. Checks `win-crt`, `win-printf`.
 - [x] **P.8-dos-design** — DOS `.COM` personality design (V86 monitor, `INT 21h` subset, memory map, tests) in `documentation/architecture/dos-personality.md`. Building it waits for 2.4.
+- [ ] **P.10-freebsd** — FreeBSD i386 static ELF32 (`EI_OSABI` 9): a call table over the Linux handlers with FreeBSD numbers, stack arguments and CF + errno results.
+  **Acceptance:** `run bsdhello` prints `Hello from FreeBSD land!` and `bsdhello: PASS`. Checks `bsd-hello`, `bsd-after`.
 
 ## Installer (unscheduled)
 

@@ -167,6 +167,35 @@ The TLS segment is the same per-process descriptor the Windows layer uses for FS
 paragraph below): `set_thread_area` sets its base and the kernel reloads FS and GS with it on
 every switch.
 
+### FreeBSD personality (P.10)
+
+A static ELF32 with `EI_OSABI` 9 (FreeBSD) loads like a Linux one, with the same initial stack,
+and is marked in `bsd_slot` (`kernel/personalities/bsd/bsd.asm`). Its `int 0x80` arrives in
+`lx_isr`, which sends it to `bsd_isr`: the call number is in `eax` and the arguments are on the
+user stack above the libc stub's return address, as FreeBSD i386 passes them. Most calls reuse
+the Linux handlers; the result comes back FreeBSD's way, `eax` = value with CF clear, or `eax`
+= errno (positive; `EAGAIN` 35, `ENOSYS` 78, `ENAMETOOLONG` 63, `ENOTEMPTY` 66, the low ones as
+Linux) with CF set. 64-bit results put the high half in `edx`.
+
+| FreeBSD | Calls | Notes |
+|---|---|---|
+| 1, 431 | `exit`, `thr_exit` | |
+| 3, 4, 6, 120, 121 | `read`, `write`, `close`, `readv`, `writev` | as Linux |
+| 5 | `open` | `O_CREAT` 0x200, `O_TRUNC` 0x400, `O_APPEND` 8 translated |
+| 10, 128, 136, 137, 33 | `unlink`, `rename`, `mkdir`, `rmdir`, `access` | as Linux |
+| 17 | `break` | 0 or `ENOMEM`; the heap is the native one at `0x40000000` |
+| 197, 477 | `mmap` (with and without the FreeBSD 6 pad) | `MAP_ANON` (0x1000) only |
+| 199, 478 | `lseek` (with and without the pad) | 64-bit result, high half 0 |
+| 54 | `ioctl` | `TIOCGETA` and `TIOCGWINSZ` on fds 0–2, so `isatty` works |
+| 116, 232, 240 | `gettimeofday`, `clock_gettime`, `nanosleep` | as Linux |
+| 326 | `__getcwd` | `/`, result 0 |
+| 20, 24, 25, 43, 47, 253 | `getpid`, uid/gid calls, `issetugid` | the pid, or 0 |
+| 73, 74, 75 | `munmap`, `mprotect`, `madvise` | accepted |
+
+Test: `programs/bsdhello.asm` (checks `bsd-hello`, `bsd-after`). Not yet: `stat` (FreeBSD's
+`struct stat` differs), `sysctl`, signals, `getdirentries`, and the other systems in P.10:
+NetBSD and OpenBSD (their own numbers and ELF notes) and Solaris (`lcall 7,0` / `int 0x91`).
+
 ### Windows personality (P.5)
 
 **Selecting it.** When the kernel loader finds an `MZ` file it runs the program `winrun` (from

@@ -160,6 +160,7 @@ prog_exec:
     jz .nomem
     mov [ld_as], eax
     mov dword [ld_linux], 0
+    mov dword [ld_bsd], 0
     mov eax, [eax+AS_PD]
     mov cr3, eax
     cmp dword [LD_STAGE], SQX_MAGIC
@@ -218,6 +219,8 @@ prog_exec:
     mov [edi+PCB_AS], eax
     mov eax, [ld_linux]         ; a Linux ELF: entered by lx_enter_user (P.1)
     mov [edi+PCB_LINUX], eax
+    mov eax, [ld_bsd]           ; and FreeBSD on top of that (P.10)
+    call bsd_mark
     mov esi, [esp+12]           ; the file name (saved esi), for ps and crash reports
     call proc_set_name
     mov eax, edi
@@ -353,7 +356,11 @@ ld_elf:
     jae .bad
     mov eax, [LD_STAGE+24]
     cmp byte [LD_STAGE+7], 3        ; EI_OSABI = ELFOSABI_LINUX (P.1)
+    je .lx
+    cmp byte [LD_STAGE+7], BSD_OSABI    ; ELFOSABI_FREEBSD (P.10)
     jne .r
+    mov dword [ld_bsd], 1
+.lx:
     mov [ld_linux], eax
 .r:
     ret
@@ -385,6 +392,7 @@ sys_exec:                       ; ebx = name, ecx = argument (or 0)
 
 ld_as dd 0
 ld_linux dd 0
+ld_bsd dd 0
 ld_winrun db 'winrun', 0
 ld_dosrun db 'dosrun', 0
 prog_arg times LD_ARGMAX db 0

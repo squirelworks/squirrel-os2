@@ -89,6 +89,13 @@ lx_enter_user:
 
 ; int 0x80 from a Linux process (syscall_isr jumps here)
 lx_isr:
+    push eax                    ; a FreeBSD process: its own convention
+    mov eax, [proc_cur]         ; (P.10, bsd.asm)
+    sub eax, proc_table
+    shr eax, 6
+    cmp byte [bsd_slot+eax], 0
+    pop eax
+    jne bsd_isr
     pushad
     mov esi, lx_calls
     cmp eax, 0xFFFF
