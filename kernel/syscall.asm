@@ -375,7 +375,10 @@ syscall_table:
     dd sys_devreg
     dd sys_devunreg
     dd sys_gui
-    db UA_NONE                                  ; settls
+    dd sys_settls
+%if $-syscall_table != SYS_COUNT*4
+%error syscall_table and SYS_COUNT disagree
+%endif
 
 ; ---------- handlers: args in ebx/ecx/edx, result in eax ----------
 sys_putc:
