@@ -66,6 +66,8 @@ cmd_desktop_run:
     call dk_ptr
 .key:
     call mouse_poll
+    call dk_wm                  ; move, size, boxes (2.2-mouse); CF: close
+    jc .quit
     call dk_ptr
     call dk_mouse               ; CF clear: open the selection
     jnc .open
@@ -782,6 +784,52 @@ dk_refresh:
 ; Soft mouse pointer: a white plus at mouse_x, mouse_y (1.9.10). Since
 ; 2.0.1 it keeps the pixels under it and puts them back when it moves
 ; (ptr_show in mouse.asm), so it leaves no trail.
+; Gives the mouse to the window manager when it moved or a button changed
+; (2.2-mouse): the desktop window can be moved, sized and maximised with
+; it. CF set when its close box was clicked (the desktop then closes).
+dk_wm:
+    pushad
+    pushfd
+    cli
+    mov eax, [mouse_x]
+    mov ebx, [mouse_y]
+    mov cl, [mouse_btns]
+    popfd
+    cmp eax, [dk_lmx]
+    jne .go
+    cmp ebx, [dk_lmy]
+    jne .go
+    cmp cl, [dk_lmb]
+    je .no
+.go:
+    mov [dk_lmx], eax
+    mov [dk_lmy], ebx
+    mov [dk_lmb], cl
+    call wm_mouse
+    cmp eax, WME_CLOSE
+    jne .upd
+    cmp ebx, [dk_win]
+    jne .upd
+    popad
+    stc
+    ret
+.upd:
+    cmp dword [wm_dn], 0        ; anything moved: repaint just that
+    jne .paint
+    cmp byte [wm_dfull], 0
+    je .no
+.paint:
+    call wm_update
+.no:
+    popad
+    clc
+    ret
+
+align 4
+dk_lmx dd -1
+dk_lmy dd -1
+dk_lmb db 0
+
 ; eax, ebx = a place on the 320 x 200 layout -> the same place on the
 ; screen (2.2-vbe-wm: the layout is centred in a larger mode).
 dk_org:
@@ -807,16 +855,21 @@ dk_mouse:
     mov [dk_mclicks], eax
     cmp dword [dk_nvis], 0
     je .no
-    ; screen → list row
+    ; screen → list row, from where the window is now (it can be moved)
+    mov edi, [dk_win]
+    imul edi, WIN_SIZE
+    add edi, wm_table
     mov eax, [mouse_x]
-    sub eax, [dk_ox]
-    sub eax, DK_X + 1 + 4
+    sub eax, [edi+WIN_X]
+    sub eax, 1 + 4
     js .no
-    cmp eax, DK_W - 2 - 4
+    mov edx, [edi+WIN_W]
+    sub edx, 2 + 4
+    cmp eax, edx
     jae .no
     mov eax, [mouse_y]
-    sub eax, [dk_oy]
-    sub eax, DK_Y + 1 + WM_TITLE_H + 16
+    sub eax, [edi+WIN_Y]
+    sub eax, 1 + WM_TITLE_H + 16
     js .no
     xor edx, edx
     mov ebx, GFX_CELL_H

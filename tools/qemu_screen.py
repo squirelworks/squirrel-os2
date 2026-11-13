@@ -147,6 +147,10 @@ def main():
                         break
                     time.sleep(0.1)
                 time.sleep(0.2)
+                keep = os.environ.get('QEMU_SHOTS')    # 2.2: keep the dumps
+                if keep:
+                    import shutil
+                    shutil.copy(shot, os.path.join(keep, f'shot{len(os.listdir(keep))}.ppm'))
                 gfx += gfx_text(shot)
                 continue
             # 1.9.10: inject relative mouse motion or a button bitmask

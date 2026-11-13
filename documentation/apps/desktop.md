@@ -4,6 +4,8 @@
 
 Since 2.2 (**2.2-vbe-wm**) the desktop runs on the window manager's screen (`wm_screen`, `../kernel/windows.md`): 640×480 at 8 bpp when VBE is there, else mode 13h. The 320×200 layout below (the desktop window, program windows, the Rename window, mouse rows) is centred on the larger screen: `dk_ox` / `dk_oy` hold the offset, `dk_org` adds it to a layout position, and the mouse pointer is moved by the same offset when the desktop opens and back when it closes, so a pointer that was over a row stays over it. The Program Manager in 2.3 replaces this layout.
 
+Since **2.2-mouse** the desktop window has the Warp title-bar boxes and can be moved by its title, sized by its edges and corners, and maximised and restored with the mouse (`../kernel/windows.md`). Its close box closes the desktop, as Esc does. A click on a list row works wherever the window has been moved.
+
 ```
 +---------------------------------------+
 | Squirrel-OS/2 Desktop                 |

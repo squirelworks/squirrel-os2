@@ -93,6 +93,20 @@ The mouse (**2.2-mouse**) uses it to decide between moving, sizing and the boxes
 
 `winhit` opens One at (40, 30), 200 × 120, and Two over its bottom right at (150, 100), 120 × 80, in mode 13h, and calls `wm_hit` at 21 points: One's title, each box, the title between the boxes, each edge, three corners and the client; One just left of Two; Two's client, left edge, title and bottom-right corner where it covers One; and two points on the desktop. It also reads back One's close box (the bevel's light corner and the X's first pixel) and the system-menu bar. It prints `winhit: PASS` or `winhit: FAIL`. Checks `winhit` and `winhit-text`. `wintest` reads the title's first letter after the system-menu box.
 
+## Mouse: raise, move, size, maximise (2.2-mouse)
+
+`wm_mouse` (eax = x, ebx = y, cl = buttons, bit 0 the left one) takes one mouse state at a time; `wm_inject` is the same routine, for scripts and checks. It keeps the previous buttons, so it sees a press, a drag (button held, pointer moved) and a release. It does not draw: the caller calls `wm_update`.
+
+- A press over a window raises it and gives it the focus (z-order by mouse). Then, by `wm_hit` part: the title starts a move; an edge or corner of a sizable window starts a size; the maximise box maximises the window to the whole screen (saving its rectangle in `WIN_REST`, `WIN_STATE` = `WS_MAX`) or, when it is maximised, restores it. A maximised window cannot be moved or sized.
+- While the button is held, a move puts the window at its press-time place plus the pointer's travel; a size moves the edges the part names (`wm_sides`), never below `WM_MIN_W` × `WM_MIN_H` (a left or top edge then stops so the opposite edge stays put). Each step goes through `wm_place` (x, y, width, height in one call; CF and no change when `wm_fits` refuses), so a window dragged past what `wm_fits` allows stays at its last allowed place. The release ends the drag.
+- The reply in eax: `WME_NONE`; `WME_CLIENT` with ebx = the window and ecx = x | y << 16 in its client area; `WME_CLOSE`, `WME_MIN` or `WME_SYSMENU` with ebx = the window. Closing is the caller's decision (a program may ask to save first); minimising and the system menu come with **2.2-minmax** and **2.2-sysmenu**.
+
+The desktop (`../apps/desktop.md`) passes every change of the mouse to `wm_mouse`, repaints with `wm_update`, and closes when its own close box is clicked. Its list clicks use the window's current place, so they still work after it is moved.
+
+`windrag` enters the window manager's screen with One at (100, 100) and Two over it at (200, 180), both 200 × 150, and replays a script of mouse states through `wm_inject`, calling `wm_update` after each: a press on One's title (it comes to the top) and a drag by (20, 20); a drag of its bottom-right corner (which Two covered before One came up) by (30, 20); of its left edge 20 to the left; of its right edge far to the left (it stops at the minimum width); a click on the maximise box (One fills the screen) and on the box's new place (One is restored); a client click (the reply and client coordinates are checked); and the close box (the reply is checked, then One is closed and Two must have the focus). After each release it compares One's rectangle with the expected one. It prints `windrag: PASS` or `windrag: FAIL`. Checks `windrag` and `windrag-text`.
+
+`tools/qemu_screen.py` copies each `<gfx>` screen dump into the directory named by `QEMU_SHOTS`, when that is set, for looking at by hand.
+
 ## Widgets
 
 Since 1.5.0, `wm_draw` draws a window's widgets after its client area, and `wm_close` drops them (`widgets.md`).

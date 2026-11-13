@@ -21,7 +21,12 @@ WIN_TITLE       equ 20          ; zero-terminated string
 WIN_LEN         equ 24          ; characters typed into the window
 WIN_BUF         equ 28          ; WM_BUF characters and a zero
 WIN_FLAGS       equ 56          ; WF_* (2.2-frame)
-WIN_SIZE        equ 60
+WIN_STATE       equ 60          ; WS_* (2.2-mouse)
+WIN_REST        equ 64          ; x, y, w, h to restore from maximised
+WIN_SIZE        equ 80
+WS_NORMAL       equ 0
+WS_MAX          equ 1
+WS_MIN          equ 2
 WM_BUF          equ 24
 
 WM_TITLE_H      equ GFX_CELL_H + 2  ; title bar: one text row and a margin
@@ -93,6 +98,7 @@ wm_create:
     mov dword [edi+WIN_LEN], 0
     mov byte [edi+WIN_BUF], 0
     mov dword [edi+WIN_FLAGS], WF_DEFAULT
+    mov dword [edi+WIN_STATE], WS_NORMAL
     call wm_markwin             ; its place needs painting (2.2-clip-z)
     mov eax, ebp
     mov ebp, [wm_zn]            ; on top
@@ -1421,3 +1427,424 @@ align 4
 wh_ids dd 0, 0
 wh_pass db 'winhit: PASS', 10, 0
 wh_fail db 'winhit: FAIL', 10, 0
+
+; ---------- mouse window management (2.2-mouse) ----------
+; wm_mouse takes one mouse state (position and buttons) at a time, from the
+; desktop loop or from a script (wm_inject, the same routine). A left-button
+; press raises and focuses the window under the pointer, then by part:
+; the title starts a move, an edge or corner of a sizable window starts a
+; size, the maximise box maximises or restores, the close box and the
+; client are reported to the caller. While the button stays down the move
+; or size follows the pointer; the release ends it. Nothing is drawn: the
+; caller calls wm_update.
+;
+; In: eax = x, ebx = y, cl = buttons (bit 0 left).
+; Out: eax = WME_NONE, or WME_CLIENT (ebx = window, ecx = x | y << 16 in
+; the client area), WME_CLOSE (ebx = window: the caller closes it or not),
+; WME_MIN (ebx = window: minimising comes with 2.2-minmax), WME_SYSMENU.
+
+WME_NONE    equ 0
+WME_CLIENT  equ 1
+WME_CLOSE   equ 2
+WME_MIN     equ 3
+WME_SYSMENU equ 4
+
+wm_inject:
+wm_mouse:
+    push edx
+    push esi
+    push edi
+    push ebp
+    mov [wm_px], eax
+    mov [wm_py], ebx
+    mov dl, [wm_mbtn]
+    mov [wm_mbtn], cl
+    test cl, 1
+    jz .up
+    test dl, 1
+    jz .press
+    ; held: follow a move or size
+    cmp byte [wm_mmode], 0
+    je .none
+    call wm_mdrag
+    jmp .none
+.up:
+    mov byte [wm_mmode], 0      ; a release ends any drag
+    jmp .none
+.press:
+    call wm_hit
+    cmp eax, -1
+    je .none
+    mov [wm_mwin], eax
+    call wm_raise               ; a click focuses
+    call wm_record
+    mov esi, [wm_px]            ; the press point and the rectangle now
+    mov [wm_mx0], esi
+    mov esi, [wm_py]
+    mov [wm_my0], esi
+    lea esi, [edi+WIN_X]
+    push edi
+    mov edi, wm_mrect
+    movsd
+    movsd
+    movsd
+    movsd
+    pop edi
+    cmp ebx, HT_CLIENT
+    je .client
+    cmp ebx, HT_TITLE
+    je .title
+    cmp ebx, HT_MAX
+    je .max
+    cmp ebx, HT_CLOSE
+    je .close
+    cmp ebx, HT_MIN
+    je .min
+    cmp ebx, HT_SYSMENU
+    je .sys
+    cmp dword [edi+WIN_STATE], WS_MAX
+    je .none                    ; a maximised window keeps its size
+    mov [wm_mpart], ebx         ; an edge or corner
+    mov byte [wm_mmode], 2
+    jmp .none
+.title:
+    cmp dword [edi+WIN_STATE], WS_MAX
+    je .none                    ; and its place
+    mov byte [wm_mmode], 1
+    jmp .none
+.max:
+    call wm_togglemax
+    jmp .none
+.client:
+    mov ecx, [wm_py]
+    sub ecx, [edi+WIN_Y]
+    sub ecx, WM_TITLE_H + 1
+    shl ecx, 16
+    mov edx, [wm_px]
+    sub edx, [edi+WIN_X]
+    dec edx
+    mov cx, dx
+    mov eax, WME_CLIENT
+    mov ebx, [wm_mwin]
+    jmp .out
+.close:
+    mov eax, WME_CLOSE
+    jmp .ret_win
+.min:
+    mov eax, WME_MIN
+    jmp .ret_win
+.sys:
+    mov eax, WME_SYSMENU
+.ret_win:
+    mov ebx, [wm_mwin]
+    jmp .out
+.none:
+    xor eax, eax
+.out:
+    pop ebp
+    pop edi
+    pop esi
+    pop edx
+    ret
+
+; The pointer moved with the button down: move or size [wm_mwin] from the
+; rectangle it had at the press (wm_mrect) by the pointer's travel. A place
+; wm_fits refuses is skipped (the window stays where it last fitted).
+wm_mdrag:
+    pushad
+    mov ebp, [wm_px]
+    sub ebp, [wm_mx0]           ; ebp = dx
+    mov esi, [wm_py]
+    sub esi, [wm_my0]           ; esi = dy
+    mov eax, [wm_mrect]
+    mov ebx, [wm_mrect+4]
+    mov ecx, [wm_mrect+8]
+    mov edx, [wm_mrect+12]
+    cmp byte [wm_mmode], 1
+    jne .size
+    add eax, ebp
+    add ebx, esi
+    jmp .place
+.size:
+    mov edi, [wm_mpart]
+    movzx edi, byte [wm_sides+edi-HT_L]
+    test edi, 1                 ; left edge
+    jz .r
+    sub ecx, ebp
+    add eax, ebp
+    cmp ecx, WM_MIN_W
+    jge .r
+    add eax, ecx                ; too narrow: keep the right edge
+    sub eax, WM_MIN_W
+    mov ecx, WM_MIN_W
+.r:
+    test edi, 2                 ; right edge
+    jz .t
+    add ecx, ebp
+    cmp ecx, WM_MIN_W
+    jge .t
+    mov ecx, WM_MIN_W
+.t:
+    test edi, 4                 ; top edge
+    jz .b
+    sub edx, esi
+    add ebx, esi
+    cmp edx, WM_MIN_H
+    jge .b
+    add ebx, edx
+    sub ebx, WM_MIN_H
+    mov edx, WM_MIN_H
+.b:
+    test edi, 8                 ; bottom edge
+    jz .place
+    add edx, esi
+    cmp edx, WM_MIN_H
+    jge .place
+    mov edx, WM_MIN_H
+.place:
+    mov esi, edx
+    mov edx, ecx
+    mov ecx, ebx
+    mov ebx, eax
+    mov eax, [wm_mwin]
+    call wm_place
+    popad
+    ret
+
+; which edges each part moves: 1 left, 2 right, 4 top, 8 bottom
+wm_sides db 1, 2, 4, 8, 5, 6, 9, 10   ; HT_L, R, T, B, TL, TR, BL, BR
+
+; eax = window id, ebx = x, ecx = y, edx = width, esi = height: moves and
+; sizes it in one step. CF (and nothing changed) if the id is not open or
+; wm_fits refuses the rectangle.
+wm_place:
+    pushad
+    call wm_record
+    jc .out
+    mov eax, ebx
+    mov ebx, ecx
+    mov ecx, edx
+    mov edx, esi
+    call wm_fits
+    jc .out
+    call wm_markwin
+    mov [edi+WIN_X], eax
+    mov [edi+WIN_Y], ebx
+    mov [edi+WIN_W], ecx
+    mov [edi+WIN_H], edx
+    call wm_markwin
+    clc
+.out:
+    popad
+    ret
+
+; edi = record of window [wm_mwin]: maximise it to the whole screen, saving
+; its rectangle, or restore that rectangle if it is maximised.
+wm_togglemax:
+    pushad
+    test dword [edi+WIN_FLAGS], WF_MAXBOX
+    jz .r
+    cmp dword [edi+WIN_STATE], WS_MAX
+    je .restore
+    lea esi, [edi+WIN_X]
+    push edi
+    add edi, WIN_REST
+    movsd
+    movsd
+    movsd
+    movsd
+    pop edi
+    mov eax, [wm_mwin]
+    xor ebx, ebx
+    xor ecx, ecx
+    mov edx, [gfx_width]
+    mov esi, [gfx_height]
+    call wm_place
+    jc .r
+    mov dword [edi+WIN_STATE], WS_MAX
+    jmp .r
+.restore:
+    mov eax, [wm_mwin]
+    mov ebx, [edi+WIN_REST]
+    mov ecx, [edi+WIN_REST+4]
+    mov edx, [edi+WIN_REST+8]
+    mov esi, [edi+WIN_REST+12]
+    call wm_place
+    jc .r
+    mov dword [edi+WIN_STATE], WS_NORMAL
+.r:
+    popad
+    ret
+
+align 4
+wm_px dd 0
+wm_py dd 0
+wm_mwin dd 0
+wm_mpart dd 0
+wm_mx0 dd 0
+wm_my0 dd 0
+wm_mrect dd 0, 0, 0, 0
+wm_mbtn db 0
+wm_mmode db 0                   ; 0 none, 1 moving, 2 sizing
+
+; windrag: on the window manager's screen, One at (100, 100) and Two over
+; it at (200, 180), both 200 x 150. Scripted mouse states (wm_inject):
+; a click on One's title raises it; dragging the title moves it by
+; (20, 20); dragging its bottom-right corner sizes it by (30, 20); its left
+; edge by 20 to the left; its right edge far to the left stops at the
+; minimum width; the maximise box fills the screen and a second click on it
+; restores; a client click is reported with client coordinates; the close
+; box is reported and the window closed. Each step checks the window's
+; rectangle (or the reply). Prints the windows left, then
+; `windrag: PASS` or `windrag: FAIL`.
+cmd_windrag_run:
+    call wm_screen
+    jc .out
+    mov byte [gfxt_ok], 1
+    mov eax, 100
+    mov ebx, 100
+    mov ecx, 200
+    mov edx, 150
+    mov esi, wc_one
+    call wm_create
+    mov [wc_a], eax
+    mov eax, 200
+    mov ebx, 180
+    mov esi, wc_two
+    call wm_create
+    mov [wc_b], eax
+    call wm_redraw
+    mov esi, wd_script
+.step:
+    lodsd                       ; x, or -1 at the end
+    cmp eax, -1
+    je .done
+    mov ebx, [esi]
+    mov cl, [esi+4]
+    add esi, 5
+    call wm_inject
+    mov [wd_r], eax             ; the reply
+    mov [wd_r+4], ebx
+    mov [wd_r+8], ecx
+    call wm_update
+    lodsb                       ; what to check after it
+    cmp al, 0
+    je .step
+    cmp al, 1
+    je .rect
+    cmp al, 2
+    je .reply
+    jmp .step
+.rect:                          ; One's x, y, w, h follow
+    push esi
+    mov eax, [wc_a]
+    call wm_record
+    pop esi
+    jc .bad4
+    lea edi, [edi+WIN_X]
+    mov ecx, 4
+    repe cmpsd
+    je .step
+    lea esi, [esi+ecx*4]        ; skip what was not compared
+    jmp .bad
+.bad4:
+    add esi, 16
+    jmp .bad
+.reply:                         ; the reply, its window (0 One) and ecx
+    mov eax, [wd_r]
+    mov ebx, [wd_r+4]
+    mov ecx, [wd_r+8]
+    cmp eax, [esi]
+    jne .badr
+    mov edx, [esi+4]
+    mov edx, [wc_a+edx*4]
+    cmp ebx, edx
+    jne .badr
+    cmp eax, WME_CLIENT
+    jne .okr
+    cmp ecx, [esi+8]
+    jne .badr
+.okr:
+    add esi, 12
+    jmp .step
+.badr:
+    add esi, 12
+.bad:
+    mov byte [gfxt_ok], 0
+    jmp .step
+.done:
+    mov eax, [wc_a]             ; the close box asked; close One
+    call wm_close
+    call wm_update
+    call wm_focus               ; Two is left, and has the focus
+    cmp eax, [wc_b]
+    je .closeb
+    mov byte [gfxt_ok], 0
+.closeb:
+    call wm_close
+    call gfx_text
+.out:
+    mov esi, wd_pass
+    cmp byte [gfxt_ok], 1
+    je .say
+    mov esi, wd_fail
+.say:
+    jmp puts
+
+; x, y (dd), buttons (db), check (db: 0 none, 1 One's rect follows as four
+; dd, 2 reply: WME_* dd, window dd (0 One, 1 Two), client x | y << 16 dd)
+wd_script:
+    dd 150, 105                 ; press on One's title (under Two? no: above it)
+    db 1, 0
+    dd 170, 125                 ; drag
+    db 1, 0
+    dd 170, 125                 ; release
+    db 0, 1
+    dd 120, 120, 200, 150
+    dd 319, 269                 ; One's bottom-right corner
+    db 1, 0
+    dd 349, 289
+    db 1, 0
+    dd 349, 289
+    db 0, 1
+    dd 120, 120, 230, 170
+    dd 121, 200                 ; its left edge, 20 to the left
+    db 1, 0
+    dd 101, 200
+    db 1, 0
+    dd 101, 200
+    db 0, 1
+    dd 100, 120, 250, 170
+    dd 348, 200                 ; its right edge, far to the left
+    db 1, 0
+    dd 0, 200
+    db 1, 0
+    dd 0, 200
+    db 0, 1
+    dd 100, 120, WM_MIN_W, 170
+    dd 100 + WM_MIN_W - 7 - WM_BOX, 125 ; the maximise box
+    db 1, 0
+    dd 100 + WM_MIN_W - 7 - WM_BOX, 125
+    db 0, 1
+    dd 0, 0, WM_SCR_W, WM_SCR_H
+    dd WM_SCR_W - 7 - WM_BOX, 5 ; it again, at its new place: restore
+    db 1, 0
+    dd WM_SCR_W - 7 - WM_BOX, 5
+    db 0, 1
+    dd 100, 120, WM_MIN_W, 170
+    dd 120, 160                 ; a client click
+    db 1, 2
+    dd WME_CLIENT, 0, 19 | ((160 - 120 - WM_TITLE_H - 1) << 16)
+    dd 120, 160
+    db 0, 0
+    dd 100 + WM_MIN_W - 7, 125  ; the close box
+    db 1, 2
+    dd WME_CLOSE, 0, 0
+    dd 100 + WM_MIN_W - 7, 125
+    db 0, 0
+    dd -1
+
+align 4
+wd_r dd 0, 0, 0
+wd_pass db 'windrag: PASS', 10, 0
+wd_fail db 'windrag: FAIL', 10, 0

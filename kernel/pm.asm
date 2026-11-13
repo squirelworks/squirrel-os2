@@ -428,6 +428,9 @@ run_simple:
     mov edi, cmd_winhit         ; 2.2-frame
     call streq
     je .winhit
+    mov edi, cmd_windrag        ; 2.2-mouse
+    call streq
+    je .windrag
     mov edi, cmd_desktop
     call streq
     je .desktop
@@ -679,6 +682,9 @@ run_simple:
     jmp .empty
 .winhit:
     call cmd_winhit_run
+    jmp .empty
+.windrag:
+    call cmd_windrag_run
     jmp .empty
 .vbetest:
     call cmd_vbetest_run
@@ -1181,6 +1187,7 @@ cmd_bevtest db 'bevtest', 0
 cmd_winvbe db 'winvbe', 0
 cmd_winclip db 'winclip', 0
 cmd_winhit db 'winhit', 0
+cmd_windrag db 'windrag', 0
 cmd_wintest db 'wintest', 0
 cmd_winmove db 'winmove', 0
 cmd_winfocus db 'winfocus', 0
