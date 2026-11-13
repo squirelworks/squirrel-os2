@@ -111,6 +111,7 @@ gui_open:
     test eax, eax
     jnz .fail
     mov byte [gui_on], 1
+    call gui_noclip
     mov ecx, 32                 ; drop keys typed before (the shell's Enter)
 .drain:
     call gui_pollkey
@@ -198,18 +199,62 @@ gui_peek:
     pop eax
     ret
 
-; eax = x, ebx = y, cl = colour. Off the screen: nothing.
+; eax = x, ebx = y, cl = colour. Outside the clip rectangle (the whole
+; screen unless gui_clip set a smaller one): nothing.
 gui_pset:
-    cmp eax, SCR_W
-    jae .r
-    cmp ebx, SCR_H
-    jae .r
+    cmp eax, [gui_clx0]
+    jl .r
+    cmp eax, [gui_clx1]
+    jge .r
+    cmp ebx, [gui_cly0]
+    jl .r
+    cmp ebx, [gui_cly1]
+    jge .r
     push ebx
     imul ebx, SCR_W
     add ebx, [gui_fb]
     mov [ebx+eax], cl
     pop ebx
 .r:
+    ret
+
+; eax = x, ebx = y, ecx = w, edx = h: drawing is clipped to this rectangle
+; (within the screen) until the next gui_clip or gui_noclip.
+gui_clip:
+    push eax
+    push ebx
+    mov [gui_clx0], eax
+    mov [gui_cly0], ebx
+    add eax, ecx
+    add ebx, edx
+    mov [gui_clx1], eax
+    mov [gui_cly1], ebx
+    cmp dword [gui_clx0], 0
+    jge .a
+    mov dword [gui_clx0], 0
+.a:
+    cmp dword [gui_cly0], 0
+    jge .b
+    mov dword [gui_cly0], 0
+.b:
+    cmp eax, SCR_W
+    jle .c
+    mov dword [gui_clx1], SCR_W
+.c:
+    cmp ebx, SCR_H
+    jle .d
+    mov dword [gui_cly1], SCR_H
+.d:
+    pop ebx
+    pop eax
+    ret
+
+; Drawing reaches the whole screen again.
+gui_noclip:
+    mov dword [gui_clx0], 0
+    mov dword [gui_cly0], 0
+    mov dword [gui_clx1], SCR_W
+    mov dword [gui_cly1], SCR_H
     ret
 
 ; eax = x, ebx = y -> cl = the colour in the buffer (0 off the screen)
@@ -822,6 +867,10 @@ gui_cy      resd 1
 gui_cw      resd 1
 gui_ch      resd 1
 gui_mx      resd 1
+gui_clx0    resd 1
+gui_cly0    resd 1
+gui_clx1    resd 1
+gui_cly1    resd 1
 gui_my      resd 1
 gui_blk     resd 6
 gl_x1       resd 1

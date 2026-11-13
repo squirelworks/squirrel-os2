@@ -1,6 +1,6 @@
 # Graphical programs (A.1)
 
-Programs on the data disk that draw in graphics mode through `SYS_GUI` (`../kernel/syscalls.md`) and the toolkit in `programs/gui.inc`. They run with `run <name>` from the shell, take over the screen in VGA mode 13h (320 × 200) and give the text screen back as it was when they quit. Each draws a window in the window manager's look (white frame, blue title bar, light grey client area) and uses the kernel's 5 × 7 font, so the regression run reads their text with `<gfx>`. A mouse moves a pointer and left clicks work where the program says so.
+Programs on the data disk that draw in graphics mode through `SYS_GUI` (`../kernel/syscalls.md`) and the toolkit in `programs/gui.inc`. They run with `run <name>` from the shell, take over the screen in VGA mode 13h (320 × 200) and give the text screen back as it was when they quit. The grapher (C.2) is described in `grapher.md`. Each draws a window in the window manager's look (white frame, blue title bar, light grey client area) and uses the kernel's 5 × 7 font, so the regression run reads their text with `<gfx>`. A mouse moves a pointer and left clicks work where the program says so.
 
 They are separate files, not kernel code, so they do not use kernel image space. Build and install one as any program (`../../programs/README.md`).
 
@@ -78,6 +78,7 @@ SQX_END
 | `gui_peek` | eax = x, ebx = y | cl = the pixel on the screen, for self-checks |
 | `gui_fill`, `gui_box`, `gui_bevel` | eax, ebx, ecx, edx = rect | filled rectangle / outline in `gui_ink`; raised or sunken edges (`gui_bevel_up`) |
 | `gui_line` | eax, ebx → ecx, edx | a line in `gui_ink` |
+| `gui_clip`, `gui_noclip` | eax, ebx, ecx, edx = rect / — | drawing reaches only that rectangle (the whole screen after `gui_open`) |
 | `gui_char`, `gui_text`, `gui_textn`, `gui_textw` | eax = x, ebx = y, dl / esi | the kernel font in 6 × 8 cells, ink `gui_ink` on `gui_bg`; `textn` stops at ecx pixels; `textw` returns the width |
 | `gui_window`, `gui_button`, `gui_clear` | rect, esi = title / label | a window in the window manager's look; a bevelled button with a centred label; the whole buffer in al |
 | `gui_pollkey`, `gui_getkey`, `gui_waitkey` | — / ecx = ticks | a key now (0: none), wait for one, wait at most ecx ticks |

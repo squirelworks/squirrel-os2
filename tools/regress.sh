@@ -35,7 +35,7 @@ mkdir -p "$out/dk" && printf 'desktop\n' > "$out/dk/autoexec.bat"
 python3 "$root/tools/sqfs.py" "$out/dkauto.img" put "$out/dk/autoexec.bat"
 # OS2-APPS: graphical programs (SYS_GUI) on a data disk of their own
 python3 "$root/tools/sqfs.py" "$out/apps.img" format 1024
-for prog in guitest calculator clock notepad; do
+for prog in guitest calculator clock notepad grapher; do
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
     python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/$prog"
 done
@@ -726,6 +726,15 @@ check notepad-save  'Hello notepad!'        'run notepad memo' '<ret>' '<pause>'
 check notepad-open  'gfx: Hello notepad!'   'run notepad memo' '<ret>' '<pause>' '<gfx>'
 check notepad-ask   'gfx: Save changes? y/n' 'run notepad' '<ret>' '<pause>' 'x' '<esc>' '<pause>' '<gfx>'
 check notepad-quit  'systest: PASS'         'run notepad' '<ret>' '<pause>' 'x' '<esc>' 'n' '<pause>' systest '<ret>'
+# C.2: grapher (explicit, polar, parametric; roots, extrema, intersections, trace)
+check grapher       'grapher: PASS'         'run grapher test' '<ret>' '<pause>' '<pause>' '<pause>'
+check_all grapher-roots 'gfx: 1: sin(x)|gfx: roots: -9.4248|gfx: -3.1416' 'run grapher sin(x)' '<ret>' '<pause>' 'z' '<pause>' '<gfx>'
+check_all grapher-ext 'gfx: min(-7.854, -1)|gfx: max(-4.7124, 1)' 'run grapher sin(x)' '<ret>' '<pause>' 'm' '<pause>' '<gfx>'
+check_all grapher-meet 'gfx: meet: (-1, 0)|gfx: (2, 3)' 'run grapher x^2-1' '<ret>' '<pause>' '<tab>' '<ret>' 'y = x + 1' '<ret>' '<tab>' '<tab>' '<tab>' 'i' '<pause>' '<gfx>'
+check_all grapher-trace 'gfx: 2: x = 4*cos(t), y = 2*sin(t)|gfx: t=0.0262|gfx: x=3.9986' 'run grapher' '<ret>' '<pause>' 'sin(x)' '<ret>' '<tab>' '<ret>' 'x = 4*cos(t), y = 2*sin(t)' '<ret>' 't' '<right>' '<pause>' '<gfx>'
+check grapher-zoom  'gfx: roots: -3.1416'   'run grapher sin(x)' '<ret>' '<pause>' '+' 'z' '<pause>' '<gfx>'
+check grapher-syn   'gfx: Error: syntax at column 4' 'run grapher' '<ret>' '<pause>' 'y = 2*(' '<ret>' '<pause>' '<gfx>'
+check grapher-quit  'systest: PASS'         'run grapher sin(x)' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
 disk=$out/auto.img
 check bat-autoexec  'autoexec ran'
 check lang-autoexec 'Tabulae:'              ls '<ret>'
