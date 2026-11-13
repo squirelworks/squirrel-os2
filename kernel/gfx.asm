@@ -136,6 +136,7 @@ gfx_mode13:
 ; Back to 80 x 25 text, with the text and the font as they were.
 gfx_text:
     pushad
+    call gfx_noclip             ; text mode never keeps a clip (2.1-blit-clip)
     cmp byte [gfx_vbe], 0
     je .regs
     call vbe_disable            ; leave a linear mode before VGA text regs
@@ -279,6 +280,14 @@ gfx_putpixel:
     push eax
     push ebx
     push edx
+    mov edx, eax                ; clip rectangle (2.1-blit-clip): unsigned
+    sub edx, [gfx_clip_x]       ; x - left < width, so left of it wraps
+    cmp edx, [gfx_clip_w]       ; to a large number and fails too
+    jae .done
+    mov edx, ebx
+    sub edx, [gfx_clip_y]
+    cmp edx, [gfx_clip_h]
+    jae .done
     imul ebx, [gfx_pitch]
     add ebx, [gfx_base]
     cmp byte [gfx_bpp], 32
@@ -434,13 +443,13 @@ gfx_fillrect:
     pushad
     lea esi, [eax+ecx]          ; right edge (exclusive)
     lea edi, [ebx+edx]          ; bottom edge (exclusive)
-    cmp esi, GFX_W
+    cmp esi, [gfx_width]        ; the live mode, not 320 x 200 (2.1-blit-clip)
     jle .wok
-    mov esi, GFX_W
+    mov esi, [gfx_width]
 .wok:
-    cmp edi, GFX_H
+    cmp edi, [gfx_height]
     jle .hok
-    mov edi, GFX_H
+    mov edi, [gfx_height]
 .hok:
     test eax, eax
     jns .xok
@@ -503,7 +512,18 @@ cmd_gfxprim_run:
     mov edx, 10
     call gfx_fillrect
     mov esi, gfxp_expect
-.check:
+    call gfx_expect
+    call gfx_text
+    mov esi, gfxp_pass
+    cmp byte [gfxt_ok], 1
+    je .say
+    mov esi, gfxp_fail
+.say:
+    jmp puts
+
+; esi = list of x (dd), y (dd), expected colour (db), ended by x = -1.
+; Reads each pixel back from the draw target; a mismatch clears gfxt_ok.
+gfx_expect:
     lodsd
     cmp eax, -1
     je .end
@@ -512,17 +532,11 @@ cmd_gfxprim_run:
     add esi, 5
     call gfx_getpixel
     cmp cl, dl
-    je .check
+    je gfx_expect
     mov byte [gfxt_ok], 0
-    jmp .check
+    jmp gfx_expect
 .end:
-    call gfx_text
-    mov esi, gfxp_pass
-    cmp byte [gfxt_ok], 1
-    je .say
-    mov esi, gfxp_fail
-.say:
-    jmp puts
+    ret
 
 ; x (dd), y (dd), expected colour (db); x = -1 ends the list
 gfxp_expect:
@@ -691,3 +705,243 @@ gfxx_pass db 'gfxtext: PASS', 10, 0
 gfxx_fail db 'gfxtext: FAIL', 10, 0
 
 %include "font.inc"
+
+; ---------- clip rectangle and blitter (2.1-blit-clip) ----------
+; Every pixel goes through gfx_putpixel, so the clip there cuts lines,
+; rectangles, text and blits alike. The default clip is the whole screen
+; (width and height 0xFFFFFFFF); gfx_text puts it back.
+
+align 4
+gfx_clip_x dd 0
+gfx_clip_y dd 0
+gfx_clip_w dd -1
+gfx_clip_h dd -1
+
+; eax, ebx = top left, ecx = width, edx = height. Later draws are cut to it.
+gfx_setclip:
+    mov [gfx_clip_x], eax
+    mov [gfx_clip_y], ebx
+    mov [gfx_clip_w], ecx
+    mov [gfx_clip_h], edx
+    ret
+
+gfx_noclip:
+    and dword [gfx_clip_x], 0
+    and dword [gfx_clip_y], 0
+    or dword [gfx_clip_w], -1
+    or dword [gfx_clip_h], -1
+    ret
+
+; eax, ebx = source top left, ecx = width, edx = height, esi, edi =
+; destination top left, all in the draw target. The source and the
+; destination may overlap: when the destination is below the source (or on
+; the same rows and to the right) the copy runs from the last pixel back to
+; the first, so no source pixel is overwritten before it is read. Source
+; pixels off the screen read as 0; the destination is clipped.
+gfx_copyrect:
+    pushad
+    mov [gc_sx], eax
+    mov [gc_sy], ebx
+    mov [gc_w], ecx
+    mov [gc_dx], esi
+    mov [gc_dy], edi
+    xor ebp, ebp                ; 0 = forward, -1 = backward
+    cmp edi, ebx
+    jg .back
+    jl .fwd
+    cmp esi, eax
+    jle .fwd
+.back:
+    dec ebp
+.fwd:
+    mov edi, edx                ; rows left
+.row:
+    dec edi
+    js .done
+    mov esi, [gc_w]             ; columns left
+.col:
+    dec esi
+    js .row
+    mov ebx, edi                ; backward: row = rows left, col = cols left
+    mov eax, esi
+    test ebp, ebp
+    jnz .at
+    neg ebx                     ; forward: row = h - 1 - rows left
+    add ebx, edx
+    dec ebx
+    neg eax
+    add eax, [gc_w]
+    dec eax
+.at:
+    push eax
+    push ebx
+    add eax, [gc_sx]
+    add ebx, [gc_sy]
+    call gfx_getpixel
+    pop ebx
+    pop eax
+    add eax, [gc_dx]
+    add ebx, [gc_dy]
+    call gfx_putpixel
+    jmp .col
+.done:
+    popad
+    ret
+
+align 4
+gc_sx dd 0
+gc_sy dd 0
+gc_w dd 0
+gc_dx dd 0
+gc_dy dd 0
+
+; cliptest: in mode 13h, clips a filled rectangle and a line to a clip
+; rectangle and reads ink inside it and background outside; copies a
+; marked block to a free place, onto an overlapping place, and into a clip.
+; Then, when VBE is there, fills a rectangle right of x = 320 in 640 x 480
+; x 8 and reads it back (gfx_fillrect used to stop at 320). Prints
+; `clip: PASS` or `clip: FAIL`.
+cmd_cliptest_run:
+    call gfx_mode13
+    mov byte [gfxt_ok], 1
+    mov byte [gfx_colour], 0
+    xor eax, eax
+    mov ebx, GFX_SAFE_Y
+    mov ecx, GFX_W
+    mov edx, GFX_H - GFX_SAFE_Y
+    call gfx_fillrect
+    mov eax, 100                ; clip x 100..149, y 120..149
+    mov ebx, 120
+    mov ecx, 50
+    mov edx, 30
+    call gfx_setclip
+    mov byte [gfx_colour], 0x0A
+    mov eax, 80                 ; x 80..179, y 110..169: overhangs every side
+    mov ebx, 110
+    mov ecx, 100
+    mov edx, 60
+    call gfx_fillrect
+    mov byte [gfx_colour], 0x0C
+    mov eax, 60                 ; a line across the clip at y = 135
+    mov ebx, 135
+    mov ecx, 200
+    mov edx, 135
+    call gfx_line
+    call gfx_noclip
+    ; a 4 x 3 block at (20, 180) with a marked corner, for the blits
+    mov byte [gfx_colour], 0x09
+    mov eax, 20
+    mov ebx, 180
+    mov ecx, 4
+    mov edx, 3
+    call gfx_fillrect
+    mov eax, 23
+    mov ebx, 182
+    mov cl, 0x0E
+    call gfx_putpixel
+    mov eax, 20                 ; plain copy to (40, 180)
+    mov ebx, 180
+    mov ecx, 4
+    mov edx, 3
+    mov esi, 40
+    mov edi, 180
+    call gfx_copyrect
+    mov esi, 42                 ; overlapping copy of that one to (42, 181)
+    mov edi, 181
+    mov eax, 40
+    call gfx_copyrect
+    mov eax, 202                ; clip x 202.. for a copy to (200, 180)
+    mov ebx, 0
+    mov ecx, 100
+    mov edx, 200
+    call gfx_setclip
+    mov eax, 20
+    mov ebx, 180
+    mov ecx, 4
+    mov edx, 3
+    mov esi, 200
+    mov edi, 180
+    call gfx_copyrect
+    call gfx_noclip
+    mov esi, clip_expect
+    call gfx_expect
+    call vbe_setup              ; fill past x = 320 in a wider mode
+    jc .end
+    mov eax, 640
+    mov ebx, 480
+    mov cl, 8
+    call vbe_mode
+    jc .end
+    mov byte [gfx_colour], 0
+    mov eax, 390
+    mov ebx, 290
+    mov ecx, 40
+    mov edx, 30
+    call gfx_fillrect
+    mov byte [gfx_colour], 0x2A
+    mov eax, 400
+    mov ebx, 300
+    mov ecx, 20
+    mov edx, 10
+    call gfx_fillrect
+    mov esi, clip_expect_vbe
+    call gfx_expect
+.end:
+    call gfx_text
+    mov esi, clip_pass
+    cmp byte [gfxt_ok], 1
+    je .say
+    mov esi, clip_fail
+.say:
+    jmp puts
+
+clip_expect:
+    dd 100, 120
+    db 0x0A                     ; the clip's top-left corner
+    dd 149, 149
+    db 0x0A                     ; its bottom-right corner
+    dd 99, 125
+    db 0                        ; left of the clip, inside the rectangle
+    dd 150, 125
+    db 0                        ; right of it
+    dd 120, 119
+    db 0                        ; above it
+    dd 120, 150
+    db 0                        ; below it
+    dd 120, 135
+    db 0x0C                     ; the line inside the clip
+    dd 99, 135
+    db 0                        ; the line left of the clip
+    dd 150, 135
+    db 0                        ; and right of it
+    dd 40, 180
+    db 0x09                     ; the plain copy
+    dd 43, 180
+    db 0x09                     ; its top-right corner
+    dd 44, 180
+    db 0                        ; nothing right of it
+    dd 42, 181
+    db 0x09                     ; the overlapping copy, top left
+    dd 45, 183
+    db 0x0E                     ; the mark moved: each pixel was read
+    dd 43, 182                  ; before the copy overwrote it
+    db 0x09                     ; the old mark is covered
+    dd 201, 181
+    db 0                        ; the clipped copy: cut left of x = 202
+    dd 202, 181
+    db 0x09
+    dd 203, 182
+    db 0x0E
+    dd -1
+
+clip_expect_vbe:
+    dd 400, 300
+    db 0x2A
+    dd 419, 309
+    db 0x2A
+    dd 420, 309
+    db 0
+    dd -1
+
+clip_pass db 'clip: PASS', 10, 0
+clip_fail db 'clip: FAIL', 10, 0
