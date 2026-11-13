@@ -399,6 +399,11 @@ check vbetest      'vbe: PASS'             vbetest '<ret>'
 check vbetest-text 'systest: PASS'         vbetest '<ret>' systest '<ret>'
 check cliptest      'clip: PASS'            cliptest '<ret>'                  # 2.1-blit-clip
 check cliptest-text 'systest: PASS'         cliptest '<ret>' systest '<ret>'
+check cbtest        'clipboard: PASS'       cbtest '<ret>'                    # 2.3-clipboard
+check cbtest-text   'systest: PASS'         cbtest '<ret>' systest '<ret>'
+check_all clipboard-view 'gfx: (empty)'     clipboard '<ret>' '<pause>' '<gfx>' '<esc>'
+check ed-clip-copy  'Copied.'               'run edit' '<ret>' acorn '<ctrl-c>'
+check ed-clip-paste 'Pasted.'               'run edit' '<ret>' acorn '<ctrl-c>' '<ret>' '<ctrl-v>'
 check bevtest       'bevel: PASS'           bevtest '<ret>'                   # W.1-theme
 check bevtest-text  'systest: PASS'         bevtest '<ret>' systest '<ret>'
 check pfont         'pfont: PASS'           pfont '<ret>' '<pause>' '<spc>'   # 2.2-propfont

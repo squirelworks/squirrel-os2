@@ -41,7 +41,7 @@ Also already true of this project: document hardware assumptions, keep accepted 
 
 Done and covered by `tools/regress.sh`: everything through 2.0.2 (32-bit x86, preemptive priority scheduling, the 13h window manager, widgets and object desktop, SQFS, the installer, networking, en / la / tlh), plus 2.1 (VBE framebuffers with double buffering, dirty rectangles, blitter and clipping), 2.4 (kernel high image above 1 MB, programs in ring 3 with checked syscall pointers and growing stacks), the A.1/A.2/C.9 graphical apps and the C.2 grapher, games G.1–G.5, G.7 and G.8, and foreign programs P.1/P.5 with first parts of P.2 and P.8.
 
-**Next:** 2.2 (real windows on the VBE framebuffer) and 2.3 (Program Manager / Warp 3 desktop), with their boxes in `TODO.md`.
+**Next:** finish 2.3 (Control Panel v1 and bevelled default widgets; icons, groups, File Manager and the clipboard are on `main`), with their boxes in `TODO.md`.
 
 Still scaffolds: `graph` and `topo` (replaced by C.2 and C.9 below).
 

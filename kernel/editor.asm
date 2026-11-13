@@ -92,6 +92,14 @@ ed_main:
     je .undo
     cmp al, 0x14                ; Ctrl+T: control characters (vedit)
     je .ctl
+    cmp al, 0x2E                ; Ctrl+C: copy the line (2.3-clipboard)
+    je .copy
+    cmp al, 0x2F                ; Ctrl+V: paste
+    je .paste
+    cmp al, 0x2D                ; Ctrl+X: cut the line
+    je .cut
+    cmp al, 0x52                ; Ctrl+Ins: copy
+    je .copy
     jmp .loop
 .ctl:
     cmp byte [ed_verbose], 0
@@ -165,6 +173,8 @@ ed_main:
     call ed_vmsg
     jmp .loop
 .insmode:
+    cmp byte [kbd_shift], 0     ; Shift+Ins: paste (2.3-clipboard)
+    jne .paste
     xor byte [ed_ins], 1
     mov esi, ed_m_ins
     cmp byte [ed_ins], 0
@@ -172,6 +182,15 @@ ed_main:
     mov esi, ed_m_ovr
 .im:
     call ed_vmsg
+    jmp .loop
+.copy:
+    call ed_clip_copy
+    jmp .loop
+.paste:
+    call ed_clip_paste
+    jmp .loop
+.cut:
+    call ed_clip_cut
     jmp .loop
 .bs:
     mov eax, [ed_pos]
@@ -183,6 +202,8 @@ ed_main:
     call ed_delete_at
     jmp .loop
 .del:
+    cmp byte [kbd_shift], 0     ; Shift+Del: cut the line (2.3-clipboard)
+    jne .cut
     mov eax, [ed_pos]
     cmp eax, [ed_len]
     jae .loop
@@ -314,6 +335,81 @@ ed_line_end:
     inc eax
     jmp .l
 .d:
+    ret
+
+; Copy the current line (without its newline) to the text clipboard.
+ed_clip_copy:
+    pushad
+    mov eax, [ed_pos]
+    call ed_line_start
+    mov ebx, eax
+    call ed_line_end
+    mov ecx, eax
+    sub ecx, ebx                ; length
+    lea esi, [ED_BUF+ebx]
+    mov eax, ecx
+    call clip_put
+    mov esi, ed_m_copied
+    call ed_msg
+    popad
+    ret
+
+; Paste the clipboard at the cursor.
+ed_clip_paste:
+    pushad
+    cmp dword [clip_len], 0
+    je .empty
+    call ed_snap
+    mov esi, clip_buf
+.p:
+    lodsb
+    test al, al
+    jz .done
+    call ed_type
+    jmp .p
+.done:
+    mov esi, ed_m_pasted
+    call ed_msg
+    popad
+    ret
+.empty:
+    mov esi, ed_m_noclip
+    call ed_msg
+    popad
+    ret
+
+; Cut the current line (including its newline, when it has one).
+ed_clip_cut:
+    pushad
+    call ed_snap
+    mov eax, [ed_pos]
+    call ed_line_start
+    mov ebx, eax                ; start of the line
+    call ed_line_end
+    mov edx, eax                ; end (newline, or ed_len)
+    mov ecx, eax
+    sub ecx, ebx                ; characters without the newline
+    lea esi, [ED_BUF+ebx]
+    mov eax, ecx
+    call clip_put
+    cmp edx, [ed_len]
+    jae .nonl
+    inc edx                     ; drop the newline too
+.nonl:
+    lea edi, [ED_BUF+ebx]
+    lea esi, [ED_BUF+edx]
+    mov ecx, [ed_len]
+    sub ecx, edx
+    rep movsb
+    mov ecx, edx
+    sub ecx, ebx                ; bytes removed
+    sub [ed_len], ecx
+    mov [ed_pos], ebx
+    mov byte [ed_mod], 1
+    mov dword [ed_want], -1
+    mov esi, ed_m_cut
+    call ed_msg
+    popad
     ret
 
 ; cursor -> ed_line (0-based), ed_col (0-based)
@@ -1289,3 +1385,7 @@ ed_m_ins db 'Insert mode.', 0
 ed_m_ovr db 'Overwrite mode.', 0
 ed_m_typed db 'Typed ', 0
 ed_m_deleted db 'Deleted ', 0
+ed_m_copied db 'Copied.', 0
+ed_m_pasted db 'Pasted.', 0
+ed_m_cut db 'Cut.', 0
+ed_m_noclip db 'Clipboard empty.', 0

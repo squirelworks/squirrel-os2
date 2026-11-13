@@ -35,6 +35,10 @@ WK_DOWN         equ 0x19        ; ASCII control codes CAN and EM)
 WK_DEL          equ 0x7F        ; Delete (1.9.2)
 WK_LEFT         equ 0x11        ; DC1 / DC2 for the side arrows (2.2-sysmenu)
 WK_RIGHT        equ 0x12
+WK_TAB          equ 9           ; next keyable widget in the window (2.3-clipboard)
+WK_COPY         equ 0x03        ; Ctrl+Ins / Ctrl+C: copy the field (2.3-clipboard)
+WK_PASTE        equ 0x16        ; Shift+Ins / Ctrl+V: paste into the field
+WK_CUT          equ 0x04        ; Shift+Del / Ctrl+X: cut the field
 
 MSG_BUTTON      equ 0x42000000  ; 'B' in the top byte, the button's code below
 WG_BTN_PAD      equ 2           ; pixels between a button's box and its text
@@ -184,39 +188,39 @@ wg_setsel:
     pop edi
     ret
 
-; al = ASCII of a key (8 for Backspace, WK_UP and WK_DOWN for the arrows) -> CF clear if a widget used it,
-; CF set if not (the caller can use it itself). The key goes to the first
-; widget of the focused window that takes keys:
+; al = ASCII of a key (8 for Backspace, WK_UP and WK_DOWN for the arrows,
+; WK_COPY / WK_PASTE / WK_CUT / WK_TAB for the clipboard) -> CF clear if a
+; widget used it, CF set if not. The key goes to the focused keyable widget
+; of the focused window (or the first, when none is focused yet):
 ;   button: Enter (10 or 13) or Space posts its event;
 ;   field:  a printable character is appended if there is room (a key
 ;           that does not fit is still used), Backspace deletes the last;
-;   list:   WK_DOWN and WK_UP move the selection, stopping at the ends.
+;           WK_COPY / WK_PASTE / WK_CUT talk to the text clipboard;
+;   list:   WK_DOWN and WK_UP move the selection, stopping at the ends;
+;   Tab:    next keyable widget in the same window (2.3-clipboard).
 wg_key:
     pushad
     mov dl, al
     call wm_focus
     cmp eax, -1
     je .no
-    mov edi, wg_table
-    mov ecx, WG_MAX
-.w:
-    cmp byte [edi+WG_USED], 0
-    je .n
-    cmp [edi+WG_WIN], al
-    jne .n
+    cmp dl, WK_TAB
+    je .tab
+    call wg_keyable             ; edi = the widget that takes keys, or CF
+    jc .no
     cmp byte [edi+WG_KIND], WGK_BUTTON
     je .button
     cmp byte [edi+WG_KIND], WGK_FIELD
     je .field
     cmp byte [edi+WG_KIND], WGK_LIST
     je .list
-.n:
-    add edi, WG_SIZE
-    loop .w
 .no:
     popad
     stc
     ret
+.tab:
+    call wg_tab
+    jmp .used
 .button:
     cmp dl, 10
     je .post
@@ -239,6 +243,12 @@ wg_key:
 .field:
     mov esi, [edi+WG_TEXT]
     call strlen                 ; eax = characters now
+    cmp dl, WK_COPY
+    je .copy
+    cmp dl, WK_CUT
+    je .cut
+    cmp dl, WK_PASTE
+    je .paste
     cmp dl, 8
     je .bs
     cmp dl, ' '
@@ -254,6 +264,23 @@ wg_key:
     test eax, eax
     jz .used
     mov byte [esi+eax-1], 0
+    jmp .used
+.copy:
+    call clip_put               ; esi = text, eax = length
+    jmp .used
+.cut:
+    push esi                    ; clip_put advances esi with movsb
+    call clip_put
+    pop esi
+    mov byte [esi], 0
+    jmp .used
+.paste:
+    mov ecx, [edi+WG_CODE]
+    sub ecx, eax                ; room left
+    jbe .used
+    add esi, eax                ; append at the end
+    mov edi, esi
+    call clip_get               ; edi = dest, ecx = room
     jmp .used
 .list:
     mov eax, [edi+WG_SEL]
@@ -272,6 +299,98 @@ wg_key:
 .sel:
     mov [edi+WG_SEL], eax
     jmp .used
+
+; al = focused window id -> edi = its keyable widget (the focused one, or
+; the first), CF if none. Sets wg_focus when it picks the first.
+wg_keyable:
+    push eax
+    push ebx
+    push ecx
+    mov ebx, [wg_focus]
+    cmp ebx, -1
+    je .first
+    cmp ebx, WG_MAX
+    jae .first
+    imul edi, ebx, WG_SIZE
+    add edi, wg_table
+    cmp byte [edi+WG_USED], 0
+    je .first
+    cmp [edi+WG_WIN], al
+    jne .first
+    cmp byte [edi+WG_KIND], WGK_LABEL
+    je .first
+    cmp byte [edi+WG_KIND], WGK_CONSOLE
+    je .first
+    clc
+    jmp .out
+.first:
+    mov edi, wg_table
+    xor ebx, ebx
+    mov ecx, WG_MAX
+.f:
+    cmp byte [edi+WG_USED], 0
+    je .n
+    cmp [edi+WG_WIN], al
+    jne .n
+    cmp byte [edi+WG_KIND], WGK_BUTTON
+    je .got
+    cmp byte [edi+WG_KIND], WGK_FIELD
+    je .got
+    cmp byte [edi+WG_KIND], WGK_LIST
+    je .got
+.n:
+    add edi, WG_SIZE
+    inc ebx
+    loop .f
+    stc
+    jmp .out
+.got:
+    mov [wg_focus], ebx
+    clc
+.out:
+    pop ecx
+    pop ebx
+    pop eax
+    ret
+
+; al = focused window id: move wg_focus to the next keyable widget.
+wg_tab:
+    pushad
+    mov ebx, [wg_focus]
+    cmp ebx, -1
+    je .pick
+    inc ebx
+    jmp .scan
+.pick:
+    xor ebx, ebx
+.scan:
+    mov ecx, WG_MAX
+.s:
+    cmp ebx, WG_MAX
+    jb .id
+    xor ebx, ebx
+.id:
+    imul edi, ebx, WG_SIZE
+    add edi, wg_table
+    cmp byte [edi+WG_USED], 0
+    je .n
+    cmp [edi+WG_WIN], al
+    jne .n
+    cmp byte [edi+WG_KIND], WGK_BUTTON
+    je .got
+    cmp byte [edi+WG_KIND], WGK_FIELD
+    je .got
+    cmp byte [edi+WG_KIND], WGK_LIST
+    je .got
+.n:
+    inc ebx
+    loop .s
+    jmp .out
+.got:
+    mov [wg_focus], ebx
+.out:
+    popad
+    ret
 
 ; dl = kind, eax = window id, ebx = x, ecx = y, esi = text -> eax = id or -1
 wg_new:
@@ -308,6 +427,7 @@ wg_new:
 wg_drop:
     pushad
     mov edi, wg_table
+    xor ebx, ebx
     mov ecx, WG_MAX
 .w:
     cmp byte [edi+WG_USED], 0
@@ -315,8 +435,12 @@ wg_drop:
     cmp [edi+WG_WIN], al
     jne .n
     mov byte [edi+WG_USED], 0
+    cmp [wg_focus], ebx
+    jne .n
+    mov dword [wg_focus], -1
 .n:
     add edi, WG_SIZE
+    inc ebx
     loop .w
     popad
     ret
@@ -1118,4 +1242,121 @@ wg_cy dd 0
 wg_cw dd 0
 wg_ch dd 0
 wg_curp dd 0                    ; console: address of the cursor's cell
+wg_focus dd -1                  ; keyable widget id, or -1 (2.3-clipboard)
 wg_table times WG_MAX * WG_SIZE db 0
+
+; cbtest (2.3-clipboard): two fields. Types into the first, copies with
+; WK_COPY, Tabs to the second, pastes with WK_PASTE, checks both buffers
+; hold the same text, cuts the second, checks it is empty and the
+; clipboard still has the text, then puts and gets through the syscall
+; handlers. Prints clipboard: PASS or clipboard: FAIL.
+; (Named cbtest so it does not collide with the 2.1 blit cliptest.)
+CB_MAX equ 16
+
+cmd_cbtest_run:
+    mov byte [cb_a], 0
+    mov byte [cb_b], 0
+    mov dword [clip_len], 0
+    mov byte [clip_buf], 0
+    mov dword [wg_focus], -1
+    call gfx_mode13
+    jnc .ok
+    mov esi, cb_nomem
+    jmp puts
+.ok:
+    mov eax, LT_X
+    mov ebx, LT_Y
+    mov ecx, 260
+    mov edx, 100
+    mov esi, cb_title
+    call wm_create
+    mov [lt_win], eax
+    mov ebx, 4
+    mov ecx, 4
+    mov esi, cb_la
+    call wg_label
+    mov eax, [lt_win]
+    mov ebx, 44
+    mov ecx, 2
+    mov esi, cb_a
+    mov edx, CB_MAX
+    call wg_field
+    mov eax, [lt_win]
+    mov ebx, 4
+    mov ecx, 28
+    mov esi, cb_lb
+    call wg_label
+    mov eax, [lt_win]
+    mov ebx, 44
+    mov ecx, 26
+    mov esi, cb_b
+    mov edx, CB_MAX
+    call wg_field
+    call wm_redraw
+    mov esi, cb_sample
+.type:
+    lodsb
+    test al, al
+    jz .typed
+    call wg_key
+    jmp .type
+.typed:
+    mov al, WK_COPY
+    call wg_key
+    mov al, WK_TAB
+    call wg_key
+    mov al, WK_PASTE
+    call wg_key
+    mov esi, cb_a
+    mov edi, cb_sample
+    call streq
+    jne .fail
+    mov esi, cb_b
+    mov edi, cb_sample
+    call streq
+    jne .fail
+    mov al, WK_CUT
+    call wg_key
+    cmp byte [cb_b], 0
+    jne .fail
+    mov esi, clip_buf
+    mov edi, cb_sample
+    call streq
+    jne .fail
+    mov eax, [lt_win]
+    call wm_close
+    call gfx_text
+    mov ebx, cb_sys
+    call sys_clipput
+    cmp eax, 3
+    jne .failt
+    mov ebx, cb_got
+    mov ecx, CB_MAX
+    call sys_clipget
+    cmp eax, 3
+    jne .failt
+    mov esi, cb_got
+    mov edi, cb_sys
+    call streq
+    jne .failt
+    mov esi, cb_pass
+    jmp puts
+.fail:
+    mov eax, [lt_win]
+    call wm_close
+    call gfx_text
+.failt:
+    mov esi, cb_fail
+    jmp puts
+
+cb_title db 'Clipboard', 0
+cb_la db 'A:', 0
+cb_lb db 'B:', 0
+cb_sample db 'acorn', 0
+cb_sys db 'xyz', 0
+cb_pass db 'clipboard: PASS', 10, 0
+cb_fail db 'clipboard: FAIL', 10, 0
+cb_nomem db 'clipboard: no memory for graphics', 10, 0
+cb_a times CB_MAX + 1 db 0
+cb_b times CB_MAX + 1 db 0
+cb_got times CB_MAX + 1 db 0

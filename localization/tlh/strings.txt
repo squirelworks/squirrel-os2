@@ -50,3 +50,6 @@ net_noreply=jang tu'lu'be'
 net_badaddr=ngoq QIH
 net_of4= vo' 4
 net_offnet=lojmIt Daq QIH
+
+clip_title=ghItlh ngaSwI'
+clip_empty=(chIm)

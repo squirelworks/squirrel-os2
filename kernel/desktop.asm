@@ -1012,7 +1012,8 @@ align 4
 dk_menu dd 0                    ; a chosen pop-up item + 1, or 0
 
 ; Waits for a key -> al = what wg_key takes: ASCII, 8 for Backspace,
-; 27 for Esc, WK_UP and WK_DOWN for the arrows.
+; 27 for Esc, WK_UP and WK_DOWN for the arrows, WK_COPY / WK_PASTE /
+; WK_CUT / WK_TAB for the clipboard (2.3-clipboard).
 wg_getkey:
     call kbd_getscan
     call kbd_shift_track
@@ -1025,14 +1026,30 @@ wg_getkey:
     mov ah, 8
     cmp al, 0x0E
     je .r
+    mov ah, WK_TAB              ; Tab: next field (2.3-clipboard)
+    cmp al, 0x0F
+    je .r
+    cmp al, 0x52                ; Insert: Ctrl = copy, Shift = paste
+    je .ins
+    cmp al, 0x53                ; Delete: Shift = cut, else WK_DEL
+    je .del
+    cmp byte [kbd_ctrl], 0
+    je .plain
+    mov ah, WK_COPY             ; Ctrl+C / Ctrl+V / Ctrl+X
+    cmp al, 0x2E
+    je .r
+    mov ah, WK_PASTE
+    cmp al, 0x2F
+    je .r
+    mov ah, WK_CUT
+    cmp al, 0x2D
+    je .r
+.plain:
     mov ah, WK_UP
     cmp al, 0x48
     je .r
     mov ah, WK_DOWN
     cmp al, 0x50
-    je .r
-    mov ah, WK_DEL              ; Delete (1.9.2)
-    cmp al, 0x53
     je .r
     call kbd_ascii
     mov ah, al
@@ -1041,6 +1058,20 @@ wg_getkey:
 .r:
     mov al, ah
     ret
+.ins:
+    mov ah, WK_COPY
+    cmp byte [kbd_ctrl], 0
+    jne .r
+    mov ah, WK_PASTE
+    cmp byte [kbd_shift], 0
+    jne .r
+    jmp wg_getkey               ; bare Insert is not a widget key
+.del:
+    mov ah, WK_CUT
+    cmp byte [kbd_shift], 0
+    jne .r
+    mov ah, WK_DEL
+    jmp .r
 
 DK_NAPPS equ 5                  ; programs
 DK_NDEF equ DK_NAPPS + 1        ; and the Tools folder (1.9.0)

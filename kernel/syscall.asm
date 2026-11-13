@@ -51,7 +51,9 @@ SYS_WINDRAW  equ 41         ; ebx = id, ecx = 28-byte command -> 0, a colour (WD
 SYS_WINFLUSH equ 42         ; ebx = id -> 0 or -1: what was drawn reaches the screen
 SYS_WINEVENT equ 43         ; ebx = 16-byte buffer, ecx = 0 wait / 1 poll -> 0, or -1 nothing
 SYS_WININFO  equ 44         ; ebx = id or -1, ecx = 16-byte buffer -> 0 or -1
-SYS_COUNT   equ 45
+SYS_CLIPPUT  equ 45         ; ebx = ASCIIZ text -> length stored, or -1 (2.3-clipboard)
+SYS_CLIPGET  equ 46         ; ebx = buffer, ecx = most characters -> length copied
+SYS_COUNT   equ 47
 
 SYS_ENOSYS  equ -1
 SYSCALL_VEC equ 0x80
@@ -135,6 +137,7 @@ sys_uarg_kind:
     db UA_GUI                                   ; gui
     db UA_NONE                                  ; settls
     times 8 db UA_NONE                          ; 37-44 windows: checked in winsys.asm
+    db UA_BZ, UA_B_C                            ; clipput clipget (2.3-clipboard)
 %if $-sys_uarg_kind != SYS_COUNT
 %error sys_uarg_kind needs one byte per system call
 %endif
@@ -392,6 +395,7 @@ syscall_table:
     dd sys_settls
     dd sys_winopen, sys_winclose, sys_winmove, sys_wintitle   ; 2.2-progwin
     dd sys_windraw, sys_winflush, sys_winevent, sys_wininfo
+    dd sys_clipput, sys_clipget                               ; 2.3-clipboard
 %if $-syscall_table != SYS_COUNT*4
 %error syscall_table and SYS_COUNT disagree
 %endif

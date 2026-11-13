@@ -70,13 +70,14 @@ A console shows part of an 80 × 25 text buffer laid out as at `0xB8000` (charac
 
 ## Keys
 
-`wg_key` (al = ASCII, 8 for Backspace, `WK_UP` 0x18 and `WK_DOWN` 0x19 for the arrows) gives a key to the first widget of the focused window (`wm_focus`) that takes keys: a button, a field or a list. It returns CF clear if the widget used the key, CF set if not, so the caller can use it.
+`wg_key` (al = ASCII, 8 for Backspace, `WK_UP` 0x18 and `WK_DOWN` 0x19 for the arrows, and the clipboard codes below) gives a key to the focused keyable widget of the focused window (`wm_focus`), or the first when none is focused yet: a button, a field or a list. It returns CF clear if the widget used the key, CF set if not, so the caller can use it.
 
 - Button: Enter (10 or 13) or Space posts its event.
-- Field: a printable character (0x20 to 0x7E) is appended if there is room; when the field is full the key is used and dropped. Backspace deletes the last character. Enter and Esc are not used.
+- Field: a printable character (0x20 to 0x7E) is appended if there is room; when the field is full the key is used and dropped. Backspace deletes the last character. Enter and Esc are not used. Since 2.3-clipboard: `WK_COPY` (0x03) copies the field to the text clipboard, `WK_PASTE` (0x16) appends the clipboard, `WK_CUT` (0x04) copies and clears the field (`clipboard.md`).
 - List: `WK_DOWN` and `WK_UP` move the selection and stop at the first and last item. Other keys are not used.
+- Tab (`WK_TAB` 9): the next keyable widget in the same window gets the keys (2.3-clipboard).
 
-The caller turns keys into these codes; the scancodes for the arrows are 0x48 (Up) and 0x50 (Down). Moving between widgets in one window is not there yet: the first widget that takes keys gets them.
+The caller turns keys into these codes; the scancodes for the arrows are 0x48 (Up) and 0x50 (Down). `wg_getkey` also maps Ctrl+Ins / Shift+Ins / Shift+Del and Ctrl+C / Ctrl+V / Ctrl+X to the clipboard codes.
 
 ## Tests
 
@@ -92,6 +93,8 @@ The test windows put a label at (4, 5) and the box beside it (field, list) at (4
 `listtest` (1.5.3) opens a window with the label `Pick:` and a list of `Acorn`, `Beech`, `Cedar` and `Dogwood`. Keys go to `wg_key`, with the arrows passed as `WK_UP` and `WK_DOWN`, until Enter or Esc. It reads a pixel of the selected row below its text, which must be the black bar, and prints `list: <name>` with the selected item, or `list: FAIL`. Checks: `listtest` (Down: `Beech`), `listtest-end` (five Downs: `Dogwood`), `listtest-up` (Down, Up, Up: `Acorn`), and `listtest-text`. With the selection store taken out of `wg_key`, `listtest` prints `list: Acorn` and the check fails.
 
 `scrolltest` (2.0.2) opens a window 60 pixels high with a list of ten items (`Item 0` to `Item 9`), so only a few rows fit. It moves the selection to item 8 with `wg_key` and redraws, then checks that the list scrolled with the selection still shown, that `wg_list_item` maps row 0 to `WG_TOP` and the selection's row to item 8 and refuses the row past the last, and that the black bar is in the selection's row and not in row 0. It prints `scroll: PASS` or `scroll: FAIL` (check `scrolltest`). With the scrolling taken out of the draw, it prints FAIL.
+
+`cbtest` (2.3-clipboard) opens a window with two fields, types into the first, copies, Tabs to the second, pastes, cuts, and checks the syscall put/get path. It prints `clipboard: PASS` or `clipboard: FAIL`. Named `cbtest` so it does not collide with the 2.1 blit `cliptest`. See `clipboard.md`.
 
 ## Next
 

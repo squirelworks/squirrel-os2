@@ -456,6 +456,12 @@ run_simple:
     mov edi, cmd_cliptest       ; 2.1-blit-clip
     call streq
     je .cliptest
+    mov edi, cmd_cbtest         ; 2.3-clipboard
+    call streq
+    je .cbtest
+    mov edi, cmd_clipboard
+    call streq
+    je .clipboard
     mov edi, cmd_bevtest        ; W.1-theme
     call streq
     je .bevtest
@@ -737,6 +743,12 @@ run_simple:
     jmp .empty
 .cliptest:
     call cmd_cliptest_run
+    jmp .empty
+.cbtest:
+    call cmd_cbtest_run
+    jmp .empty
+.clipboard:
+    call cmd_clipboard_run
     jmp .empty
 .bevtest:
     call cmd_bevtest_run
@@ -1161,6 +1173,7 @@ banner_rest db ' 2.1.0', 10  ; OS version: here only (see releases/PROCESS.md)
        db 'Tests: systest | proctest | blktest | fstest | memtest | keys', 10
        db '       gfxtest | gfxprim | gfxtext | vbetest | wintest | winmove | winfocus | nettest', 10
        db '       labeltest | buttontest | fieldtest | listtest | drawpx | objtest | objs', 10
+       db '       cbtest | clipboard | progman | filemgr', 10
        db 'Apps: files, calc, sci, graph, matrix, diff, edit, vedit, draw   (planned: topo)', 10, 0
 msg_partial db 'Warning: kernel image only partly loaded', 10, 0
 cmd_ls db 'ls', 0
@@ -1296,6 +1309,8 @@ cmd_gfxprim db 'gfxprim', 0
 cmd_gfxtext db 'gfxtext', 0
 cmd_vbetest db 'vbetest', 0
 cmd_cliptest db 'cliptest', 0
+cmd_cbtest db 'cbtest', 0
+cmd_clipboard db 'clipboard', 0
 cmd_bevtest db 'bevtest', 0
 cmd_winvbe db 'winvbe', 0
 cmd_winclip db 'winclip', 0
@@ -1525,6 +1540,7 @@ khigh_start:
 %include "wm.asm"
 %include "winsys.asm"
 %include "widget.asm"
+%include "clipboard.asm"
 %include "desktop.asm"
 %include "progman.asm"
 %include "filemgr.asm"

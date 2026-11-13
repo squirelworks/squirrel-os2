@@ -56,6 +56,8 @@ SYS_WINDRAW  equ 41
 SYS_WINFLUSH equ 42
 SYS_WINEVENT equ 43
 SYS_WININFO  equ 44
+SYS_CLIPPUT  equ 45         ; text clipboard (2.3-clipboard, clipboard.md)
+SYS_CLIPGET  equ 46
 WE_KEY      equ 1
 WE_DOWN     equ 2
 WE_CLOSE    equ 6
