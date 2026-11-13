@@ -32,8 +32,9 @@ driver, SQFS as the installed file system. UEFI, AHCI/NVMe and USB mass storage 
 | Sectors | Contents | Written by |
 |---------|----------|------------|
 | 0 | MBR: boot code (from I.4; zero until then), disk signature at 440, partition table at 446, `55 AA` at 510 | I.1 (table), I.4 (code) |
-| 1 to 192 | The 96 KB kernel image, where the boot sector loads it from | I.4 |
-| 193 to 2047 | Unused | — |
+| 1 to 192 | The 96 KB low kernel image, where the boot sector loads it from | I.3 |
+| 193 to 192 + `KHIGH_SECTS` | The high kernel image, which `stage2` loads above 1 MB (2.4, `kernel/kernel-image.md`) | I.3 |
+| the rest up to 2047 | Unused | — |
 | 2048 to the end | Partition 1, type `7F`, SQFS | I.1 (entry), I.2 (file system) |
 
 Partition 1 starts at 1 MiB, the usual alignment, and runs to the last sector of the disk.
@@ -101,7 +102,7 @@ The partition's SQFS has the same layout as a data disk, so on the host
 the boot disk as above (else: `The boot disk is not an IDE disk, so the kernel cannot be read
 back.`). It asks y/n, then:
 
-1. **The kernel.** Sectors 1 to 192 of the boot disk, the 96 KB image the boot sector loads, go
+1. **The kernel.** Sectors 1 to `INS_KSECTS` of the boot disk (the 96 KB low image the boot sector loads and the high image after it, 2.4), go
    to the same sectors of the target, each one read back and compared. They lie before the
    partition, in the first MiB.
 2. **The files.** Every file in the root of the data disk is read into the loader's 64 KB
@@ -119,7 +120,7 @@ boot disk as an IDE disk. It asks y/n, then copies bytes 0 to 439 of the boot di
 (the boot code; `boot.asm` refuses to assemble past byte 440) over the target's, keeps the
 target's disk signature and partition table, marks partition 1 active (`80`), writes the
 sector and reads it back. The boot code is the same one the release images use: it loads
-sectors 1 to 192 and jumps to the kernel.
+sectors 1 to 192 and jumps to the kernel, which reads its high image after them.
 
 **Running from the installed disk.** At boot, when no data disk is attached at all,
 `ins_mount_system` looks for the boot disk (found the same way as above) and, if its

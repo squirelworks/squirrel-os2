@@ -1,5 +1,7 @@
 ; Squirrel-OS/2 boot sector
-; Loads the 96 KB kernel image (sectors 1..192) to 0x8000 and jumps to it.
+; Loads the 96 KB low kernel image (sectors 1..192) to 0x8000 and jumps to
+; it with the boot drive in DL; stage2 then reads the high kernel image
+; (sector 193 on) above 1 MB itself (2.4, documentation/kernel/boot-sector.md).
 ; Hard disks use the BIOS extended read (int 0x13, AH=0x42), in three
 ; 64-sector reads because some firmware caps one read at 127 sectors.
 ; Floppies, and disks whose firmware refuses AH=0x42, are read one
@@ -45,6 +47,7 @@ start:
     mov ah, 0x42
     int 0x13
     jc chs_load
+    mov dl, [boot_drive]        ; stage2 reads the rest of the kernel (2.4)
     jmp 0x0000:0x8000
 
 ; One sector at a time, LBA 1..192, to 0x0800:0 onwards.
@@ -96,6 +99,7 @@ chs_load:
     inc word [lba]
     cmp word [lba], 1+KERNEL_READS*KERNEL_SECTORS
     jb .next
+    mov dl, [boot_drive]
     jmp 0x0000:0x8000
 
 fail:
