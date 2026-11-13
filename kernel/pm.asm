@@ -208,6 +208,7 @@ pm:
     call lang_select
     call cls
     call show_banner
+    call klog_boot              ; the kernel log's first line (A.5)
     cmp dword [0x8000+KERNEL_SIZE-4], KERNEL_SIG
     je .whole
     mov esi, msg_partial
@@ -949,6 +950,7 @@ timer_isr:
     KSEGS
     push eax
     inc dword [ticks]
+    call sysinfo_tick           ; CPU time (A.5)
     mov al, 0x20
     out 0x20, al
     ; preemption (1.1): once the slice is used up, the first tick that
@@ -1459,6 +1461,7 @@ khigh_start:
 %include "udp.asm"
 %include "tcp.asm"
 %include "appsys.asm"
+%include "sysinfo.asm"
 
 
 ; the high image ends on a sector boundary, with its signature last
