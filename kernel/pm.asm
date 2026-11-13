@@ -698,6 +698,7 @@ run_simple:
     jmp .empty
 .cpus:
     call cmd_cpus_run
+    jmp .empty
 .lmtest:
     call cmd_lmtest_run
     jmp .empty
