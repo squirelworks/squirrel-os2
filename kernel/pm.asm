@@ -115,6 +115,8 @@ gdt_tls:                        ; 0x38: per-process TLS segment, FS/GS (P.5, tls
     dw 0xFFFF,0,0xF200,0x00CF
 gdt_cs64:                       ; 0x40: 64-bit kernel code, long mode (2.8, lm.asm)
     dw 0xFFFF,0,0x9A00,0x00AF
+gdt_tss_cpu:                    ; 0x48 on: one TSS per CPU record (2.8, smp.asm)
+    times 16 dq 0               ; SMP_MAX
 gdt_desc:
     dw $-gdt-1
     dd gdt

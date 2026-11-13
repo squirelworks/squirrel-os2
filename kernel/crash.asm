@@ -25,6 +25,11 @@ SHELL_STACK equ 0x9F000             ; the boot stack, which the shell runs on
 exc_report:
     cli
     KSEGS
+    call smp_on_ap              ; on an application processor: the BSP
+    jc .bsp                     ; reports it (2.8, smp.asm)
+    push dword ap_exc_resume
+    jmp ap_divert
+.bsp:
     pushad
     mov ebp, esp
     ; a page fault in the current thread's ring-3 stack grows it (2.4)

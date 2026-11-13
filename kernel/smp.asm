@@ -7,8 +7,17 @@
 ; real mode at SMP_TRAMP, the page where the BSP copied ap_tramp: it
 ; loads the kernel's GDT, enters protected mode, takes the next AP stack,
 ; turns on the kernel's paging and IDT, enables its local APIC, counts
-; itself online and parks (sti / hlt). Parked APs only wake for IPIs;
-; nothing sends them work yet (2.8-smp-sched). `cpus` lists them.
+; itself online and enters ap_idle.
+;
+; Scheduling (2.8-smp-sched): the kernel itself still runs only on the
+; BSP. An AP runs ring-3 threads: in ap_idle it claims a READY thread
+; that a ring-3 preemption stopped (PCB_UFRAME), loads its address space,
+; FPU state and kernel stack and returns it to ring 3 the way the BSP
+; would. When that thread enters the kernel on the AP (a system call or
+; an exception), the AP hands it back as READY with the kernel entry as
+; its continuation (ap_divert) and wakes the BSP, which then runs the
+; kernel part. The AP's local APIC timer hands a thread back as
+; preempted (resumable anywhere) when others are waiting.
 ; See documentation/kernel/smp.md.
 
 SMP_MAX       equ 16              ; CPUs the tables hold
@@ -26,7 +35,18 @@ SMP_SPURIOUS  equ 0xFF            ; spurious vector: default_isr
 CPU_APIC      equ 0               ; local APIC id
 CPU_STATE     equ 4               ; 0 absent, 1 found, 2 online
 CPU_STACK     equ 8               ; AP stack top (0 for the BSP)
+CPU_CUR       equ 12              ; the thread an AP runs, or 0
 CPU_SIZE      equ 16
+SEL_TSS_CPU0  equ 0x48            ; gdt_tss_cpu (pm.asm): one per record
+LAPIC_LVT_TMR equ 0x320
+LAPIC_TMR_INI equ 0x380
+LAPIC_TMR_DIV equ 0x3E0
+SMP_TIMER_VEC equ 0x41            ; AP local APIC timer
+SMP_WAKE_VEC  equ 0x42            ; IPI that wakes the BSP
+SMP_TMR_COUNT equ 0x40000         ; local APIC timer period (divide by 16)
+%if SMP_MAX != 16
+%error gdt_tss_cpu in pm.asm has 16 entries
+%endif
 
 ; Finds the CPUs and starts the APs. Runs once at boot, with the timer
 ; running and interrupts on. Keeps every register.
@@ -44,6 +64,12 @@ smp_init:
     call vm_map_range           ; the local APIC registers (kernel pages)
     jc .out
     call smp_lapic_on
+    mov edi, idt+SMP_TIMER_VEC*8
+    mov eax, ap_timer_isr
+    call set_gate
+    mov edi, idt+SMP_WAKE_VEC*8
+    mov eax, smp_wake_isr
+    call set_gate
     mov eax, [smp_lapic]
     mov eax, [eax+LAPIC_ID]
     shr eax, 24
@@ -82,6 +108,8 @@ smp_start_ap:
     jz .r
     add eax, SMP_STACK
     mov [edi+CPU_STACK], eax
+    mov dword [edi+CPU_CUR], 0
+    call smp_tss_setup
     mov [smp_ap_rec], edi       ; the AP reads its record from here
     mov eax, [smp_online]
     mov [smp_was], eax
@@ -316,14 +344,241 @@ ap_pm32:
     jmp .paged
 .paged:
     lidt [idt_desc]
+    mov eax, cr0                ; caches on, FPU as on the BSP (fpu_init)
+    and eax, ~((1 << 30) | (1 << 29) | (1 << 2) | (1 << 3))
+    or eax, (1 << 1) | (1 << 5)
+    mov cr0, eax
     fninit
+    mov eax, edi                ; this CPU's TSS
+    sub eax, smp_cpus
+    shr eax, 1                  ; / CPU_SIZE * 8
+    add eax, SEL_TSS_CPU0
+    ltr ax
     call smp_lapic_on
+    mov edx, [smp_lapic]        ; its timer: periodic, SMP_TIMER_VEC
+    mov dword [edx+LAPIC_TMR_DIV], 3
+    mov dword [edx+LAPIC_LVT_TMR], SMP_TIMER_VEC | (1 << 17)
+    mov dword [edx+LAPIC_TMR_INI], SMP_TMR_COUNT
     mov dword [edi+CPU_STATE], 2
     lock inc dword [smp_online]
-.park:
+    jmp ap_idle
+
+; edi = a CPU record: its TSS (kernel stack segment, no I/O map) and
+; GDT descriptor
+smp_tss_setup:
+    pushad
+    mov eax, edi
+    sub eax, smp_cpus
+    mov ebx, eax
+    shr ebx, 1                  ; descriptor offset: record index * 8
+    shr eax, 4                  ; record index
+    imul eax, TSS_SIZE
+    add eax, smp_tss
+    mov dword [eax+TSS_SS0], 0x10
+    mov word [eax+TSS_IOMAP], TSS_SIZE
+    lea edi, [gdt_tss_cpu+ebx]
+    mov word [edi], TSS_SIZE-1
+    mov word [edi+5], 0x0089    ; present 32-bit TSS, limit 19:16 = 0
+    call tss_base
+    popad
+    ret
+
+; -> ebx = this AP's CPU record (from its task register). Clobbers eax.
+smp_cpu_rec:
+    str ax
+    movzx ebx, ax
+    sub ebx, SEL_TSS_CPU0
+    shl ebx, 1                  ; / 8 * CPU_SIZE
+    add ebx, smp_cpus
+    ret
+
+; ---------- AP scheduling (2.8-smp-sched) ----------
+
+; The AP's scheduler loop, on its own stack with the kernel's page
+; directory: claims a READY ring-3 thread that may run anywhere and
+; resumes it; otherwise sleeps until its timer.
+ap_idle:
+    cli
+    call smp_cpu_rec
+    mov esp, [ebx+CPU_STACK]
+    mov dword [ebx+CPU_CUR], 0
+    mov eax, [kernel_pd]        ; never keep a page directory that may go
+    mov cr3, eax
+.scan:
+    mov edi, proc_table+PCB_SIZE    ; slot 0 is the shell: BSP only
+    mov ecx, PROC_MAX-1
+.l:
+    cmp dword [edi+PCB_STATE], P_READY
+    jne .next
+    cmp dword [edi+PCB_UFRAME], 1
+    jne .next
+    cmp dword [edi+PCB_AS], 0
+    je .next
+    mov eax, edi                ; threads with a TLS segment stay on the
+    sub eax, proc_table         ; BSP: its descriptor is per CPU there
+    shr eax, 4
+    cmp dword [tls_base+eax], 0
+    jne .next
+    mov eax, P_READY
+    mov edx, P_APRUN
+    lock cmpxchg [edi+PCB_STATE], edx
+    je .run
+.next:
+    add edi, PCB_SIZE
+    loop .l
     sti
     hlt
-    jmp .park
+    cli
+    jmp .scan
+.run:
+    mov dword [edi+PCB_UFRAME], 0
+    mov [ebx+CPU_CUR], edi
+    ; ring-3 entries on this CPU land on the thread's kernel stack
+    mov eax, edi
+    sub eax, proc_table
+    shr eax, 6                  ; slot
+    imul eax, PROC_STACK_SIZE
+    add eax, PROC_STACK_BASE
+    mov edx, ebx
+    sub edx, smp_cpus
+    shr edx, 4                  ; record index
+    imul edx, TSS_SIZE
+    mov [smp_tss+edx+TSS_ESP0], eax
+    mov eax, [edi+PCB_AS]
+    mov eax, [eax+AS_PD]
+    mov cr3, eax
+    mov eax, edi
+    call proc_fpu_area
+    cmp dword [edi+PCB_FPU], 0
+    je .fresh
+    frstor [eax]
+    jmp .go
+.fresh:
+    fninit
+.go:
+    mov esp, [edi+PCB_ESP]      ; what proc_switch would pop
+    popad
+    popfd
+    clc
+    ret
+
+; Entered by jmp with the continuation on the stack, on an AP running a
+; thread that just entered the kernel: hands the thread to the BSP.
+; ap_divert: it resumes at the continuation in the kernel, on the BSP.
+; ap_yield: it was preempted in ring 3 and may resume on any CPU.
+ap_yield:
+    pushfd
+    pushad
+    mov ebp, 1
+    jmp ap_handback
+ap_divert:
+    pushfd
+    pushad
+    xor ebp, ebp
+ap_handback:
+    call smp_cpu_rec
+    mov edi, [ebx+CPU_CUR]
+    test edi, edi
+    jz .lost
+    mov [edi+PCB_ESP], esp
+    mov eax, cr2                ; a page fault's address, for the BSP
+    mov edx, edi
+    sub edx, proc_table
+    shr edx, 6
+    mov [proc_cr2+edx*4], eax
+    mov eax, edi
+    call proc_fpu_area
+    fnsave [eax]
+    mov dword [edi+PCB_FPU], 1
+    mov dword [ebx+CPU_CUR], 0
+    mov [edi+PCB_UFRAME], ebp
+    mov dword [edi+PCB_STATE], P_READY  ; last: from here the BSP may take it
+    mov eax, SMP_WAKE_VEC | 0x4000      ; fixed, assert
+    mov ecx, [smp_bsp_id]
+    shl ecx, 24
+    call smp_ipi
+    jmp ap_idle
+.lost:                          ; a kernel entry with no thread: an AP bug
+    cli
+    hlt
+    jmp .lost
+
+; -> CF unless this CPU is an AP (its task register is not tss_main).
+; Keeps every register.
+smp_on_ap:
+    push eax
+    str ax
+    cmp ax, SEL_TSS_MAIN
+    pop eax
+    je .bsp
+    clc
+    ret
+.bsp:
+    stc
+    ret
+
+; The continuation of a fault an AP handed over: its CR2 on this CPU,
+; then the report as usual
+ap_exc_resume:
+    push eax
+    push edx
+    mov eax, [proc_cur]
+    sub eax, proc_table
+    shr eax, 6
+    mov edx, [proc_cr2+eax*4]
+    mov cr2, edx
+    pop edx
+    pop eax
+    jmp exc_report.bsp
+
+; AP local APIC timer
+ap_timer_isr:
+    KSEGS
+    push eax
+    mov eax, [smp_lapic]
+    mov dword [eax+LAPIC_EOI], 0
+    test byte [esp+8], 3        ; from ring 3?
+    jz .out                     ; no: ap_idle was waiting, it rescans
+    call smp_others_wait
+    jc .out
+    pop eax
+    push dword ap_utail         ; resume: straight back to ring 3
+    jmp ap_yield
+.out:
+    pop eax
+    iretd
+ap_utail:
+    iretd
+
+; -> CF unless some other thread is READY (it should get a turn)
+smp_others_wait:
+    push edi
+    push ecx
+    mov edi, proc_table
+    mov ecx, PROC_MAX
+.l:
+    cmp dword [edi+PCB_STATE], P_READY
+    je .yes
+    add edi, PCB_SIZE
+    loop .l
+    pop ecx
+    pop edi
+    stc
+    ret
+.yes:
+    pop ecx
+    pop edi
+    clc
+    ret
+
+; BSP: an AP handed a thread back
+smp_wake_isr:
+    KSEGS
+    push eax
+    mov eax, [smp_lapic]
+    mov dword [eax+LAPIC_EOI], 0
+    pop eax
+    iretd
 
 ; ---------- cpus (2.8-smp-ap) ----------
 ; One line per CPU, then "N CPU(s) online".
@@ -374,7 +629,7 @@ cmd_cpus_run:
 smp_m_cpu    db 'CPU ', 0
 smp_m_apic   db ': APIC id ', 0
 smp_m_bsp    db ', boot processor', 10, 0
-smp_m_online db ', online (parked)', 10, 0
+smp_m_online db ', online', 10, 0
 smp_m_off    db ', did not start', 10, 0
 smp_m_total  db ' CPU(s) online', 10, 0
 cmd_cpus     db 'cpus', 0
@@ -386,3 +641,4 @@ smp_online   dd 1
 smp_was      dd 0
 smp_ap_rec   dd 0
 smp_cpus     times SMP_MAX*CPU_SIZE db 0
+smp_tss      times SMP_MAX*TSS_SIZE db 0

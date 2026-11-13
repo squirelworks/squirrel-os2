@@ -30,6 +30,7 @@ P_READY         equ 1
 P_RUNNING       equ 2
 P_WAITING       equ 3           ; blocked in wait()
 P_ZOMBIE        equ 4           ; exited, not yet reaped
+P_APRUN         equ 5           ; running ring-3 code on an application processor (2.8)
 
 ; PCB layout (64 bytes)
 PCB_PID         equ 0
@@ -41,6 +42,10 @@ PCB_CODE        equ 20          ; exit code
 PCB_WAITPID     equ 24          ; pid this process waits on
 PCB_PARENT      equ 28
 PCB_AS          equ 32          ; address space record, 0 = the kernel's
+; PCB extension (2.8): a second 64-byte record per slot in proc_ext, at the
+; same stride, so [pcb+PCBX_*] reaches it (the PCB itself is full)
+PCBX            equ proc_ext-proc_table
+PCB_UFRAME      equ PCBX+0      ; 1: stopped by a ring-3 preemption, so any CPU may resume it
 PCB_NAME        equ 40          ; 16 bytes: program or app name (0.8.2)
 PROC_NAMELEN    equ 16
 PCB_PRIO        equ 56          ; 0..3; higher runs first (1.9.9)
@@ -92,6 +97,7 @@ proc_spawn:
     mov [edi+PCB_ENTRY], ebx
     mov [edi+PCB_ARG], ecx
     mov dword [edi+PCB_CODE], 0
+    mov dword [edi+PCB_UFRAME], 0   ; starts in the kernel: the BSP's (2.8)
     mov dword [edi+PCB_WAITPID], 0
     mov byte [edi+PCB_NAME], 0
     mov dword [edi+PCB_PRIO], PRIO_NORM
@@ -404,6 +410,7 @@ proc_switch:
     pushfd
     cli
     pushad
+.again:
     mov esi, [proc_cur]
     ; highest priority among READY slots, and the current if RUNNING
     mov ebx, -1
@@ -426,7 +433,7 @@ proc_switch:
     add edi, PCB_SIZE
     loop .findmax
     cmp ebx, -1
-    je proc_panic
+    je .stuck
     mov edi, esi
     mov ecx, PROC_MAX
 .scan:
@@ -446,19 +453,40 @@ proc_switch:
     loop .scan
 .none:
     cmp dword [esi+PCB_STATE], P_RUNNING
-    jne proc_panic
+    jne .stuck
+    mov dword [esi+PCB_UFRAME], 0   ; it goes on here
     popad
     popfd
     stc
     ret
+.stuck:
+    ; nothing to run here. Threads on application processors come back
+    ; (as READY) when they enter the kernel: wait for them (2.8).
+    ; Without any, this is a deadlock.
+    call proc_any_aprun
+    jc proc_panic
+    sti
+    hlt
+    cli
+    jmp .again
 .go:
+    ; claim the arriving one: an application processor may take a READY
+    ; thread at the same time (2.8)
+    mov eax, P_READY
+    mov edx, P_RUNNING
+    lock cmpxchg [edi+PCB_STATE], edx
+    jne .again
+    mov dword [edi+PCB_UFRAME], 0
+    ; the leaving one becomes READY only once nothing here uses its stack
+    ; any more (below), since an application processor may then resume it
+    mov dword [sched_leave], 0
     cmp dword [esi+PCB_STATE], P_RUNNING
     jne .keep
-    mov dword [esi+PCB_STATE], P_READY
+    mov dword [sched_leave], P_READY
 .keep:
+    mov [sched_leaving], esi
     call proc_fpu_swap
     mov [esi+PCB_ESP], esp
-    mov dword [edi+PCB_STATE], P_RUNNING
     xchg esi, edi
     call proc_stamp             ; the one leaving starts waiting now
     xchg esi, edi
@@ -469,8 +497,35 @@ proc_switch:
     call proc_set_esp0
     call tls_switch             ; its FS/GS base (P.5)
     mov esp, [edi+PCB_ESP]
+    mov eax, [sched_leave]
+    test eax, eax
+    jz .stays
+    mov esi, [sched_leaving]
+    mov [esi+PCB_STATE], eax
+.stays:
     popad
     popfd
+    clc
+    ret
+
+; -> CF unless some thread is running on an application processor
+proc_any_aprun:
+    push edi
+    push ecx
+    mov edi, proc_table
+    mov ecx, PROC_MAX
+.l:
+    cmp dword [edi+PCB_STATE], P_APRUN
+    je .yes
+    add edi, PCB_SIZE
+    loop .l
+    pop ecx
+    pop edi
+    stc
+    ret
+.yes:
+    pop ecx
+    pop edi
     clc
     ret
 
@@ -559,6 +614,10 @@ proc_fpu_area:
 ; slice: the same priority switch as a yield. If nothing else at its
 ; priority is READY the program keeps the CPU for another slice.
 proc_preempt:
+    push eax
+    mov eax, [proc_cur]         ; its kernel stack now only returns to ring 3:
+    mov dword [eax+PCB_UFRAME], 1   ; an application processor may resume it (2.8)
+    pop eax
     mov dword [sched_left], SLICE_TICKS
     inc dword [sched_preempts]
     jmp proc_switch
@@ -765,6 +824,10 @@ kbd_getscan:
     ret
 
 proc_table times PROC_MAX*PCB_SIZE db 0
+proc_ext times PROC_MAX*PCB_SIZE db 0   ; PCB extension (2.8, PCBX)
+sched_leave dd 0                ; proc_switch: the leaving one's new state, or 0 (2.8)
+sched_leaving dd 0
+proc_cr2 times PROC_MAX dd 0    ; CR2 of a fault an application processor handed over (2.8)
 proc_since times PROC_MAX dd 0  ; tick of the last switch in or out (2.0.2)
 proc_fpu times PROC_MAX*FPU_SAVE db 0     ; fnsave areas, one per slot (1.0.1)
 proc_cur dd 0
@@ -774,7 +837,8 @@ sched_preempts dd 0             ; switches made by the timer
 proc_next_pid dd 0
 pt_pids times 3 dd 0
 
-state_names dd st_free, st_ready, st_running, st_waiting, st_zombie
+state_names dd st_free, st_ready, st_running, st_waiting, st_zombie, st_aprun
+st_aprun db 'running (AP)', 0
 st_free db 'free', 0
 st_ready db 'ready', 0
 st_running db 'running', 0

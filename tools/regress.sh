@@ -13,11 +13,11 @@ cat "$out/boot.bin" "$out/pm.bin" > "$out/os.img"
 dd if=/dev/zero of="$out/floppy.img" bs=1024 count=1440 2>/dev/null
 dd if="$out/os.img" of="$out/floppy.img" conv=notrunc 2>/dev/null
 python3 "$root/tools/mkiso.py" "$out/floppy.img" "$out/cd.iso"    # installer I.6
-for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3 lxhello lxfile lxcat lxsys winrun winhello wincrt; do
+for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3 smpspin lxhello lxfile lxcat lxsys winrun winhello wincrt; do
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
 done
 python3 "$root/tools/sqfs.py" "$out/progs.img" format 1024
-for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3 lxhello lxfile lxcat lxsys winrun winhello wincrt; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
+for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3 smpspin lxhello lxfile lxcat lxsys winrun winhello wincrt; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
 # OS2-GAMES (G.x): the games get a disk of their own, so the file counts above stay put
 python3 "$root/tools/sqfs.py" "$out/games.img" format 1024
 for prog in mines reversi klondike freecell hearts chess mahjongg; do
@@ -607,7 +607,7 @@ check khigh-mem     'Pages above 2 MB:'     mem '<ret>'
 # 2.8-smp-ap: the APs from the ACPI MADT start and park; one CPU is still fine
 check cpus-one      '1 CPU(s) online'       cpus '<ret>'
 export QEMU_EXTRA='-smp 4'
-check_all smp-4     'CPU 0: APIC id 0, boot processor|CPU 3: APIC id 3, online (parked)|4 CPU(s) online' cpus '<ret>'
+check_all smp-4     'CPU 0: APIC id 0, boot processor|CPU 3: APIC id 3, online|4 CPU(s) online' cpus '<ret>'
 check smp-4-systest 'systest: PASS'         cpus '<ret>' systest '<ret>'
 unset QEMU_EXTRA
 # 2.8-lm-entry: a round trip through long mode (qemu-system-x86_64), and a clean refusal without it
@@ -666,7 +666,7 @@ check seek          'seek: PASS'            'run seek' '<ret>' '<pause>'
 check devices       'hd1     block   ready 2048 sectors'  devices '<ret>'
 check devices-ro    '(read-only for programs)'  devices '<ret>'
 check devtest       'devtest: PASS'         'run devtest' '<ret>'
-check up-ls         '40 file(s)'             'run ls' '<ret>'   # 30 + the 7 P.1-P.5 programs + lxfile.txt, win.txt, crt.txt
+check up-ls         '41 file(s)'             'run ls' '<ret>'   # 31 (smpspin, 2.8) + the 7 P.1-P.5 programs + lxfile.txt, win.txt, crt.txt
 # 1.2.1: a key arrives as a queue event as well as through SYS_GETC
 check_all keyev     'keyev: queue q getc q|keyev: PASS'  'run keyev' '<ret>' '<pause>' q '<pause>'
 check_all keyev-shift 'keyev: queue Q getc Q|keyev: PASS'  'run keyev' '<ret>' '<pause>' Q '<pause>'
@@ -682,6 +682,19 @@ check_all stackover '*** stack overflow in pid|Program ended|stackover: PASS'  '
 # 2.4: programs run in ring 3; bad pointers, kernel memory and privileged instructions are refused
 check_all ring3     '*** CPU exception 13 (general protection) in pid|Program ended|ring3: PASS'  'run ring3' '<ret>' '<pause>'
 check ring3-after   'systest: PASS'         'run ring3' '<ret>' '<pause>' systest '<ret>'
+# 2.8-smp-sched: ring-3 threads on the application processors; kernel entries go to the BSP
+check_all smpspin-1 'smpspin: 1 CPU(s)|smpspin: threads ok'  'run smpspin' '<ret>' '<pause>' '<pause>' '<pause>'
+export QEMU_EXTRA='-smp 4'
+check_all smpspin-4 'smpspin: 4 CPU(s)|smpspin: threads ok'  'run smpspin 4' '<ret>' '<pause>' '<pause>' '<pause>'
+check smp-ring3     'ring3: PASS'           'run ring3' '<ret>' '<pause>' '<pause>'
+check smp-stackover 'stackover: PASS'       'run stackover' '<ret>' '<pause>'
+check smp-thread    'thread: PASS'          'run thread' '<ret>' '<pause>'
+check smp-msg       'msg: PASS'             'run msg' '<ret>' '<pause>'
+check smp-fpu       'fpu: PASS'             'run fpu' '<ret>' '<pause>'
+check smp-preempt   'preempt: PASS'         'run spin' '<ret>' '<pause>'
+check smp-heap      'heap: PASS'            'run heap' '<ret>' '<pause>'
+check smp-after     'systest: PASS'         'run smpspin 4' '<ret>' '<pause>' '<pause>' '<pause>' systest '<ret>'
+unset QEMU_EXTRA
 # 1.1.0: the timer preempts a program that spins without a system call
 check_all sched-preempt 'spin: second process ran|preempt: PASS' 'run spin' '<ret>' '<pause>'
 check up-ls-filter  '6 file(s)'             'run ls he' '<ret>'

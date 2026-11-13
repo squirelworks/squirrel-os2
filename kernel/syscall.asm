@@ -59,6 +59,11 @@ syscall_init:
 
 syscall_isr:
     KSEGS
+    call smp_on_ap              ; on an application processor: the BSP
+    jc .cont                    ; runs the call (2.8, smp.asm)
+    push dword .cont
+    jmp ap_divert
+.cont:
     push esi                    ; a Linux process uses its own table (P.1)
     mov esi, [proc_cur]
     cmp dword [esi+PCB_LINUX], 0
