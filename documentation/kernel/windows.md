@@ -99,7 +99,7 @@ The mouse (**2.2-mouse**) uses it to decide between moving, sizing and the boxes
 
 - A press over a window raises it and gives it the focus (z-order by mouse). Then, by `wm_hit` part: the title starts a move; an edge or corner of a sizable window starts a size; the maximise box maximises the window to the whole screen (saving its rectangle in `WIN_REST`, `WIN_STATE` = `WS_MAX`) or, when it is maximised, restores it. A maximised window cannot be moved or sized.
 - While the button is held, a move puts the window at its press-time place plus the pointer's travel; a size moves the edges the part names (`wm_sides`), never below `WM_MIN_W` × `WM_MIN_H` (a left or top edge then stops so the opposite edge stays put). Each step goes through `wm_place` (x, y, width, height in one call; CF and no change when `wm_fits` refuses), so a window dragged past what `wm_fits` allows stays at its last allowed place. The release ends the drag.
-- The reply in eax: `WME_NONE`; `WME_CLIENT` with ebx = the window and ecx = x | y << 16 in its client area; `WME_CLOSE` or `WME_SYSMENU` with ebx = the window. Closing is the caller's decision (a program may ask to save first); the system menu comes with **2.2-sysmenu**. The minimise box minimises the window itself (**2.2-minmax**, below).
+- The reply in eax: `WME_NONE`; `WME_CLIENT` with ebx = the window and ecx = x | y << 16 in its client area; `WME_CLOSE` with ebx = the window, or `WME_MENU` (below). Closing is the caller's decision (a program may ask to save first). The system-menu box opens the system menu (**2.2-sysmenu**). The minimise box minimises the window itself (**2.2-minmax**, below).
 
 The desktop (`../apps/desktop.md`) passes every change of the mouse to `wm_mouse`, repaints with `wm_update`, and closes when its own close box is clicked. Its list clicks use the window's current place, so they still work after it is moved.
 
@@ -114,6 +114,33 @@ The desktop (`../apps/desktop.md`) passes every change of the mouse to `wm_mouse
 `wm_restore` (eax = id) puts a minimised window back on top with the rectangle and maximised state it had. With the mouse, two presses in a row on the same icon restore it (a double click; a press anywhere else in between starts over). `wm_setstate` (eax = id, ebx = `WS_NORMAL`, `WS_MAX` or `WS_MIN`) does any of these from code: `WS_MIN` minimises, `WS_NORMAL` / `WS_MAX` restore an icon first and then maximise or restore the size. Minimising or restoring repaints the whole screen (the icons can all move).
 
 `winmin` opens One and Two (as `windrag`), clicks One's minimise box through `wm_inject`, and checks that Two has the focus, that `wm_hit` finds One's icon at the first place, and that the icon's bevel is on the visible page. It minimises Two with `wm_setstate` (nothing has the focus then), presses One's icon once, Two's once and One's once (nothing is restored), then One's again: One is back with the focus and its rectangle, and Two's icon is now first. Finally One is maximised, minimised and restored by a double click, and must come back maximised. It prints `winmin: PASS` or `winmin: FAIL`. Checks `winmin` and `winmin-text`.
+
+## Pop-up menus and the system menu (2.2-sysmenu)
+
+`wm_popup` (eax, ebx = top left, esi = an array of edx item addresses, at most 8, ecx = the owner window) opens a pop-up menu: a raised, bevelled column of items drawn above every window by `wm_paint`, the chosen item in `TH_SELECT` / `TH_SELECT_TEXT`. One menu is open at a time. While it is open:
+
+- `wm_menukey` (al = a key as `wg_key` takes it) moves the choice with `WK_DOWN` / `WK_UP` (wrapping round), chooses with Enter (10 or 13) and closes with Esc. It returns CF set when no menu (and no keyboard move or size) is active, so the caller can use the key.
+- `wm_mouse` gives the next press to the menu: a press on an item chooses it, a press anywhere else closes the menu.
+- A choice in an ordinary menu replies `WME_MENU` with ebx = the owner and ecx = the item.
+
+The system menu is a pop-up the window manager answers itself. It opens under the system-menu box when that is clicked, or for the focused window on Alt+Space (`wm_sysmenu`, eax = window). Its items: Restore (from maximised), Move, Size, Minimize, Maximize, and Close, which replies `WME_CLOSE` like the close box. Move and Size set `wm_kmode`; then the arrow keys (`WK_LEFT` 0x11 and `WK_RIGHT` 0x12 are new key codes, with `WK_UP` / `WK_DOWN`) move the window, or its right and bottom edges, 8 pixels a press through `wm_place` (so it never gets too small or loses its title bar), until Enter or Esc.
+
+The keyboard driver now tracks Alt (`kbd_alt`, scancodes 0x38 / 0xB8, the same for right Alt after its 0xE0). The desktop passes Alt keys to `wm_altkey`, the side arrows and, while a menu or keyboard move is active, every key to `wm_menukey`, and quits when the reply closes its own window.
+
+`winmenu` opens One and Two, presses Alt+Space (`wm_altkey`) for Two's menu and chooses Minimize with Down × 3, Enter; clicks One's system-menu box and then Maximize; Alt+Space, Enter (Restore); Move with right, right, down, Enter (One moves by 16, 8); Size with right, right, Enter (16 wider); checks Esc and a click outside each close a menu without acting; and that Close (Up from the first item wraps to it) replies `WME_CLOSE` for One. It prints `winmenu: PASS` or `winmenu: FAIL`. Checks `winmenu`, `winmenu-text`, `sysmenu-desk` (Alt+Space on the desktop shows the menu's items on the screen) and `sysmenu-desk-move`.
+
+## Alt+Tab, Alt+Esc, Alt+F4 (2.2-alttab)
+
+`wm_altkey` (al = the scancode of a key pressed with Alt down) handles:
+
+- **Alt+Tab**: each press steps one window further down the z-order (the order windows were last used), wrapping back to the second, and shows the chosen window's title in a raised box in the middle of the screen. Letting go of Alt (`wm_altup`, called on scancode 0xB8) raises that window and removes the box.
+- **Alt+Esc**: the top window goes to the bottom, so the next one gets the focus.
+- **Alt+Space**: the focused window's system menu.
+- **Alt+F4**: replies `WME_CLOSE` for the focused window.
+
+Other keys return CF set. Minimised windows are not in the z-order, so they are not stepped through.
+
+`winalttab` opens One, Two and Three (Three on top). Alt+Tab and letting go brings Two up; Alt+Tab twice shows the box (read on the visible page) and letting go brings One up; Alt+Esc sends One to the bottom and Two has the focus. It prints the titles from the top (`Two Three One`) and `alttab: PASS` or `alttab: FAIL`. Check `winalttab`.
 
 ## Widgets
 

@@ -364,6 +364,11 @@ check windrag       'windrag: PASS'         windrag '<ret>'                   # 
 check windrag-text  'systest: PASS'         windrag '<ret>' systest '<ret>'
 check winmin        'winmin: PASS'          winmin '<ret>'                    # 2.2-minmax
 check winmin-text   'systest: PASS'         winmin '<ret>' systest '<ret>'
+check winmenu       'winmenu: PASS'         winmenu '<ret>'                   # 2.2-sysmenu
+check winmenu-text  'systest: PASS'         winmenu '<ret>' systest '<ret>'
+check_all winalttab 'Two Three One|alttab: PASS' winalttab '<ret>'             # 2.2-alttab
+check_all sysmenu-desk 'gfx: Restore|gfx: Minimize|gfx: Close' desktop '<ret>' '<pause>' '<alt-spc>' '<pause>' '<gfx>'
+check_all sysmenu-desk-move 'gfx: Programs:|desktop' desktop '<ret>' '<pause>' '<alt-spc>' '<pause>' '<down>' '<ret>' '<right>' '<right>' '<ret>' '<pause>' '<gfx>' '<esc>' '<pause>'
 # 1.3.2: a string in graphics mode, ink and background read back
 check gfxtext      'gfxtext: PASS'         gfxtext '<ret>'
 check gfxtext-text 'systest: PASS'         gfxtext '<ret>' systest '<ret>'

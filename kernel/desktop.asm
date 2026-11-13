@@ -788,6 +788,12 @@ dk_refresh:
 ; (2.2-mouse): the desktop window can be moved, sized and maximised with
 ; it. CF set when its close box was clicked (the desktop then closes).
 dk_wm:
+    cmp byte [dk_quit], 0
+    je .live
+    mov byte [dk_quit], 0
+    stc
+    ret
+.live:
     pushad
     pushfd
     cli
@@ -904,10 +910,47 @@ dk_trykey:
     call kbd_dequeue
     sti
     jc .none
+    cmp al, 0xB8                ; Alt let go: Alt+Tab raises its choice
+    jne .notaltup
+    call wm_altup
+    call dk_wmdone
+.notaltup:
     call kbd_shift_track
     je dk_trykey
     cmp al, 0x80
     jae dk_trykey
+    cmp byte [kbd_alt], 0       ; Alt+Tab, Esc, Space, F4 (2.2-alttab)
+    je .noalt
+    push eax
+    call wm_altkey
+    jc .altno
+    add esp, 4
+    call dk_wmreply
+    jmp dk_trykey
+.altno:
+    pop eax
+.noalt:
+    mov ah, WK_LEFT             ; the side arrows, for keyboard move / size
+    cmp al, 0x4B
+    je .wmk
+    mov ah, WK_RIGHT
+    cmp al, 0x4D
+    je .wmk
+    cmp byte [wm_kmode], 0      ; a menu or keyboard move / size takes keys
+    jne .wmmap
+    cmp dword [wm_mn], 0
+    je .map
+.wmmap:
+    call .map                   ; -> al = key, CF set if none
+    jc dk_trykey
+    mov ah, al
+.wmk:
+    mov al, ah
+    call wm_menukey
+    jc dk_trykey                ; (a side arrow nobody wants)
+    call dk_wmreply
+    jmp dk_trykey
+.map:
     mov ah, 27
     cmp al, 0x01
     je .got
@@ -926,7 +969,9 @@ dk_trykey:
     call kbd_ascii
     mov ah, al
     test al, al
-    jz dk_trykey
+    jnz .got
+    stc                         ; unmapped
+    ret
 .got:
     mov al, ah
     clc
@@ -935,6 +980,24 @@ dk_trykey:
     call proc_idle
     stc
     ret
+
+; eax, ebx = a window manager reply (wm_altkey, wm_menukey): the desktop's
+; own close (Alt+F4, the system menu's Close) asks the loop to quit; then
+; repaints what changed.
+dk_wmreply:
+    cmp eax, WME_CLOSE
+    jne dk_wmdone
+    cmp ebx, [dk_win]
+    jne dk_wmdone
+    mov byte [dk_quit], 1
+dk_wmdone:
+    pushad
+    call wm_update
+    call dk_ptr
+    popad
+    ret
+
+dk_quit db 0
 
 ; Waits for a key -> al = what wg_key takes: ASCII, 8 for Backspace,
 ; 27 for Esc, WK_UP and WK_DOWN for the arrows.

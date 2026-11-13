@@ -333,6 +333,8 @@ wm_paint:
     call wm_draw
     jmp .w
 .done:
+    call wm_menudraw            ; a pop-up menu and the Alt+Tab box are on
+    call wm_tabdraw             ; top of everything (2.2-sysmenu, 2.2-alttab)
     popad
     ret
 
@@ -1481,6 +1483,11 @@ wm_mouse:
     mov byte [wm_mmode], 0      ; a release ends any drag
     jmp .none
 .press:
+    cmp dword [wm_mn], 0        ; a menu is open: it takes the press
+    je .nomenu
+    call wm_menuclick
+    jmp .out
+.nomenu:
     call wm_hit
     cmp eax, -1
     je .nolast
@@ -1559,7 +1566,9 @@ wm_mouse:
     mov dword [wm_lasticon], -1
     jmp .none
 .sys:
-    mov eax, WME_SYSMENU
+    mov eax, [wm_mwin]          ; the system menu, under its box
+    call wm_sysmenu
+    jmp .none
 .ret_win:
     mov ebx, [wm_mwin]
     jmp .out
@@ -2166,3 +2175,724 @@ wn_click:
 
 wn_pass db 'winmin: PASS', 10, 0
 wn_fail db 'winmin: FAIL', 10, 0
+
+; ---------- system menu and keyboard move / size (2.2-sysmenu) ----------
+; A pop-up menu is a column of items in a raised box drawn above every
+; window. One is open at a time: wm_popup opens it, the arrows, Enter and
+; Esc (wm_menukey) or a click (wm_mouse) choose or dismiss it. The system
+; menu is a pop-up whose choice the window manager carries out itself:
+; Restore, Move, Size, Minimise, Maximise, Close. Move and Size then take
+; the arrow keys, 8 pixels a press, until Enter or Esc (wm_kmode).
+
+WM_MENU_MAX equ 8
+WM_MENU_ROW equ GFX_CELL_H + 2
+WM_KSTEP    equ 8
+WME_MENU    equ 5               ; a pop-up item chosen: ebx = owner, ecx = item
+
+SM_RESTORE  equ 0
+SM_MOVE     equ 1
+SM_SIZE     equ 2
+SM_MIN      equ 3
+SM_MAX      equ 4
+SM_CLOSE    equ 5
+
+; eax, ebx = top left, esi = item addresses, edx = how many (at most
+; WM_MENU_MAX), ecx = owner window (its id comes back with the choice).
+; Replaces any open menu. Marks it for painting; the first item is chosen.
+wm_popup:
+    pushad
+    call wm_menuclose
+    mov [wm_mx], eax
+    mov [wm_my], ebx
+    mov [wm_mitems], esi
+    mov [wm_mn], edx
+    mov [wm_mown], ecx
+    mov dword [wm_msel], 0
+    mov dword [wm_msys], 0
+    xor ebp, ebp                ; widest item
+    xor ecx, ecx
+.w:
+    mov edi, [esi+ecx*4]
+    xor eax, eax
+.len:
+    cmp byte [edi+eax], 0
+    je .got
+    inc eax
+    jmp .len
+.got:
+    cmp eax, ebp
+    jbe .nx
+    mov ebp, eax
+.nx:
+    inc ecx
+    cmp ecx, edx
+    jb .w
+    imul ebp, ebp, GFX_CELL_W
+    add ebp, 2 * TH_BEVEL_W + 8
+    mov [wm_mw], ebp
+    imul edx, edx, WM_MENU_ROW
+    add edx, 2 * TH_BEVEL_W + 2
+    mov [wm_mh], edx
+    call wm_menumark
+    popad
+    ret
+
+wm_menumark:
+    pushad
+    mov eax, [wm_mx]
+    mov ebx, [wm_my]
+    mov ecx, [wm_mw]
+    mov edx, [wm_mh]
+    call wm_mark
+    popad
+    ret
+
+; Closes the open menu, if any.
+wm_menuclose:
+    cmp dword [wm_mn], 0
+    je .r
+    call wm_menumark
+    mov dword [wm_mn], 0
+.r:
+    ret
+
+wm_menudraw:
+    cmp dword [wm_mn], 0
+    je .r
+    pushad
+    mov eax, [wm_mx]
+    mov ebx, [wm_my]
+    mov ecx, [wm_mw]
+    mov edx, [wm_mh]
+    mov byte [gfx_colour], TH_FACE
+    call gfx_fillrect
+    xor esi, esi
+    call gfx_bevel
+    add eax, TH_BEVEL_W
+    add ebx, TH_BEVEL_W + 1
+    sub ecx, 2 * TH_BEVEL_W
+    xor ebp, ebp
+.row:
+    mov dl, TH_FACE
+    mov dh, TH_TEXT
+    cmp ebp, [wm_msel]
+    jne .paint
+    mov dl, TH_SELECT
+    mov dh, TH_SELECT_TEXT
+.paint:
+    mov [gfx_colour], dl
+    mov [gfx_bg], dl
+    push edx
+    mov edx, WM_MENU_ROW
+    call gfx_fillrect
+    pop edx
+    mov [gfx_colour], dh
+    push eax
+    push ebx
+    push ecx
+    add eax, 4
+    inc ebx
+    sub ecx, 8
+    mov esi, [wm_mitems]
+    mov esi, [esi+ebp*4]
+    call wm_drawtitle
+    pop ecx
+    pop ebx
+    pop eax
+    add ebx, WM_MENU_ROW
+    inc ebp
+    cmp ebp, [wm_mn]
+    jb .row
+    popad
+.r:
+    ret
+
+; A press while a menu is open (wm_px, wm_py): on an item, choose it;
+; anywhere else, close the menu. -> eax, ebx, ecx as wm_mouse.
+wm_menuclick:
+    mov eax, [wm_px]
+    sub eax, [wm_mx]
+    cmp eax, [wm_mw]
+    jae .out
+    mov eax, [wm_py]
+    sub eax, [wm_my]
+    sub eax, TH_BEVEL_W + 1
+    js .out
+    xor edx, edx
+    mov ecx, WM_MENU_ROW
+    div ecx
+    cmp eax, [wm_mn]
+    jae .out
+    mov [wm_msel], eax
+    jmp wm_menuchoose
+.out:
+    call wm_menuclose
+    xor eax, eax
+    ret
+
+; Keys for an open menu or for keyboard move / size. al = key as wg_key
+; takes it (WK_UP, WK_DOWN, WK_LEFT, WK_RIGHT, 10 / 13 Enter, 27 Esc).
+; -> CF set if neither is active (the key is not taken); otherwise CF clear
+; and eax, ebx, ecx as wm_mouse.
+wm_menukey:
+    cmp byte [wm_kmode], 0
+    jne wm_kkey
+    cmp dword [wm_mn], 0
+    jne .menu
+    stc
+    ret
+.menu:
+    call wm_menumark
+    cmp al, WK_DOWN
+    je .down
+    cmp al, WK_UP
+    je .up
+    cmp al, 27
+    je .esc
+    cmp al, 10
+    je .enter
+    cmp al, 13
+    je .enter
+    jmp .none
+.down:
+    mov eax, [wm_msel]
+    inc eax
+    cmp eax, [wm_mn]
+    jb .set
+    xor eax, eax                ; past the last: the first
+    jmp .set
+.up:
+    mov eax, [wm_msel]
+    dec eax
+    jns .set
+    mov eax, [wm_mn]
+    dec eax
+.set:
+    mov [wm_msel], eax
+.none:
+    xor eax, eax
+    clc
+    ret
+.esc:
+    call wm_menuclose
+    jmp .none
+.enter:
+    call wm_menuchoose
+    clc
+    ret
+
+; The open menu's item wm_msel is chosen. The system menu acts here;
+; another menu reports WME_MENU (ebx = owner, ecx = item).
+wm_menuchoose:
+    mov ecx, [wm_msel]
+    mov ebx, [wm_mown]
+    cmp dword [wm_msys], 0
+    jne .sys
+    call wm_menuclose
+    mov eax, WME_MENU
+    ret
+.sys:
+    call wm_menuclose
+    push edi
+    mov eax, ebx
+    mov [wm_mwin], eax
+    call wm_record
+    jc .no
+    cmp ecx, SM_RESTORE
+    je .restore
+    cmp ecx, SM_MOVE
+    je .move
+    cmp ecx, SM_SIZE
+    je .size
+    cmp ecx, SM_MIN
+    je .min
+    cmp ecx, SM_MAX
+    je .max
+    pop edi                     ; SM_CLOSE: the owner decides
+    mov eax, WME_CLOSE
+    ret
+.restore:
+    cmp dword [edi+WIN_STATE], WS_MAX
+    jne .no
+    call wm_togglemax
+    jmp .no
+.max:
+    cmp dword [edi+WIN_STATE], WS_MAX
+    je .no
+    call wm_togglemax
+    jmp .no
+.min:
+    call wm_minimise
+    jmp .no
+.move:
+    mov byte [wm_kmode], 1
+    jmp .no
+.size:
+    mov byte [wm_kmode], 2
+.no:
+    pop edi
+    xor eax, eax
+    ret
+
+; Keyboard move (wm_kmode 1) or size (2) of [wm_mwin]: an arrow moves the
+; window, or its right / bottom edge, WM_KSTEP pixels; Enter or Esc ends.
+wm_kkey:
+    pushad
+    cmp al, 10
+    je .end
+    cmp al, 13
+    je .end
+    cmp al, 27
+    je .end
+    xor ebp, ebp                ; dx
+    xor esi, esi                ; dy
+    cmp al, WK_LEFT
+    jne .k1
+    mov ebp, -WM_KSTEP
+.k1:
+    cmp al, WK_RIGHT
+    jne .k2
+    mov ebp, WM_KSTEP
+.k2:
+    cmp al, WK_UP
+    jne .k3
+    mov esi, -WM_KSTEP
+.k3:
+    cmp al, WK_DOWN
+    jne .k4
+    mov esi, WM_KSTEP
+.k4:
+    mov eax, [wm_mwin]
+    call wm_record
+    jc .end
+    mov ebx, [edi+WIN_X]
+    mov ecx, [edi+WIN_Y]
+    mov edx, [edi+WIN_W]
+    mov edi, [edi+WIN_H]
+    cmp byte [wm_kmode], 1
+    jne .sz
+    add ebx, ebp
+    add ecx, esi
+    jmp .place
+.sz:
+    add edx, ebp
+    add edi, esi
+.place:
+    mov esi, edi
+    call wm_place               ; refused (too small, off the screen): stays
+    jmp .r
+.end:
+    mov byte [wm_kmode], 0
+.r:
+    popad
+    xor eax, eax
+    clc
+    ret
+
+; eax = window id: open its system menu under its system-menu box.
+wm_sysmenu:
+    pushad
+    call wm_record
+    jc .r
+    mov ecx, eax
+    mov eax, [edi+WIN_X]
+    mov ebx, [edi+WIN_Y]
+    add ebx, WM_TITLE_H + 1
+    mov esi, wm_smitems
+    mov edx, 6
+    call wm_popup
+    mov dword [wm_msys], 1
+.r:
+    popad
+    ret
+
+; ---------- Alt+Tab, Alt+Esc, Alt+Space, Alt+F4 (2.2-alttab) ----------
+; al = scancode of a key pressed with Alt down -> CF set if it is not one
+; of these; else CF clear and eax, ebx, ecx as wm_mouse. Alt+Tab steps a
+; switcher through the windows, most recently used first (the z-order from
+; the top), showing the chosen title in a box in the middle of the screen;
+; letting go of Alt (wm_altup) raises that window. Alt+Esc sends the top
+; window to the bottom. Alt+Space opens the focused window's system menu,
+; Alt+F4 reports WME_CLOSE for it.
+wm_altkey:
+    cmp al, 0x0F
+    je .tab
+    cmp al, 0x01
+    je .esc
+    cmp al, 0x39
+    je .space
+    cmp al, 0x3E
+    je .f4
+    stc
+    ret
+.tab:
+    mov eax, [wm_zn]
+    cmp eax, 2
+    jb .none
+    inc dword [wm_tabn]
+    mov eax, [wm_tabn]
+    cmp eax, [wm_zn]
+    jb .tabok
+    mov dword [wm_tabn], 1      ; wrapped past the bottom: the second again
+.tabok:
+    call wm_tabmark
+    jmp .none
+.esc:
+    cmp dword [wm_zn], 2
+    jb .none
+    call wm_focus
+    push eax
+    call wm_zremove
+    mov ecx, [wm_zn]            ; shift up, put it at the bottom
+.sh:
+    test ecx, ecx
+    jz .put
+    mov dl, [wm_z+ecx-1]
+    mov [wm_z+ecx], dl
+    dec ecx
+    jmp .sh
+.put:
+    pop eax
+    mov [wm_z], al
+    inc dword [wm_zn]
+    mov byte [wm_dfull], 1
+    jmp .none
+.space:
+    call wm_focus
+    cmp eax, -1
+    je .none
+    call wm_sysmenu
+    jmp .none
+.f4:
+    call wm_focus
+    cmp eax, -1
+    je .none
+    mov ebx, eax
+    mov eax, WME_CLOSE
+    clc
+    ret
+.none:
+    xor eax, eax
+    clc
+    ret
+
+; Alt was let go: if Alt+Tab was stepping, raise the chosen window.
+wm_altup:
+    cmp dword [wm_tabn], 0
+    je .r
+    pushad
+    call wm_tabmark
+    call wm_tabwin
+    mov dword [wm_tabn], 0
+    call wm_raise
+    popad
+.r:
+    ret
+
+; -> eax = the window Alt+Tab has chosen (wm_tabn down from the top)
+wm_tabwin:
+    mov eax, [wm_zn]
+    dec eax
+    sub eax, [wm_tabn]
+    movzx eax, byte [wm_z+eax]
+    ret
+
+WM_TAB_W equ 200
+WM_TAB_H equ 3 * GFX_CELL_H
+
+wm_tabrect:
+    mov eax, [gfx_width]
+    sub eax, WM_TAB_W
+    shr eax, 1
+    mov ebx, [gfx_height]
+    sub ebx, WM_TAB_H
+    shr ebx, 1
+    mov ecx, WM_TAB_W
+    mov edx, WM_TAB_H
+    ret
+
+wm_tabmark:
+    pushad
+    call wm_tabrect
+    call wm_mark
+    popad
+    ret
+
+wm_tabdraw:
+    cmp dword [wm_tabn], 0
+    je .r
+    pushad
+    call wm_tabrect
+    mov byte [gfx_colour], TH_FACE
+    call gfx_fillrect
+    xor esi, esi
+    call gfx_bevel
+    push eax
+    push ebx
+    call wm_tabwin
+    imul edi, eax, WIN_SIZE
+    add edi, wm_table
+    pop ebx
+    pop eax
+    add eax, 8
+    add ebx, GFX_CELL_H
+    sub ecx, 16
+    mov byte [gfx_colour], TH_TEXT
+    mov byte [gfx_bg], TH_FACE
+    mov esi, [edi+WIN_TITLE]
+    call wm_drawtitle
+    popad
+.r:
+    ret
+
+wm_smitems dd wm_sm0, wm_sm1, wm_sm2, wm_sm3, wm_sm4, wm_sm5
+wm_sm0 db 'Restore', 0
+wm_sm1 db 'Move', 0
+wm_sm2 db 'Size', 0
+wm_sm3 db 'Minimize', 0
+wm_sm4 db 'Maximize', 0
+wm_sm5 db 'Close', 0
+
+align 4
+wm_mx dd 0
+wm_my dd 0
+wm_mw dd 0
+wm_mh dd 0
+wm_mn dd 0                      ; items in the open menu, 0 = none
+wm_mitems dd 0
+wm_msel dd 0
+wm_mown dd 0
+wm_msys dd 0                    ; 1: the open menu is a system menu
+wm_tabn dd 0                    ; Alt+Tab steps so far, 0 = not switching
+wm_kmode db 0                   ; 1 keyboard move, 2 keyboard size
+
+; winmenu: One and Two on the window manager's screen. Alt+Space (through
+; wm_altkey) opens Two's system menu; Down three times and Enter choose
+; Minimize. A click on One's system-menu box opens its menu and a click on
+; Maximize maximises it; Alt+Space, Enter (Restore) restores it. Move and
+; Size from the menu then take arrows: right, right, down moves One by
+; (16, 8); right, right in Size widens it by 16; Esc on an open menu and a
+; click outside one close it without acting; Close reports WME_CLOSE.
+; Prints `winmenu: PASS` or `winmenu: FAIL`.
+cmd_winmenu_run:
+    call wm_screen
+    jc .out
+    mov byte [gfxt_ok], 1
+    mov eax, 100
+    mov ebx, 100
+    mov ecx, 200
+    mov edx, 150
+    mov esi, wc_one
+    call wm_create
+    mov [wc_a], eax
+    mov eax, 200
+    mov ebx, 180
+    mov esi, wc_two
+    call wm_create
+    mov [wc_b], eax
+    call wm_redraw
+    mov al, 0x39                ; Alt+Space: Two's menu
+    call wm_altkey
+    cmp dword [wm_mn], 6
+    jne .fail
+    mov esi, wmn_keys1          ; Down x3, Enter: Minimize
+    call wmn_keys
+    call wm_update
+    mov eax, [wc_b]
+    call wm_record
+    cmp dword [edi+WIN_ICONIC], 1
+    jne .fail
+    mov eax, 105                ; One's system-menu box
+    mov ebx, 105
+    call wn_click
+    cmp dword [wm_mn], 6
+    jne .fail
+    mov eax, 110                ; Maximize: row 4 of the menu below the box
+    mov ebx, 100 + WM_TITLE_H + 1 + TH_BEVEL_W + 1 + 4 * WM_MENU_ROW + 3
+    call wn_click
+    call wm_update
+    mov eax, [wc_a]
+    call wm_record
+    cmp dword [edi+WIN_STATE], WS_MAX
+    jne .fail
+    mov al, 0x39                ; Alt+Space, Enter: Restore
+    call wm_altkey
+    mov al, 10
+    call wm_menukey
+    cmp dword [edi+WIN_STATE], WS_NORMAL
+    jne .fail
+    mov esi, wmn_keys2          ; Move: right, right, down, Enter
+    call wmn_keys
+    cmp dword [edi+WIN_X], 116
+    jne .fail
+    cmp dword [edi+WIN_Y], 108
+    jne .fail
+    mov esi, wmn_keys3          ; Size: right, right, Enter
+    call wmn_keys
+    cmp dword [edi+WIN_W], 216
+    jne .fail
+    cmp byte [wm_kmode], 0
+    jne .fail
+    mov al, 0x39                ; Esc closes the menu
+    call wm_altkey
+    mov al, 27
+    call wm_menukey
+    cmp dword [wm_mn], 0
+    jne .fail
+    mov al, 0x39                ; a click outside closes it
+    call wm_altkey
+    mov eax, 600
+    mov ebx, 20
+    call wn_click
+    cmp dword [wm_mn], 0
+    jne .fail
+    cmp dword [edi+WIN_W], 216  ; and nothing else changed
+    jne .fail
+    mov al, 0x39                ; Close: reported, not done
+    call wm_altkey
+    mov al, WK_UP               ; up from the first: the last (Close)
+    call wm_menukey
+    mov al, 10
+    call wm_menukey
+    cmp eax, WME_CLOSE
+    jne .fail
+    cmp ebx, [wc_a]
+    jne .fail
+    call wm_update
+    jmp .end
+.fail:
+    mov byte [gfxt_ok], 0
+.end:
+    call wm_menuclose
+    mov eax, [wc_a]
+    call wm_close
+    mov eax, [wc_b]
+    call wm_close
+    call gfx_text
+.out:
+    mov esi, wmn_pass
+    cmp byte [gfxt_ok], 1
+    je .say
+    mov esi, wmn_fail
+.say:
+    jmp puts
+
+; esi = keys for wm_menukey, 0 ends; 0xFF = Alt+Space first
+wmn_keys:
+    pushad
+.k:
+    lodsb
+    test al, al
+    jz .r
+    cmp al, 0xFF
+    jne .key
+    mov al, 0x39
+    call wm_altkey
+    jmp .k
+.key:
+    call wm_menukey
+    jmp .k
+.r:
+    popad
+    ret
+
+wmn_keys1 db WK_DOWN, WK_DOWN, WK_DOWN, 10, 0
+wmn_keys2 db 0xFF, WK_DOWN, 10, WK_RIGHT, WK_RIGHT, WK_DOWN, 10, 0
+wmn_keys3 db 0xFF, WK_DOWN, WK_DOWN, 10, WK_RIGHT, WK_RIGHT, 13, 0
+wmn_pass db 'winmenu: PASS', 10, 0
+wmn_fail db 'winmenu: FAIL', 10, 0
+
+; winalttab: One, Two, Three (Three on top). Alt+Tab once and Alt let go:
+; Two comes up. Alt+Tab twice: the third from the top (One) comes up, and
+; the box shows while Alt is down. Alt+Esc sends the top to the bottom.
+; Prints the z-order from the top and `alttab: PASS` or `alttab: FAIL`.
+cmd_winalttab_run:
+    call wm_screen
+    jc .out
+    mov byte [gfxt_ok], 1
+    mov ebp, 0
+.mk:
+    imul eax, ebp, 40
+    add eax, 60
+    mov ebx, eax
+    mov ecx, 200
+    mov edx, 120
+    mov esi, [wat_names+ebp*4]
+    call wm_create
+    mov [wat_ids+ebp*4], eax
+    inc ebp
+    cmp ebp, 3
+    jb .mk
+    call wm_redraw
+    mov al, 0x0F                ; Alt+Tab, let go
+    call wm_altkey
+    call wm_altup
+    call wm_focus
+    cmp eax, [wat_ids+4]        ; Two
+    jne .fail
+    mov al, 0x0F                ; Alt+Tab, Tab
+    call wm_altkey
+    mov al, 0x0F
+    call wm_altkey
+    call wm_update
+    call wm_tabrect             ; the box is up, on the visible page
+    call vbe_front_getpixel
+    cmp cl, TH_LIGHT
+    jne .fail
+    call wm_altup
+    call wm_update
+    call wm_focus
+    cmp eax, [wat_ids]          ; One
+    jne .fail
+    mov al, 0x01                ; Alt+Esc: One to the bottom
+    call wm_altkey
+    call wm_focus
+    cmp eax, [wat_ids+4]        ; Two is on top again
+    jne .fail
+    movzx eax, byte [wm_z]
+    cmp eax, [wat_ids]
+    je .end
+.fail:
+    mov byte [gfxt_ok], 0
+.end:
+    xor ebp, ebp                ; the order: pushed bottom first, so it
+.pr:                            ; prints from the top
+    cmp ebp, [wm_zn]
+    jae .closeall
+    movzx eax, byte [wm_z+ebp]
+    imul edi, eax, WIN_SIZE
+    mov esi, [wm_table+edi+WIN_TITLE]
+    push esi
+    inc ebp
+    jmp .pr
+.closeall:
+    mov ebp, 2
+.cl:
+    mov eax, [wat_ids+ebp*4]
+    call wm_close
+    dec ebp
+    jns .cl
+    call gfx_text
+    mov ecx, 3
+.say3:
+    pop esi
+    call puts
+    mov al, ' '
+    call putc
+    loop .say3
+    mov al, 10
+    call putc
+.out:
+    mov esi, wat_pass
+    cmp byte [gfxt_ok], 1
+    je .say
+    mov esi, wat_fail
+.say:
+    jmp puts
+
+wat_names dd wc_one, wc_two, wat_three
+align 4
+wat_ids dd 0, 0, 0
+wat_three db 'Three', 0
+wat_pass db 'alttab: PASS', 10, 0
+wat_fail db 'alttab: FAIL', 10, 0

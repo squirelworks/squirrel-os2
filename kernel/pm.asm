@@ -454,6 +454,12 @@ run_simple:
     mov edi, cmd_winmin         ; 2.2-minmax
     call streq
     je .winmin
+    mov edi, cmd_winmenu        ; 2.2-sysmenu
+    call streq
+    je .winmenu
+    mov edi, cmd_winalttab      ; 2.2-alttab
+    call streq
+    je .winalttab
     mov edi, cmd_desktop
     call streq
     je .desktop
@@ -711,6 +717,12 @@ run_simple:
     jmp .empty
 .winmin:
     call cmd_winmin_run
+    jmp .empty
+.winmenu:
+    call cmd_winmenu_run
+    jmp .empty
+.winalttab:
+    call cmd_winalttab_run
     jmp .empty
 .vbetest:
     call cmd_vbetest_run
@@ -1005,6 +1017,10 @@ kbd_dequeue:
 ; Tracks Shift and Ctrl. Returns ZF set if al was a modifier make/break code
 ; (the caller should then ignore it).
 kbd_shift_track:
+    cmp al, 0x38                ; Alt (2.2-sysmenu; right Alt is E0 38)
+    je .adown
+    cmp al, 0xB8
+    je .aup
     cmp al, 0x1D
     je .cdown
     cmp al, 0x9D
@@ -1031,6 +1047,12 @@ kbd_shift_track:
     ret                       ; ZF set by the compare
 .cup:
     mov byte [kbd_ctrl], 0
+    ret
+.adown:
+    mov byte [kbd_alt], 1
+    ret                       ; ZF set by the compare
+.aup:
+    mov byte [kbd_alt], 0
     ret
 
 ; al = make code -> al = ASCII (0 if unmapped), honouring Shift.
@@ -1214,6 +1236,8 @@ cmd_winclip db 'winclip', 0
 cmd_winhit db 'winhit', 0
 cmd_windrag db 'windrag', 0
 cmd_winmin db 'winmin', 0
+cmd_winmenu db 'winmenu', 0
+cmd_winalttab db 'winalttab', 0
 cmd_wintest db 'wintest', 0
 cmd_winmove db 'winmove', 0
 cmd_winfocus db 'winfocus', 0
@@ -1327,6 +1351,7 @@ num_buf times 16 db 0
 
 kbd_shift db 0
 kbd_ctrl db 0
+kbd_alt db 0                    ; 1 while Alt is down (2.2-sysmenu)
 
 ; Set-1 make codes 0x00..0x7F. Keypad * - + are mapped; other keypad
 ; keys stay 0 so arrows (0x48/0x4B/0x4D/0x50) remain free for apps.
