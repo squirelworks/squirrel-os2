@@ -286,7 +286,7 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 ## 1.7.4
 
-- Installer step I.3 (`guides/install.md`): `install copy` writes the kernel to sectors 1 to 192 of the target and copies the data disk's root files into its SQFS partition, after a y/n question; files over 64 KB and subdirectories are skipped. The boot disk must be an IDE disk (`install-copy`, `install-copied`).
+- Installer step I.3 (`guides/install.md`): `install copy` writes the kernel (low and high images, sectors 1 to 192 + `KHIGH_SECTS`) to the target and copies the data disk's root files into its SQFS partition, after a y/n question; files over 64 KB and subdirectories are skipped. The boot disk must be an IDE disk (`install-copy`, `install-copied`).
 
 ## 1.7.5
 
