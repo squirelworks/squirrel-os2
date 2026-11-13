@@ -107,3 +107,4 @@ Until the 2.2 window manager gives programs real windows, each program owns the 
 The spreadsheet Sheet (C.4), with charts linked to its cells, is described in `sheet.md`.
 Geometry (C.6), constructions that follow their points, is described in `geometry.md`.
 The CAS (C.5), exact algebra and calculus in a console, is described in `cas.md`.
+The System Monitor, Log Viewer and Disk Utility (A.5) are described in `sysmon.md`, `logview.md` and `diskutil.md`; they read the system through `GUI_SYSINFO` (`../kernel/syscalls.md`).

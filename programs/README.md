@@ -37,6 +37,10 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `sheet.asm` | SQX | Sheet, a spreadsheet: 26 x 99 cells, formulas with references and sum/avg/min/max/count, copy and fill, line/bar/scatter charts linked to the cells, CSV (`run sheet f.csv`, `run sheet test`, C.4) |
 | `geometry.asm` | SQX | Geometry: free points, midpoints, segments, lines, perpendiculars, parallels, bisectors, circles, intersections, distance/angle/area, all following a dragged point; saved as commands (`run geometry f`, `run geometry test`, C.6) |
 | `cas.asm` | SQX | CAS: exact fractions and roots, simplify, expand, factor, solve, diff, integrate, definite integrals, limits and Taylor series in a console (`run cas`, `run cas test`, C.5) |
+| `sysmon.asm` | SQX | System Monitor: CPU use and its graph, memory, processes with their CPU share, CPU time, memory and priority (+/- changes it), from `GUI_SYSINFO` (`run sysmon`, `run sysmon test`, A.5) |
+| `logview.asm` | SQX | Log Viewer: the kernel log or a text file, scrolling, a filter with the word marked, following the end (`run logview [file]`, `run logview test`, A.5) |
+| `diskutil.asm` | SQX | Disk Utility: the disks, how full hd1 is, a sector map, the largest files, a file system check and a surface scan, read-only (`run diskutil`, `run diskutil test`, A.5) |
+| `sysinfo.inc` | include | `GUI_SYSINFO` parts and layouts, as `kernel/sysinfo.asm` (A.5) |
 | `lxhello.asm` | ELF32 (Linux) | Linux i386 program: `write` to fd 1 and 2, argc/argv from the Linux stack, `-ENOSYS`, `exit` (`run lxhello`, P.1) |
 | `lxfile.asm` | ELF32 (Linux) | Linux `open`/`write`/`close`/`lseek`/`read`, `brk`, `mmap2`, `-errno` results (`run lxfile`, P.2) |
 | `lxcat.asm` | ELF32 (Linux) | Copies Linux stdin to stdout with `read(0)` (`echo hi \| run lxcat`, P.2) |

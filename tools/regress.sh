@@ -45,10 +45,11 @@ for prog in guitest calculator clock notepad grapher charmap paint viewer topolo
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
     python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/$prog"
 done
-for prog in sheet geometry cas; do          # C.4, C.6, C.5
+for prog in sheet geometry cas sysmon logview diskutil; do  # C.4, C.6, C.5, A.5
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
     python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/$prog"
 done
+python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/crash"   # A.5: logview shows its crash
 python3 - "$out/grad.bmp" <<'PYEOF'    # A.2: a 24-bit test picture, 64 x 48
 import struct, sys
 w, h = 64, 48
@@ -848,6 +849,20 @@ check_all cas-algebra 'gfx: (x + 3)*(x - 3)|gfx: x^2 - 9|gfx: x = -sqrt(2), x = 
 check_all cas-calculus 'gfx: x^2*cos(x) + 2*x*sin(x)|gfx: sin(3*x)/3 + C|gfx: 1 - x^2/2 + x^4/24' 'run cas' '<ret>' '<pause>' 'diff(x^2*sin(x))' '<ret>' 'integrate(cos(3*x))' '<ret>' 'series(cos(x), 0, 4)' '<ret>' '<pause>' '<gfx>'
 check_all cas-err   'gfx: Error: syntax|gfx: Error: no answer yet for ans' 'run cas' '<ret>' '<pause>' 'ans' '<ret>' 'x +* 2' '<ret>' '<pause>' '<gfx>'
 check cas-quit      'systest: PASS'         'run cas' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
+# A.5: system monitor, log viewer, disk utility (and the kernel's GUI_SYSINFO)
+check sysmon        'sysmon: PASS'          'run sysmon test' '<ret>' '<pause>' '<pause>' '<pause>'
+check_all sysmon-view 'gfx: System Monitor|gfx: PID STATE|gfx: Memory|sysmon' 'run sysmon' '<ret>' '<pause>' '<pause>' '<gfx>'
+check sysmon-prio   'kernel prio 2'         'run sysmon' '<ret>' '<pause>' '<up>' '+' '<pause>' '<esc>' '<pause>' ps '<ret>'
+check sysmon-quit   'systest: PASS'         'run sysmon' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
+check logview       'logview: PASS'         'run logview test' '<ret>' '<pause>' '<pause>'
+check_all logview-crash 'Squirrel-OS/2 started|crashed crash (pid 1): page fault|ended crash (pid 1), exit code -1|gfx: Lines 1-5 of 5' 'run crash' '<ret>' '<pause>' 'run logview' '<ret>' '<pause>' '<gfx>'
+check_all logview-filter 'gfx: Lines 1-3 of 5|gfx: filter: crash' 'run crash' '<ret>' '<pause>' 'run logview' '<ret>' '<pause>' '/' 'crash' '<ret>' '<pause>' '<gfx>'
+check_all logview-file 'gfx: lv.txt|gfx: acorns and oak' 'put lv.txt acorns and oak' '<ret>' 'run logview lv.txt' '<ret>' '<pause>' '<gfx>'
+check logview-quit  'systest: PASS'         'run logview' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
+check diskutil      'diskutil: PASS'        'run diskutil test' '<ret>' '<pause>' '<pause>'
+check_all diskutil-check 'gfx: hd1 (data disk): SQFS, 2048 sectors, 1024 KB|gfx: Check: no problems found' 'run diskutil' '<ret>' '<pause>' 'c' '<pause>' '<gfx>'
+check diskutil-scan 'gfx: Surface scan: 2048 sectors read, 0 failed' 'run diskutil' '<ret>' '<pause>' 's' '<pause>' '<pause>' '<gfx>'
+check diskutil-quit 'systest: PASS'         'run diskutil' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
 # P.8: DOS .COM and .EXE programs run in the dosrun 8086 interpreter
 disk=$out/dos.img
 check_all dos-hello 'Hello from DOS land!|#! tail: acorns|doshello: PASS'  'run dosrun doshello.com acorns' '<ret>'
