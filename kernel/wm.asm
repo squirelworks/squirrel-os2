@@ -27,7 +27,8 @@ WIN_ICONIC      equ 80          ; 1 while minimised to an icon (2.2-minmax)
 WIN_OWNER       equ 84          ; pid whose program opened it, -1 = kernel
 WIN_TBUF        equ 88          ; a program window's title, copied (2.2-progwin)
 WM_TBUF         equ 32
-WIN_SIZE        equ WIN_TBUF + WM_TBUF
+WIN_PAINT       equ WIN_TBUF + WM_TBUF  ; 0, or code that paints the client (2.3-groups)
+WIN_SIZE        equ WIN_PAINT + 4
 WS_NORMAL       equ 0
 WS_MAX          equ 1
 WS_MIN          equ 2
@@ -109,6 +110,7 @@ wm_create:
     mov dword [edi+WIN_STATE], WS_NORMAL
     mov dword [edi+WIN_ICONIC], 0
     mov dword [edi+WIN_OWNER], -1
+    mov dword [edi+WIN_PAINT], 0
     call wm_markwin             ; its place needs painting (2.2-clip-z)
     call wm_marktop             ; the old top loses the focus colour
     mov eax, ebp
@@ -384,6 +386,10 @@ wm_draw:
     mov byte [gfx_colour], WM_CLIENT
     call gfx_fillrect
     call wg_drawall             ; the window's widgets (widget.asm)
+    cmp dword [edi+WIN_PAINT], 0    ; its own painting (2.3-groups): edi =
+    je .nopaint                     ; the record, eax..edx = the client area;
+    call [edi+WIN_PAINT]            ; keeps every register
+.nopaint:
     add eax, 2                  ; the typed text, 2 pixels in
     add ebx, 2
     sub ecx, 4

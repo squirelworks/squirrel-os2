@@ -3,8 +3,8 @@
 # tools/mkicon.py turns it into an icon (kernel/icons.inc, or a file).
 colour K 0x00   # black
 colour L 0x07   # light grey
-colour D 0x08   # dark grey
-colour W 0x0F   # white
+colour D 0x38   # dark grey
+colour W 0x3F   # white
 ................................
 ................................
 ......KKKKKKKKKKKKKK............

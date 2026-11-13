@@ -5,9 +5,9 @@ colour K 0x00   # black
 colour B 0x01   # blue
 colour G 0x02   # green
 colour R 0x04   # red
-colour N 0x06   # brown
-colour Y 0x0E   # yellow
-colour W 0x0F   # white
+colour N 0x14   # brown
+colour Y 0x3E   # yellow
+colour W 0x3F   # white
 ................................
 ................................
 ................................

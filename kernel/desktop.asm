@@ -947,7 +947,7 @@ dk_trykey:
 .wmk:
     mov al, ah
     call wm_menukey
-    jc dk_trykey                ; (a side arrow nobody wants)
+    jc .side                    ; a side arrow nobody wants: the caller's
     call dk_wmreply
     jmp dk_trykey
 .map:
@@ -979,6 +979,10 @@ dk_trykey:
 .none:
     call proc_idle
     stc
+    ret
+.side:                          ; (the desktop ignores it; progman moves)
+    mov al, ah
+    clc
     ret
 
 ; eax, ebx = a window manager reply (wm_altkey, wm_menukey): the desktop's

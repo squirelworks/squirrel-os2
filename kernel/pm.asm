@@ -466,6 +466,12 @@ run_simple:
     mov edi, cmd_icontest       ; 2.3-icons
     call streq
     je .icontest
+    mov edi, cmd_progman        ; 2.3-groups
+    call streq
+    je .progman
+    mov edi, cmd_pmtest
+    call streq
+    je .pmtest
     mov edi, cmd_winalttab      ; 2.2-alttab
     call streq
     je .winalttab
@@ -735,6 +741,12 @@ run_simple:
     jmp .empty
 .icontest:
     call cmd_icontest_run
+    jmp .empty
+.progman:
+    call cmd_progman_run
+    jmp .empty
+.pmtest:
+    call cmd_pmtest_run
     jmp .empty
 .winalttab:
     call cmd_winalttab_run
@@ -1254,6 +1266,8 @@ cmd_windrag db 'windrag', 0
 cmd_winmin db 'winmin', 0
 cmd_winmenu db 'winmenu', 0
 cmd_winalttab db 'winalttab', 0
+cmd_progman db 'progman', 0
+cmd_pmtest db 'pmtest', 0
 cmd_pfont db 'pfont', 0
 cmd_icontest db 'icontest', 0
 cmd_wintest db 'wintest', 0
@@ -1470,6 +1484,7 @@ khigh_start:
 %include "winsys.asm"
 %include "widget.asm"
 %include "desktop.asm"
+%include "progman.asm"
 %include "object.asm"
 %include "net.asm"
 %include "ne2k.asm"
