@@ -171,14 +171,51 @@ the program with exit code 3 when called. A program that imports more than it ca
 | `ExitProcess` | `SYS_EXIT`; returning from the entry point does the same with `eax` |
 | `GetCommandLineA` | the file name and the argument text |
 | `GetLastError`, `SetLastError` | one value per program |
-| `GetModuleHandleA(NULL)` | the image base |
+| `GetModuleHandleA(NULL)`, `GetModuleHandleW(NULL)` | the image base |
 | `GetProcessHeap`, `HeapAlloc`, `HeapFree` | zeroed heap memory, 8-byte aligned; free is a no-op |
 | `VirtualAlloc`, `VirtualFree` | page-aligned zeroed heap pages; free is a no-op |
 
-Not yet: the TEB (`fs:`) and SEH, so CRT start-up code from MSVC or MinGW that uses `fs:` for
-exception frames or TLS does not work; `msvcrt`, threads, DLL loading, GUI subsystems
-(P.6), PE32+ (P.7). Test programs are written by hand (`programs/winhello.asm`), like
-`elfhello`, so the regression run needs no cross compiler.
+Start-up code from compilers also needs the rest of what `programs/winshim.inc` adds:
+critical sections (no-ops, one thread), `TlsAlloc`/`TlsGetValue`/`TlsSetValue` (64 slots in the
+TEB), `VirtualProtect`/`VirtualQuery`, `MultiByteToWideChar`/`WideCharToMultiByte` (Latin-1),
+`LoadLibrary*`/`GetProcAddress` (always fail: no DLLs), `GetStartupInfoA`, `Sleep` (a yield),
+console-mode and code-page queries, `DeleteFileA`, `ExitThread`.
+
+**msvcrt.** Imports from `msvcrt.dll` bind to a small C runtime in the same file (cdecl):
+`__getmainargs` (argv split from the command line at spaces, an empty environment), `_initterm`,
+`_onexit`/`atexit` and `exit` (runs them, last first), `_exit`, `abort`, `_errno`, the
+`__p__fmode`/`__p__commode`/`__set_app_type` family; `malloc`/`calloc`/`realloc` (heap with a
+size header; `free` keeps the memory), `str*`/`mem*`/`atoi`; stdio on `FILE` (`_iob[0..2]`
+are the console, `fopen` `r`/`w`/`a` makes file streams): `fwrite`, `fread`, `fputc`, `fputs`,
+`puts`, `putchar`, `fgetc`, `getchar`, `fgets`, `fopen`, `fclose`, `fflush`; and `printf`,
+`fprintf`, `vprintf`, `vfprintf`, `sprintf`, `vsprintf` with `%d %i %u %x %X %p %s %c %%`, the
+`-` and `0` flags, width, `*`, string precision and the `l`/`h`/`ll`/`I64` sizes (64-bit values
+print their low word). The data imports `_iob`, `__initenv`, `__mb_cur_max`, `_fmode`,
+`_commode` bind to variables.
+
+**TEB and PEB.** Before the entry point, `winrun` builds a TEB (exception list −1, stack base
+and limit, `Self` at `+0x18`, ids, the PEB at `+0x30`, TLS slots at `+0xE10`) and a PEB (image
+base at `+8`) and asks the kernel for a segment based there with `SYS_SETTLS` (35). FS then
+reaches the TEB as on Windows. The kernel keeps one TLS base per process slot and reloads FS
+and GS on every switch (`kernel/personalities/common/tls.asm`, GDT selector `0x3B`); for every
+other process the base is 0, a plain flat segment.
+
+With that, ordinary MinGW-w64 console programs run unchanged, both with MinGW's own printf and
+with msvcrt's (`-D__USE_MINGW_ANSI_STDIO=0`), including `atexit` and `__thread` variables
+(MinGW's emulated TLS). Checked by hand with a stripped `i686-w64-mingw32-gcc -O2 -s` build of a
+program using printf formats, malloc/realloc, fopen/fprintf/fgets, TlsAlloc and `__thread`:
+
+```bash
+i686-w64-mingw32-gcc -O2 -s prog.c -o prog.exe
+python3 tools/sqfs.py data.img put prog.exe     # then: run prog.exe arguments
+```
+
+Compiled binaries are not kept in the tree (they carry MinGW's runtime); the regression tests
+are hand-written PE32 files: `programs/winhello.asm` (KERNEL32 only) and `programs/wincrt.asm`
+(msvcrt start-up, printf, sprintf, malloc, FILE I/O, atexit/exit, the TEB through `fs:`).
+
+Not yet: SEH (an exception ends the program like any fault), threads (`CreateThread`), DLL
+loading, wide-character stdio, `msvcrt` math and time, GUI subsystems (P.6), PE32+ (P.7).
 
 ### Toward ring 3
 

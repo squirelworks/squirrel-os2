@@ -29,6 +29,8 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `lxcat.asm` | ELF32 (Linux) | Copies Linux stdin to stdout with `read(0)` (`echo hi \| run lxcat`, P.2) |
 | `winrun.asm` | SQX | Win32 PE32 console loader and KERNEL32 shim; the kernel runs it for every `MZ` file (`run winrun prog.exe`, P.5) |
 | `winhello.asm` | PE32 | Hand-written Win32 console program: console, files, heap, relocations, imports (`run winhello`, P.5) |
+| `wincrt.asm` | PE32 | Hand-written Win32 program on msvcrt: TEB via `fs:`, `__getmainargs`, printf/sprintf, malloc, FILE I/O, atexit/exit (`run wincrt acorn`, P.5) |
+| `winshim.inc` | — | The KERNEL32 start-up calls and the msvcrt subset that `winrun` binds imports to |
 | `lxelf.inc` | — | ELF header macro and Linux call numbers for the Linux test programs |
 | `sqx.inc` | — | SQX header macro and syscall numbers |
 
