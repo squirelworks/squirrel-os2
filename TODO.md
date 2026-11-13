@@ -290,7 +290,7 @@ From the 2.1 milestone in `ROADMAP.md` and epic #114. Resumed 2026-11-07 after t
 - [x] **2.1-modes** — The other modes: 640×480, 800×600 and 1024×768 at 8, 16 and 32 bpp. `vbetest` walks them (or takes a mode); each succeeds with a pixel read-back. Mode 13h remains the fallback when a mode is refused.
 - [x] **2.1-dblbuf** — Double buffering: draw to a back buffer, then flip (or blit) to the visible framebuffer. A self-check draws off-screen, confirms the front is unchanged, flips, and reads the new pixels.
 - [x] **2.1-dirty** — Dirty rectangles: mark regions that changed and only copy those on flip. A check dirties two rects, flips, and confirms pixels outside them are untouched on the front buffer while the dirty ones match.
-- [ ] **2.1-blit-clip** — A blitter (copy rect) and clip regions: draws and blits are clipped to a rectangle; a check reads ink inside the clip and background outside it.
+- [x] **2.1-blit-clip** — A blitter (copy rect) and clip regions: draws and blits are clipped to a rectangle; a check reads ink inside the clip and background outside it.
 
 ## Later milestones
 

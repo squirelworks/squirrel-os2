@@ -5,7 +5,9 @@
 ; ports 0x01CE/0x01CF on QEMU's standard VGA (PCI 1234:1111). The linear
 ; framebuffer is BAR0; vm_map_range makes it reachable. Double buffering
 ; draws to a second LFB page; vbe_flip blits dirty rectangles (or the whole
-; page when none / overflow / full-screen) onto the visible page.
+; page when none / overflow / full-screen) onto the visible page. Clip
+; regions and gfx_blit (same-buffer copy rect) live in gfx.asm; blit marks
+; dirty when double buffering is armed.
 ; Mode 13h stays the fallback when DISPI or the VGA BAR is absent.
 ; See documentation/kernel/graphics.md.
 
@@ -338,6 +340,7 @@ vbe_mode:
     mov byte [gfx_vbe], 1
     mov byte [vbe_dbl], 0
     call vbe_dirty_clear
+    call gfx_resetclip
     popad
     clc
     ret
@@ -590,9 +593,9 @@ vbe_front_getpixel:
     ret
 
 ; vbetest: walk 640×480 / 800×600 / 1024×768 at 8, 16 and 32 bpp. Each mode
-; gets a pixel write/read, a double-buffer self-check, then a dirty-rectangle
-; flip (two marked rects update the front; an unmarked draw does not). If VBE
-; setup fails, fall back to mode 13h once (no double buffering there).
+; gets a pixel write/read, a double-buffer self-check, a dirty-rectangle flip,
+; then a blit+clip self-check. If VBE setup fails, fall back to mode 13h once
+; (clip+blit still run; no double buffering there).
 VBET_X equ 100
 VBET_Y equ 100
 VBET_DBL_COLOUR equ 0x3C        ; distinct from the single-buffer colours
@@ -606,6 +609,10 @@ VBET_D2_COLOUR equ 0x66
 VBET_OUT_X equ 150
 VBET_OUT_Y equ 150
 VBET_OUT_COLOUR equ 0x77        ; drawn on the back but not marked dirty
+; Blit+clip probes (2.1-blit-clip).
+VBET_BG_COLOUR equ 0x11
+VBET_FILL_COLOUR equ 0x22
+VBET_SRC_COLOUR equ 0x44
 
 cmd_vbetest_run:
     mov byte [vbet_ok], 1
@@ -629,6 +636,7 @@ cmd_vbetest_run:
     call .one
     call .dbl
     call .dirty
+    call .blit_clip
     add esi, 12
     jmp .walk
 .mode_fail:
@@ -648,6 +656,7 @@ cmd_vbetest_run:
     call .one
     mov cl, 0x15
     call .one
+    call .blit_clip
     call gfx_text
     cmp byte [vbet_ok], 1
     jne .fail
@@ -771,6 +780,107 @@ cmd_vbetest_run:
     ret
 .dirty_bad:
     mov byte [vbet_ok], 0
+    ret
+; Blit + clip (2.1-blit-clip): clipped fill, then blit; with dblbuf, flip
+; confirms the auto-dirtied dest. Coordinates fit every offered mode and 13h.
+.blit_clip:
+    cmp byte [vbet_ok], 0
+    je .blit_bad
+    call .blit_body
+    jc .blit_bad
+    cmp byte [vbe_dbl], 0
+    je .blit_ok
+    mov eax, 102
+    mov ebx, 52
+    call vbe_front_getpixel
+    mov [vbet_out_front], cl    ; reuse: front outside blit mark
+    call vbe_flip
+    jc .blit_bad
+    mov eax, 110
+    mov ebx, 60
+    call vbe_front_getpixel
+    cmp cl, VBET_SRC_COLOUR
+    jne .blit_bad
+    mov eax, 102
+    mov ebx, 52
+    call vbe_front_getpixel
+    cmp cl, [vbet_out_front]
+    jne .blit_bad
+.blit_ok:
+    call gfx_resetclip
+    ret
+.blit_bad:
+    mov byte [vbet_ok], 0
+    call gfx_resetclip
+    ret
+.blit_body:
+    call gfx_resetclip
+    mov byte [gfx_colour], VBET_BG_COLOUR
+    mov eax, 50
+    mov ebx, 50
+    mov ecx, 40
+    mov edx, 40
+    call gfx_fillrect
+    mov eax, 60
+    mov ebx, 60
+    mov ecx, 20
+    mov edx, 20
+    call gfx_setclip
+    mov byte [gfx_colour], VBET_FILL_COLOUR
+    mov eax, 50
+    mov ebx, 50
+    mov ecx, 40
+    mov edx, 40
+    call gfx_fillrect
+    mov eax, 70
+    mov ebx, 70
+    call gfx_getpixel
+    cmp cl, VBET_FILL_COLOUR
+    jne .body_bad
+    mov eax, 55
+    mov ebx, 55
+    call gfx_getpixel
+    cmp cl, VBET_BG_COLOUR
+    jne .body_bad
+    call gfx_resetclip
+    mov byte [gfx_colour], VBET_SRC_COLOUR
+    mov eax, 300
+    mov ebx, 50
+    mov ecx, 20
+    mov edx, 20
+    call gfx_fillrect
+    mov byte [gfx_colour], 0
+    mov eax, 100
+    mov ebx, 50
+    mov ecx, 20
+    mov edx, 20
+    call gfx_fillrect
+    mov eax, 105
+    mov ebx, 55
+    mov ecx, 10
+    mov edx, 10
+    call gfx_setclip
+    mov eax, 100
+    mov ebx, 50
+    mov ecx, 20
+    mov edx, 20
+    mov esi, 300
+    mov edi, 50
+    call gfx_blit
+    mov eax, 110
+    mov ebx, 60
+    call gfx_getpixel
+    cmp cl, VBET_SRC_COLOUR
+    jne .body_bad
+    mov eax, 102
+    mov ebx, 52
+    call gfx_getpixel
+    test cl, cl
+    jnz .body_bad
+    clc
+    ret
+.body_bad:
+    stc
     ret
 
 ; Each record: width dd, height dd, bpp dd (low byte); 0 width ends the list.

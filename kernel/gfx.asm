@@ -18,6 +18,14 @@ gfx_height      dd GFX_H
 gfx_pitch       dd GFX_W
 gfx_bpp         db 8
 gfx_vbe         db 0            ; 1 while a VBE linear mode is active
+; Clip region (2.1-blit-clip): draws/blit dests limited to
+; [gfx_clip_x, gfx_clip_r) x [gfx_clip_y, gfx_clip_b). Mode entry resets
+; it to the full screen. gfx_getpixel ignores the clip.
+align 4
+gfx_clip_x      dd 0
+gfx_clip_y      dd 0
+gfx_clip_r      dd GFX_W
+gfx_clip_b      dd GFX_H
 
 ; Register sets: misc output, 5 sequencer, 25 CRTC, 9 graphics
 ; controller and 21 attribute controller values (standard VGA values for
@@ -128,6 +136,7 @@ gfx_mode13:
     mov dword [gfx_pitch], GFX_W
     mov byte [gfx_bpp], 8
     mov byte [gfx_vbe], 0
+    call gfx_resetclip
     clc
 .r:
     popad
@@ -149,7 +158,80 @@ gfx_text:
     mov dword [gfx_pitch], GFX_W
     mov byte [gfx_bpp], 8
     mov byte [gfx_vbe], 0
+    call gfx_resetclip
     call cursor_sync
+    popad
+    ret
+
+; ---------- clip region (2.1-blit-clip) ----------
+; Reset clip to the full live mode. Keeps registers.
+gfx_resetclip:
+    push eax
+    xor eax, eax
+    mov [gfx_clip_x], eax
+    mov [gfx_clip_y], eax
+    mov eax, [gfx_width]
+    mov [gfx_clip_r], eax
+    mov eax, [gfx_height]
+    mov [gfx_clip_b], eax
+    pop eax
+    ret
+
+; eax=x ebx=y ecx=w edx=h. Clip = rect ∩ screen (empty if none). Keeps regs.
+gfx_setclip:
+    pushad
+    test ecx, ecx
+    jle .empty
+    test edx, edx
+    jle .empty
+    test eax, eax
+    jns .x0
+    add ecx, eax
+    xor eax, eax
+    test ecx, ecx
+    jle .empty
+.x0:
+    test ebx, ebx
+    jns .y0
+    add edx, ebx
+    xor ebx, ebx
+    test edx, edx
+    jle .empty
+.y0:
+    cmp eax, [gfx_width]
+    jae .empty
+    cmp ebx, [gfx_height]
+    jae .empty
+    lea esi, [eax+ecx]
+    cmp esi, [gfx_width]
+    jbe .w_ok
+    mov ecx, [gfx_width]
+    sub ecx, eax
+.w_ok:
+    lea esi, [ebx+edx]
+    cmp esi, [gfx_height]
+    jbe .h_ok
+    mov edx, [gfx_height]
+    sub edx, ebx
+.h_ok:
+    test ecx, ecx
+    jle .empty
+    test edx, edx
+    jle .empty
+    mov [gfx_clip_x], eax
+    mov [gfx_clip_y], ebx
+    add eax, ecx
+    mov [gfx_clip_r], eax
+    add ebx, edx
+    mov [gfx_clip_b], ebx
+    popad
+    ret
+.empty:
+    xor eax, eax
+    mov [gfx_clip_x], eax
+    mov [gfx_clip_y], eax
+    mov [gfx_clip_r], eax
+    mov [gfx_clip_b], eax
     popad
     ret
 
@@ -264,7 +346,8 @@ gfx_saved db 0
 align 4
 gfx_pages times GFX_SAVE_PAGES dd 0
 
-; eax = x, ebx = y, cl = colour. Off-screen pixels are ignored.
+; eax = x, ebx = y, cl = colour. Pixels outside the clip are ignored
+; (clip is inside the screen after setclip/resetclip).
 ; 8 bpp: one byte at gfx_base + y * pitch + x.
 ; 16 bpp: a word; cl is the low byte (blue-ish), high byte 0.
 ; 32 bpp: a dword 0x000000|cl (blue channel); other channels stay 0.
@@ -272,9 +355,13 @@ gfx_pages times GFX_SAVE_PAGES dd 0
 ; planes 0 and 1 below 4000 and the font in plane 2, so drawing over them
 ; changes the text screen; gfxtest uses a pixel clear of both.
 gfx_putpixel:
-    cmp eax, [gfx_width]
+    cmp eax, [gfx_clip_x]
+    jb .r
+    cmp eax, [gfx_clip_r]
     jae .r
-    cmp ebx, [gfx_height]
+    cmp ebx, [gfx_clip_y]
+    jb .r
+    cmp ebx, [gfx_clip_b]
     jae .r
     push eax
     push ebx
@@ -427,28 +514,27 @@ gfx_line:
     ret
 
 ; eax = x, ebx = y, ecx = width, edx = height, colour in [gfx_colour].
-; Fills the rectangle; the part off the screen is clipped. x and y may be
-; negative: the edges are compared signed, so a rectangle that starts left
-; of or above the screen draws its visible part from x = 0 or y = 0.
+; Fills the rectangle clipped to the current clip region. x and y may be
+; negative: the edges are compared signed.
 gfx_fillrect:
     pushad
     lea esi, [eax+ecx]          ; right edge (exclusive)
     lea edi, [ebx+edx]          ; bottom edge (exclusive)
-    cmp esi, GFX_W
+    cmp esi, [gfx_clip_r]
     jle .wok
-    mov esi, GFX_W
+    mov esi, [gfx_clip_r]
 .wok:
-    cmp edi, GFX_H
+    cmp edi, [gfx_clip_b]
     jle .hok
-    mov edi, GFX_H
+    mov edi, [gfx_clip_b]
 .hok:
-    test eax, eax
-    jns .xok
-    xor eax, eax                ; clip the left edge to x = 0
+    cmp eax, [gfx_clip_x]
+    jge .xok
+    mov eax, [gfx_clip_x]
 .xok:
-    test ebx, ebx
-    jns .yok
-    xor ebx, ebx                ; clip the top edge to y = 0
+    cmp ebx, [gfx_clip_y]
+    jge .yok
+    mov ebx, [gfx_clip_y]
 .yok:
     mov edx, eax                ; left edge
 .row:
@@ -468,6 +554,123 @@ gfx_fillrect:
 .done:
     popad
     ret
+
+; ---------- blitter (2.1-blit-clip) ----------
+; eax,ebx = dest; ecx,edx = size; esi,edi = source (same buffer).
+; Dest clipped to clip region; source must stay on-screen and must not
+; overlap dest. Marks dirty when vbe_dbl is set.
+gfx_blit:
+    pushad
+    test ecx, ecx
+    jle .done
+    test edx, edx
+    jle .done
+    mov ebp, [gfx_clip_x]
+    cmp eax, ebp
+    jge .dx
+    sub ebp, eax
+    add esi, ebp
+    add eax, ebp
+    sub ecx, ebp
+    jle .done
+.dx:
+    mov ebp, [gfx_clip_y]
+    cmp ebx, ebp
+    jge .dy
+    sub ebp, ebx
+    add edi, ebp
+    add ebx, ebp
+    sub edx, ebp
+    jle .done
+.dy:
+    lea ebp, [eax+ecx]
+    cmp ebp, [gfx_clip_r]
+    jle .dr
+    mov ecx, [gfx_clip_r]
+    sub ecx, eax
+    jle .done
+.dr:
+    lea ebp, [ebx+edx]
+    cmp ebp, [gfx_clip_b]
+    jle .db
+    mov edx, [gfx_clip_b]
+    sub edx, ebx
+    jle .done
+.db:
+    cmp esi, [gfx_width]
+    jae .done
+    cmp edi, [gfx_height]
+    jae .done
+    lea ebp, [esi+ecx]
+    cmp ebp, [gfx_width]
+    jbe .sw
+    mov ecx, [gfx_width]
+    sub ecx, esi
+    jle .done
+.sw:
+    lea ebp, [edi+edx]
+    cmp ebp, [gfx_height]
+    jbe .go
+    mov edx, [gfx_height]
+    sub edx, edi
+    jle .done
+.go:
+    mov [gb_dx], eax
+    mov [gb_dy], ebx
+    mov [gb_dw], ecx
+    mov [gb_dh], edx
+    movzx ebp, byte [gfx_bpp]
+    shr ebp, 3
+    mov eax, esi
+    mov ebx, edi
+    mov esi, [gfx_base]
+    mov edi, esi
+    imul ebx, [gfx_pitch]
+    add esi, ebx
+    imul eax, ebp
+    add esi, eax
+    mov eax, [gb_dy]
+    imul eax, [gfx_pitch]
+    add edi, eax
+    mov eax, [gb_dx]
+    imul eax, ebp
+    add edi, eax
+    mov eax, [gb_dw]
+    imul eax, ebp
+    mov edx, [gb_dh]
+    mov ebx, [gfx_pitch]
+.row:
+    mov ecx, eax
+    push esi
+    push edi
+    push eax
+    shr ecx, 2
+    rep movsd
+    mov ecx, [esp]
+    and ecx, 3
+    rep movsb
+    pop eax
+    pop edi
+    pop esi
+    add esi, ebx
+    add edi, ebx
+    dec edx
+    jnz .row
+    cmp byte [vbe_dbl], 0
+    je .done
+    mov eax, [gb_dx]
+    mov ebx, [gb_dy]
+    mov ecx, [gb_dw]
+    mov edx, [gb_dh]
+    call vbe_dirty
+.done:
+    popad
+    ret
+
+gb_dx dd 0
+gb_dy dd 0
+gb_dw dd 0
+gb_dh dd 0
 
 ; gfxprim: clears the lower part of the screen, draws a line and two filled
 ; rectangles there (the second starting at x = -10) and reads back pixels on
