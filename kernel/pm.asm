@@ -16,6 +16,18 @@ KHIGH_BASE  equ 0x100000        ; the high image runs here (1 MB)
 KHIGH_MAX   equ 0x100000        ; reserved for it: 1 MB, to 0x1FFFFF
 KHIGH_LBA   equ 1+KERNEL_SIZE/512 ; its first sector on the boot disk
 KHIGH_SIG   equ 0x49483253      ; 'S2HI', its last dword
+USER_CS     equ 0x28|3          ; ring-3 selectors (2.4, documentation/kernel/ring3.md)
+USER_DS     equ 0x30|3
+
+; Interrupt entry from ring 3: a program may have loaded a null selector
+; into DS or ES, so the handlers that touch memory reload them first.
+%macro KSEGS 0
+    push eax
+    mov ax, USER_DS
+    mov ds, ax
+    mov es, ax
+    pop eax
+%endmacro
 stage2:
     cli
     xor ax, ax                  ; the boot sector may leave ES elsewhere
@@ -97,6 +109,8 @@ gdt_tss_main:                   ; 0x18: the TSS of everything that normally runs
     dw TSS_SIZE-1,0,0x8900,0    ; (base filled in by tss_init, KB-17)
 gdt_tss_df:                     ; 0x20: the double-fault task
     dw TSS_SIZE-1,0,0x8900,0
+    dw 0xFFFF,0,0xFA00,0x00CF   ; 0x28: ring-3 code, flat (2.4)
+    dw 0xFFFF,0,0xF200,0x00CF   ; 0x30: ring-3 data, flat; the kernel's DS/ES too
 gdt_desc:
     dw $-gdt-1
     dd gdt
@@ -107,9 +121,15 @@ msg_oldcpu db 'Squirrel-OS/2 needs a Pentium-class CPU (CPUID, FPU, 4 MB pages).
 BITS 32
 pm:
     mov ax, 0x10
+    mov ss, ax
+    ; DS, ES, FS and GS hold the flat ring-3 data selector everywhere, in
+    ; the kernel too: an iretd to ring 3 then never has to reload them,
+    ; and the ISRs reload them (KSEGS) in case a program changed them (2.4)
+    mov ax, USER_DS
     mov ds, ax
     mov es, ax
-    mov ss, ax
+    mov fs, ax
+    mov gs, ax
     mov esp, SHELL_STACK
 
     ; IDT (timer + keyboard)
@@ -870,21 +890,19 @@ cursor_sync:
 
 ; ---------- ISRs ----------
 timer_isr:
+    KSEGS
     push eax
     inc dword [ticks]
     mov al, 0x20
     out 0x20, al
     ; preemption (1.1): once the slice is used up, the first tick that
-    ; lands in a loaded program's code switches to the next READY
-    ; process. Kernel code is never interrupted this way (it is not
+    ; lands in a loaded program (ring 3 since 2.4) switches to the next
+    ; READY process. Kernel code is never interrupted this way (it is not
     ; reentrant), so the check waits for the next tick instead.
     dec dword [sched_left]
     jg .out
-    mov eax, [esp+4]            ; interrupted EIP
-    cmp eax, PROG_BASE
-    jb .out
-    cmp eax, PROG_BASE+PROG_MAX
-    jae .out
+    test byte [esp+8], 3        ; interrupted CS: only ring-3 code (2.4)
+    jz .out
     call proc_preempt
 .out:
     pop eax
@@ -893,6 +911,7 @@ timer_isr:
 ; IRQ1: queue the raw scancode (dropped if the ring is full), and post
 ; a key event if a process asked for them (msg.asm)
 kbd_isr:
+    KSEGS
     push eax
     push ebx
     push ecx

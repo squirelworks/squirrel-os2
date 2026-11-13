@@ -7,7 +7,8 @@ Location: `../../kernel/syscall.asm` (included from `kernel/pm.asm`)
 - Vector `0x80`, installed by `syscall_init` during IDT setup.
 - 32-bit **trap gate**, DPL 3 (`0xEF`). A trap gate leaves `IF` as the caller had it,
   so handlers may block with `sti; hlt`; `iretd` restores the caller's flags.
-- DPL 3 means future ring-3 code can call it. Today everything runs in ring 0.
+- DPL 3: loaded programs run in ring 3 since 2.4 and call it from there. Their pointer
+  arguments are checked first (`ring3.md`); a bad one makes the call return −1 without running.
 
 ## Calling convention
 
@@ -35,7 +36,7 @@ add its `SYS_*` constant, bump `SYS_COUNT`.
 | # | Name | Args | Returns | Notes |
 |---|------|------|---------|-------|
 | 0 | `SYS_PUTC` | `ebx` = char | 0 | `10` = newline, `8` = backspace (erase previous cell) |
-| 1 | `SYS_PUTS` | `ebx` = ASCIIZ pointer | bytes written | No pointer validation yet |
+| 1 | `SYS_PUTS` | `ebx` = ASCIIZ pointer | bytes written | From ring 3 the string must be the program's own memory (2.4, `ring3.md`) |
 | 2 | `SYS_GETC` | — | ASCII code, or −1 | Blocks. Enter → 10, Backspace → 8, Esc → 27. Key releases and unmapped keys are skipped. With redirected input (0.5.0) it returns the next byte, and −1 at the end |
 | 3 | `SYS_YIELD` | — | 0 | Switches to the next ready process; if none, halts until the next interrupt |
 | 4–7 | `spawn`, `exit`, `wait`, `getpid` | | | Added in 0.1.2, see `processes.md` |
@@ -43,7 +44,7 @@ add its `SYS_*` constant, bump `SYS_COUNT`.
 | 10–16 | `open`, `read`, `write`, `close`, `create`, `delete`, `rename` | | | Added in 0.2.1, see `filesystem.md` |
 | 17 | `SYS_EXEC` | `ebx` = file name, `ecx` = argument or 0 | pid, or < 0 | Added in 0.4.0, see `loader.md` |
 | 18 | `SYS_READDIR` | `ebx` = cursor (0 to start), `ecx` = 20-byte buffer | next cursor; 0 at the end; −1 without a disk | Added in 0.4.2: fills the 16-byte name and the size (dword at +16) of the next file |
-| 19–20 | `SYS_PALLOC`, `SYS_PFREE` | | | Added in 0.6.0, see `memory.md` |
+| 19–20 | `SYS_PALLOC`, `SYS_PFREE` | | | Added in 0.6.0, see `memory.md`. Kernel-only since 2.4: from ring 3 they return −1 |
 | 21 | `SYS_SBRK` | `ebx` = bytes to grow (negative shrinks, 0 asks) | the old break, or −1 | Added in 0.6.2: moves the end of the program's heap at `0x40000000` (up to 4 MB), see `memory.md` |
 | 22–24 | `SYS_DEVFIND`, `SYS_DEVREAD`, `SYS_DEVWRITE` | | | Added in 0.7.0, see `drivers.md` |
 | 25 | `SYS_SEEK` | `ebx` = fd, `ecx` = offset (signed), `edx` = 0 from start / 1 from current / 2 from end | new position, or −1 | Added in 1.0.2, see `filesystem.md` |

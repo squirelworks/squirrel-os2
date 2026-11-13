@@ -126,6 +126,7 @@ mouse_poll:
 
 ; IRQ 12 (vector 0x2C): one auxiliary byte from the controller.
 mouse_isr:
+    KSEGS
     pushad
     in al, 0x64
     test al, 1

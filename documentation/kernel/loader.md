@@ -41,8 +41,8 @@ space while copying the image from the staging buffer, then switches back. The a
 is copied into a 64-byte buffer owned by the process slot. When the process is reaped, its pages
 go back to the page allocator. Each program runs in an
 ordinary process slot with that slot's 8 KB stack, so it is scheduled, waited on and reaped like
-the built-in apps. Programs run in ring 0 like the rest of the system. There is no protection
-yet (see 2.x).
+the built-in apps. Since 2.4 programs run in ring 3, on a ring-3 stack of their own, and cannot
+touch kernel memory (`ring3.md`); the slot's 8 KB stack is their kernel stack.
 
 ## Formats
 
