@@ -34,6 +34,7 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `viewer.asm` | SQX | Image viewer for 8- and 24-bit BMP with zoom and scrolling, dithered to a 192-colour cube (`run viewer f [test]`, A.2) |
 | `topology.asm` | SQX | Topology calculator: face counts, Euler characteristic and Betti numbers over Z/2 and Q of simplicial complexes, 11 ready-made ones or typed (`run topology`, `run topology test`, C.9) |
 | `matrixgui.asm` | SQX | Matrices A and B up to 4 x 4 in a grid: + - *, determinant, inverse, transpose, rank, solve A X = B (`run matrixgui`, `run matrixgui test`, C.9) |
+| `sheet.asm` | SQX | Sheet, a spreadsheet: 26 x 99 cells, formulas with references and sum/avg/min/max/count, copy and fill, line/bar/scatter charts linked to the cells, CSV (`run sheet f.csv`, `run sheet test`, C.4) |
 | `lxhello.asm` | ELF32 (Linux) | Linux i386 program: `write` to fd 1 and 2, argc/argv from the Linux stack, `-ENOSYS`, `exit` (`run lxhello`, P.1) |
 | `lxfile.asm` | ELF32 (Linux) | Linux `open`/`write`/`close`/`lseek`/`read`, `brk`, `mmap2`, `-errno` results (`run lxfile`, P.2) |
 | `lxcat.asm` | ELF32 (Linux) | Copies Linux stdin to stdout with `read(0)` (`echo hi \| run lxcat`, P.2) |

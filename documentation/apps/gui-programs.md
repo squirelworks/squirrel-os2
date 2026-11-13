@@ -103,3 +103,5 @@ SQX_END
 Colours are the `C_*` names of the EGA palette mode 13h keeps (`C_BLUE` 0x01 … `C_WHITE` 0x3F), key scancodes the `K_*` names.
 
 Until the 2.2 window manager gives programs real windows, each program owns the whole screen while it runs; it draws its window over a cyan desktop of its own. The programs will move to the 2.2 window API when it is published in `../kernel/windows.md`.
+
+The spreadsheet Sheet (C.4), with charts linked to its cells, is described in `sheet.md`.

@@ -45,6 +45,10 @@ for prog in guitest calculator clock notepad grapher charmap paint viewer topolo
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
     python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/$prog"
 done
+for prog in sheet; do                       # C.4
+    nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
+    python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/$prog"
+done
 python3 - "$out/grad.bmp" <<'PYEOF'    # A.2: a 24-bit test picture, 64 x 48
 import struct, sys
 w, h = 64, 48
@@ -824,6 +828,13 @@ check_all matrixgui-inv 'gfx: inv A =|gfx: -2|gfx: 1.5|gfx: -0.5' 'run matrixgui
 check matrixgui-det 'gfx: det A = -2'      'run matrixgui' '<ret>' '<pause>' '1' '<right>' '2' '<down>' '4' '<left>' '3' '<ret>' 'd' '<pause>' '<gfx>'
 check matrixgui-sing 'gfx: The matrix is singular' 'run matrixgui' '<ret>' '<pause>' 'i' '<pause>' '<gfx>'
 check matrixgui-quit 'systest: PASS'        'run matrixgui' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
+# C.4: spreadsheet with charts
+check sheet         'sheet: PASS'           'run sheet test' '<ret>' '<pause>' '<pause>' '<pause>'
+check_all sheet-calc 'gfx: A3: =A1*A2+1|gfx: = 7' 'run sheet' '<ret>' '<pause>' '2' '<ret>' '3' '<ret>' '=A1*A2+1' '<ret>' '<up>' '<pause>' '<gfx>'
+check_all sheet-chart 'gfx: Line A1:B3|gfx: one|gfx: two' 'run sheet' '<ret>' '<pause>' 'one' '<tab>' 'two' '<ret>' '<left>' '1' '<ret>' '2' '<ret>' '<up>' '<up>' '<right>' '3' '<ret>' '5' '<ret>' '<up>' '<f3>' '<left>' '<up>' '<up>' '<ctrl-g>' '<pause>' '<gfx>'
+check sheet-cyc     'gfx: #CYC: it depends on itself' 'run sheet' '<ret>' '<pause>' '=A2' '<ret>' '=A1+1' '<ret>' '<up>' '<pause>' '<gfx>'
+check sheet-csv     '1,=A1*2'               'run sheet s.csv' '<ret>' '<pause>' '1' '<tab>' '=A1*2' '<ret>' '<ctrl-s>' '<pause>' '<esc>' '<pause>' 'cat s.csv' '<ret>'
+check sheet-quit    'systest: PASS'         'run sheet' '<ret>' '<pause>' 'x' '<ret>' '<esc>' '<pause>' 'n' '<pause>' systest '<ret>'
 # P.8: DOS .COM and .EXE programs run in the dosrun 8086 interpreter
 disk=$out/dos.img
 check_all dos-hello 'Hello from DOS land!|#! tail: acorns|doshello: PASS'  'run dosrun doshello.com acorns' '<ret>'
