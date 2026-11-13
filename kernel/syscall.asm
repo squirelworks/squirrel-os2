@@ -41,7 +41,15 @@ SYS_NETRECVFROM equ 31      ; ebx = block -> bytes, -1 port taken, -2 nothing (1
 SYS_SETPRIO equ 32          ; ebx = 0..3 -> 0, or -1 (1.9.9)
 SYS_DEVREG  equ 33          ; ebx = name -> register a null char device (1.9.12)
 SYS_DEVUNREG equ 34         ; ebx = name -> remove a device SYS_DEVREG made (2.0.2)
-SYS_COUNT   equ 35
+SYS_WINOPEN  equ 48         ; ebx = block: x, y, w, h, title, flags -> window id or -1 (2.2-progwin)
+SYS_WINCLOSE equ 49         ; ebx = id -> 0 or -1
+SYS_WINMOVE  equ 50         ; ebx = id, ecx = x | y << 16, edx = w | h << 16 (0 keeps) -> 0 or -1
+SYS_WINTITLE equ 51         ; ebx = id, ecx = title -> 0 or -1
+SYS_WINDRAW  equ 52         ; ebx = id, ecx = 28-byte command -> 0, a colour (WD_PIXEL), or -1
+SYS_WINFLUSH equ 53         ; ebx = id -> 0 or -1: what was drawn reaches the screen
+SYS_WINEVENT equ 54         ; ebx = 16-byte buffer, ecx = 0 wait / 1 poll -> 0, or -1 nothing
+SYS_WININFO  equ 55         ; ebx = id or -1, ecx = 16-byte buffer -> 0 or -1
+SYS_COUNT   equ 56          ; 35-47 free for other calls (windows.md)
 
 SYS_ENOSYS  equ -1
 SYSCALL_VEC equ 0x80
@@ -111,6 +119,8 @@ sys_uarg_kind:
     db UA_DEV, UA_NONE, UA_B_C, UA_NONE         ; devwrite seek fserror send
     db UA_NONE, UA_NONE, UA_NETSEND, UA_NETRECV ; recv keyevents netsendto netrecvfrom
     db UA_NONE, UA_BZ, UA_BZ                    ; setprio devreg devunreg
+    times 48-35 db UA_NONE                      ; 35-47: not used yet
+    times 8 db UA_NONE                          ; 48-55 windows: checked in winsys.asm
 %if $-sys_uarg_kind != SYS_COUNT
 %error sys_uarg_kind needs one byte per system call
 %endif
@@ -301,8 +311,15 @@ syscall_table:
     dd sys_setprio
     dd sys_devreg
     dd sys_devunreg
+    times 48-35 dd sys_none                     ; 35-47: not used yet
+    dd sys_winopen, sys_winclose, sys_winmove, sys_wintitle   ; 2.2-progwin
+    dd sys_windraw, sys_winflush, sys_winevent, sys_wininfo
 
 ; ---------- handlers: args in ebx/ecx/edx, result in eax ----------
+sys_none:                   ; a number with no call yet
+    mov eax, SYS_ENOSYS
+    ret
+
 sys_putc:
     mov al, bl
     call putc

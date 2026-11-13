@@ -56,6 +56,8 @@ add its `SYS_*` constant, bump `SYS_COUNT`.
 | 32 | `SYS_SETPRIO` | `ebx` = 0..3 | 0, or −1 | Added in 1.9.9: set the caller's scheduling priority, see `processes.md` |
 | 33 | `SYS_DEVREG` | `ebx` = name | 0, or −1 | Added in 1.9.12: register a null char device, see `drivers.md` |
 | 34 | `SYS_DEVUNREG` | `ebx` = name | 0, or −1 | Added in 2.0.2: remove a device `SYS_DEVREG` made and free its slot, see `drivers.md` |
+| 35–47 | — | — | −1 (`SYS_ENOSYS`) | Free for other calls |
+| 48–55 | `SYS_WINOPEN`, `SYS_WINCLOSE`, `SYS_WINMOVE`, `SYS_WINTITLE`, `SYS_WINDRAW`, `SYS_WINFLUSH`, `SYS_WINEVENT`, `SYS_WININFO` | see `windows.md` | see `windows.md` | Added in 2.2 (**2.2-progwin**): windows for programs |
 
 Example:
 

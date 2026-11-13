@@ -1444,6 +1444,7 @@ khigh_start:
 %include "diff.asm"
 %include "graph.asm"
 %include "wm.asm"
+%include "winsys.asm"
 %include "widget.asm"
 %include "desktop.asm"
 %include "object.asm"

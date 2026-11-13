@@ -501,12 +501,17 @@ vm_map_range:
     mov eax, edx
     or eax, PG_P|PG_W|PG_PS
     mov [ecx], eax
+    mov ecx, cr3                ; and in the directory in use, when a program
+    and ecx, -4096              ; asked (2.2-progwin): its own copy of the
+    mov esi, edx                ; kernel directory was made before this map
+    shr esi, 22
+    mov [ecx+esi*4], eax
 .next:
     add edx, 0x400000
     jmp .map
 .ok:
-    mov eax, [kernel_pd]
-    mov cr3, eax                ; flush TLB for the new entries
+    mov eax, cr3                ; flush TLB for the new entries, staying in
+    mov cr3, eax                ; the address space in use (2.2-progwin)
     popad
     clc
     ret

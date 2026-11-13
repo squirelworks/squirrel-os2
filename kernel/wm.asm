@@ -24,7 +24,10 @@ WIN_FLAGS       equ 56          ; WF_* (2.2-frame)
 WIN_STATE       equ 60          ; WS_* (2.2-mouse)
 WIN_REST        equ 64          ; x, y, w, h to restore from maximised
 WIN_ICONIC      equ 80          ; 1 while minimised to an icon (2.2-minmax)
-WIN_SIZE        equ 84
+WIN_OWNER       equ 84          ; pid whose program opened it, -1 = kernel
+WIN_TBUF        equ 88          ; a program window's title, copied (2.2-progwin)
+WM_TBUF         equ 32
+WIN_SIZE        equ WIN_TBUF + WM_TBUF
 WS_NORMAL       equ 0
 WS_MAX          equ 1
 WS_MIN          equ 2
@@ -105,7 +108,9 @@ wm_create:
     mov dword [edi+WIN_FLAGS], WF_DEFAULT
     mov dword [edi+WIN_STATE], WS_NORMAL
     mov dword [edi+WIN_ICONIC], 0
+    mov dword [edi+WIN_OWNER], -1
     call wm_markwin             ; its place needs painting (2.2-clip-z)
+    call wm_marktop             ; the old top loses the focus colour
     mov eax, ebp
     mov ebp, [wm_zn]            ; on top
     mov [wm_z+ebp], al
@@ -243,6 +248,7 @@ wm_raise:
     call wm_record
     jc .r
     call wm_markwin             ; all of it is on top now
+    call wm_marktop             ; and the old top's title bar goes idle
     call wm_zremove
     push ebp
     mov ebp, [wm_zn]
@@ -2896,3 +2902,21 @@ wat_ids dd 0, 0, 0
 wat_three db 'Three', 0
 wat_pass db 'alttab: PASS', 10, 0
 wat_fail db 'alttab: FAIL', 10, 0
+
+; Marks the focused (top) window's title bar: the focus is about to move,
+; so its colour changes (2.2-progwin).
+wm_marktop:
+    pushad
+    call wm_focus
+    cmp eax, -1
+    je .r
+    call wm_record
+    jc .r
+    mov eax, [edi+WIN_X]
+    mov ebx, [edi+WIN_Y]
+    mov ecx, [edi+WIN_W]
+    mov edx, WM_TITLE_H + 1
+    call wm_mark
+.r:
+    popad
+    ret

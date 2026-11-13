@@ -47,6 +47,24 @@ SYS_NETRECVFROM equ 31
 SYS_SETPRIO equ 32
 SYS_DEVREG  equ 33
 SYS_DEVUNREG equ 34
+SYS_WINOPEN  equ 48         ; windows for programs (2.2-progwin, windows.md)
+SYS_WINCLOSE equ 49
+SYS_WINMOVE  equ 50
+SYS_WINTITLE equ 51
+SYS_WINDRAW  equ 52
+SYS_WINFLUSH equ 53
+SYS_WINEVENT equ 54
+SYS_WININFO  equ 55
+WE_KEY      equ 1
+WE_DOWN     equ 2
+WE_CLOSE    equ 6
+WE_PAINT    equ 8
+WD_FILL     equ 0
+WD_LINE     equ 1
+WD_TEXT     equ 2
+WD_BLIT     equ 4
+WD_BEVEL    equ 5
+WD_PIXEL    equ 7
 MSG_KEY     equ 0x4B000000
 
 O_CREATE    equ 1

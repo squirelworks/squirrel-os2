@@ -13,11 +13,11 @@ cat "$out/boot.bin" "$out/pm.bin" > "$out/os.img"
 dd if=/dev/zero of="$out/floppy.img" bs=1024 count=1440 2>/dev/null
 dd if="$out/os.img" of="$out/floppy.img" conv=notrunc 2>/dev/null
 python3 "$root/tools/mkiso.py" "$out/floppy.img" "$out/cd.iso"    # installer I.6
-for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3; do
+for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3 winprog; do
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
 done
 python3 "$root/tools/sqfs.py" "$out/progs.img" format 1024
-for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
+for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3 winprog; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
 # OS2-GAMES (G.x): the games get a disk of their own, so the file counts above stay put
 python3 "$root/tools/sqfs.py" "$out/games.img" format 1024
 for prog in mines reversi klondike freecell hearts chess mahjongg; do
@@ -614,6 +614,8 @@ check ld-notprog    'Not a program'         'run notes' '<ret>'
 check ld-big        'too big'               'run huge' '<ret>'
 check ld-missing    'Unknown command or program'    'run nothere' '<ret>'
 check ld-again      'Argument: 2'           'run hello 1' '<ret>' 'run hello 2' '<ret>'
+check_all progwin  'progwin key: x|progwin: PASS' 'run winprog' '<ret>' '<pause>' '<pause>' x '<pause>' '<alt-f4>' '<pause>' '<pause>'   # 2.2-progwin
+check progwin-text  'systest: PASS'         'run winprog' '<ret>' '<pause>' '<pause>' x '<pause>' '<alt-f4>' '<pause>' '<pause>' systest '<ret>'
 check ld-browser    'Hello from a loaded'   'run files' '<ret>' '<home>' '<ret>'
 check ld-host-ls    'elfhello'              'run ls elf' '<ret>'
 check vm-nest       'own memory intact'     'run nest' '<ret>'

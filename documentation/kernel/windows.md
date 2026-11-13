@@ -183,45 +183,49 @@ The window record gains `WIN_STATE` (`WS_NORMAL`, `WS_MIN`, `WS_MAX`), `WIN_REST
 | `wm_inject` | as `wm_mouse` | the same, from a script; the regression checks drive windows with it |
 | `wm_key` | al = key, ah = shift state | Alt+Tab, Alt+Esc, Alt+Space, Alt+F4 are the window manager's; anything else goes to the focused window's widgets and then its owner (**2.2-sysmenu**, **2.2-alttab**) |
 
-### Programs (syscalls, **2.2-progwin**)
+### Programs (syscalls, **2.2-progwin**, in the kernel since 2.2-progwin)
 
-Window syscalls use the reserved block 48–63 so other streams' new calls (35–47) do not collide. A window belongs to the process that opened it and is closed when that process exits. Coordinates are relative to the client area; every draw is clipped to the client area and to the parts of it not covered by other windows. Nothing reaches the screen until `SYS_WINFLUSH` (or the next `wm_update`).
+The calls are in `kernel/winsys.asm`, numbers 48–55 (`SYS_COUNT` is 56; 35–47 return `SYS_ENOSYS` until other streams use them). A window belongs to the process that opened it (`WIN_OWNER`, its pid; −1 for the kernel's own windows) and is closed when that process exits (`proc_exit` calls `ws_procgone`). Only the owner may use a window. Coordinates are relative to the client area. From ring 3 every pointer (the blocks, the title, a string, blit bytes, the event buffer) must be the program's own memory (`ua_range` / `ua_str`, `ring3.md`), or the call returns −1.
 
 | No. | Name | In | Out |
 |-----|------|----|-----|
-| 48 | `SYS_WINOPEN` | ebx = block: x, y, width, height (dwords, outer size), title address, flags | window id, or −1 |
+| 48 | `SYS_WINOPEN` | ebx = block: x, y, width, height (outer size), title address, flags (0 = `WF_DEFAULT`), six dwords | window id, or −1. In text mode the first window enters the window manager's screen (`wm_screen`); when the last program window closes the screen goes back to text. The title is copied into the record (`WIN_TBUF`, up to 31 characters). |
 | 49 | `SYS_WINCLOSE` | ebx = id | 0, or −1 if not the caller's |
-| 50 | `SYS_WINMOVE` | ebx = id, ecx = x \| y << 16, edx = width \| height << 16 (0 keeps that pair) | 0 or −1 |
+| 50 | `SYS_WINMOVE` | ebx = id, ecx = x \| y << 16, edx = width \| height << 16 (0 keeps that pair) | 0 or −1 (`wm_place` refused) |
 | 51 | `SYS_WINTITLE` | ebx = id, ecx = title | 0 or −1 |
-| 52 | `SYS_WINDRAW` | ebx = id, ecx = command block (below) | 0 or −1 |
-| 53 | `SYS_WINFLUSH` | ebx = id | 0 or −1; the dirty parts reach the screen |
+| 52 | `SYS_WINDRAW` | ebx = id, ecx = command block | 0 (`WD_PIXEL`: the colour), or −1 |
+| 53 | `SYS_WINFLUSH` | ebx = id | 0 or −1: the window manager's pending repaints (`ws_update`), then the window's area is flipped to the visible page |
 | 54 | `SYS_WINEVENT` | ebx = 16-byte buffer, ecx = 0 wait / 1 poll | 0 and the buffer filled, or −1 (poll, nothing waiting) |
-| 55 | `SYS_WININFO` | ebx = id (−1 for the screen), ecx = 16-byte buffer | 0 and client x, y, width, height (screen: 0, 0, width, height) |
+| 55 | `SYS_WININFO` | ebx = id (−1 for the screen), ecx = 16-byte buffer | 0 and the client area's x, y, width, height on the screen (the screen: 0, 0, width, height) |
 
-`SYS_WINDRAW` command block, dwords: `op`, `x`, `y`, `a`, `b`, `colour`, `ptr`.
+`SYS_WINDRAW` command block, seven dwords: `op`, `x`, `y`, `a`, `b`, `colour`, `ptr`. Every draw is clipped to the client area (`gfx_setclip`) and kept off the windows above it and an open menu (`gfx_occ`, `gfx_occn`: `gfx_putpixel` skips pixels inside those rectangles). Nothing reaches the visible page until `SYS_WINFLUSH`.
 
 | `op` | Meaning |
 |------|---------|
 | `WD_FILL` (0) | filled rectangle at x, y, size a × b |
 | `WD_LINE` (1) | line from x, y to a, b |
-| `WD_TEXT` (2) | the 5×7 font string at `ptr`, bg = `a` (−1 transparent) |
-| `WD_PTEXT` (3) | proportional string at `ptr`, face `b`, bg = `a` |
-| `WD_BLIT` (4) | a × b bytes of 8-bit pixels at `ptr` (one byte per pixel, rows packed) to x, y; `colour` = transparent index or −1 |
+| `WD_TEXT` (2) | the 5×7 font string at `ptr`, background `a` (−1: the client colour) |
+| `WD_BLIT` (4) | a × b bytes of 8-bit pixels at `ptr` (rows packed) to x, y; `colour` = an index left transparent, or −1 |
 | `WD_BEVEL` (5) | bevel around x, y, a × b; `colour` 0 raised / 1 sunken |
-| `WD_COPY` (6) | copy the client rectangle at (`a` & 0xFFFF, `a` >> 16), size `b` & 0xFFFF × `b` >> 16, to x, y |
+| `WD_PIXEL` (7) | returns the colour at x, y on the visible page (for checks) |
+
+`WD_PTEXT` (3, proportional text) comes with **2.2-propfont** and `WD_COPY` (6) later.
+
+There is no backing store. When the window manager repaints part of a program's window (uncovered, moved, focus changed), it paints the frame and a plain client area and posts `WE_PAINT`; the program draws again.
 
 Event record from `SYS_WINEVENT`, dwords: `type`, `window`, `p1`, `p2`.
 
 | `type` | `p1` | `p2` |
 |--------|------|------|
-| `WE_KEY` (1) | key, as `wg_key` takes it | shift state |
-| `WE_DOWN` (2) / `WE_UP` (3) / `WE_MOVE` (4) | x \| y << 16, client-relative | buttons |
-| `WE_DBLCLK` (5) | x \| y << 16 | buttons |
-| `WE_CLOSE` (6) | — | — (the close box or Alt+F4; the program decides whether to `SYS_WINCLOSE`) |
-| `WE_SIZE` (7) | new client width \| height << 16 | — |
-| `WE_PAINT` (8) | x \| y << 16 of the area to redraw | width \| height << 16 |
-| `WE_BUTTON` (9) | widget code | — |
+| `WE_KEY` (1) | key, as `wg_key` takes it, for the focused window | 1 if Shift is down |
+| `WE_DOWN` (2) | x \| y << 16, client-relative, of a left press | buttons |
+| `WE_CLOSE` (6) | — | — (the close box, the system menu's Close or Alt+F4; the program decides whether to `SYS_WINCLOSE`) |
+| `WE_PAINT` (8) | 0 (the whole client area) | client width \| height << 16 |
 
-Each process has its own ring of 16 events. When an event is queued, the kernel also posts `MSG_WIN` (`0x57000000`, `'W'` in the top byte, the window id in the low byte) to the owner's message queue, so a program already waiting in `SYS_RECV` wakes up; it then reads the events with `SYS_WINEVENT`. A full ring drops the oldest `WE_MOVE` first.
+`WE_UP`, `WE_MOVE`, `WE_DBLCLK`, `WE_SIZE` and `WE_BUTTON` keep their numbers (3, 4, 5, 7, 9) for later. Each process has a ring of 16 events (`ws_ring`); a full ring drops new events. A process's events are forgotten when it exits.
 
-Widgets in program windows (buttons, fields, lists, menus) get syscalls in 2.3; until then a program draws its own controls with `WD_BEVEL` and `WD_PTEXT`.
+While a program waits in `SYS_WINEVENT` on a graphics screen, the kernel runs the window manager for it (`ws_pump`): mouse changes go through `wm_mouse`, Alt keys through `wm_altkey`, menu and keyboard move/size keys through `wm_menukey`, and other keys become `WE_KEY` for the program owning the focused window. Repaints go through `ws_update`, which posts `WE_PAINT` to every program window a dirty area touches, then `wm_update`. `vm_map_range` now also writes the framebuffer's page-directory entries into the directory in use and keeps CR3, so a program that enters the graphics screen from its own address space can reach the framebuffer.
+
+`programs/winprog.asm` (`run winprog`) opens One, fills and writes in it, flushes and reads a pixel back; opens Two over One's middle, fills a rectangle in One that reaches under Two, and checks the pixel left of Two is drawn and Two's client is not; checks `SYS_WININFO`; then waits for events: a key (it remembers it) and `WE_CLOSE` for Two (Alt+F4), on which it closes both. Back in text mode it prints `progwin key: x` and `progwin: PASS`. Checks `progwin` (with `x` and Alt+F4 sent) and `progwin-text`.
+
+Widgets in program windows (buttons, fields, lists, menus) get syscalls in 2.3; until then a program draws its own controls with `WD_BEVEL` and `WD_TEXT`.
