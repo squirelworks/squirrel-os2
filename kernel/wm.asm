@@ -7,7 +7,7 @@
 ; window, bottom of the z-order first. The top window has the keyboard
 ; focus. Keyboard only. See documentation/kernel/windows.md.
 
-WM_MAX          equ 4           ; open windows at most
+WM_MAX          equ 16          ; open windows at most (4 before 2.2-clip-z)
 
 ; window record
 %include "theme.inc"     ; W.1: colours and sizes
@@ -68,6 +68,7 @@ wm_create:
     mov [edi+WIN_TITLE], esi
     mov dword [edi+WIN_LEN], 0
     mov byte [edi+WIN_BUF], 0
+    call wm_markwin             ; its place needs painting (2.2-clip-z)
     mov eax, ebp
     mov ebp, [wm_zn]            ; on top
     mov [wm_z+ebp], al
@@ -77,23 +78,26 @@ wm_create:
     ret
 
 ; eax = x, ebx = y, ecx = width, edx = height -> CF if the window would be
-; smaller than WM_MIN_W x WM_MIN_H or not wholly on the screen.
+; smaller than WM_MIN_W x WM_MIN_H, or its title bar would not be on the
+; screen: since 2.2-clip-z a window may hang off the left, right and bottom
+; edges, but its top edge stays on the screen and the bar keeps at least
+; one column and its whole height there, so the mouse can still grab it.
 wm_fits:
     push ebp
     cmp ecx, WM_MIN_W
     jl .no
     cmp edx, WM_MIN_H
     jl .no
-    test eax, eax
-    js .no
     test ebx, ebx
     js .no
-    lea ebp, [eax+ecx]
-    cmp ebp, [gfx_width]        ; the live mode (2.2-vbe-wm)
-    jg .no
-    lea ebp, [ebx+edx]
+    lea ebp, [ebx+WM_TITLE_H+1]
     cmp ebp, [gfx_height]
     jg .no
+    cmp eax, [gfx_width]
+    jge .no
+    lea ebp, [eax+ecx]
+    cmp ebp, 1
+    jl .no
     pop ebp
     clc
     ret
@@ -129,8 +133,10 @@ wm_move:
     mov edx, [edi+WIN_H]
     call wm_fits
     jc .out
+    call wm_markwin             ; where it was
     mov [edi+WIN_X], eax
     mov [edi+WIN_Y], ebx
+    call wm_markwin             ; and where it is now
 .out:
     popad
     ret
@@ -147,8 +153,10 @@ wm_resize:
     mov ebx, [edi+WIN_Y]
     call wm_fits
     jc .out
+    call wm_markwin
     mov [edi+WIN_W], ecx
     mov [edi+WIN_H], edx
+    call wm_markwin
 .out:
     popad
     ret
@@ -159,6 +167,7 @@ wm_close:
     push edi
     call wm_record
     jc .r
+    call wm_markwin             ; what was under it shows again
     mov byte [edi+WIN_USED], 0
     call wm_zremove
     call wg_drop                ; and its widgets
@@ -196,6 +205,7 @@ wm_raise:
     push edi
     call wm_record
     jc .r
+    call wm_markwin             ; all of it is on top now
     call wm_zremove
     push ebp
     mov ebp, [wm_zn]
@@ -243,14 +253,26 @@ wm_putc:
     mov [edi+WIN_BUF+ecx], bl
     mov byte [edi+WIN_BUF+ecx+1], 0
     inc dword [edi+WIN_LEN]
+    call wm_markwin
 .out:
     popad
     ret
 
-; Paints the desktop, then each open window.
+; Paints the desktop, then each open window, and shows the whole screen
+; (a full flip when double buffering). Clears the dirty list.
 wm_redraw:
     pushad
     mov byte [ptr_vis], 0       ; the repaint covers the pointer (2.0.1)
+    mov dword [wm_dn], 0
+    mov byte [wm_dfull], 0
+    call wm_paint
+    call vbe_flip               ; no marks: the whole page (CF if single)
+    popad
+    ret
+
+; Paints the desktop and the windows, bottom first, within the clip.
+wm_paint:
+    pushad
     xor eax, eax
     xor ebx, ebx
     mov ecx, [gfx_width]
@@ -441,8 +463,8 @@ cmd_winmove_run:
     call wm_redraw
     mov esi, wtm_sized
     call wt_probes
-    mov eax, [wt_id]            ; off the right edge: refused
-    mov ebx, GFX_W - WM2_W + 1
+    mov eax, [wt_id]            ; the title bar off the right edge: refused
+    mov ebx, GFX_W
     mov ecx, WM2_Y
     call wm_move
     jnc .fail
@@ -664,7 +686,10 @@ wm_screen:
     pop ecx
     pop ebx
     pop eax
-    jnc .r
+    jc .vga
+    call vbe_dblbuf             ; draw on the back page (2.2-clip-z); a mode
+    clc                         ; without room for two pages draws on the front
+    ret
 .vga:
     jmp gfx_mode13
 .r:
@@ -746,3 +771,248 @@ wv_shut:
 
 wv_pass db 'winvbe: PASS', 10, 0
 wv_fail db 'winvbe: FAIL', 10, 0
+
+; ---------- dirty areas and partial repaint (2.2-clip-z) ----------
+; wm_create, wm_close, wm_move, wm_resize, wm_raise and wm_putc mark the
+; screen areas they change. wm_update repaints only those: for each area it
+; sets the clip to it and paints the desktop and every window bottom first,
+; so a window shows exactly where nothing above it covers it, and pixels
+; outside the areas are not written. With double buffering it then flips
+; only those areas. More than WM_DIRTY_MAX areas, or wm_invalidate -1,
+; repaint the whole screen.
+
+WM_DIRTY_MAX equ 8
+
+; edi = window record: marks its rectangle.
+wm_markwin:
+    pushad
+    mov eax, [edi+WIN_X]
+    mov ebx, [edi+WIN_Y]
+    mov ecx, [edi+WIN_W]
+    mov edx, [edi+WIN_H]
+    call wm_mark
+    popad
+    ret
+
+; eax, ebx = top left, ecx = width, edx = height: marks an area.
+wm_mark:
+    pushad
+    mov edi, [wm_dn]
+    cmp edi, WM_DIRTY_MAX
+    jb .add
+    mov byte [wm_dfull], 1      ; too many: the whole screen
+    jmp .r
+.add:
+    shl edi, 4
+    mov [wm_drect+edi], eax
+    mov [wm_drect+edi+4], ebx
+    mov [wm_drect+edi+8], ecx
+    mov [wm_drect+edi+12], edx
+    inc dword [wm_dn]
+.r:
+    popad
+    ret
+
+; eax = window id, or -1 for the whole screen: marks it for wm_update.
+wm_invalidate:
+    cmp eax, -1
+    jne .win
+    mov byte [wm_dfull], 1
+    ret
+.win:
+    push edi
+    call wm_record
+    jc .r
+    call wm_markwin
+.r:
+    pop edi
+    ret
+
+; Repaints the marked areas (see above) and clears the marks.
+wm_update:
+    cmp byte [wm_dfull], 0
+    jne wm_redraw
+    pushad
+    xor esi, esi
+.a:
+    cmp esi, [wm_dn]
+    jae .flip
+    mov edi, esi
+    shl edi, 4
+    mov eax, [wm_drect+edi]
+    mov ebx, [wm_drect+edi+4]
+    mov ecx, [wm_drect+edi+8]
+    mov edx, [wm_drect+edi+12]
+    call gfx_setclip
+    call wm_paint
+    call vbe_dirty              ; flip just this (nothing if single)
+    inc esi
+    jmp .a
+.flip:
+    call gfx_noclip
+    cmp dword [wm_dn], 0
+    je .r
+    mov byte [ptr_vis], 0       ; the pointer may have been painted over
+    call vbe_flip
+.r:
+    mov dword [wm_dn], 0
+    popad
+    ret
+
+align 4
+wm_dn dd 0
+wm_drect times WM_DIRTY_MAX * 4 dd 0
+wm_dfull db 0
+
+; winclip: two overlapping windows on the window manager's screen (double
+; buffered when VBE is there). A pixel of the desktop, outside both, is
+; changed on the back buffer only. The top window is moved away and
+; wm_update repaints: the uncovered part of the lower window shows on the
+; visible page, the moved window's frame is there, and the changed desktop
+; pixel was neither repainted nor flipped. Then a move that leaves the
+; window hanging off the right edge is allowed and one past the edge is
+; refused, and the table takes 16 windows but not 17. Prints
+; `winclip: PASS` or `winclip: FAIL`.
+WC_AX equ 100
+WC_AY equ 100
+WC_BX equ 150
+WC_BY equ 150
+WC_W equ 200
+WC_H equ 150
+WC_MX equ 380                   ; where B moves
+WC_MY equ 250
+WC_PX equ 600                   ; the desktop pixel outside every change
+WC_PY equ 20
+WC_PC equ 0x2A
+cmd_winclip_run:
+    call wm_screen
+    jc .out
+    mov byte [gfxt_ok], 0
+    cmp byte [gfx_vbe], 0
+    je .text
+    call vbe_dblbuf
+    jc .text
+    mov byte [gfxt_ok], 1
+    mov eax, WC_AX
+    mov ebx, WC_AY
+    mov ecx, WC_W
+    mov edx, WC_H
+    mov esi, wc_one
+    call wm_create
+    mov [wc_a], eax
+    mov eax, WC_BX
+    mov ebx, WC_BY
+    mov esi, wc_two
+    call wm_create
+    mov [wc_b], eax
+    call wm_redraw
+    mov eax, WC_PX              ; back buffer only
+    mov ebx, WC_PY
+    mov cl, WC_PC
+    call gfx_putpixel
+    mov eax, [wc_b]
+    mov ebx, WC_MX
+    mov ecx, WC_MY
+    call wm_move
+    jc .fail
+    call wm_update
+    mov esi, wc_front
+    call wc_probes
+    mov eax, WC_PX              ; still on the back: not repainted
+    mov ebx, WC_PY
+    call gfx_getpixel
+    cmp cl, WC_PC
+    jne .fail
+    mov eax, [wc_b]             ; hanging off the right edge: allowed
+    mov ebx, WM_SCR_W - 40
+    mov ecx, WC_MY
+    call wm_move
+    jc .fail
+    mov eax, [wc_b]             ; the bar wholly past it: refused
+    mov ebx, WM_SCR_W
+    call wm_move
+    jnc .fail
+    call wm_update
+    mov eax, WM_SCR_W - 40      ; its left edge, on the visible page
+    mov ebx, WC_MY + WC_H / 2
+    call vbe_front_getpixel
+    cmp cl, WM_FRAME
+    jne .fail
+    mov ebp, 2                  ; fill the table: 16 open, the 17th refused
+.more:
+    mov eax, ebp
+    mov ebx, ebp
+    mov ecx, WM_MIN_W
+    mov edx, WM_MIN_H
+    mov esi, wc_one
+    call wm_create
+    cmp ebp, WM_MAX
+    jae .last
+    cmp eax, -1
+    je .fail
+    inc ebp
+    jmp .more
+.last:
+    cmp eax, -1
+    jne .fail
+    xor eax, eax                ; close them all
+.close:
+    push eax
+    call wm_close
+    pop eax
+    inc eax
+    cmp eax, WM_MAX
+    jb .close
+    jmp .text
+.fail:
+    mov byte [gfxt_ok], 0
+    xor eax, eax
+    jmp .close
+.text:
+    call gfx_text
+.out:
+    mov esi, wc_pass
+    cmp byte [gfxt_ok], 1
+    je .say
+    mov esi, wc_fail
+.say:
+    jmp puts
+
+; esi = x (dd), y (dd), colour (db) ..., read from the visible page
+wc_probes:
+    lodsd
+    cmp eax, -1
+    je .r
+    mov ebx, [esi]
+    mov dl, [esi+4]
+    add esi, 5
+    call vbe_front_getpixel
+    cmp cl, dl
+    je wc_probes
+    mov byte [gfxt_ok], 0
+    jmp wc_probes
+.r:
+    ret
+
+wc_front:
+    dd WC_BX + 20, WC_BY + 40
+    db WM_CLIENT                ; where B covered A's client: A shows
+    dd WC_BX, WC_AY + WC_H - 20
+    db WM_CLIENT                ; B's old left edge, inside A: A's client
+    dd WC_AX + WC_W + 10, WC_BY + 40
+    db WM_DESKTOP               ; B's old place, beyond A: the desktop
+    dd WC_MX, WC_MY + WC_H / 2
+    db WM_FRAME                 ; B's new left edge
+    dd WC_MX + WC_W / 2, WC_MY + 1
+    db WM_BAR                   ; its title bar, still focused
+    dd WC_PX, WC_PY
+    db WM_DESKTOP               ; the changed pixel was not flipped
+    dd -1
+
+align 4
+wc_a dd 0
+wc_b dd 0
+wc_one db 'One', 0
+wc_two db 'Two', 0
+wc_pass db 'winclip: PASS', 10, 0
+wc_fail db 'winclip: FAIL', 10, 0

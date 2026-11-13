@@ -459,6 +459,28 @@ gfx_fillrect:
     jns .yok
     xor ebx, ebx                ; clip the top edge to y = 0
 .yok:
+    cmp dword [gfx_clip_w], -1  ; a clip set: only loop over its part
+    je .noclip                  ; (2.2-clip-z; putpixel would drop the rest)
+    cmp eax, [gfx_clip_x]
+    jge .cl
+    mov eax, [gfx_clip_x]
+.cl:
+    cmp ebx, [gfx_clip_y]
+    jge .ct
+    mov ebx, [gfx_clip_y]
+.ct:
+    mov edx, [gfx_clip_x]
+    add edx, [gfx_clip_w]
+    cmp esi, edx
+    jle .cr
+    mov esi, edx
+.cr:
+    mov edx, [gfx_clip_y]
+    add edx, [gfx_clip_h]
+    cmp edi, edx
+    jle .noclip
+    mov edi, edx
+.noclip:
     mov edx, eax                ; left edge
 .row:
     cmp ebx, edi

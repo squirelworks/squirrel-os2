@@ -350,6 +350,8 @@ check bevtest       'bevel: PASS'           bevtest '<ret>'                   # 
 check bevtest-text  'systest: PASS'         bevtest '<ret>' systest '<ret>'
 check winvbe        'winvbe: PASS'          winvbe '<ret>'                    # 2.2-vbe-wm
 check winvbe-text   'systest: PASS'         winvbe '<ret>' systest '<ret>'
+check winclip       'winclip: PASS'         winclip '<ret>'                   # 2.2-clip-z
+check winclip-text  'systest: PASS'         winclip '<ret>' systest '<ret>'
 # 1.3.2: a string in graphics mode, ink and background read back
 check gfxtext      'gfxtext: PASS'         gfxtext '<ret>'
 check gfxtext-text 'systest: PASS'         gfxtext '<ret>' systest '<ret>'

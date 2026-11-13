@@ -422,6 +422,9 @@ run_simple:
     mov edi, cmd_winvbe         ; 2.2-vbe-wm
     call streq
     je .winvbe
+    mov edi, cmd_winclip        ; 2.2-clip-z
+    call streq
+    je .winclip
     mov edi, cmd_desktop
     call streq
     je .desktop
@@ -667,6 +670,9 @@ run_simple:
     jmp .empty
 .winvbe:
     call cmd_winvbe_run
+    jmp .empty
+.winclip:
+    call cmd_winclip_run
     jmp .empty
 .vbetest:
     call cmd_vbetest_run
@@ -1167,6 +1173,7 @@ cmd_vbetest db 'vbetest', 0
 cmd_cliptest db 'cliptest', 0
 cmd_bevtest db 'bevtest', 0
 cmd_winvbe db 'winvbe', 0
+cmd_winclip db 'winclip', 0
 cmd_wintest db 'wintest', 0
 cmd_winmove db 'winmove', 0
 cmd_winfocus db 'winfocus', 0

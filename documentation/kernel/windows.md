@@ -4,13 +4,13 @@ The window manager (`kernel/wm.asm`, since 1.4.0) draws windows in graphics mode
 
 ## Screen (2.2-vbe-wm)
 
-`wm_screen` enters the screen the window manager draws on: 640×480 at 8 bpp through VBE (`vbe_setup`, `vbe_mode`), or VGA mode 13h (320×200) when VBE is not there or refuses the mode. CF means neither could be entered. Colours are palette indices in both, from `kernel/theme.inc`; the DAC keeps the EGA palette in either mode. `wm_create`, `wm_move`, `wm_resize` and `wm_redraw` use the live size (`gfx_width`, `gfx_height`), not 320×200. The desktop (`../apps/desktop.md`) uses `wm_screen`; the 1.4 tests (`wintest`, `winmove`, `winfocus`) and the widget tests still enter mode 13h themselves, so their pixel positions are unchanged. Drawing is straight to the visible page for now; double buffering with dirty-rectangle flips comes with **2.2-clip-z**.
+`wm_screen` enters the screen the window manager draws on: 640×480 at 8 bpp through VBE (`vbe_setup`, `vbe_mode`), or VGA mode 13h (320×200) when VBE is not there or refuses the mode. CF means neither could be entered. Colours are palette indices in both, from `kernel/theme.inc`; the DAC keeps the EGA palette in either mode. `wm_create`, `wm_move`, `wm_resize` and `wm_redraw` use the live size (`gfx_width`, `gfx_height`), not 320×200. The desktop (`../apps/desktop.md`) uses `wm_screen`; the 1.4 tests (`wintest`, `winmove`, `winfocus`) and the widget tests still enter mode 13h themselves, so their pixel positions are unchanged. Since **2.2-clip-z** `wm_screen` also arms double buffering (`vbe_dblbuf`), so the window manager draws on the back page and flips (see below); a mode without room for two pages draws on the front.
 
 `winvbe` enters the screen, opens a 200 × 120 window at (400, 300), which is wholly outside 320×200, redraws, and reads back its left edge and bottom-right corner (frame), the title bar, the client area and the desktop just left of it. It closes the window, redraws, and checks the left edge is desktop again. It returns to text mode and prints `winvbe: PASS`, or `winvbe: FAIL` (also when VBE was not entered). Checks `winvbe` and `winvbe-text`.
 
 ## Windows
 
-The kernel keeps a table of up to 4 windows (`WM_MAX`). Each record holds:
+The kernel keeps a table of up to 16 windows (`WM_MAX`; 4 before 2.2-clip-z). Each record holds:
 
 | Field | Meaning |
 |-------|---------|
@@ -30,17 +30,19 @@ Since 1.4.2 the kernel keeps the open windows in a z-order list (`wm_z`, bottom 
 
 | Routine | In | Out |
 |---------|----|-----|
-| `wm_create` | eax = x, ebx = y, ecx = width, edx = height, esi = title | eax = window id, or −1 if the table is full, the window is smaller than 16 × 14, or it is not wholly on the screen |
+| `wm_create` | eax = x, ebx = y, ecx = width, edx = height, esi = title | eax = window id, or −1 if the table is full, the window is smaller than 16 × 14, or its title bar would not be on the screen (below) |
 | `wm_close` | eax = window id | the slot is free; an id that is not open is ignored |
-| `wm_move` | eax = window id, ebx = new x, ecx = new y | CF if the id is not open or the window would not be wholly on the screen; the window is then unchanged |
+| `wm_move` | eax = window id, ebx = new x, ecx = new y | CF if the id is not open or the title bar would leave the screen; the window is then unchanged |
 | `wm_resize` | eax = window id, ebx = new width, ecx = new height | the top left corner stays; CF as `wm_move`, or if the new size is below the minimum |
 | `wm_raise` | eax = window id | puts the window on top, which gives it the focus; CF if the id is not open |
 | `wm_cycle` | — | brings the bottom window to the top (nothing with fewer than two) |
 | `wm_focus` | — | eax = the focused (top) window's id, or −1 |
 | `wm_putc` | al = character | appends it to the focused window's text if there is room |
-| `wm_redraw` | — | paints the desktop, then every open window, lowest slot first |
+| `wm_redraw` | — | paints the desktop, then every open window, bottom first, flips the whole page when double buffering, and clears the dirty list |
+| `wm_update` | — | repaints and flips only the areas marked dirty (2.2-clip-z, below) |
+| `wm_invalidate` | eax = window id, or −1 for the whole screen | marks it dirty for `wm_update` |
 
-None of these draw; the caller calls `wm_redraw`. A title longer than the bar is cut at the last character that fits.
+None of these draw; the caller calls `wm_redraw` or, since 2.2-clip-z, `wm_update`. A title longer than the bar is cut at the last character that fits.
 
 These are kernel routines. Programs cannot open windows yet.
 
@@ -48,7 +50,7 @@ These are kernel routines. Programs cannot open windows yet.
 
 `wintest` switches to graphics mode, draws an empty desktop, creates a 200 × 120 window titled `Test window` at (60, 40) and redraws. It reads back a pixel of the left frame and a pixel of the title's first letter, closes the window, redraws, and reads the frame pixel again, which must now be the desktop colour. It returns to text mode and prints `win: PASS` or `win: FAIL`. Checks `wintest` and `wintest-text` (`systest` after it).
 
-`winmove` (1.4.1) creates the same window, moves it to (100, 60) and then resizes it to 100 × 60. After each step it reads back a pixel where the frame was, which must now be the desktop, and a pixel of the new frame. It then tries a move past the right edge and a width below the minimum; both must be refused and leave the window where it was. It prints `winmove: PASS` or `winmove: FAIL`. Checks `winmove` and `winmove-text`.
+`winmove` (1.4.1) creates the same window, moves it to (100, 60) and then resizes it to 100 × 60. After each step it reads back a pixel where the frame was, which must now be the desktop, and a pixel of the new frame. It then tries a move that puts the title bar wholly past the right edge (x = 320; since 2.2-clip-z a window may hang partly off the screen) and a width below the minimum; both must be refused and leave the window where it was. It prints `winmove: PASS` or `winmove: FAIL`. Checks `winmove` and `winmove-text`.
 
 `winfocus` (1.4.2) is interactive. It opens two overlapping windows, One and then Two, so Two is on top. Tab swaps which window is on top and focused, other keys type into the focused window, and Enter or Esc ends. It then reads the pixel where Two's left edge crosses One's client area: the frame colour there means Two was drawn last. It closes both windows, returns to text mode and prints, for example:
 
@@ -60,6 +62,16 @@ top: One
 ```
 
 after `ab`, Tab, `cd`, Enter. Checks `winfocus` (that sequence), `winfocus-none` (no Tab: Two keeps the focus) and `winfocus-text`.
+
+## Partly off-screen windows, dirty areas and partial repaint (2.2-clip-z)
+
+A window may hang off the left, right and bottom edges of the screen. `wm_fits` (used by `wm_create`, `wm_move`, `wm_resize`) refuses only a window below the minimum size, one whose top edge is above the screen, one whose title bar would not fit in the screen's height, and one with no column on the screen (x at or past the right edge, or x + width at or before 0). Drawing off the screen is clipped by `gfx_putpixel`.
+
+`wm_create`, `wm_close`, `wm_move` and `wm_resize` (old and new rectangle), `wm_raise` and `wm_putc` mark the screen areas they change in a list of up to 8 (`WM_DIRTY_MAX`); more, or `wm_invalidate -1`, means the whole screen. `wm_update` repaints each marked area: it sets the clip rectangle (`gfx_setclip`) to the area and paints the desktop and every window bottom first, so in that area each window shows exactly where nothing above it covers it, and no pixel outside the areas is written. `gfx_fillrect` loops only over the part of a rectangle inside the clip, so painting a large window into a small area is cheap. With double buffering it marks each area with `vbe_dirty` and flips once, so only those areas reach the visible page. `wm_redraw` stays a full repaint and full flip.
+
+The mouse pointer (`mouse.md`) is drawn on the back page too; `ptr_show` marks the box it left and the box it now covers and flips just those.
+
+`winclip` enters the window manager's screen with double buffering, opens One at (100, 100) and Two at (150, 150), both 200 × 150, and redraws. It changes one desktop pixel at (600, 20) on the back page only, moves Two to (380, 250) and calls `wm_update`. On the visible page it reads where Two covered One's client (One's client now), Two's old left edge inside One (One's client), Two's old place beyond One (desktop), Two's new left edge and title bar, and the changed pixel, which must still show the desktop there, while the back page must still hold the change: neither repainted nor flipped. It then moves Two so it hangs 160 pixels off the right edge (allowed; its left edge is read on the visible page after `wm_update`) and to x = 640 (refused), opens windows until the table holds 16 and checks the 17th is refused, closes them all, returns to text mode and prints `winclip: PASS` or `winclip: FAIL`. Checks `winclip` and `winclip-text`.
 
 ## Widgets
 

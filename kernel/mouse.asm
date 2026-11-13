@@ -251,6 +251,7 @@ ptr_show:
 .move:
     call ptr_hide
 .draw:
+    call ptr_present            ; where it was (2.2-clip-z)
     mov [ptr_px], edi
     mov [ptr_py], ebp
     xor esi, esi
@@ -269,9 +270,26 @@ ptr_show:
     cmp esi, PTR_N
     jb .l
     mov byte [ptr_vis], 1
+    call ptr_present            ; and where it is
+    call vbe_flip               ; only those two boxes reach the front
 .done:
     popad
 .r:
+    ret
+
+; Double buffering (2.2-clip-z): marks the box around ptr_px, ptr_py as
+; dirty, so the next flip shows the pointer (or what was under it).
+PTR_BOX equ 4                   ; the pointer reaches this far from its centre
+ptr_present:
+    pushad
+    mov eax, [ptr_px]
+    mov ebx, [ptr_py]
+    sub eax, PTR_BOX
+    sub ebx, PTR_BOX
+    mov ecx, 2 * PTR_BOX + 1
+    mov edx, ecx
+    call vbe_dirty
+    popad
     ret
 
 ; Shell: ptrtest — in mode 13h, fills the screen with a pattern, shows the

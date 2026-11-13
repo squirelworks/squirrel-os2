@@ -26,6 +26,8 @@ The desktop's pointer is a small plus (centre, below, left, right) in colour `0x
 
 `wm_redraw` clears `ptr_vis`. A full repaint has already painted over the pointer, so the saved pixels are stale and must not be written back. The next `ptr_show` saves the new pixels and draws the pointer again. Off-screen pixels are skipped (`gfx_putpixel` clips them, and `gfx_getpixel` returns 0 for them).
 
+Since 2.2-clip-z the desktop is double buffered: `ptr_show` (and the `ptr_hide` inside it) draw on the back page, then `ptr_present` marks a 9 × 9 box around the old and the new position as dirty and `ptr_show` flips only those (`vbe_flip`).
+
 `ptrtest` fills mode 13h with a pattern, shows the pointer, moves it, hides it, and checks that the pattern comes back each time. It prints `ptr: PASS` or `ptr: FAIL`.
 
 ## Packet decoding (2.0.1)
