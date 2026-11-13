@@ -292,6 +292,15 @@ From the 2.1 milestone in `ROADMAP.md` and epic #114. Resumed 2026-11-07 after t
 - [x] **2.1-dirty** — Dirty rectangles: mark regions that changed and only copy those on flip. A check dirties two rects, flips, and confirms pixels outside them are untouched on the front buffer while the dirty ones match.
 - [ ] **2.1-blit-clip** — A blitter (copy rect) and clip regions: draws and blits are clipped to a rectangle; a check reads ink inside the clip and background outside it.
 
+## 2.4 — Ring 3 and protection
+
+From the 2.4 milestone in `ROADMAP.md`. Worked by the OS2-K stream; each box is a branch the condenser folds into a PR. Design notes go in `documentation/kernel/kernel-image.md` and `documentation/kernel/ring3.md`.
+
+- [x] **2.4-khigh** — Room to grow: the kernel gets a high image above 1 MB that `stage2` loads after the 96 KB low image, from hard disk, floppy and CD; the page allocator starts above it and `install copy` writes it. Checks `floppy-khigh`, `cd-khigh`, `khigh-missing`, `khigh-mem`, and the existing boot/installer checks.
+- [ ] **2.4-user** — Loaded programs and their threads run in ring 3 with their own page tables; kernel pages are supervisor-only, the TSS gives each slot its kernel stack, and privileged instructions or kernel memory end only that program. Check `ring3`, `ring3-after`.
+- [ ] **2.4-ustack** — Growing ring-3 stacks: a 512 KB window per thread, mapped page by page on first touch, with a guard page reported as a stack overflow. Checks `ring3` (64 KB of stack), `stackover`.
+- [ ] **2.4-uptr** — The syscall gate checks every pointer a ring-3 caller passes (strings, buffers, blocks) against the program's own memory and refuses the rest with -1; `SYS_PALLOC`/`SYS_PFREE` are kernel-only. Check `ring3`.
+
 ## Later milestones
 
 The milestones after 2.1 (GUI generations 2.2–4.x, ring 3 in 2.4, the 64-bit bridge 2.8–2.9, built-in apps A.1–A.7, games G.1–G.9, calculator suite C.1–C.9, Warp styling W.1–W.6, foreign programs P.1–P.12) are in `ROADMAP.md` and the epics #114–#119. Each one is split into boxes here, in a docs-only PR, when it comes up.

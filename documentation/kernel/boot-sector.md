@@ -2,7 +2,9 @@
 
 ## boot.asm (current — 0.9.3)
 
-- Loads 192 sectors (LBA 1–192, the 96 KB `pm.asm` image) to `0x8000` and jumps to `0000:8000`.
+- Loads 192 sectors (LBA 1–192, the 96 KB low `pm.asm` image) to `0x8000` and jumps to `0000:8000`
+  with the boot drive in `dl`. Since 2.4 the kernel's high image follows on the disk and
+  `stage2` reads it itself, above 1 MB (`kernel-image.md`).
   Up to 1.7.2 it was 128 sectors (64 KB); `KERNEL_SIZE` in `pm.asm` grew when that was nearly full. The image ends at `0x1FFFF`,
   just below `KSCRATCH`.
 - From a hard disk it uses the BIOS extended read (int 0x13, AH=0x42, disk address packet),

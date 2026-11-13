@@ -30,7 +30,7 @@ INS_HEADS     equ 255           ; CHS geometry for the table's CHS fields
 INS_SPT       equ 63
 INS_OUT       equ blk_buf_out   ; the sector being written (ata.asm)
 INS_IN        equ blk_buf_in    ; a sector read back
-INS_KSECTS    equ KERNEL_SIZE/SECTOR_SIZE ; the kernel image, from sector 1
+INS_KSECTS    equ KHIGH_LBA-1+KHIGH_SECTS ; low and high kernel images, from sector 1 (2.4)
 INS_FILEMAX   equ 0x10000       ; largest file install copy takes (LD_STAGE)
 INS_BOOTCMP   equ gdt-stage2    ; bytes of sector 1 compared with 0x8000
 %if INS_BOOTCMP < 64 || INS_BOOTCMP > 512
