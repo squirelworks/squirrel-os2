@@ -45,3 +45,7 @@ See `documentation/README.md` for the living documentation set.
 Build and run with `tools/build.sh` and `tools/run.sh` (`documentation/guides/getting-started.md`).  
 Notes: `documentation/releases/2.1.0.md`, `2.0.2.md`, `2.0.1.md`, `2.0.0.md` (1.0: `1.0.0.md` … `1.0.12.md`; 1.1–1.9 through `1.9.12.md`). Limits: `documentation/specifications.md`. What to do next: [TODO.md](TODO.md).  
 Font: lowercase `q` now has a straight stem with a right-hand tail on its descender, so it no longer reads as `9`.
+
+## License
+
+Squirrel OS/2 is released into the public domain under [the Unlicense](LICENSE).

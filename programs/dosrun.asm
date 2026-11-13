@@ -65,6 +65,7 @@ main:
     call setup
     jc .out
     call run
+    call vga_leave              ; a program that ends in graphics
     movzx eax, byte [exit_code]
 .out:
     pop ebp
@@ -667,6 +668,9 @@ run:
 .next:
     cmp byte [done], 0
     jne .r
+    dec dword [vslice]
+    jz .slice
+.go:
     mov byte [ovr], 0xFF
     mov byte [repp], 0
     mov ax, [sCS]
@@ -683,6 +687,10 @@ run:
 .bios:
     call bios_entry
     jmp .next
+.slice:                         ; now and then the graphics screen is shown
+    mov dword [vslice], VGA_SLICE
+    call vga_tick
+    jmp .go
 .r:
     ret
 
@@ -1507,22 +1515,25 @@ op_loop:
     ret
 
 ; E4 E5 EC ED in: no devices; E6 E7 EE EF out: ignored
-op_in:
-    cmp byte [opc], 0xEC
-    jae .dx
-    call fetch8                 ; the port number
-.dx:
-    mov byte [rAX], 0xFF
+op_in:                          ; the VGA's ports answer; others read FFh
+    call port_no
+    call vga_in
+    mov [rAX], al
     test byte [opc], 1
     jz .r
     mov byte [rAX+1], 0xFF
 .r:
     ret
 op_out:
-    mov al, [opc]
-    cmp al, 0xEE
+    call port_no
+    mov al, [rAX]
+    jmp vga_out
+port_no:                        ; -> edx = the port (imm8, or DX)
+    movzx edx, word [rDX]
+    cmp byte [opc], 0xEC
     jae .r
     call fetch8
+    movzx edx, al
 .r:
     ret
 
@@ -1915,6 +1926,23 @@ dos_exit0:
 ; ---------- INT 10h: video, the teletype subset ----------
 int10:
     mov al, [rAX+1]
+    test al, al
+    je vga_setmode
+    cmp al, 0x10
+    je vga_dac
+    cmp byte [vmode], 0x13
+    jne .text
+    cmp al, 0x0C
+    je vga_pixel
+    cmp al, 0x0D
+    je vga_pixel
+    cmp al, 0x02
+    je .gset
+    cmp al, 0x03
+    je .gget
+    cmp al, 0x0F
+    je .gmode
+.text:
     cmp al, 0x0E
     je .tty
     cmp al, 0x09
@@ -1931,8 +1959,29 @@ int10:
     je .str
     ret                         ; set mode, cursor, scroll, palette: ignored
 .tty:
+    mov al, [rBX]               ; the colour, in graphics
+    mov [vink], al
     mov al, [rAX]
-    jmp putch
+    call putch
+    mov byte [vink], 15
+    ret
+.gset:
+    mov al, [rDX]
+    mov [vcur], al
+    mov al, [rDX+1]
+    mov [vcur+2], al
+    ret
+.gget:
+    mov al, [vcur]
+    mov [rDX], al
+    mov al, [vcur+2]
+    mov [rDX+1], al
+    mov word [rCX], 0
+    ret
+.gmode:
+    mov word [rAX], 0x2813      ; 40 columns, mode 13h
+    mov byte [rBX+1], 0
+    ret
 .rep:
     movzx ecx, word [rCX]
 .rl:
@@ -1967,6 +2016,8 @@ int10:
     dec ecx
     jmp .sl
 
+%include "dosvga.inc"
+
 ; ---------- INT 16h: keyboard ----------
 int16:
     mov al, [rAX+1]
@@ -1980,9 +2031,37 @@ int16:
 .r:
     ret
 .peek:                          ; waits for a key, keeps it for 00h
+    cmp byte [vmode], 0x13
+    je .gpeek
     call key_peek
     mov [rAX], ax
     and word [flags], ~F_ZF
+    ret
+
+.gpeek:                         ; in graphics it does not wait
+    call key_poll
+    mov [rAX], ax
+    and word [flags], ~F_ZF
+    test ax, ax
+    jnz .r
+    or word [flags], F_ZF
+    ret
+
+; graphics: -> ax = a key kept for key_get, or 0 when none is waiting
+key_poll:
+    mov ax, [key_held]
+    test ax, ax
+    jnz .r
+    call vga_key
+    mov [key_held], ax
+    test ax, ax
+    jnz .r
+    call vga_tick
+    push eax
+    mov eax, SYS_YIELD
+    int 0x80
+    pop eax
+.r:
     ret
 
 ; -> ax = the next key (AH scan code 0, AL ASCII); Enter is CR
@@ -1993,6 +2072,8 @@ key_get:
     mov word [key_held], 0
     ret
 .read:
+    cmp byte [vmode], 0x13
+    je .gread
     mov eax, SYS_GETC
     int 0x80
     cmp eax, -1
@@ -2004,6 +2085,17 @@ key_get:
     mov al, 13
 .m:
     movzx eax, al
+    ret
+.gread:                         ; graphics: show the screen, then wait
+    call vga_flush
+.gw:
+    call vga_key
+    test eax, eax
+    jnz .gk
+    mov eax, SYS_YIELD
+    int 0x80
+    jmp .gw
+.gk:
     ret
 key_peek:
     cmp word [key_held], 0
@@ -2018,8 +2110,18 @@ key_peek:
 int1a:
     cmp byte [rAX+1], 0
     jne .r
-    add dword [fake_ticks], 1   ; no clock call: a count that moves
-    mov eax, [fake_ticks]
+    call vga_tick
+    push ebx
+    mov eax, SYS_GUI_           ; 100 Hz ticks -> the BIOS's 18.2 Hz
+    mov ebx, VG_TICKS
+    int 0x80
+    pop ebx
+    imul eax, eax, 182
+    xor edx, edx
+    push ecx
+    mov ecx, 1000
+    div ecx
+    pop ecx
     mov [rDX], ax
     shr eax, 16
     mov [rCX], ax
@@ -2128,6 +2230,15 @@ d_putc:                         ; 02: DL
 d_dcio:                         ; 06: DL = FF reads (waits), else writes
     cmp byte [rDX], 0xFF
     jne d_putc
+    cmp byte [vmode], 0x13
+    jne .wait
+    call key_poll               ; graphics: ZF when no key
+    test ax, ax
+    jnz .wait
+    mov byte [rAX], 0
+    or word [flags], F_ZF
+    ret
+.wait:
     call key_get
     mov [rAX], al
     and word [flags], ~F_ZF
@@ -2149,6 +2260,13 @@ d_puts:                         ; 09: DS:DX up to '$'
     ret
 d_kbhit:                        ; 0B: say a key is there; reading it waits
     mov byte [rAX], 0xFF
+    cmp byte [vmode], 0x13      ; graphics can tell
+    jne .r
+    call key_poll
+    test ax, ax
+    jnz .r
+    mov byte [rAX], 0
+.r:
     ret
 d_flushin:                      ; 0C: then the function in AL
     mov word [key_held], 0
@@ -2573,6 +2691,8 @@ d_rename:
 ; ======================== output helpers ========================
 
 putch:                          ; al -> the console; keeps registers
+    cmp byte [vmode], 0x13
+    je .gfx
     pushad
     movzx ebx, al
     cmp bl, 13                  ; CR alone does nothing on this console
@@ -2581,6 +2701,12 @@ putch:                          ; al -> the console; keeps registers
     int 0x80
 .r:
     popad
+    ret
+.gfx:
+    push ebx
+    mov bl, [vink]
+    call vga_tty
+    pop ebx
     ret
 say:                            ; ebx = ASCIIZ
     push eax
@@ -2697,7 +2823,6 @@ img_len resd 1
 dta resd 1
 dta_far resd 1
 str_fn resd 1
-fake_ticks resd 1
 regs resw 8
 sregs resw 4
 ip resw 1
@@ -2708,6 +2833,7 @@ ea_off resw 1
 ea_seg resw 1
 alloc_seg resw 1
 key_held resw 1
+vcur resw 2
 opc resb 1
 ovr resb 1
 repp resb 1
@@ -2718,6 +2844,15 @@ mrm_ss resb 1
 mrm_mem resb 1
 done resb 1
 exit_code resb 1
+vdac_idx resb 1
+vdac_rgb resb 1
+vretrace resb 1
+alignb 4
+vframe resd 1
+vfont resd 1
+vticks resd 1
+vdac resb 768
+vlut resb 256
 alignb 4
 relent resb 4
 hdr resb 32
