@@ -65,7 +65,11 @@ for prog in doshello doscpu dosfile dosgfx; do nasm -f bin "$root/programs/$prog
 nasm -f bin "$root/programs/dosexe.asm" -o "$out/dosexe.exe"
 nasm -f bin -i "$root/programs/" "$root/programs/lxsig.asm" -o "$out/lxsig"    # P.2 signals ride along on this disk
 nasm -f bin -i "$root/programs/" "$root/programs/bsdhello.asm" -o "$out/bsdhello"    # P.10 FreeBSD rides along on this disk
-for f in dosrun winrun doshello.com doscpu.com dosfile.com dosgfx.com dosexe.exe lxsig bsdhello; do python3 "$root/tools/sqfs.py" "$out/dos.img" put "$out/$f"; done
+for prog in os2run os2hello; do nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"; done    # P.9 OS/2 rides along on this disk
+nasm -f bin "$root/programs/winwnd.asm" -o "$out/winwnd"    # P.6 Win32 GUI rides along on this disk
+nasm -f bin "$root/programs/winreg.asm" -o "$out/winreg"    # P.6 registry emulation
+nasm -f bin "$root/programs/windll.asm" -o "$out/windll"    # P.6 DLL loader: a program ...
+nasm -f bin "$root/programs/winlib.asm" -o "$out/acorn.dll" # ... and its DLL
 # OS2-HW H.1: the UEFI loaders carry this os.img; an EFI system partition image holds both
 (cd "$root/boot/uefi" && nasm -f bin -DOS_IMG="\"$out/os.img\"" bootx64.asm -o "$out/BOOTX64.EFI" \
     && nasm -f bin -DOS_IMG="\"$out/os.img\"" bootia32.asm -o "$out/BOOTIA32.EFI")
@@ -86,6 +90,7 @@ sector5() {  # sector5 NAME FILE: the pattern blkdev wrote must be in the image 
     if python3 -c "import sys; d = open(sys.argv[1], 'rb').read()[2560:2568]; sys.exit(d != bytes.fromhex('05005a5a06015b5b'))" "$2"
     then echo "ok   $1"; else echo "FAIL $1 (sector 5 of $2 not written)"; fail=1; fi
 }
+for f in dosrun winrun doshello.com doscpu.com dosfile.com dosgfx.com dosexe.exe lxsig bsdhello os2run os2hello winwnd winreg windll acorn.dll; do python3 "$root/tools/sqfs.py" "$out/dos.img" put "$out/$f"; done
 rm -f "$out/data.img"
 dd if=/dev/zero of="$out/data.img" bs=1024 count=1024 2>/dev/null
 
@@ -1078,6 +1083,18 @@ check dos-gfx-after   'systest: PASS'         'run dosgfx.com' '<ret>' '<pause>'
 # P.10: a FreeBSD i386 ELF: arguments on the stack, errors as CF + errno
 check_all bsd-hello   'Hello from FreeBSD land!|bsdhello: PASS'  'run bsdhello' '<ret>'
 check bsd-after       'Hello from DOS land!'  'run bsdhello' '<ret>' 'run doshello.com' '<ret>'
+# P.9: an OS/2 32-bit LX program: objects, fixups, DOSCALLS by ordinal, TIB/PIB
+check_all os2-hello   'Hello from OS/2 land!|arguments: acorns|os2hello: PASS'  'run os2hello acorns' '<ret>'
+check os2-missing     'os2run: DOSCALLS.1 is not implemented'  'run os2hello stub' '<ret>'
+check os2-notlx       'not an OS/2 32-bit LX program'  'run os2run doshello.com' '<ret>'
+check os2-after       'Hello from DOS land!'  'run os2hello' '<ret>' 'run doshello.com' '<ret>'
+# P.6: a Win32 GUI program: window, WM_PAINT with GDI, timer, keys, DestroyWindow
+check_all win-gui     'gfx: Acorn window|gfx: Hello from Win32 GUI|gfx: winwnd: PASS'  'run winwnd' '<ret>' '<pause>' q '<pause>' '<gfx>'
+check win-gui-after   'systest: PASS'         'run winwnd' '<ret>' '<pause>' x '<pause>' systest '<ret>'
+check_all win-reg     'winreg: PASS|winreg: count 2'  'run winreg' '<ret>' 'run winreg again' '<ret>'
+check win-reg-file    'HKCU\Software\Acorn|count|4|02000000'  'run winreg' '<ret>' 'run winreg again' '<ret>' 'cat registry.dat' '<ret>'
+check_all win-dll     'windll: Hello from acorn.dll|windll: PASS'  'run windll' '<ret>'
+check win-dll-gone    'not implemented: Gone' 'run windll gone' '<ret>'
 # 3.0 (OS2-NET-AUDIO): sound. AC'97 and Intel HDA under QEMU (-audiodev none paces the DMA in
 # real time; -audiodev wav writes what was played, which tools/wavcheck.py listens to)
 python3 "$root/tools/sqfs.py" "$out/snd.img" format 1024
