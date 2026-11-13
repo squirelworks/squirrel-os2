@@ -356,6 +356,8 @@ check winhit        'winhit: PASS'          winhit '<ret>'                    # 
 check winhit-text   'systest: PASS'         winhit '<ret>' systest '<ret>'
 check windrag       'windrag: PASS'         windrag '<ret>'                   # 2.2-mouse
 check windrag-text  'systest: PASS'         windrag '<ret>' systest '<ret>'
+check winmin        'winmin: PASS'          winmin '<ret>'                    # 2.2-minmax
+check winmin-text   'systest: PASS'         winmin '<ret>' systest '<ret>'
 # 1.3.2: a string in graphics mode, ink and background read back
 check gfxtext      'gfxtext: PASS'         gfxtext '<ret>'
 check gfxtext-text 'systest: PASS'         gfxtext '<ret>' systest '<ret>'

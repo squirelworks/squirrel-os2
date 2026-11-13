@@ -23,7 +23,8 @@ WIN_BUF         equ 28          ; WM_BUF characters and a zero
 WIN_FLAGS       equ 56          ; WF_* (2.2-frame)
 WIN_STATE       equ 60          ; WS_* (2.2-mouse)
 WIN_REST        equ 64          ; x, y, w, h to restore from maximised
-WIN_SIZE        equ 80
+WIN_ICONIC      equ 80          ; 1 while minimised to an icon (2.2-minmax)
+WIN_SIZE        equ 84
 WS_NORMAL       equ 0
 WS_MAX          equ 1
 WS_MIN          equ 2
@@ -53,6 +54,10 @@ HT_TL           equ 10
 HT_TR           equ 11
 HT_BL           equ 12
 HT_BR           equ 13
+HT_ICON         equ 14          ; a minimised window's icon (2.2-minmax)
+WM_ICON_W       equ 72
+WM_ICON_H       equ 20
+WM_ICON_GAP     equ 8
 WM_MIN_W        equ 5 * WM_BOX + 8  ; room for the boxes and a little title
 WM_MIN_H        equ WM_TITLE_H + 4
 
@@ -99,6 +104,7 @@ wm_create:
     mov byte [edi+WIN_BUF], 0
     mov dword [edi+WIN_FLAGS], WF_DEFAULT
     mov dword [edi+WIN_STATE], WS_NORMAL
+    mov dword [edi+WIN_ICONIC], 0
     call wm_markwin             ; its place needs painting (2.2-clip-z)
     mov eax, ebp
     mov ebp, [wm_zn]            ; on top
@@ -310,6 +316,7 @@ wm_paint:
     mov edx, [gfx_height]
     mov byte [gfx_colour], WM_DESKTOP
     call gfx_fillrect
+    call wm_icons               ; minimised windows (2.2-minmax)
     xor ebp, ebp
 .w:
     cmp ebp, [wm_zn]
@@ -1177,6 +1184,8 @@ wm_hit:
     call wm_part
     jmp .out
 .none:
+    call wm_iconat              ; an icon on the desktop? (2.2-minmax)
+    jnc .out
     mov eax, -1
     xor ebx, ebx
 .out:
@@ -1441,7 +1450,7 @@ wh_fail db 'winhit: FAIL', 10, 0
 ; In: eax = x, ebx = y, cl = buttons (bit 0 left).
 ; Out: eax = WME_NONE, or WME_CLIENT (ebx = window, ecx = x | y << 16 in
 ; the client area), WME_CLOSE (ebx = window: the caller closes it or not),
-; WME_MIN (ebx = window: minimising comes with 2.2-minmax), WME_SYSMENU.
+; WME_SYSMENU (ebx = window). The minimise box minimises (2.2-minmax).
 
 WME_NONE    equ 0
 WME_CLIENT  equ 1
@@ -1474,7 +1483,10 @@ wm_mouse:
 .press:
     call wm_hit
     cmp eax, -1
-    je .none
+    je .nolast
+    cmp ebx, HT_ICON
+    je .icon
+    mov dword [wm_lasticon], -1
     mov [wm_mwin], eax
     call wm_raise               ; a click focuses
     call wm_record
@@ -1499,7 +1511,7 @@ wm_mouse:
     cmp ebx, HT_CLOSE
     je .close
     cmp ebx, HT_MIN
-    je .min
+    je .minbox
     cmp ebx, HT_SYSMENU
     je .sys
     cmp dword [edi+WIN_STATE], WS_MAX
@@ -1515,6 +1527,9 @@ wm_mouse:
 .max:
     call wm_togglemax
     jmp .none
+.minbox:
+    mov eax, [wm_mwin]
+    jmp .min
 .client:
     mov ecx, [wm_py]
     sub ecx, [edi+WIN_Y]
@@ -1531,8 +1546,18 @@ wm_mouse:
     mov eax, WME_CLOSE
     jmp .ret_win
 .min:
-    mov eax, WME_MIN
-    jmp .ret_win
+    call wm_minimise            ; eax = the window (2.2-minmax)
+    jmp .none
+.icon:                          ; a second press on the same icon restores
+    cmp eax, [wm_lasticon]
+    mov [wm_lasticon], eax
+    jne .none
+    mov dword [wm_lasticon], -1
+    call wm_restore
+    jmp .none
+.nolast:
+    mov dword [wm_lasticon], -1
+    jmp .none
 .sys:
     mov eax, WME_SYSMENU
 .ret_win:
@@ -1848,3 +1873,296 @@ align 4
 wd_r dd 0, 0, 0
 wd_pass db 'windrag: PASS', 10, 0
 wd_fail db 'windrag: FAIL', 10, 0
+
+; ---------- minimise to icons (2.2-minmax) ----------
+; A minimised window leaves the z-order (so it is not drawn, hit, focused
+; or cycled) and shows as an icon along the bottom of the desktop: the
+; k-th minimised window in table order has the k-th place from the left.
+; The icon is a raised button with the start of the title. Pressing it
+; twice in a row (a double click; another press in between starts over)
+; restores the window on top, with the size and state it had.
+
+; eax = window id: minimise it. CF if not open or already minimised, or it
+; has no minimise box.
+wm_minimise:
+    pushad
+    call wm_record
+    jc .out
+    test dword [edi+WIN_FLAGS], WF_MINBOX
+    jz .no
+    cmp dword [edi+WIN_ICONIC], 0
+    jne .no
+    call wm_zremove
+    mov dword [edi+WIN_ICONIC], 1
+    mov byte [wm_dfull], 1      ; the icons may all shift: repaint
+    clc
+    jmp .out
+.no:
+    stc
+.out:
+    popad
+    ret
+
+; eax = window id: restore a minimised window to the top. CF if it is not
+; open or not minimised.
+wm_restore:
+    pushad
+    call wm_record
+    jc .out
+    cmp dword [edi+WIN_ICONIC], 0
+    je .no
+    mov dword [edi+WIN_ICONIC], 0
+    push ebp
+    mov ebp, [wm_zn]
+    mov [wm_z+ebp], al
+    inc dword [wm_zn]
+    pop ebp
+    mov byte [wm_dfull], 1
+    clc
+    jmp .out
+.no:
+    stc
+.out:
+    popad
+    ret
+
+; eax = window id, ebx = WS_NORMAL, WS_MAX or WS_MIN: minimise, maximise
+; or restore it. From WS_MIN, WS_NORMAL / WS_MAX restore the icon first.
+wm_setstate:
+    pushad
+    call wm_record
+    jc .out
+    mov [wm_mwin], eax
+    cmp ebx, WS_MIN
+    jne .notmin
+    call wm_minimise
+    jmp .out
+.notmin:
+    cmp dword [edi+WIN_ICONIC], 0
+    je .size
+    call wm_restore
+.size:
+    cmp [edi+WIN_STATE], ebx
+    je .ok
+    call wm_togglemax
+.ok:
+    clc
+.out:
+    popad
+    ret
+
+; Draws the icon of every minimised window.
+wm_icons:
+    pushad
+    mov edi, wm_table
+    xor ebp, ebp                ; slot
+    xor ecx, ecx
+.w:
+    cmp byte [edi+WIN_USED], 0
+    je .next
+    cmp dword [edi+WIN_ICONIC], 0
+    je .next
+    call wm_iconrect            ; ebp = slot -> eax, ebx
+    push ecx
+    mov ecx, WM_ICON_W
+    mov edx, WM_ICON_H
+    mov byte [gfx_colour], TH_FACE
+    call gfx_fillrect
+    xor esi, esi
+    call gfx_bevel
+    add eax, 4
+    add ebx, (WM_ICON_H - GFX_CELL_H) / 2
+    mov ecx, WM_ICON_W - 8
+    mov byte [gfx_colour], TH_TEXT
+    mov byte [gfx_bg], TH_FACE
+    mov esi, [edi+WIN_TITLE]
+    call wm_drawtitle
+    pop ecx
+    inc ebp
+.next:
+    add edi, WIN_SIZE
+    inc ecx
+    cmp ecx, WM_MAX
+    jb .w
+    popad
+    ret
+
+; ebp = icon slot -> eax, ebx = its top left
+wm_iconrect:
+    imul eax, ebp, WM_ICON_W + WM_ICON_GAP
+    add eax, WM_ICON_GAP
+    mov ebx, [gfx_height]
+    sub ebx, WM_ICON_H + WM_ICON_GAP
+    ret
+
+; eax = x, ebx = y -> eax = the minimised window whose icon is there and
+; ebx = HT_ICON, CF clear; CF set (eax, ebx kept) if none.
+wm_iconat:
+    pushad
+    mov [wm_ix], eax
+    mov [wm_iy], ebx
+    mov edi, wm_table
+    xor ebp, ebp
+    xor ecx, ecx
+.w:
+    cmp byte [edi+WIN_USED], 0
+    je .next
+    cmp dword [edi+WIN_ICONIC], 0
+    je .next
+    call wm_iconrect
+    mov edx, [wm_ix]
+    sub edx, eax
+    cmp edx, WM_ICON_W          ; unsigned: left of it wraps and fails
+    jae .slot
+    mov edx, [wm_iy]
+    sub edx, ebx
+    cmp edx, WM_ICON_H
+    jae .slot
+    mov [esp+28], ecx           ; pushad's eax: the window
+    mov dword [esp+16], HT_ICON ; pushad's ebx
+    popad
+    clc
+    ret
+.slot:
+    inc ebp
+.next:
+    add edi, WIN_SIZE
+    inc ecx
+    cmp ecx, WM_MAX
+    jb .w
+    popad
+    stc
+    ret
+
+align 4
+wm_ix dd 0
+wm_iy dd 0
+wm_lasticon dd -1
+
+; winmin: One and Two on the window manager's screen. One's minimise box
+; (clicked through wm_inject) makes it an icon: Two gets the focus and the
+; icon is hit-tested and read back on the visible page. Two is minimised
+; with wm_setstate; one press on One's icon, or a press on Two's icon in
+; between, does not restore it; two presses do, with its rectangle and the
+; focus, and Two's icon moves to the first place. A maximised window comes
+; back maximised. Prints `winmin: PASS` or `winmin: FAIL`.
+WN_IX equ WM_ICON_GAP + WM_ICON_W / 2               ; first icon's centre
+WN_IX2 equ WN_IX + WM_ICON_W + WM_ICON_GAP          ; second icon's
+WN_IY equ WM_SCR_H - WM_ICON_GAP - WM_ICON_H / 2
+cmd_winmin_run:
+    call wm_screen
+    jc .out
+    mov byte [gfxt_ok], 1
+    mov eax, 100
+    mov ebx, 100
+    mov ecx, 200
+    mov edx, 150
+    mov esi, wc_one
+    call wm_create
+    mov [wc_a], eax
+    mov eax, 200
+    mov ebx, 180
+    mov esi, wc_two
+    call wm_create
+    mov [wc_b], eax
+    call wm_redraw
+    mov eax, 100 + 200 - 7 - 2 * WM_BOX ; One's minimise box
+    mov ebx, 105
+    call wn_click
+    call wm_update
+    call wm_focus
+    cmp eax, [wc_b]
+    jne .fail
+    mov eax, WN_IX
+    mov ebx, WN_IY
+    call wm_hit
+    cmp eax, [wc_a]
+    jne .fail
+    cmp ebx, HT_ICON
+    jne .fail
+    mov eax, WM_ICON_GAP        ; the icon's bevel, on the visible page
+    mov ebx, WM_SCR_H - WM_ICON_GAP - WM_ICON_H
+    call vbe_front_getpixel
+    cmp cl, TH_LIGHT
+    jne .fail
+    mov eax, [wc_b]
+    mov ebx, WS_MIN
+    call wm_setstate
+    call wm_focus
+    cmp eax, -1                 ; nothing left to focus
+    jne .fail
+    mov eax, WN_IX              ; One once, Two, One once: not restored
+    mov ebx, WN_IY
+    call wn_click
+    mov eax, WN_IX2
+    call wn_click
+    mov eax, WN_IX
+    call wn_click
+    mov eax, [wc_a]
+    call wm_record
+    cmp dword [edi+WIN_ICONIC], 1
+    jne .fail
+    mov eax, WN_IX              ; and again: restored
+    call wn_click
+    call wm_update
+    call wm_focus
+    cmp eax, [wc_a]
+    jne .fail
+    cmp dword [edi+WIN_ICONIC], 0
+    jne .fail
+    cmp dword [edi+WIN_X], 100
+    jne .fail
+    cmp dword [edi+WIN_W], 200
+    jne .fail
+    mov eax, WN_IX              ; Two's icon is first now
+    call wm_hit
+    cmp eax, [wc_b]
+    jne .fail
+    mov eax, [wc_a]             ; maximised, minimised, restored: maximised
+    mov ebx, WS_MAX
+    call wm_setstate
+    mov ebx, WS_MIN
+    call wm_setstate
+    mov eax, WN_IX              ; One's icon is first again (table order)
+    mov ebx, WN_IY
+    call wn_click
+    call wn_click
+    call wm_update
+    mov eax, [wc_a]
+    call wm_record
+    cmp dword [edi+WIN_ICONIC], 0
+    jne .fail
+    cmp dword [edi+WIN_STATE], WS_MAX
+    jne .fail
+    cmp dword [edi+WIN_W], WM_SCR_W
+    je .end
+.fail:
+    mov byte [gfxt_ok], 0
+.end:
+    mov eax, [wc_a]
+    call wm_close
+    mov eax, [wc_b]
+    call wm_close
+    call gfx_text
+.out:
+    mov esi, wn_pass
+    cmp byte [gfxt_ok], 1
+    je .say
+    mov esi, wn_fail
+.say:
+    jmp puts
+
+; eax, ebx = a point: a left press and release there (wm_inject)
+wn_click:
+    pushad
+    mov cl, 1
+    call wm_inject
+    mov eax, [esp+28]
+    mov ebx, [esp+16]
+    xor ecx, ecx
+    call wm_inject
+    popad
+    ret
+
+wn_pass db 'winmin: PASS', 10, 0
+wn_fail db 'winmin: FAIL', 10, 0
