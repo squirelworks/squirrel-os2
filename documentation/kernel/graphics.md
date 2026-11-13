@@ -22,6 +22,18 @@ Location: `../../kernel/gfx.asm` (included from `kernel/pm.asm`)
 - `gfx_text` disables DISPI when `gfx_vbe` is set, then loads the text registers and restores the saved screen/font.
 - The desktop and window manager still use mode 13h. The remaining 2.1 box is a blitter with clipping.
 
+## Clip rectangle and blitter (2.1-blit-clip)
+
+Every pixel any primitive draws goes through `gfx_putpixel`, and that is where the clip is applied, so lines, filled rectangles, text and blits are all cut to it. The clip is `gfx_clip_x`, `gfx_clip_y`, `gfx_clip_w`, `gfx_clip_h`; a pixel is drawn when `x - gfx_clip_x` and `y - gfx_clip_y`, taken unsigned, are below the width and height, so a pixel left of or above the clip wraps to a large number and is dropped too. The default (and what `gfx_noclip` and `gfx_text` put back) is 0, 0 and a width and height of `0xFFFFFFFF`: the whole screen. The screen bounds are still checked first.
+
+`gfx_copyrect` copies a rectangle within the draw target (the back buffer when double buffering). It reads with `gfx_getpixel` and writes with `gfx_putpixel`, so the destination is clipped and a source pixel off the screen reads as 0. When the destination lies below the source, or on the same rows and to the right, it copies from the last pixel back to the first, so overlapping copies (scrolling, moving a window by a few pixels) come out right.
+
+`gfx_fillrect` now clips to the live mode (`gfx_width` / `gfx_height`); before 2.1-blit-clip it stopped at 320 × 200 even in a VBE mode.
+
+### Test
+
+`cliptest` clears rows 103–199 in mode 13h, sets the clip to x 100–149, y 120–149, fills a rectangle that overhangs it on every side and draws a line across it, and reads back the clip's corners (ink) and a pixel just outside each side (background), and the line inside and outside the clip. It then draws a 4 × 3 block with a marked corner, copies it to a free place, copies that copy onto a place overlapping it by one row and two columns (the mark must arrive, which only happens when the copy runs backwards), and copies the block into a clip that cuts its first two columns. When VBE is there it also fills a rectangle at x 400 in 640 × 480 × 8 and reads it back. It returns to text mode and prints `clip: PASS` or `clip: FAIL`. Checks `cliptest` and `cliptest-text` (`systest` after it).
+
 ### Test
 
 `vbetest` walks all nine modes above; for each it writes colours `0x2A` and `0x15` to pixel (100, 100) and reads them back, then arms double buffering, checks the back already reads `0x15` (copied from the front), draws `0x3C` on the back, checks the front is still `0x15`, flips, and checks the front is `0x3C`. It then draws three further pixels on the back, marks only two with `vbe_dirty`, flips, and checks the front matches the marked colours while the unmarked probe keeps its pre-flip front colour. It returns to text mode and prints `vbe: PASS`. When VBE setup fails it uses mode 13h once (no double buffering) and prints `vbe: 13h` if that read-back works. Checks `vbetest` and `vbetest-text` (`systest` after it).
@@ -42,6 +54,9 @@ Location: `../../kernel/gfx.asm` (included from `kernel/pm.asm`)
 | `gfx_fillrect` (1.3.1) | `eax`, `ebx` = top left, `ecx` = width, `edx` = height, colour in `gfx_colour` | — (clipped to the screen; x and y may be negative) |
 | `gfx_drawchar` (1.3.2) | `eax`, `ebx` = top left of the cell, `dl` = character, ink in `gfx_colour`, background in `gfx_bg` | — (a 6 × 8 cell) |
 | `gfx_drawstr` (1.3.2) | `esi` = zero-terminated string, `eax`, `ebx` = top left, colours as `gfx_drawchar` | — (6 pixels per character) |
+| `gfx_setclip` (2.1) | `eax`, `ebx` = top left, `ecx` = width, `edx` = height | later draws are cut to that rectangle |
+| `gfx_noclip` (2.1) | — | the clip is the whole screen again |
+| `gfx_copyrect` (2.1) | `eax`, `ebx` = source top left, `ecx` = width, `edx` = height, `esi`, `edi` = destination top left | copy within the draw target; overlap safe; destination clipped |
 
 ## The text screen while in graphics mode
 
