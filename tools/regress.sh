@@ -610,6 +610,12 @@ export QEMU_EXTRA='-smp 4'
 check_all smp-4     'CPU 0: APIC id 0, boot processor|CPU 3: APIC id 3, online (parked)|4 CPU(s) online' cpus '<ret>'
 check smp-4-systest 'systest: PASS'         cpus '<ret>' systest '<ret>'
 unset QEMU_EXTRA
+# 2.8-lm-entry: a round trip through long mode (qemu-system-x86_64), and a clean refusal without it
+export QEMU_BIN=qemu-system-x86_64
+check lm-test       'lm: PASS'              lmtest '<ret>'
+check_all lm-again  'lm: PASS|systest: PASS' lmtest '<ret>' lmtest '<ret>' systest '<ret>'
+unset QEMU_BIN
+check lm-nolm       'lm: no long mode'      lmtest '<ret>'
 export QEMU_EXTRA='-cpu 486,-pse'
 check cpu-nopse     'needs a Pentium-class CPU'
 export QEMU_EXTRA='-cpu pentium,-fpu'

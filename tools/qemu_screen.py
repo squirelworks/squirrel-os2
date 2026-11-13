@@ -13,7 +13,8 @@ after the text screen.
 always a scratch image, never a real disk).
 --floppy boots IMAGE from the floppy drive instead of the first hard disk.
 --cdrom boots IMAGE as a CD in the secondary master position (installer I.6).
-QEMU_EXTRA in the environment adds QEMU options (e.g. QEMU_EXTRA='-cpu 486,-pse'). The 80x25 VGA text buffer is printed at the end.
+QEMU_EXTRA in the environment adds QEMU options (e.g. QEMU_EXTRA='-cpu 486,-pse');
+QEMU_BIN picks another QEMU (e.g. qemu-system-x86_64 for long mode and SMP, 2.8). The 80x25 VGA text buffer is printed at the end.
 """
 import os, socket, subprocess, sys, tempfile, time
 
@@ -116,7 +117,7 @@ def main():
     path = os.path.join(tmp, 'mon')
     dump = os.path.join(tmp, 'vga.bin')
     gfx = []                            # text read from graphics mode
-    qemu = subprocess.Popen(['qemu-system-i386', '-display', 'none',
+    qemu = subprocess.Popen([os.environ.get('QEMU_BIN', 'qemu-system-i386'), '-display', 'none',
                              '-drive', (f'format=raw,file={image},index=2,media=cdrom' if cdrom
                                         else f'format=raw,file={image},if=floppy' if boot
                                         else f'format=raw,file={image},index=0,media=disk'),
