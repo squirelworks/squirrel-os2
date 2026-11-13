@@ -257,7 +257,7 @@ elif d[510:] != b"\x55\xaa": print("no signature")
 else: print("%02X %d %d" % ((d[450],) + struct.unpack("<II", d[454:462])))' "$target")
     if [ "$got" = "$2" ]; then echo "ok   $1"; else echo "FAIL $1 (expected: $2, got: $got)"; fail=1; fi
 }
-check_all install-list 'disk 0: 193 sectors (0 MiB)  boot disk, not touched|disk 1: 2048 sectors (1 MiB)  data disk, not touched|disk 2: 32768 sectors (16 MiB)  blank|Target: disk 2.' \
+check_all install-list "disk 0: $(($(wc -c < "$out/os.img") / 512)) sectors (0 MiB)  boot disk, not touched|disk 1: 2048 sectors (1 MiB)  data disk, not touched|disk 2: 32768 sectors (16 MiB)  blank|Target: disk 2." \
                     install '<ret>'
 check install-esc   'Nothing was written.'  'install part' '<ret>' '<esc>'
 mbr   install-esc-blank 'blank'
@@ -279,7 +279,7 @@ check install-format 'Formatted SQFS with an empty root.'  'install format' '<re
 part  install-sqfs  'SQFS[]'
 check install-ls    '0 entries in the root of partition 1.'  'install ls' '<ret>'   # a new boot: it is on the disk
 check_all install-back 'help|memo1'        'install ls' '<ret>' ls '<ret>'   # the data disk is the file system again
-# installer I.3: the kernel to sectors 1 to 192 of the target, the data disk's root files into its SQFS
+# installer I.3: the kernel (low and high images, all of os.img after sector 0) to the same sectors of the target, the data disk's root files into its SQFS
 check install-mkfile 'ok'                 'put instfile copied-ok' '<ret>'   # a file for the installed system to show
 check install-boot-nokernel 'Type install copy first.'  'install boot' '<ret>'
 check install-copy-esc 'Nothing was written.'  'install copy' '<ret>' '<esc>'
@@ -289,7 +289,7 @@ tgt, osimg, data, sq = sys.argv[1:5]
 t = open(tgt, "rb").read()
 if not any(t[512:1024]): print("none"); sys.exit()
 o = open(osimg, "rb").read()
-if t[512:512 * 193] != o[512:512 * 193]: print("kernel differs"); sys.exit()
+if t[512:len(o)] != o[512:]: print("kernel differs"); sys.exit()
 open(tgt + ".part", "wb").write(t[2048 * 512:])
 ls = lambda img: subprocess.run(["python3", sq, img, "ls"], capture_output=True, text=True).stdout.split()
 get = lambda img, p: subprocess.run(["python3", sq, img, "get", p], capture_output=True).stdout
@@ -563,11 +563,18 @@ boot="--floppy $out/floppy.img"
 check floppy-boot   'systest: PASS'         '<pause>' '<pause>' systest '<ret>'
 check floppy-data   'kept'                  '<pause>' '<pause>' 'cat keep/note' '<ret>'
 check floppy-e820   'usable'                '<pause>' '<pause>' mem '<ret>'
+check floppy-khigh  '= 42'                  '<pause>' '<pause>' 'run calc' '<ret>' '6 * 7' '<ret>'   # 2.4: calc lives in the high image
 # installer I.6: the CD image (El Torito floppy emulation around floppy.img) boots to the shell
 boot="--cdrom $out/cd.iso"
 check cd-boot       'systest: PASS'         '<pause>' '<pause>' systest '<ret>'
 check cd-data       'kept'                  '<pause>' '<pause>' 'cat keep/note' '<ret>'
+check cd-khigh      '= 42'                  '<pause>' '<pause>' 'run calc' '<ret>' '6 * 7' '<ret>'
+# 2.4: the kernel's high image runs at 1 MB; the page allocator starts above it
+head -c $((193 * 512)) "$out/os.img" > "$out/lowonly.img"   # the low image only
+boot="$out/lowonly.img"
+check khigh-missing 'cannot read the high kernel image'
 boot=
+check khigh-mem     'Pages above 2 MB:'     mem '<ret>'
 export QEMU_EXTRA='-cpu 486,-pse'
 check cpu-nopse     'needs a Pentium-class CPU'
 export QEMU_EXTRA='-cpu pentium,-fpu'
