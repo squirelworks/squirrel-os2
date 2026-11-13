@@ -767,8 +767,8 @@ check notepad-save  'Hello notepad!'        'run notepad memo' '<ret>' '<pause>'
 check notepad-open  'gfx: Hello notepad!'   'run notepad memo' '<ret>' '<pause>' '<gfx>'
 check notepad-ask   'gfx: Save changes? y/n' 'run notepad' '<ret>' '<pause>' 'x' '<esc>' '<pause>' '<gfx>'
 check notepad-quit  'systest: PASS'         'run notepad' '<ret>' '<pause>' 'x' '<esc>' 'n' '<pause>' systest '<ret>'
-# C.2: grapher (explicit, polar, parametric; roots, extrema, intersections, trace)
-check grapher       'grapher: PASS'         'run grapher test' '<ret>' '<pause>' '<pause>' '<pause>'
+# C.2: grapher (explicit, polar, parametric, implicit, inequalities, sliders; roots, extrema, intersections, trace)
+check grapher       'grapher: PASS'         'run grapher test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
 check_all grapher-roots 'gfx: 1: sin(x)|gfx: roots: -9.4248|gfx: -3.1416' 'run grapher sin(x)' '<ret>' '<pause>' 'z' '<pause>' '<gfx>'
 check_all grapher-ext 'gfx: min(-7.854, -1)|gfx: max(-4.7124, 1)' 'run grapher sin(x)' '<ret>' '<pause>' 'm' '<pause>' '<gfx>'
 check_all grapher-meet 'gfx: meet: (-1, 0)|gfx: (2, 3)' 'run grapher x^2-1' '<ret>' '<pause>' '<tab>' '<ret>' 'y = x + 1' '<ret>' '<tab>' '<tab>' '<tab>' 'i' '<pause>' '<gfx>'
@@ -776,6 +776,10 @@ check_all grapher-trace 'gfx: 2: x = 4*cos(t), y = 2*sin(t)|gfx: t=0.0262|gfx: x
 check grapher-zoom  'gfx: roots: -3.1416'   'run grapher sin(x)' '<ret>' '<pause>' '+' 'z' '<pause>' '<gfx>'
 check grapher-syn   'gfx: Error: syntax at column 4' 'run grapher' '<ret>' '<pause>' 'y = 2*(' '<ret>' '<pause>' '<gfx>'
 check grapher-quit  'systest: PASS'         'run grapher sin(x)' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
+check_all grapher-impl 'gfx: 1: x^2+y^2=25|gfx: only for y = f(x)' 'run grapher x^2+y^2=25' '<ret>' '<pause>' 'z' '<pause>' '<gfx>'
+check_all grapher-ineq 'gfx: 1: y >= x^2|gfx: Trace is for y =, r = and x =, y =' 'run grapher' '<ret>' '<pause>' 'y >= x^2' '<ret>' '<pause>' 't' '<pause>' '<gfx>'
+check grapher-slider 'gfx: a = 2.2'         'run grapher y=a*sin(x)' '<ret>' '<pause>' 'a' '<pause>' '<right>' '<pause>' '<right>' '<pause>' '<up>' '<pause>' '<pause>' '<gfx>'
+check grapher-form  'gfx: Use y = f(x), r = f(t), x = f(t), y = g(t), = < >' 'run grapher' '<ret>' '<pause>' 'y < x < 2' '<ret>' '<pause>' '<gfx>'
 # A.2: character map, paint, image viewer
 check_all charmap   'gfx: Character map|gfx: AB~|gfx: 0x7E|gfx: 126' 'run charmap' '<ret>' '<pause>' '<ret>' '<right>' '<ret>' 'z' '<down>' '<ret>' '<pause>' '<gfx>'
 check charmap-save  'AB~'                   'run charmap' '<ret>' '<pause>' '<ret>' '<right>' '<ret>' 'z' '<down>' '<ret>' '<f2>' '<pause>' '<esc>' '<pause>' 'cat charmap.txt' '<ret>'
