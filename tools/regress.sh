@@ -60,9 +60,11 @@ PYEOF
 python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/grad.bmp"
 python3 "$root/tools/sqfs.py" "$out/dos.img" format 1024    # P.8: DOS programs under dosrun, on their own disk
 nasm -f bin -i "$root/programs/" "$root/programs/dosrun.asm" -o "$out/dosrun"
-for prog in doshello doscpu dosfile; do nasm -f bin "$root/programs/$prog.asm" -o "$out/$prog.com"; done
+for prog in doshello doscpu dosfile dosgfx; do nasm -f bin "$root/programs/$prog.asm" -o "$out/$prog.com"; done
 nasm -f bin "$root/programs/dosexe.asm" -o "$out/dosexe.exe"
-for f in dosrun winrun doshello.com doscpu.com dosfile.com dosexe.exe; do python3 "$root/tools/sqfs.py" "$out/dos.img" put "$out/$f"; done
+nasm -f bin -i "$root/programs/" "$root/programs/lxsig.asm" -o "$out/lxsig"    # P.2 signals ride along on this disk
+nasm -f bin -i "$root/programs/" "$root/programs/bsdhello.asm" -o "$out/bsdhello"    # P.10 FreeBSD rides along on this disk
+for f in dosrun winrun doshello.com doscpu.com dosfile.com dosgfx.com dosexe.exe lxsig bsdhello; do python3 "$root/tools/sqfs.py" "$out/dos.img" put "$out/$f"; done
 rm -f "$out/data.img"
 dd if=/dev/zero of="$out/data.img" bs=1024 count=1024 2>/dev/null
 
@@ -964,6 +966,16 @@ check_all dos-run-com 'Hello from DOS land!|#! tail: acorns|doshello: PASS'  'ru
 check_all dos-run-exe 'Hello from an MZ .EXE!|dosexe: PASS'  'run dosexe.exe' '<ret>'
 check_all dos-winrun  'Hello from an MZ .EXE!|dosexe: PASS'  'run winrun dosexe.exe' '<ret>'
 check dos-run-after   'systest: PASS'         'run doscpu.com' '<ret>' systest '<ret>'
+# P.2: Linux signals: handlers, SA_SIGINFO, masks and pending, and a default action that ends the program
+check_all lx-sig      'lxsig: PASS|Program ended by signal 15'  'run lxsig' '<ret>' '<pause>'
+check_none lx-sig-term 'lxsig: still here' 'Program ended by signal 15'  'run lxsig' '<ret>' '<pause>'
+check lx-sig-after    'systest: PASS'         'run lxsig' '<ret>' '<pause>' systest '<ret>'
+# P.8: VGA mode 13h: A000, INT 10h pixels, the DAC ports, retrace, teletype text in graphics, back to text
+check_all dos-gfx     'gfx: dosgfx: drawn|dosgfx: PASS'  'run dosgfx.com' '<ret>' '<pause>' '<gfx>' x '<pause>'
+check dos-gfx-after   'systest: PASS'         'run dosgfx.com' '<ret>' '<pause>' x '<pause>' systest '<ret>'
+# P.10: a FreeBSD i386 ELF: arguments on the stack, errors as CF + errno
+check_all bsd-hello   'Hello from FreeBSD land!|bsdhello: PASS'  'run bsdhello' '<ret>'
+check bsd-after       'Hello from DOS land!'  'run bsdhello' '<ret>' 'run doshello.com' '<ret>'
 # 3.0 (OS2-NET-AUDIO): sound. AC'97 and Intel HDA under QEMU (-audiodev none paces the DMA in
 # real time; -audiodev wav writes what was played, which tools/wavcheck.py listens to)
 python3 "$root/tools/sqfs.py" "$out/snd.img" format 1024
