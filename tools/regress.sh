@@ -35,7 +35,7 @@ mkdir -p "$out/dk" && printf 'desktop\n' > "$out/dk/autoexec.bat"
 python3 "$root/tools/sqfs.py" "$out/dkauto.img" put "$out/dk/autoexec.bat"
 # OS2-APPS: graphical programs (SYS_GUI) on a data disk of their own
 python3 "$root/tools/sqfs.py" "$out/apps.img" format 1024
-for prog in guitest calculator clock notepad grapher charmap paint viewer; do
+for prog in guitest calculator clock notepad grapher charmap paint viewer topology matrixgui; do
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
     python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/$prog"
 done
@@ -755,6 +755,18 @@ check_all viewer-24 'viewer: grad.bmp 64 x 48, 24 bits|viewer: PASS' 'run viewer
 check_all viewer-gfx 'gfx: grad.bmp|gfx: 64 x 48, 24 bits|gfx: 2:1' 'run viewer grad.bmp' '<ret>' '<pause>' '<pause>' '+' '<pause>' '<gfx>'
 check viewer-bad    'viewer: not an 8- or 24-bit BMP, or not found' 'run viewer nosuch.bmp' '<ret>'
 check viewer-quit   'systest: PASS'         'run viewer grad.bmp' '<ret>' '<pause>' '<pause>' '<esc>' '<pause>' systest '<ret>'
+# C.9: topology (Betti numbers over Z/2 and Q) and the matrix calculator
+check topology      'topology: PASS'        'run topology test' '<ret>' '<pause>' '<pause>' '<pause>'
+check_all topology-gfx 'gfx: Torus|gfx: V 7|gfx: Euler characteristic 0|gfx: Betti over Z/2: 1 2 1' 'run topology' '<ret>' '<pause>' '<pause>' '<gfx>'
+check_all topology-rp2 'gfx: Betti over Z/2: 1 1 1|gfx: Betti over Q:|gfx: 1 0 0|gfx: Z/2 and Q differ: 2-torsion' 'run topology' '<ret>' '<pause>' '<down>' '<down>' '<pause>' '<gfx>'
+check_all topology-custom 'gfx: V 4|gfx: E 5|gfx: F 2|gfx: Euler characteristic 1' 'run topology' '<ret>' '<pause>' '<tab>' '<delete>' '0 1 2, 1 2 3' '<ret>' '<pause>' '<gfx>'
+check topology-bad  'gfx: Vertices are 0 to 15' 'run topology' '<ret>' '<pause>' '<tab>' '0 99' '<ret>' '<pause>' '<gfx>'
+check matrixgui     'matrixgui: PASS'       'run matrixgui test' '<ret>' '<pause>' '<pause>'
+check_all matrixgui-mul 'gfx: A * B =|gfx: 19|gfx: 22|gfx: 43|gfx: 50' 'run matrixgui' '<ret>' '<pause>' '1' '<right>' '2' '<down>' '4' '<left>' '3' '<ret>' '<tab>' '<up>' '5' '<right>' '6' '<down>' '8' '<left>' '7' '<ret>' '*' '<pause>' '<gfx>'
+check_all matrixgui-inv 'gfx: inv A =|gfx: -2|gfx: 1.5|gfx: -0.5' 'run matrixgui' '<ret>' '<pause>' '1' '<right>' '2' '<down>' '4' '<left>' '3' '<ret>' 'i' '<pause>' '<gfx>'
+check matrixgui-det 'gfx: det A = -2'      'run matrixgui' '<ret>' '<pause>' '1' '<right>' '2' '<down>' '4' '<left>' '3' '<ret>' 'd' '<pause>' '<gfx>'
+check matrixgui-sing 'gfx: The matrix is singular' 'run matrixgui' '<ret>' '<pause>' 'i' '<pause>' '<gfx>'
+check matrixgui-quit 'systest: PASS'        'run matrixgui' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
 disk=$out/auto.img
 check bat-autoexec  'autoexec ran'
 check lang-autoexec 'Tabulae:'              ls '<ret>'

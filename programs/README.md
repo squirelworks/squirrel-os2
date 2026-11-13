@@ -32,6 +32,8 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `charmap.asm` | SQX | Character map of the system font; collects characters, F2 saves them (`run charmap`, A.2) |
 | `paint.asm` | SQX | Bitmap painter: pen, line, box, solid box, fill, eraser, undo; 16 colours; saves and opens BMP (`run paint [f]`, `run paint test`, A.2) |
 | `viewer.asm` | SQX | Image viewer for 8- and 24-bit BMP with zoom and scrolling, dithered to a 192-colour cube (`run viewer f [test]`, A.2) |
+| `topology.asm` | SQX | Topology calculator: face counts, Euler characteristic and Betti numbers over Z/2 and Q of simplicial complexes, 11 ready-made ones or typed (`run topology`, `run topology test`, C.9) |
+| `matrixgui.asm` | SQX | Matrices A and B up to 4 x 4 in a grid: + - *, determinant, inverse, transpose, rank, solve A X = B (`run matrixgui`, `run matrixgui test`, C.9) |
 | `sqx.inc` | — | SQX header macro and syscall numbers |
 | `bmp.inc` | — | BMP reader (8- and 24-bit) and 16-colour writer for programs |
 | `gui.inc` | — | Graphics toolkit for programs over `SYS_GUI`: back buffer, pixels, lines, text, windows, buttons, keys, mouse (`../documentation/apps/gui-programs.md`) |
