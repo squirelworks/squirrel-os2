@@ -8,5 +8,7 @@ Imports without a shim are bound to a stub that names them when called.
 Test: `programs/winhello.asm`, a hand-written PE32. Details and the shim table:
 `documentation/architecture/foreign-compatibility.md`.
 
-Next: P.6 (USER/GDI onto the window manager), P.7 (PE32+). Public format descriptions only; no
+P.6 adds GUI programs (USER32/GDI32 over SYS_GUI, `programs/wingui.inc`), registry emulation
+(`programs/winreg.inc`) and an original DLL loader in `winrun` (DLLs from the disk, exports,
+LoadLibrary/GetProcAddress). Next: P.7 (PE32+). Public format descriptions only; no
 ReactOS or Wine sources.

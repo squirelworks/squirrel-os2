@@ -26,27 +26,7 @@ k_FreeLibrary:
     mov eax, 1
     ret 4
 
-; HMODULE GetModuleHandleW(name): only NULL (this program) is known
-k_GetModuleHandleW:
-    jmp k_GetModuleHandleA
-
-; HMODULE LoadLibraryA/W(name), LoadLibraryExA(name, file, flags): no DLLs
-k_LoadLibraryA:
-k_LoadLibraryW:
-    mov dword [last_error], 126     ; ERROR_MOD_NOT_FOUND
-    xor eax, eax
-    ret 4
-k_LoadLibraryExA:
-k_LoadLibraryExW:
-    mov dword [last_error], 126
-    xor eax, eax
-    ret 12
-
-; FARPROC GetProcAddress(h, name): nothing to find
-k_GetProcAddress:
-    mov dword [last_error], 127     ; ERROR_PROC_NOT_FOUND
-    xor eax, eax
-    ret 8
+; LoadLibrary*, GetProcAddress, GetModuleHandle*: winrun.asm (the DLL loader)
 
 ; BOOL IsDBCSLeadByteEx(codepage, byte): single-byte code pages only
 k_IsDBCSLeadByteEx:

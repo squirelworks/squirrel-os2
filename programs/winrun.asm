@@ -1,4 +1,4 @@
-; winrun — Win32 PE32 console programs on Squirrel-OS/2 (P.5). Original
+; winrun — Win32 PE32 console and GUI programs on Squirrel-OS/2 (P.5, P.6). Original
 ; code, written from the public PE/COFF format description; no Wine or
 ; ReactOS code. See documentation/architecture/foreign-compatibility.md.
 ;
@@ -9,13 +9,15 @@
 ; SizeOfImage bytes of heap (SYS_SBRK, page aligned, so the image lands at
 ; 0x40000000 + ...), reads every section to its RVA, applies the base
 ; relocations (HIGHLOW) when the image is not at its ImageBase, binds the
-; KERNEL32.dll imports to the small stdcall shim below, and calls the entry
-; point. Imports it does not know (any DLL) are bound to a stub that names
-; the function and ends the program with exit code 3 when it is called, so
-; a program that never calls them still runs. Returning from the entry
-; point ends the program with eax as the exit code, like ExitThread.
+; imports to the shims (KERNEL32 below, msvcrt in winshim.inc, USER32 and
+; GDI32 in wingui.inc, ADVAPI32 in winreg.inc) or to DLLs it loads from the
+; disk (P.6, see dll_get), and calls the entry point. Imports it cannot
+; find are bound to a stub that names the function and ends the program
+; with exit code 3 when it is called, so a program that never calls them
+; still runs. Returning from the entry point ends the program with eax as
+; the exit code, like ExitThread.
 ;
-; Not provided: TEB/fs:, SEH, threads, DLL loading, GUI subsystems, PE32+.
+; Not provided: SEH, threads, PE32+.
 %include "sqx.inc"
 SQX_HEADER main
 
@@ -75,13 +77,32 @@ load:
     mov byte [edi+ecx], 0
     test ecx, ecx
     jz e_usage
-    ; read the headers
-    mov eax, SYS_OPEN
     mov ebx, exe_name
+    call map_image
+    jc e_open
+    call make_teb
+    jc e_nomem
+    call dll_inits              ; DllMain of every DLL it pulled in
+    ; run it: entry() with the Windows callee-saved registers kept
+    mov eax, [base]
+    add eax, [entry]
+    call eax
+    call gui_end                ; text mode again, if it drew
+    ret
+
+; ebx = file name -> the PE image read into fresh heap, relocated and its
+; imports bound (which can load DLLs, see dll_get); [base], [entry],
+; [exp_rva] and [exp_size] describe it. CF if the file cannot be opened;
+; any other problem ends the program with a message.
+map_image:
+    mov eax, SYS_OPEN
     xor ecx, ecx
     int 0x80
     cmp eax, -1
-    je e_open
+    jne .opened
+    stc
+    ret
+.opened:
     mov [fd], eax
     mov ebx, eax
     mov eax, SYS_READ
@@ -95,13 +116,13 @@ load:
     jne e_format
     ; an MZ without 'PE',0,0 at e_lfanew is a DOS program: dosrun runs it
     cmp eax, 0x40
-    jb to_dos
+    jb .notpe
     mov ebx, [hdr+0x3C]
     lea ecx, [ebx+4]
     cmp ecx, eax
-    ja to_dos
+    ja .notpe
     cmp dword [hdr+ebx], 'PE'
-    jne to_dos
+    jne .notpe
     mov ebx, [hdr+0x3C]         ; e_lfanew
     lea ecx, [ebx+24+96+16*8]   ; PE signature, COFF and optional header
     cmp ecx, eax
@@ -134,6 +155,10 @@ load:
     mov [entry], eax
     mov eax, [esi+28]
     mov [want_base], eax
+    mov eax, [esi+96]           ; data directory 0: exports
+    mov [exp_rva], eax
+    mov eax, [esi+100]
+    mov [exp_size], eax
     mov eax, [esi+104]          ; data directory 1: imports
     mov [imp_rva], eax
     mov eax, [esi+136]          ; data directory 5: base relocations
@@ -144,6 +169,7 @@ load:
     jae .dirs
     mov dword [imp_rva], 0
     mov dword [rel_size], 0
+    mov dword [exp_rva], 0
 .dirs:
     mov eax, [esi+56]           ; SizeOfImage
     add eax, 0xFFF
@@ -229,14 +255,489 @@ load:
     jc e_fixed
     call bind
     jc e_format
-    call make_teb
-    jc e_nomem
-    ; run it: entry() with the Windows callee-saved registers kept
-    mov eax, [base]
-    add eax, [entry]
-    call eax
-    call gui_end                ; text mode again, if it drew
+    clc
     ret
+.notpe:                         ; an MZ that is not PE: DOS, unless a DLL
+    cmp byte [map_dll], 0
+    jne e_format
+    jmp to_dos
+
+; ---------- DLLs: an original loader (P.6) ----------
+; A DLL that is not one of the shims is looked for on the disk as its
+; name in lower case plus ".dll" (acorn.dll for ACORN.DLL), mapped like
+; the program (relocated, its own imports bound, which can load more
+; DLLs), and recorded here. Imports from it bind through its export table,
+; by name or by ordinal; an export forwarded to "DLL.Function" binds to
+; the shim of that name. DllMain(base, DLL_PROCESS_ATTACH, 0) runs once
+; per DLL, dependencies first, after the TEB exists and before the
+; program's entry point (or inside LoadLibrary).
+MOD_MAX     equ 8
+MOD_NAME    equ 0               ; normalised name, at most 12 characters
+MOD_BASE    equ 16
+MOD_EXP     equ 20              ; export directory RVA and size
+MOD_EXPSZ   equ 24
+MOD_ENTRY   equ 28              ; DllMain, or 0
+MOD_INIT    equ 32              ; DllMain has run
+MOD_SIZE    equ 36
+SHIM_HMOD   equ 0x7FFE0000      ; the module handle of every shim DLL
+
+; esi = DLL name -> edi buffer (16 bytes): lower case, up to the first '.'
+; (so ".dll" goes), at most 12 characters. Keeps registers.
+mod_norm:
+    push eax
+    push ecx
+    push esi
+    push edi
+    mov ecx, 12
+.c:
+    lodsb
+    test al, al
+    jz .z
+    cmp al, '.'
+    je .z
+    cmp al, 'A'
+    jb .s
+    cmp al, 'Z'
+    ja .s
+    or al, 0x20
+.s:
+    stosb
+    loop .c
+.z:
+    mov byte [edi], 0
+    pop edi
+    pop esi
+    pop ecx
+    pop eax
+    ret
+
+; esi, edi = ASCIIZ -> ZF when equal (case counts). Keeps registers.
+str_eq:
+    push eax
+    push esi
+    push edi
+.c:
+    mov al, [esi]
+    cmp al, [edi]
+    jne .r
+    inc esi
+    inc edi
+    test al, al
+    jnz .c
+.r:
+    pop edi
+    pop esi
+    pop eax
+    ret
+
+; esi = normalised name -> eax = its module record, or 0
+mod_find:
+    push ecx
+    push edi
+    mov edi, mods
+    xor ecx, ecx
+.f:
+    cmp ecx, [nmods]
+    jae .no
+    call str_eq
+    je .yes
+    add edi, MOD_SIZE
+    inc ecx
+    jmp .f
+.yes:
+    mov eax, edi
+    jmp .r
+.no:
+    xor eax, eax
+.r:
+    pop edi
+    pop ecx
+    ret
+
+; eax = a module handle -> edx = its record, or 0. Keeps the rest.
+mod_by_base:
+    push ecx
+    mov edx, mods
+    xor ecx, ecx
+.f:
+    cmp ecx, [nmods]
+    jae .no
+    cmp [edx+MOD_BASE], eax
+    je .r
+    add edx, MOD_SIZE
+    inc ecx
+    jmp .f
+.no:
+    xor edx, edx
+.r:
+    pop ecx
+    ret
+
+; esi = DLL name -> eax = its module record (loaded now if need be), or 0
+; when there is no such file or no room. Keeps the other registers; the
+; loader's state is saved around the load, so it works in the middle of
+; binding another image or from LoadLibrary while the program runs.
+ST_DW equ (st_end - st_begin + 3) / 4
+dll_get:
+    push ebx
+    push ecx
+    push edx
+    push esi
+    push edi
+    push ebp
+    mov ebp, esp
+    sub esp, 40                 ; [ebp-16] the name, [ebp-40] the file name
+    lea edi, [ebp-16]
+    call mod_norm
+    lea esi, [ebp-16]
+    call mod_find
+    test eax, eax
+    jnz .r
+    cmp byte [ebp-16], 0
+    je .r
+    cmp dword [nmods], MOD_MAX
+    jae .none
+    lea edi, [ebp-40]           ; the file: name.dll
+.fn:
+    lodsb
+    test al, al
+    jz .fe
+    stosb
+    jmp .fn
+.fe:
+    mov dword [edi], '.dll'
+    mov byte [edi+4], 0
+    sub esp, ST_DW*4            ; the loader's state, kept on the stack
+    mov esi, st_begin
+    mov edi, esp
+    mov ecx, ST_DW
+    rep movsd
+    mov byte [map_dll], 1
+    lea ebx, [ebp-40]
+    push ebp                    ; (the loader uses ebp)
+    call map_image
+    pop ebp
+    jc .back
+    mov eax, [nmods]            ; (DLLs it needed are in the table now)
+    cmp eax, MOD_MAX
+    jae .back
+    inc dword [nmods]
+    imul edi, eax, MOD_SIZE
+    add edi, mods
+    lea esi, [ebp-16]
+    mov ecx, 16
+    rep movsb
+    sub edi, 16
+    mov eax, [base]
+    mov [edi+MOD_BASE], eax
+    mov ecx, [exp_rva]
+    mov [edi+MOD_EXP], ecx
+    mov ecx, [exp_size]
+    mov [edi+MOD_EXPSZ], ecx
+    mov ecx, [entry]
+    test ecx, ecx
+    jz .ne
+    add ecx, eax
+.ne:
+    mov [edi+MOD_ENTRY], ecx
+    mov dword [edi+MOD_INIT], 0
+    mov edx, edi
+    jmp .restore
+.back:
+    xor edx, edx
+.restore:
+    mov esi, esp
+    mov edi, st_begin
+    mov ecx, ST_DW
+    rep movsd
+    mov eax, edx
+    jmp .r
+.none:
+    xor eax, eax
+.r:
+    mov esp, ebp
+    pop ebp
+    pop edi
+    pop esi
+    pop edx
+    pop ecx
+    pop ebx
+    ret
+
+; edx = module record, ebp = function name, or an ordinal below 0x10000
+; -> eax = its address, or 0. Keeps the other registers.
+exp_find:
+    push ebx
+    push ecx
+    push edx
+    push esi
+    push edi
+    mov ebx, [edx+MOD_BASE]
+    mov esi, [edx+MOD_EXP]
+    test esi, esi
+    jz .none
+    add esi, ebx                ; IMAGE_EXPORT_DIRECTORY
+    cmp ebp, 0x10000
+    jae .byname
+    mov eax, ebp
+    sub eax, [esi+16]           ; - Base
+    jmp .index
+.byname:
+    mov ecx, [esi+24]           ; NumberOfNames
+    xor eax, eax
+.n:
+    cmp eax, ecx
+    jae .none
+    mov edi, [esi+32]           ; AddressOfNames
+    add edi, ebx
+    mov edi, [edi+eax*4]
+    add edi, ebx
+    push esi
+    mov esi, ebp
+    call str_eq
+    pop esi
+    je .hit
+    inc eax
+    jmp .n
+.hit:
+    mov edi, [esi+36]           ; AddressOfNameOrdinals
+    add edi, ebx
+    movzx eax, word [edi+eax*2]
+.index:
+    cmp eax, [esi+20]           ; NumberOfFunctions
+    jae .none
+    mov edi, [esi+28]           ; AddressOfFunctions
+    add edi, ebx
+    mov eax, [edi+eax*4]
+    test eax, eax
+    jz .none
+    mov ecx, eax                ; inside the export directory: a forwarder
+    sub ecx, [edx+MOD_EXP]
+    cmp ecx, [edx+MOD_EXPSZ]
+    jb .fwd
+    add eax, ebx
+    jmp .r
+.fwd:                           ; "DLL.Function": the shim of that name
+    lea esi, [eax+ebx]
+.dot:
+    lodsb
+    test al, al
+    jz .none
+    cmp al, '.'
+    jne .dot
+    push ebp
+    mov ebp, esi
+    call find_shim
+    pop ebp
+    jmp .r
+.none:
+    xor eax, eax
+.r:
+    pop edi
+    pop esi
+    pop edx
+    pop ecx
+    pop ebx
+    ret
+
+; DllMain(base, DLL_PROCESS_ATTACH, 0) for every DLL not yet started, in
+; load order; one that answers FALSE ends the program
+dll_inits:
+    pushad
+    mov ebx, mods
+    xor esi, esi
+.l:
+    cmp esi, [nmods]
+    jae .r
+    cmp dword [ebx+MOD_INIT], 0
+    jne .n
+    mov dword [ebx+MOD_INIT], 1
+    mov eax, [ebx+MOD_ENTRY]
+    test eax, eax
+    jz .n
+    push 0
+    push 1
+    push dword [ebx+MOD_BASE]
+    call eax
+    test eax, eax
+    jz .fail
+.n:
+    add ebx, MOD_SIZE
+    inc esi
+    jmp .l
+.r:
+    popad
+    ret
+.fail:
+    mov ebx, m_dllinit
+    jmp e_out
+
+; esi = DLL name -> eax = a module handle (loading it if need be), or 0
+lib_open:
+    test esi, esi
+    jz .no
+    push dword [dll_name]
+    mov [dll_name], esi
+    call is_known_dll
+    pop dword [dll_name]
+    test al, al
+    jz .disk
+    mov eax, SHIM_HMOD
+    ret
+.disk:
+    call dll_get
+    test eax, eax
+    jz .r
+    call dll_inits
+    mov eax, [eax+MOD_BASE]
+.r:
+    ret
+.no:
+    xor eax, eax
+    ret
+
+; esi = UTF-16 name -> esi = the same in wname (Latin-1)
+narrow:
+    push eax
+    push ecx
+    push edi
+    mov edi, wname
+    mov ecx, 31
+.c:
+    lodsw
+    stosb
+    test ax, ax
+    jz .z
+    loop .c
+    mov byte [edi], 0
+.z:
+    mov esi, wname
+    pop edi
+    pop ecx
+    pop eax
+    ret
+
+; HMODULE LoadLibraryA(name) / LoadLibraryExA(name, file, flags)
+k_LoadLibraryA:
+    push esi
+    mov esi, [esp+8]
+    call lib_open
+    pop esi
+    jmp lib_ret4
+k_LoadLibraryExA:
+    push esi
+    mov esi, [esp+8]
+    call lib_open
+    pop esi
+    jmp lib_ret12
+; HMODULE LoadLibraryW(name) / LoadLibraryExW(name, file, flags)
+k_LoadLibraryW:
+    push esi
+    mov esi, [esp+8]
+    test esi, esi
+    jz .z
+    call narrow
+.z:
+    call lib_open
+    pop esi
+    jmp lib_ret4
+k_LoadLibraryExW:
+    push esi
+    mov esi, [esp+8]
+    test esi, esi
+    jz .z
+    call narrow
+.z:
+    call lib_open
+    pop esi
+lib_ret12:
+    test eax, eax
+    jnz .r
+    mov dword [last_error], 126     ; ERROR_MOD_NOT_FOUND
+.r:
+    ret 12
+lib_ret4:
+    test eax, eax
+    jnz .r
+    mov dword [last_error], 126
+.r:
+    ret 4
+
+; HMODULE GetModuleHandleA(name): NULL is the program; a shim DLL or a
+; DLL already loaded; never loads one
+k_GetModuleHandleA:
+    push esi
+    mov esi, [esp+8]
+    call mod_handle
+    pop esi
+    ret 4
+k_GetModuleHandleW:
+    push esi
+    mov esi, [esp+8]
+    test esi, esi
+    jz .z
+    call narrow
+.z:
+    call mod_handle
+    pop esi
+    ret 4
+mod_handle:                     ; esi = name or 0 -> eax
+    mov eax, [base]
+    test esi, esi
+    jz .r
+    push dword [dll_name]
+    mov [dll_name], esi
+    call is_known_dll
+    pop dword [dll_name]
+    test al, al
+    mov eax, SHIM_HMOD
+    jnz .r
+    push edi
+    sub esp, 16
+    mov edi, esp
+    call mod_norm
+    push esi
+    mov esi, edi
+    call mod_find
+    pop esi
+    add esp, 16
+    pop edi
+    test eax, eax
+    jz .no
+    mov eax, [eax+MOD_BASE]
+.r:
+    ret
+.no:
+    mov dword [last_error], 126
+    ret
+
+; FARPROC GetProcAddress(h, name or ordinal)
+k_GetProcAddress:
+    push edx
+    push ebp
+    mov eax, [esp+12]
+    mov ebp, [esp+16]
+    cmp eax, SHIM_HMOD
+    jne .mod
+    xor eax, eax
+    cmp ebp, 0x10000
+    jb .r
+    call find_shim
+    jmp .r
+.mod:
+    call mod_by_base
+    xor eax, eax
+    test edx, edx
+    jz .r
+    call exp_find
+.r:
+    test eax, eax
+    jnz .ok
+    mov dword [last_error], 127     ; ERROR_PROC_NOT_FOUND
+.ok:
+    pop ebp
+    pop edx
+    ret 8
 
 ; The thread and process blocks Win32 code reaches through FS: a TEB
 ; (exception list -1, stack base and limit, self pointer, PEB, ids,
@@ -347,6 +848,15 @@ bind:
     mov [dll_name], eax
     call is_known_dll
     mov [dll_known], al
+    mov dword [dll_mod], 0
+    test al, al
+    jnz .known
+    push esi
+    mov esi, [dll_name]
+    call dll_get                ; a DLL from the disk, or 0
+    pop esi
+    mov [dll_mod], eax
+.known:
     mov edi, [esi+16]           ; FirstThunk (IAT)
     mov ebx, [esi]              ; OriginalFirstThunk (lookup), or the IAT
     test ebx, ebx
@@ -365,12 +875,29 @@ bind:
     add eax, 2                  ; skip the hint
     mov ebp, eax                ; function name
     cmp byte [dll_known], 0
-    je .stub
+    je .fromdll
     call find_shim
     test eax, eax
     jnz .set
     jmp .stub
+.fromdll:
+    mov edx, [dll_mod]
+    test edx, edx
+    jz .stub
+    call exp_find
+    test eax, eax
+    jnz .set
+    jmp .stub
 .ordinal:
+    mov edx, [dll_mod]
+    test edx, edx
+    jz .ordstub
+    mov ebp, eax
+    and ebp, 0xFFFF
+    call exp_find
+    test eax, eax
+    jnz .set
+.ordstub:
     mov ebp, m_ordinal
 .stub:
     call make_stub
@@ -532,7 +1059,9 @@ to_dos:
     mov ebx, eax
     mov eax, SYS_WAIT
     int 0x80
-    ret
+    mov ebx, eax                ; its exit code is ours
+    mov eax, SYS_EXIT
+    int 0x80
 
 ; ---------- load errors (each ends the program with exit code 1) ----------
 e_dosrun:  mov ebx, m_nodos
@@ -556,8 +1085,10 @@ e_out:
     call puts
     pop ebx
     call puts
-    mov eax, 1
-    ret
+    call gui_end
+    mov ebx, 1                  ; also from inside a DLL load: end here
+    mov eax, SYS_EXIT
+    int 0x80
 
 ; ================= KERNEL32 shim (stdcall, callee pops) =================
 ; Every function keeps ebx, esi, edi and ebp, returns in eax, and sets
@@ -779,15 +1310,6 @@ k_SetLastError:
     mov [last_error], eax
     ret 4
 
-; HMODULE GetModuleHandleA(name): only NULL (this program) is known
-k_GetModuleHandleA:
-    xor eax, eax
-    cmp [esp+4], eax
-    jne .r
-    mov eax, [base]
-.r:
-    ret 4
-
 ; HANDLE GetProcessHeap(void)
 k_GetProcessHeap:
     mov eax, 1
@@ -891,8 +1413,11 @@ m_fixed db 'the image cannot move from its ImageBase (no relocations)', 10, 0
 m_missing db 'winrun: not implemented: ', 0
 m_ordinal db '(import by ordinal)', 0
 m_nl db 10, 0
+m_dllinit db 'a DLL failed to start (DllMain)', 10, 0
 
 SQX_BSS
+alignb 4
+st_begin:                       ; the loader's state, saved around a DLL load
 fd resd 1
 hdr_len resd 1
 hdr_size resd 1
@@ -907,6 +1432,15 @@ img_size resd 1
 base resd 1
 dll_name resd 1
 dll_known resb 1
+map_dll resb 1
+alignb 4
+dll_mod resd 1
+exp_rva resd 1
+exp_size resd 1
+st_end:
+nmods resd 1
+mods resb MOD_MAX*MOD_SIZE
+wname resb 32
 alignb 4
 teb resd 1
 alignb 4

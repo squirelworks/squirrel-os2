@@ -205,7 +205,7 @@ the program with exit code 3 when called. A program that imports more than it ca
 Start-up code from compilers also needs the rest of what `programs/winshim.inc` adds:
 critical sections (no-ops, one thread), `TlsAlloc`/`TlsGetValue`/`TlsSetValue` (64 slots in the
 TEB), `VirtualProtect`/`VirtualQuery`, `MultiByteToWideChar`/`WideCharToMultiByte` (Latin-1),
-`LoadLibrary*`/`GetProcAddress` (always fail: no DLLs), `GetStartupInfoA`, `Sleep` (a yield),
+`LoadLibrary*`/`GetProcAddress` (the DLL loader, P.6 below), `GetStartupInfoA`, `Sleep` (a yield),
 console-mode and code-page queries, `DeleteFileA`, `ExitThread`.
 
 **msvcrt.** Imports from `msvcrt.dll` bind to a small C runtime in the same file (cdecl):
@@ -241,8 +241,55 @@ Compiled binaries are not kept in the tree (they carry MinGW's runtime); the reg
 are hand-written PE32 files: `programs/winhello.asm` (KERNEL32 only) and `programs/wincrt.asm`
 (msvcrt start-up, printf, sprintf, malloc, FILE I/O, atexit/exit, the TEB through `fs:`).
 
-Not yet: SEH (an exception ends the program like any fault), threads (`CreateThread`), DLL
-loading, wide-character stdio, `msvcrt` math and time, GUI subsystems (P.6), PE32+ (P.7).
+Not yet: SEH (an exception ends the program like any fault), threads (`CreateThread`),
+wide-character stdio, `msvcrt` math and time, PE32+ (P.7).
+
+### Windows GUI, registry and DLLs (P.6)
+
+**USER32 and GDI32** (`programs/wingui.inc`) put GUI-subsystem programs (subsystem 2) on
+`SYS_GUI`'s 320 x 200 screen, drawn in a back buffer. Top-level windows (up to 4) get a frame
+and a title bar; the newest is on top and has the keyboard. One message queue per program hands
+out posted messages, then `WM_PAINT` for invalid windows, `WM_TIMER` for due timers (10 ms
+ticks), then keys (`WM_KEYDOWN`, `WM_CHAR` through `TranslateMessage`) and left clicks (a click
+at the right end of a title bar is `WM_CLOSE`). COLORREFs go to the nearest of the 64 EGA
+colours. USER32: `RegisterClass(Ex)A`, `CreateWindowExA`, `ShowWindow`, `UpdateWindow`,
+`DestroyWindow`, `DefWindowProcA`, `Get/PeekMessageA`, `TranslateMessage`, `DispatchMessageA`,
+`PostQuitMessage`, `Post/SendMessageA`, `BeginPaint`/`EndPaint`, `GetDC`/`ReleaseDC`,
+`Invalidate/ValidateRect`, `GetClientRect`, `FillRect`, `DrawTextA`, `MessageBoxA`,
+`LoadCursorA`/`LoadIconA`, `GetSystemMetrics`, `Set/KillTimer`, `SetWindowTextA`,
+`MessageBeep`, `wsprintfA`. GDI32: `GetStockObject`, `CreateSolidBrush`, `CreatePen`,
+`DeleteObject`, `SelectObject`, `SetTextColor`/`SetBkColor`/`SetBkMode`, `TextOutA`,
+`Set/GetPixel`, `MoveToEx`/`LineTo`, `Rectangle`. Not provided: child windows and controls,
+menus, resources, fonts beyond the system one, bitmaps. Each window becomes a real desktop
+window once program windows arrive with 2.2. A MinGW `-mwindows` program was checked by hand.
+
+**Registry** (`programs/winreg.inc`): ADVAPI32 `RegOpenKeyExA`, `RegCreateKeyExA`,
+`RegCloseKey`, `RegSetValueExA`, `RegQueryValueExA` (with `ERROR_MORE_DATA`) and
+`RegDeleteValueA` over one text file, `registry.dat`, one value per line as
+`KEY|NAME|TYPE|HEXDATA` (for example `HKCU\Software\Acorn|count|4|02000000`). The file is
+read on the first call and written after every change, so values outlive the program. The
+roots are `HKCR`, `HKCU`, `HKLM`, `HKU`; key names compare without case; up to 48 values and
+8 open keys.
+
+**DLLs** (in `programs/winrun.asm`, an original loader written from the PE format): an import
+from a DLL that is not a shim is looked for on the disk as its name in lower case plus `.dll`
+(`ACORN.DLL` → `acorn.dll`). It is mapped like the program — fresh heap, base relocations, its
+own imports bound, which may load further DLLs (the loader saves its state around each load) —
+and its imports bind through its export table by name or by ordinal. A forwarded export
+(`KERNEL32.GetLastError`) binds to the shim of that name. `DllMain(base, DLL_PROCESS_ATTACH, 0)`
+runs once per DLL, dependencies first, after the TEB exists and before the program's entry
+point; FALSE ends the program. At run time `LoadLibraryA/W`, `LoadLibraryExA/W` load the same
+way (or return the loaded one), `GetModuleHandleA/W` find loaded DLLs, `GetProcAddress` takes
+names or ordinals, and shim DLLs (`kernel32`, `msvcrt`, `user32`, `gdi32`, `advapi32`) answer
+with one pseudo handle whose procedures are the shims. A DLL that is not on the disk binds its
+imports to the stub that names them. Up to 8 DLLs; no `DLL_PROCESS_DETACH`, no TLS callbacks.
+Checked by hand with a MinGW-built DLL (its own CRT start-up and `DllMain`) and a program
+that imports from it and also reaches it through `LoadLibraryA`/`GetProcAddress`.
+
+Tests: `programs/winwnd.asm` (a window, painting, a timer, keys), `programs/winreg.asm`
+(values set, read back, deleted, and kept across two runs) and `programs/windll.asm` with its
+DLL `programs/winlib.asm` (`acorn.dll`: name, ordinal and data imports, a forwarder, DllMain,
+LoadLibrary and GetProcAddress, a missing DLL).
 
 ### Ring 3
 

@@ -59,7 +59,9 @@ for prog in doshello doscpu dosfile; do nasm -f bin "$root/programs/$prog.asm" -
 nasm -f bin "$root/programs/dosexe.asm" -o "$out/dosexe.exe"
 nasm -f bin "$root/programs/winwnd.asm" -o "$out/winwnd"    # P.6 Win32 GUI rides along on this disk
 nasm -f bin "$root/programs/winreg.asm" -o "$out/winreg"    # P.6 registry emulation
-for f in dosrun winrun doshello.com doscpu.com dosfile.com dosexe.exe winwnd winreg; do python3 "$root/tools/sqfs.py" "$out/dos.img" put "$out/$f"; done
+nasm -f bin "$root/programs/windll.asm" -o "$out/windll"    # P.6 DLL loader: a program ...
+nasm -f bin "$root/programs/winlib.asm" -o "$out/acorn.dll" # ... and its DLL
+for f in dosrun winrun doshello.com doscpu.com dosfile.com dosexe.exe winwnd winreg windll acorn.dll; do python3 "$root/tools/sqfs.py" "$out/dos.img" put "$out/$f"; done
 rm -f "$out/data.img"
 dd if=/dev/zero of="$out/data.img" bs=1024 count=1024 2>/dev/null
 
@@ -844,6 +846,8 @@ check_all win-gui     'gfx: Acorn window|gfx: Hello from Win32 GUI|gfx: winwnd: 
 check win-gui-after   'systest: PASS'         'run winwnd' '<ret>' '<pause>' x '<pause>' systest '<ret>'
 check_all win-reg     'winreg: PASS|winreg: count 2'  'run winreg' '<ret>' 'run winreg again' '<ret>'
 check win-reg-file    'HKCU\Software\Acorn|count|4|02000000'  'run winreg' '<ret>' 'run winreg again' '<ret>' 'cat registry.dat' '<ret>'
+check_all win-dll     'windll: Hello from acorn.dll|windll: PASS'  'run windll' '<ret>'
+check win-dll-gone    'not implemented: Gone' 'run windll gone' '<ret>'
 disk=$out/auto.img
 check bat-autoexec  'autoexec ran'
 check lang-autoexec 'Tabulae:'              ls '<ret>'
