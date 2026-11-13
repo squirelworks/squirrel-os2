@@ -1,6 +1,9 @@
 ; freecell — FreeCell solitaire (G.2). Original code.
 ;
 ;   run freecell [seed]    play a seeded deal (all cards face up)
+;   run freecell gui [seed]  the same game on the graphics screen: click a
+;                        card (or move with the arrows and press Enter), then
+;                        click where it goes; a auto, n new deal, q quit
 ;   run freecell test      rules self-check, prints "freecell: PASS"
 ;
 ; Columns are 1-8, the free cells a-d, f the foundations.
@@ -15,6 +18,8 @@
 SQX_HEADER main
 %include "games.inc"
 %include "cards.inc"
+%include "gui.inc"
+%include "gamegui.inc"
 
 NCOL  equ 8
 CSTR  equ 24
@@ -28,6 +33,8 @@ main:
     mov ebx, m_name
     call g_start
     jc selftest
+    cmp byte [g_gui], 0
+    jne gui_play
     mov esi, m_title
     call g_puts
 .new:
@@ -571,6 +578,273 @@ setcol:
     mov dword [cell], 0x3B3B3B3B
 %endmacro
 
+; ---------- graphics ----------
+
+; Places on the screen, 0-15: 0-3 the free cells, 4-7 the foundations
+; (C D H S), 8-15 the columns. Up and Down switch between the rows.
+GX0     equ 4
+GDX     equ 39
+TOP_Y   equ 4
+COL_Y   equ 54
+
+gui_play:
+    call gui_open
+    jnc .ok
+    mov esi, m_nogui
+    call g_puts
+    mov eax, 1
+    ret
+.ok:
+    call deal
+    mov dword [cursor], 8
+    mov dword [held], -1
+    mov dword [gmsg], m_g_help
+.draw:
+    call gdraw
+    call gui_flip
+    xor ecx, ecx
+    call gui_event
+    cmp eax, EV_CLICK
+    je .click
+    cmp eax, EV_DRAG
+    je .draw
+    cmp al, 27
+    je .quit
+    cmp al, 'q'
+    je .quit
+    mov dword [gmsg], m_g_help
+    cmp al, 'n'
+    je .new
+    cmp al, 'a'
+    je .auto
+    cmp al, 13
+    je .act
+    cmp al, ' '
+    je .act
+    shr eax, 8
+    cmp al, K_LEFT
+    je .left
+    cmp al, K_RIGHT
+    je .right
+    cmp al, K_UP
+    je .updown
+    cmp al, K_DOWN
+    je .updown
+    cmp al, K_ENTER
+    je .act
+    jmp .draw
+.left:
+    dec dword [cursor]
+    and dword [cursor], 15
+    jmp .draw
+.right:
+    inc dword [cursor]
+    and dword [cursor], 15
+    jmp .draw
+.updown:
+    xor dword [cursor], 8
+    jmp .draw
+.new:
+    call deal
+    mov dword [held], -1
+    jmp .draw
+.auto:
+    call automove
+    mov dword [held], -1
+    jmp .draw
+.click:
+    mov eax, [gui_mx]
+    mov ebx, [gui_my]
+    call ghit
+    cmp eax, -1
+    je .draw
+    mov [cursor], eax
+.act:
+    call gact
+    jmp .draw
+.quit:
+    call gui_close
+    xor eax, eax
+    ret
+
+; eax = screen place -> ebx = the game's place (column, cell or P_F)
+gplace:
+    mov ebx, eax
+    sub ebx, 8
+    jae .r                      ; a column
+    lea ebx, [eax+P_CELL]
+    cmp eax, 4
+    jb .r
+    mov ebx, P_F
+.r: ret
+
+; eax, ebx = a point -> eax = the screen place there, or -1
+ghit:
+    push ecx
+    push edx
+    sub eax, GX0
+    js .none
+    xor edx, edx
+    mov ecx, GDX
+    div ecx
+    cmp edx, CARD_W
+    jae .none
+    cmp eax, 8
+    jae .none
+    cmp ebx, COL_Y
+    jae .col
+    cmp ebx, TOP_Y + CARD_H
+    jb .r
+.none:
+    mov eax, -1
+    jmp .r
+.col:
+    add eax, 8
+.r: pop edx
+    pop ecx
+    ret
+
+; Picks up the card under the cursor, or puts the held cards there
+gact:
+    pushad
+    mov eax, [cursor]
+    call gplace
+    cmp dword [held], -1
+    jne .drop
+    cmp ebx, P_F
+    je .r
+    call topcard
+    test al, al
+    jz .r
+    mov eax, [cursor]
+    mov [held], eax
+    jmp .r
+.drop:
+    mov ecx, ebx
+    mov eax, [held]
+    mov dword [held], -1
+    cmp eax, [cursor]
+    je .r                       ; put back
+    call gplace
+    call domove
+    test eax, eax
+    jnz .r
+    mov dword [gmsg], m_refused_g
+.r: popad
+    ret
+
+; ecx = column -> edx = the step between its cards, esi = how many
+gcolstep:
+    push eax
+    push ecx
+    movzx esi, byte [tab_n+ecx]
+    lea ecx, [esi-1]
+    mov eax, STATUS_Y - 2 - COL_Y - CARD_H
+    call gg_step
+    pop ecx
+    pop eax
+    ret
+
+; eax = screen place -> eax, ebx, ecx, edx = its rectangle
+grect:
+    cmp eax, 8
+    jae .col
+    imul eax, GDX
+    add eax, GX0
+    mov ebx, TOP_Y
+    mov ecx, CARD_W
+    mov edx, CARD_H
+    ret
+.col:
+    push esi
+    lea ecx, [eax-8]
+    call gcolstep
+    dec esi
+    jns .h
+    xor esi, esi
+.h: imul esi, edx
+    add esi, CARD_H
+    imul eax, ecx, GDX
+    add eax, GX0
+    mov ebx, COL_Y
+    mov ecx, CARD_W
+    mov edx, esi
+    pop esi
+    ret
+
+gdraw:
+    pushad
+    call gg_table
+    ; free cells and foundations
+    xor ecx, ecx
+.top:
+    imul eax, ecx, GDX
+    add eax, GX0
+    mov ebx, TOP_Y
+    xor edx, edx
+    cmp ecx, 4
+    jae .f
+    mov dl, [cell+ecx]
+    jmp .card
+.f: mov dl, [found+ecx-4]
+    test dl, dl
+    jz .card
+    lea edx, [ecx-4]
+    shl edx, 4
+    or dl, [found+ecx-4]
+.card:
+    test dl, dl
+    jz .empty
+    mov dh, 1
+    call gg_card
+    jmp .tn
+.empty:
+    call gg_card
+    cmp ecx, 4
+    jb .tn
+    lea edx, [ecx-4]            ; the suit sign in an empty foundation
+    add eax, CARD_W / 2 - 3
+    add ebx, CARD_H / 2 - 3
+    call gg_suit
+.tn:
+    inc ecx
+    cmp ecx, 8
+    jb .top
+    ; columns
+    xor ecx, ecx
+.c: call gcolstep               ; edx = step
+    push ecx
+    call colptr                 ; edi = cards, eax = count
+    mov esi, edi
+    imul eax, ecx, GDX
+    add eax, GX0
+    mov ebx, COL_Y
+    movzx ecx, byte [tab_n+ecx]
+    xor edi, edi
+    call gg_column
+    pop ecx
+    inc ecx
+    cmp ecx, NCOL
+    jb .c
+    ; a yellow frame round what is held, a white one round the cursor
+    mov eax, [held]
+    cmp eax, -1
+    je .nh
+    call grect
+    call gg_frame
+.nh:
+    mov eax, [cursor]
+    call grect
+    call gg_cursor
+    mov esi, [gmsg]
+    call won
+    test eax, eax
+    jz .s
+    mov esi, m_g_won
+.s: call gg_status
+    popad
+    ret
+
 selftest:
     ; 1. a seeded deal: 7,7,7,7,6,6,6,6 and every card once
     mov eax, 5
@@ -727,6 +1001,10 @@ m_help db 'Type a move like 35, 3a, a5, 3f, af, or auto, n, q', 10, 0
 m_refused db 'That move is not allowed', 10, 0
 m_won db 'All four suits are home - you win! n for a new deal, q to quit', 10, 0
 w_auto db 'auto', 0
+m_nogui db 'freecell: no graphics screen', 10, 0
+m_g_help db 'Click or arrows+Enter. a auto n new q quit', 0
+m_refused_g db 'That move is not allowed', 0
+m_g_won db 'All four suits are home - you win! n: new deal', 0
 w_move db 'm', 0
 
 SQX_BSS
@@ -741,4 +1019,10 @@ tab_n resb NCOL
 cell resb NCELL
 found resb 4
 state_end:
+alignb 4
+cursor resd 1
+held resd 1
+gmsg resd 1
+GUI_BSS
+GG_BSS
 SQX_END
