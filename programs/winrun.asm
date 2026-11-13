@@ -119,7 +119,10 @@ load:
     cmp word [esi], 0x10B       ; PE32 (PE32+ is P.7)
     jne e_machine
     cmp word [esi+68], 3        ; IMAGE_SUBSYSTEM_WINDOWS_CUI
+    je .cui
+    cmp word [esi+68], 2        ; IMAGE_SUBSYSTEM_WINDOWS_GUI (P.6, wingui.inc)
     jne e_subsys
+.cui:
     lea edi, [esi+edx]          ; section table
     mov [sects], edi
     imul ecx, 40
@@ -232,6 +235,7 @@ load:
     mov eax, [base]
     add eax, [entry]
     call eax
+    call gui_end                ; text mode again, if it drew
     ret
 
 ; The thread and process blocks Win32 code reaches through FS: a TEB
@@ -395,6 +399,12 @@ is_known_dll:
     je .yes
     mov edi, n_msvcrt
     call dll_is
+    je .yes
+    mov edi, n_user32
+    call dll_is
+    je .yes
+    mov edi, n_gdi32
+    call dll_is
 .yes:
     sete al
     pop edi
@@ -489,6 +499,7 @@ make_stub:
 
 ; a call to an import with no shim: [esp] = its name
 missing:
+    call gui_end                ; the message must be seen
     mov ebx, m_missing
     call puts
     pop ebx
@@ -746,6 +757,8 @@ k_SetFilePointer:
 ; void ExitProcess(code)
 k_ExitProcess:
     mov ebx, [esp+4]
+win_exit:                       ; ebx = code: text mode again, then the end
+    call gui_end
     mov eax, SYS_EXIT
     int 0x80
 
@@ -832,6 +845,7 @@ grow:
     db %str(%1), 0
 %endmacro
 %include "winshim.inc"
+%include "wingui.inc"
 shims:
     K GetStdHandle
     K WriteFile
@@ -851,10 +865,13 @@ shims:
     K VirtualAlloc
     K VirtualFree
     WINSHIM_TABLE
+    WINGUI_TABLE
     dd 0
 
 n_kernel32 db 'kernel32', 0
 n_msvcrt db 'msvcrt', 0
+n_user32 db 'user32', 0
+n_gdi32 db 'gdi32', 0
 m_prefix db 'winrun: ', 0
 m_usage db 'usage: run winrun prog.exe [arguments]', 10, 0
 m_open db 'cannot open the program file', 10, 0
@@ -862,7 +879,7 @@ m_format db 'not a valid PE file', 10, 0
 m_dosrun db 'dosrun', 0
 m_nodos db 'a DOS program, and dosrun is not on the disk', 10, 0
 m_machine db 'only 32-bit x86 (PE32) programs run here', 10, 0
-m_subsys db 'only console programs run here (no Windows GUI yet)', 10, 0
+m_subsys db 'only console and GUI subsystems run here', 10, 0
 m_nomem db 'not enough memory for the image', 10, 0
 m_fixed db 'the image cannot move from its ImageBase (no relocations)', 10, 0
 m_missing db 'winrun: not implemented: ', 0
@@ -894,4 +911,5 @@ cmdline resb 80
 stubs resb STUB_MAX*STUB_SIZE
 hdr resb HDR_MAX
 WINSHIM_BSS
+WINGUI_BSS
 SQX_END

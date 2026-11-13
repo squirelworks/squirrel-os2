@@ -410,6 +410,13 @@ m___p__commode:
 m___p__fmode:
     mov eax, m__fmode
     ret
+m___p__acmdln:                  ; char ** to the command line (GUI start-up)
+    mov dword [acmdln], cmdline
+    mov eax, acmdln
+    ret
+m__ismbblead:                   ; no multibyte code page: never a lead byte
+    xor eax, eax
+    ret
 m__errno:
     mov eax, errno_v
     ret
@@ -468,8 +475,7 @@ m_exit:
 .x:
 m__exit:
     mov ebx, [esp+4]
-    mov eax, SYS_EXIT
-    int 0x80
+    jmp win_exit
 
 ; void _amsg_exit(n) / abort(void)
 m__amsg_exit:
@@ -477,8 +483,7 @@ m_abort:
     mov ebx, m_aborted
     call puts
     mov ebx, 3
-    mov eax, SYS_EXIT
-    int 0x80
+    jmp win_exit
 
 ; void (*signal(int, void (*)(int)))(int): no signals; SIG_DFL back
 m_signal:
@@ -1421,6 +1426,8 @@ format:
     M _fpreset
     M __p__commode
     M __p__fmode
+    M __p__acmdln
+    M _ismbblead
     M _errno
     M _initterm
     M _onexit
@@ -1500,6 +1507,7 @@ m_aborted db 'winrun: the program aborted', 10, 0
 %macro WINSHIM_BSS 0
 alignb 4
 tick_fake resd 1
+acmdln resd 1
 errno_v resd 1
 argc_cache resd 1
 natexit resd 1
