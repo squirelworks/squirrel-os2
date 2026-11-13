@@ -658,6 +658,7 @@ run_simple:
     jmp .empty
 .cliptest:
     call cmd_cliptest_run
+    jmp .empty
 .bevtest:
     call cmd_bevtest_run
     jmp .empty
