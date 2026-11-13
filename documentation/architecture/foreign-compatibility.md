@@ -103,7 +103,9 @@ elfedit --output-osabi=Linux prog
 python3 tools/sqfs.py data.img put prog
 ```
 
-**Initial stack.** `lx_start` builds the System V i386 process stack and jumps to `e_entry` with
+**Initial stack.** Linux programs run in ring 3 like native ones (2.4). `proc_enter_user` hands
+a Linux process to `lx_enter_user`, which copies the program name and the argument text to its
+ring-3 stack, builds the System V i386 process stack under them and enters `e_entry` with
 `edx = 0`:
 
 ```
@@ -119,6 +121,10 @@ esp ->  argc            1, or 2 when the run line had an argument
 `int 0x80` goes to `lx_isr`, which looks the number up in `lx_calls` (the i386 numbers from the
 public ABI). Arguments in `ebx, ecx, edx, esi, edi, ebp`; the result in `eax`, errors as
 `-errno`; every other register is preserved. Unknown numbers return `-ENOSYS` (−38).
+From ring 3, each call's pointer arguments are checked first against the caller's own memory
+(a kind byte per table entry, `lx_uargs`, built on the native `ua_range`/`ua_str` of
+`../kernel/ring3.md`, iovecs included); a bad pointer returns `-EFAULT` (−14) without running
+the call.
 
 | Nr | Call | Mapping |
 |----|------|---------|
@@ -238,12 +244,12 @@ are hand-written PE32 files: `programs/winhello.asm` (KERNEL32 only) and `progra
 Not yet: SEH (an exception ends the program like any fault), threads (`CreateThread`), DLL
 loading, wide-character stdio, `msvcrt` math and time, GUI subsystems (P.6), PE32+ (P.7).
 
-### Toward ring 3
+### Ring 3
 
-Both layers already sit behind the process boundary that 2.4 makes real: the Linux table is
-reached only through the `int 0x80` gate (DPL 3) and uses only native services, and the
-Windows layer is a user program. When 2.4 lands, `lx_start` becomes the ring-3 entry frame and
-`PCB_LINUX` moves with the process record.
+Both layers run in ring 3 since 2.4: Linux programs enter through `lx_enter_user` and call the
+kernel only through the `int 0x80` gate with checked pointers; the Windows layer is an ordinary
+user program, and the TLS selector `0x3B` is a DPL 3 data segment, so ring-3 code loads it into
+FS or GS itself.
 
 ## Related
 

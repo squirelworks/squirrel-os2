@@ -28,7 +28,7 @@ Without a map, 1–32 MB is assumed and `mem` says so.
 
 | Routine / syscall | In | Out |
 |-------------------|----|-----|
-| `pg_alloc`, `SYS_PALLOC` (19) | — | a zeroed 4 KB page, or 0 when none is left |
+| `pg_alloc`, `SYS_PALLOC` (19) | — | a zeroed 4 KB page, or 0 when none is left. `SYS_PALLOC`/`SYS_PFREE` are kernel-only since 2.4 (−1 from ring 3, `ring3.md`) |
 | `pg_free`, `SYS_PFREE` (20) | `eax` / `ebx` = page | 0, or −1 if it is not an allocated page |
 
 Both run with interrupts off, so a timer or keyboard interrupt never sees a half-updated list.

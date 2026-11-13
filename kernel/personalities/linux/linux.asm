@@ -3,9 +3,10 @@
 ; syscall ABI (numbers, registers, -errno results). No Linux source used.
 ;
 ; A static ELF32 whose EI_OSABI byte is 3 (ELFOSABI_LINUX) is loaded by
-; loader.asm as usual and then marked Linux: PCB_LINUX holds its real entry
-; and the process starts in lx_start, which builds the Linux initial stack
-; (argc, argv, envp, auxv) and jumps there. While PCB_LINUX is non-zero,
+; loader.asm as usual and then marked Linux: PCB_LINUX holds its entry.
+; proc_enter_user hands such a process to lx_enter_user, which builds the
+; Linux initial stack (argc, argv, envp, auxv) on its ring-3 stack and
+; enters it there. While PCB_LINUX is non-zero,
 ; int 0x80 from that process goes to lx_isr instead of the native table:
 ;   eax = Linux call number, ebx/ecx/edx/esi/edi/ebp = arguments,
 ;   eax = result, or -errno; every other register is preserved.
@@ -18,8 +19,10 @@
 ; heap (SYS_SBRK, 0x40000000+), so they share one region; munmap is
 ; accepted and frees nothing until the process ends.
 ;
-; Programs still run in ring 0 like native ones; the table moves behind the
-; ring-3 gate unchanged when 2.4 lands.
+; Linux programs run in ring 3 like native ones (2.4). A call from ring 3
+; has its pointer arguments checked first (the kind byte of each table
+; entry, lx_uargs, on the native ua_range/ua_str); a bad one returns
+; -EFAULT without running the call.
 
 PCB_LINUX   equ 36              ; real entry of a Linux process, 0 = native
 
@@ -41,44 +44,78 @@ LX_O_TRUNC  equ 0x200
 LX_O_APPEND equ 0x400
 LX_MAP_ANON equ 0x20
 
-; First code of a Linux process (proc_trampoline calls it as entry(arg)).
-; Stack on entry to the program, low to high: argc, argv[0] (the program
-; name), argv[1] (the argument text, if any), NULL, envp NULL, AT_NULL.
-lx_start:
-    mov esi, [esp+4]            ; argument text
-    mov ebx, [proc_cur]
+; ebx = PCB of a Linux process, edi = its argument text, already copied
+; to its ring-3 stack (proc_enter_user). Builds, below that, a copy of the
+; program name and the Linux initial stack, low to high: argc, argv[0]
+; (the name), argv[1] (the argument text, if any), NULL, envp NULL,
+; AT_NULL; then enters the program in ring 3 with edx = 0.
+lx_enter_user:
+    mov edx, edi                ; argv[1]
+    sub edi, PROC_NAMELEN
+    lea esi, [ebx+PCB_NAME]
+    mov ecx, PROC_NAMELEN/4
+    rep movsd
+    lea ecx, [edi-PROC_NAMELEN] ; argv[0]
+    and edi, -16
+    sub edi, PROC_NAMELEN+16
     xor eax, eax
-    push eax                    ; auxv: AT_NULL, 0
-    push eax
-    push eax                    ; envp: empty
-    push eax                    ; argv terminator
+    mov [edi+12], eax           ; auxv: AT_NULL, 0
+    mov [edi+8], eax
+    mov [edi+4], eax            ; envp: empty
+    mov [edi], eax              ; argv terminator
     inc eax                     ; argc = 1
-    cmp byte [esi], 0
+    cmp byte [edx], 0
     je .name
-    push esi                    ; argv[1]
+    sub edi, 4
+    mov [edi], edx              ; argv[1]
     inc eax
 .name:
-    lea ecx, [ebx+PCB_NAME]
-    push ecx                    ; argv[0]
-    push eax                    ; argc
+    mov [edi-4], ecx            ; argv[0]
+    mov [edi-8], eax            ; argc
+    sub edi, 8
+    push dword USER_DS          ; ss
+    push edi                    ; esp
+    push dword 0x202            ; eflags: IF, IOPL 0
+    push dword USER_CS
+    push dword [ebx+PCB_LINUX]
+    xor eax, eax
+    xor ebx, ebx
+    xor ecx, ecx
     xor edx, edx                ; no exit handler from a dynamic linker
-    jmp [ebx+PCB_LINUX]
+    xor esi, esi
+    xor edi, edi
+    xor ebp, ebp
+    iretd
 
 ; int 0x80 from a Linux process (syscall_isr jumps here)
 lx_isr:
     pushad
     mov esi, lx_calls
+    cmp eax, 0xFFFF
+    ja .nosys
 .find:
     cmp esi, lx_calls_end
     jae .nosys
-    cmp eax, [esi]
+    cmp ax, [esi]
     je .hit
     add esi, 8
     jmp .find
 .hit:
+    test byte [esp+36], 3       ; the caller's CS: from ring 3, its
+    jz .call                    ; pointers must be its own memory
+    movzx eax, byte [esi+2]
+    push esi
+    mov esi, [esp+8]            ; the caller's esi
+    call lx_uargs
+    pop esi
+    jc .efault
+.call:
     mov eax, [esi+4]
     mov esi, [esp+4]            ; the caller's esi again
     call eax
+    jmp .ret
+.efault:
+    mov eax, LX_EFAULT
     jmp .ret
 .nosys:
     mov eax, LX_ENOSYS
@@ -87,55 +124,196 @@ lx_isr:
     popad
     iretd
 
+; what each call's pointer arguments are (lx_uargs)
+LK_NONE     equ 0
+LK_BZ       equ 1               ; ebx -> string
+LK_BZ_CZ    equ 2               ; ebx, ecx -> strings
+LK_C_D      equ 3               ; ecx -> edx bytes
+LK_B_C      equ 4               ; ebx -> ecx bytes
+LK_BZ_C96   equ 5               ; ebx -> string, ecx -> 96 bytes (stat64)
+LK_C96      equ 6               ; ecx -> 96 bytes
+LK_B390     equ 7               ; ebx -> 390 bytes (utsname)
+LK_IOV      equ 8               ; ecx -> edx iovecs, and each buffer
+LK_B16      equ 9               ; ebx -> 16 bytes
+LK_D20      equ 10              ; edx -> 20 bytes, or 0
+LK_D8       equ 11              ; edx -> 8 bytes, or 0
+LK_B4       equ 12              ; ebx -> 4 bytes, or 0
+LK_B8       equ 13              ; ebx -> 8 bytes, or 0
+LK_C8       equ 14              ; ecx -> 8 bytes
+LK_S8       equ 15              ; esi -> 8 bytes
+LK_CZ       equ 16              ; ecx -> string
+LK_IOCTL    equ 17              ; edx -> 36 (TCGETS) or 8 (TIOCGWINSZ) bytes
+LK_B24      equ 18              ; ebx -> 24 bytes
+
+%macro LXCALL 2-3 LK_NONE       ; number, handler, kind
+    dw %1
+    db %3, 0
+    dd %2
+%endmacro
+
+; eax = kind, ebx/ecx/edx/esi = the caller's arguments -> CF if a pointer
+; is not the caller's memory. Keeps every register.
+lx_uargs:
+    pushad
+    jmp [.kinds+eax*4]
+.kinds:
+    dd .ok, .bz, .bz_cz, .c_d, .b_c, .bz_c96, .c96, .b390, .iov, .b16
+    dd .d20, .d8, .b4, .b8, .c8, .s8, .cz, .ioctl, .b24
+.bz_cz:
+    mov esi, ecx
+    call ua_str
+    jc .bad
+.bz:
+    mov esi, ebx
+    jmp .str
+.cz:
+    mov esi, ecx
+.str:
+    call ua_str
+    jc .bad
+    jmp .ok
+.c_d:
+    mov esi, ecx
+    mov ecx, edx
+    jmp .range
+.b_c:
+    mov esi, ebx
+    jmp .range
+.bz_c96:
+    mov esi, ebx
+    call ua_str
+    jc .bad
+.c96:
+    mov esi, ecx
+    mov ecx, 96
+    jmp .range
+.b390:
+    mov esi, ebx
+    mov ecx, 6*65
+    jmp .range
+.b16:
+    mov esi, ebx
+    mov ecx, 16
+    jmp .range
+.b24:
+    mov esi, ebx
+    mov ecx, 24
+    jmp .range
+.d20:
+    mov ecx, 20
+    jmp .dopt
+.d8:
+    mov ecx, 8
+.dopt:
+    mov esi, edx
+    jmp .opt
+.b4:
+    mov ecx, 4
+    jmp .bopt
+.b8:
+    mov ecx, 8
+.bopt:
+    mov esi, ebx
+.opt:
+    test esi, esi
+    jz .ok
+    jmp .range
+.c8:
+    mov esi, ecx
+    mov ecx, 8
+    jmp .range
+.s8:
+    mov ecx, 8
+    jmp .range
+.ioctl:
+    mov esi, edx
+    cmp ecx, 0x5413
+    mov ecx, 8
+    je .range
+    cmp dword [esp+24], 0x5401  ; the caller's ecx (pushad frame)
+    jne .ok
+    mov ecx, 36
+    jmp .range
+.iov:
+    mov esi, ecx
+    cmp edx, 1024
+    ja .bad
+    lea ecx, [edx*8]
+    call ua_range
+    jc .bad
+    mov ebx, esi
+    mov edi, edx
+.iv:
+    test edi, edi
+    jz .ok
+    mov esi, [ebx]
+    mov ecx, [ebx+4]
+    call ua_range
+    jc .bad
+    add ebx, 8
+    dec edi
+    jmp .iv
+.range:
+    call ua_range
+    jc .bad
+.ok:
+    popad
+    clc
+    ret
+.bad:
+    popad
+    stc
+    ret
+
 lx_calls:
-    dd 1,   proc_exit           ; exit(code)
-    dd 252, proc_exit           ; exit_group(code)
-    dd 3,   lx_read
-    dd 4,   lx_write
-    dd 5,   lx_open
-    dd 6,   lx_close
-    dd 19,  lx_lseek
-    dd 20,  sys_getpid
-    dd 45,  lx_brk
-    dd 90,  lx_mmap_old
-    dd 91,  lx_ok               ; munmap: nothing is freed before exit
-    dd 192, lx_mmap2
+    LXCALL 1, proc_exit             ; exit(code)
+    LXCALL 252, proc_exit           ; exit_group(code)
+    LXCALL 3, lx_read, LK_C_D
+    LXCALL 4, lx_write, LK_C_D
+    LXCALL 5, lx_open, LK_BZ
+    LXCALL 6, lx_close
+    LXCALL 19, lx_lseek
+    LXCALL 20, sys_getpid
+    LXCALL 45, lx_brk
+    LXCALL 90, lx_mmap_old, LK_B24
+    LXCALL 91, lx_ok                ; munmap: nothing is freed before exit
+    LXCALL 192, lx_mmap2
     ; P.2 continued: what small static C programs (musl-style start-up,
     ; stdio through writev, isatty through ioctl) ask for
-    dd 10,  lx_unlink
-    dd 13,  lx_time
-    dd 24,  lx_ok               ; getuid: everybody is root (0)
-    dd 33,  lx_access
-    dd 38,  lx_rename
-    dd 39,  lx_mkdir
-    dd 40,  lx_unlink           ; rmdir: SQFS deletes empty directories the same way
-    dd 47,  lx_ok               ; getgid
-    dd 49,  lx_ok               ; geteuid
-    dd 50,  lx_ok               ; getegid
-    dd 54,  lx_ioctl
-    dd 78,  lx_gettimeofday
-    dd 122, lx_uname
-    dd 125, lx_ok               ; mprotect: all program memory is RWX
-    dd 140, lx_llseek
-    dd 145, lx_readv
-    dd 146, lx_writev
-    dd 162, lx_nanosleep
-    dd 174, lx_sigaction
-    dd 175, lx_sigprocmask
-    dd 183, lx_getcwd
-    dd 195, lx_stat64
-    dd 196, lx_stat64           ; lstat64: no links
-    dd 197, lx_fstat64
-    dd 199, lx_ok               ; getuid32
-    dd 200, lx_ok               ; getgid32
-    dd 201, lx_ok               ; geteuid32
-    dd 202, lx_ok               ; getegid32
-    dd 219, lx_ok               ; madvise
-    dd 224, sys_getpid          ; gettid: one thread per process
-    dd 243, lx_set_thread_area
-    dd 258, sys_getpid          ; set_tid_address -> the tid
-    dd 265, lx_clock_gettime
-    dd 295, lx_openat
+    LXCALL 10, lx_unlink, LK_BZ
+    LXCALL 13, lx_time, LK_B4
+    LXCALL 24, lx_ok                ; getuid: everybody is root (0)
+    LXCALL 33, lx_access, LK_BZ
+    LXCALL 38, lx_rename, LK_BZ_CZ
+    LXCALL 39, lx_mkdir, LK_BZ
+    LXCALL 40, lx_unlink, LK_BZ     ; rmdir: SQFS deletes empty directories the same way
+    LXCALL 47, lx_ok                ; getgid
+    LXCALL 49, lx_ok                ; geteuid
+    LXCALL 50, lx_ok                ; getegid
+    LXCALL 54, lx_ioctl, LK_IOCTL
+    LXCALL 78, lx_gettimeofday, LK_B8
+    LXCALL 122, lx_uname, LK_B390
+    LXCALL 125, lx_ok               ; mprotect: all program memory is RWX
+    LXCALL 140, lx_llseek, LK_S8
+    LXCALL 145, lx_readv, LK_IOV
+    LXCALL 146, lx_writev, LK_IOV
+    LXCALL 162, lx_nanosleep
+    LXCALL 174, lx_sigaction, LK_D20
+    LXCALL 175, lx_sigprocmask, LK_D8
+    LXCALL 183, lx_getcwd, LK_B_C
+    LXCALL 195, lx_stat64, LK_BZ_C96
+    LXCALL 196, lx_stat64, LK_BZ_C96; lstat64: no links
+    LXCALL 197, lx_fstat64, LK_C96
+    LXCALL 199, lx_ok               ; getuid32
+    LXCALL 200, lx_ok               ; getgid32
+    LXCALL 201, lx_ok               ; geteuid32
+    LXCALL 202, lx_ok               ; getegid32
+    LXCALL 219, lx_ok               ; madvise
+    LXCALL 224, sys_getpid          ; gettid: one thread per process
+    LXCALL 243, lx_set_thread_area, LK_B16
+    LXCALL 258, sys_getpid          ; set_tid_address -> the tid
+    LXCALL 265, lx_clock_gettime, LK_C8
+    LXCALL 295, lx_openat, LK_CZ
 lx_calls_end:
 
 ; fd >= 3 -> CF clear and ebx = native fd; fd 0..2 -> CF set

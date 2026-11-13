@@ -48,7 +48,7 @@ SYS_ENOSYS  equ -1
 SYSCALL_VEC equ 0x80
 
 ; Install the gate: 32-bit trap gate, DPL 3, so IF is left as the caller
-; had it and future ring-3 code may call it.
+; had it and ring-3 code (2.4) may call it.
 syscall_init:
     mov edi, idt+SYSCALL_VEC*8
     mov eax, syscall_isr
@@ -57,6 +57,7 @@ syscall_init:
     ret
 
 syscall_isr:
+    KSEGS
     push esi                    ; a Linux process uses its own table (P.1)
     mov esi, [proc_cur]
     cmp dword [esi+PCB_LINUX], 0
@@ -65,13 +66,210 @@ syscall_isr:
     cmp eax, SYS_COUNT
     jae .bad
     pushad
+    test byte [esp+36], 3   ; the caller's CS: from ring 3 (2.4) ...
+    jz .call
+    call sys_uargs          ; ... its pointers must be its own memory
+    jc .efault
+.call:
     call [syscall_table+eax*4]
+.ret:
     mov [esp+28], eax       ; overwrite saved eax so popad returns it
     popad
     iretd
+.efault:
+    mov eax, SYS_EFAULT
+    jmp .ret
 .bad:
     mov eax, SYS_ENOSYS
     iretd
+
+; ---------- ring-3 pointer checks (2.4) ----------
+; For a call from ring 3, every pointer argument must lie in memory that
+; belongs to the program: its program area, its heap up to the break, or
+; the ring-3 stack windows. Otherwise the call returns SYS_EFAULT (-1)
+; without running. Strings must end inside the same region. SYS_PALLOC
+; and SYS_PFREE hand out physical pages, so they are kernel-only.
+; See documentation/kernel/ring3.md.
+
+; one byte per call: what to check, from these
+UA_NONE     equ 0
+UA_BZ       equ 1           ; ebx -> string
+UA_BZ_CZ    equ 2           ; ebx, ecx -> strings
+UA_BZ_CZ0   equ 3           ; ebx -> string, ecx -> string or 0
+UA_C_D      equ 4           ; ecx -> edx bytes
+UA_B_C      equ 5           ; ebx -> ecx bytes
+UA_C_512    equ 6           ; ecx -> a sector
+UA_C_20     equ 7           ; ecx -> 20 bytes
+UA_DEV      equ 8           ; ecx -> edx bytes (char) or a sector (block)
+UA_NETSEND  equ 9           ; ebx -> 16-byte block, its +8 -> its +12 bytes
+UA_NETRECV  equ 10          ; ebx -> 20-byte block, its +4 -> its +8 bytes
+UA_KERNEL   equ 11          ; refused from ring 3
+
+SYS_EFAULT  equ -1
+
+sys_uarg_kind:
+    db UA_NONE, UA_BZ, UA_NONE, UA_NONE         ; putc puts getc yield
+    db UA_NONE, UA_NONE, UA_NONE, UA_NONE       ; spawn exit wait getpid
+    db UA_C_512, UA_C_512, UA_BZ, UA_C_D        ; bread bwrite open read
+    db UA_C_D, UA_NONE, UA_BZ, UA_BZ            ; write close create delete
+    db UA_BZ_CZ, UA_BZ_CZ0, UA_C_20, UA_KERNEL  ; rename exec readdir palloc
+    db UA_KERNEL, UA_NONE, UA_BZ, UA_DEV        ; pfree sbrk devfind devread
+    db UA_DEV, UA_NONE, UA_B_C, UA_NONE         ; devwrite seek fserror send
+    db UA_NONE, UA_NONE, UA_NETSEND, UA_NETRECV ; recv keyevents netsendto netrecvfrom
+    db UA_NONE, UA_BZ, UA_BZ, UA_NONE           ; setprio devreg devunreg settls
+%if $-sys_uarg_kind != SYS_COUNT
+%error sys_uarg_kind needs one byte per system call
+%endif
+
+; eax = call number, ebx/ecx/edx = its arguments -> CF if a pointer is
+; not the caller's. Keeps every register.
+sys_uargs:
+    pushad
+    movzx eax, byte [sys_uarg_kind+eax]
+    cmp eax, UA_KERNEL
+    ja .ok
+    jmp [.kinds+eax*4]
+.kinds:
+    dd .ok, .bz, .bz_cz, .bz_cz0, .c_d, .b_c, .c_512, .c_20, .dev, .netsend, .netrecv, .bad
+.bz_cz0:
+    test ecx, ecx
+    jz .bz
+.bz_cz:
+    mov esi, ecx
+    call ua_str
+    jc .bad
+.bz:
+    mov esi, ebx
+    call ua_str
+    jc .bad
+    jmp .ok
+.c_d:
+    mov esi, ecx
+    mov ecx, edx
+    jmp .range
+.b_c:
+    mov esi, ebx
+    jmp .range
+.c_512:
+    mov esi, ecx
+    mov ecx, SECTOR_SIZE
+    jmp .range
+.c_20:
+    mov esi, ecx
+    mov ecx, 20
+    jmp .range
+.dev:
+    mov esi, ecx
+    mov ecx, edx
+    call dev_handle
+    test ebx, ebx
+    jz .ok                  ; no such device: the call itself says so
+    cmp dword [ebx+DEV_TYPE], DEV_BLOCK
+    jne .range
+    mov ecx, SECTOR_SIZE
+    jmp .range
+.netsend:
+    mov esi, ebx
+    mov ecx, 16
+    call ua_range
+    jc .bad
+    mov esi, [ebx+8]
+    mov ecx, [ebx+12]
+    jmp .range
+.netrecv:
+    mov esi, ebx
+    mov ecx, 20
+    call ua_range
+    jc .bad
+    mov esi, [ebx+4]
+    mov ecx, [ebx+8]
+.range:
+    call ua_range
+    jc .bad
+.ok:
+    popad
+    clc
+    ret
+.bad:
+    popad
+    stc
+    ret
+
+; esi = address -> eax = the end of the caller's region that holds it,
+; or CF. Keeps the other registers.
+ua_region:
+    push ebx
+    mov ebx, [proc_cur]
+    mov ebx, [ebx+PCB_AS]
+    test ebx, ebx
+    jz .no
+    mov eax, PROG_BASE+PROG_MAX
+    cmp esi, PROG_BASE
+    jb .no
+    cmp esi, eax
+    jb .yes
+    mov eax, [ebx+AS_BRK]
+    cmp esi, HEAP_BASE
+    jb .no
+    cmp esi, eax
+    jb .yes
+    mov eax, USTACK_BASE+PROC_MAX*USTACK_SIZE
+    cmp esi, USTACK_BASE
+    jb .no
+    cmp esi, eax
+    jb .yes
+.no:
+    pop ebx
+    stc
+    ret
+.yes:
+    pop ebx
+    clc
+    ret
+
+; esi = address, ecx = bytes -> CF unless [esi, esi+ecx) is the caller's
+ua_range:
+    push eax
+    push edx
+    call ua_region
+    jc .r
+    mov edx, esi
+    add edx, ecx
+    jc .bad                 ; wraps around
+    cmp edx, eax
+    ja .bad
+    clc
+    jmp .r
+.bad:
+    stc
+.r:
+    pop edx
+    pop eax
+    ret
+
+; esi = string -> CF unless it starts and ends (zero byte) in one of the
+; caller's regions
+ua_str:
+    push eax
+    push esi
+    call ua_region
+    jc .r
+.s:
+    cmp esi, eax
+    jae .bad
+    cmp byte [esi], 0
+    je .ok
+    inc esi
+    jmp .s
+.ok:
+    clc
+    jmp .r
+.bad:
+    stc
+.r:
+    pop esi
+    pop eax
+    ret
 
 syscall_table:
     dd sys_putc

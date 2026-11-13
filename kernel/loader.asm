@@ -187,12 +187,8 @@ prog_exec:
     call as_release
     mov eax, [ld_as]
     mov [edi+PCB_AS], eax
-    mov eax, [ld_linux]         ; a Linux ELF starts in lx_start (P.1)
-    test eax, eax
-    jz .native
+    mov eax, [ld_linux]         ; a Linux ELF: entered by lx_enter_user (P.1)
     mov [edi+PCB_LINUX], eax
-    mov dword [edi+PCB_ENTRY], lx_start
-.native:
     mov esi, [esp+12]           ; the file name (saved esi), for ps and crash reports
     call proc_set_name
     mov eax, edi

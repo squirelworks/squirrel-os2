@@ -1,7 +1,8 @@
 ; lxsys — more Linux i386 calls (P.2): writev, ioctl (isatty), uname,
 ; stat64/fstat64, _llseek, openat, access, rename, unlink, mkdir, rmdir,
 ; getcwd, time/clock_gettime, the uid calls, rt_sigaction/sigprocmask,
-; and set_thread_area with a GS-relative read. Original code.
+; set_thread_area with a GS-relative read, and -EFAULT for kernel
+; pointers from ring 3. Original code.
 ; Prints "lxsys: uname Linux i686" and "lxsys: PASS", or "lxsys: FAIL x".
 %include "lxelf.inc"
 LX_ELF_HEADER _start
@@ -150,6 +151,16 @@ _start:
     mov eax, [gs:4]
     cmp eax, 0x7E57AB1E
     jne fail
+    STEP 'j'                        ; ring 3: kernel pointers are refused
+    SYS 4, 1, 0x8000, 16            ; write from the kernel image
+    cmp eax, -14                    ; EFAULT
+    jne fail
+    SYS 122, 0x100000               ; uname into the high kernel image
+    cmp eax, -14
+    jne fail
+    SYS 146, 1, iov_bad, 1          ; an iovec pointing into the kernel
+    cmp eax, -14
+    jne fail
     SYS 4, 1, pass, pass_len
     SYS 252, 0
 fail:
@@ -157,6 +168,7 @@ fail:
     SYS 1, 1
 
 iov dd part1, part1_len, part2, part2_len
+iov_bad dd 0x8000, 16
 part1 db 'lxsys: writev '
 part1_len equ $ - part1
 part2 db 'joins two pieces', 10
