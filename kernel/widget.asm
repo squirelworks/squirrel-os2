@@ -36,7 +36,7 @@ WK_DEL          equ 0x7F        ; Delete (1.9.2)
 
 MSG_BUTTON      equ 0x42000000  ; 'B' in the top byte, the button's code below
 WG_BTN_PAD      equ 2           ; pixels between a button's box and its text
-WG_BTN_FILL     equ 0x3F        ; white
+WG_BTN_FILL     equ TH_BTN_FACE ; theme.inc
 
 ; eax = window id, ebx = x, ecx = y (in the client area), esi = text
 ; -> eax = widget id, or -1 if the window is not open or the table is full.

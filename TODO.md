@@ -290,7 +290,7 @@ From the 2.1 milestone in `ROADMAP.md` and epic #114. Resumed 2026-11-07 after t
 - [x] **2.1-modes** — The other modes: 640×480, 800×600 and 1024×768 at 8, 16 and 32 bpp. `vbetest` walks them (or takes a mode); each succeeds with a pixel read-back. Mode 13h remains the fallback when a mode is refused.
 - [x] **2.1-dblbuf** — Double buffering: draw to a back buffer, then flip (or blit) to the visible framebuffer. A self-check draws off-screen, confirms the front is unchanged, flips, and reads the new pixels.
 - [x] **2.1-dirty** — Dirty rectangles: mark regions that changed and only copy those on flip. A check dirties two rects, flips, and confirms pixels outside them are untouched on the front buffer while the dirty ones match.
-- [ ] **2.1-blit-clip** — A blitter (copy rect) and clip regions: draws and blits are clipped to a rectangle; a check reads ink inside the clip and background outside it.
+- [x] **2.1-blit-clip** — A blitter (copy rect) and clip regions: draws and blits are clipped to a rectangle; a check reads ink inside the clip and background outside it.
 
 ## 2.4 — Ring 3 and protection
 
@@ -301,9 +301,52 @@ From the 2.4 milestone in `ROADMAP.md`. Worked by the OS2-K stream; each box is 
 - [x] **2.4-ustack** — Growing ring-3 stacks: a 512 KB window per thread, mapped page by page on first touch, with a guard page reported as a stack overflow. Checks `ring3` (64 KB of stack), `stackover`.
 - [x] **2.4-uptr** — The syscall gate checks every pointer a ring-3 caller passes (strings, buffers, blocks) against the program's own memory and refuses the rest with -1; `SYS_PALLOC`/`SYS_PFREE` are kernel-only. Check `ring3`.
 
+## 2.2 — Real windows
+
+From the 2.2 milestone in `ROADMAP.md` and epic #114. Start after the last 2.1 box is on `main`. Work top to bottom; each box is one PR-sized step (the condenser may group neighbouring boxes into one PR). Kernel code waits for the 96 KB kernel limit to be lifted (stream OS2-K); until then only small kernel additions. Design notes go in `documentation/kernel/windows.md` (the API is published there first), `documentation/kernel/widgets.md` and `documentation/kernel/graphics.md`. Mode 13h stays the fallback when VBE is not there. Every box keeps the 1.4–2.1 checks (`wintest`, `winmove`, `winfocus`, `desktop`, `dk-*`) passing.
+
+- [x] **2.2-api** — Publish the 2.2 window, event and drawing API in `documentation/kernel/windows.md` before the code (docs only). Reading check: every routine and syscall the later 2.2 boxes add is listed with its registers.
+- [x] **W.1-theme** — Warp 4 theme constants in one place (`kernel/theme.inc`: palette indices, frame and bevel widths, title bar heights and colours, desktop colour) and `gfx_bevel` (raised / sunken box, light top-left, dark bottom-right). `wm.asm`, `widget.asm` and `desktop.asm` take their colours and sizes from it, with no literal colours left. A self-check `bevtest` reads back the light, face and dark pixels of a raised and a sunken bevel and prints `bevel: PASS`.
+- [ ] **2.2-vbe-wm** — The window manager and desktop draw on a VBE screen (640×480 at 8 bpp, palette indices from the theme); mode 13h when VBE is refused. Mouse coordinates follow the mode. `winvbe` draws a window in the VBE mode and reads back frame and title pixels from the front buffer → `winvbe: PASS`.
+- [ ] **2.2-clip-z** — Windows may be partly off-screen, and each window is drawn clipped to its own rectangle minus the windows above it (2.1 clip regions), so a redraw after a move repaints only what was uncovered. Drawing moves to the VBE back buffer and only dirty rectangles are flipped (2.1-dblbuf, 2.1-dirty). Up to 16 windows (`WM_MAX`). `winclip` moves a top window off a lower one and checks the uncovered pixels show the lower window while pixels outside the old rectangle were not rewritten → `winclip: PASS`.
+- [ ] **2.2-frame** — Warp-style frame: sizing border, title bar with the system-menu box on the left and minimise / maximise / close boxes on the right. `wm_hit` (x, y → window id and part: client, title, border edge or corner, sysmenu, min, max, close). `winhit` probes each part of a window and of two overlapping windows → `winhit: PASS`.
+- [ ] **2.2-mouse** — Mouse window management: a click raises and focuses the window under the pointer (z-order by mouse), dragging the title moves it, dragging a border or corner resizes it (minimum size kept), the boxes minimise, maximise / restore and close. A scripted mouse-event injector (`wm_inject`, also used by the checks) drives `windrag` (move, resize, raise, close, and the window list printed afterwards) → `windrag: PASS`.
+- [ ] **2.2-minmax** — Minimised windows become icons along the bottom of the desktop (double-click restores); maximise fills the screen and remembers the old rectangle. `winmin` checks the list states and rectangles → `winmin: PASS`.
+- [ ] **2.2-sysmenu** — System menu (Restore, Move, Size, Minimise, Maximise, Close) from the sysmenu box or Alt+Space, with keyboard move and size (arrows, Enter, Esc). A menu is a reusable pop-up (`wg_menu`) other programs can use. `winmenu` → `winmenu: PASS`.
+- [ ] **2.2-alttab** — Alt+Tab shows a switcher with the window titles and raises the chosen window on release; Alt+Esc sends the top window to the bottom. `winalttab` checks the focus order → `alttab: PASS`.
+- [ ] **2.2-propfont** — Original proportional bitmap fonts: a 9-pixel and a 12-pixel face drawn from `tools/fontp*.txt` by `tools/mkfont.py` (width table plus bitmaps), `gfx_drawstr_p` and `gfx_strwidth_p`. Title bars, menus and widgets use the proportional face; the 5×7 font stays for consoles and the regress screen reader. `qemu_screen.py` learns to read the proportional face. `pfont` reads back ink and spacing pixels and checks string widths → `pfont: PASS`.
+- [ ] **2.2-progwin** — Programs open windows: syscalls to create, close, move, set the title, draw (fill, line, text, blit) in the client area, and receive window events (`MSG_WIN*`: key, mouse, close, resize, redraw) through the message queue. A test program in `programs/` opens a window, draws, gets a scripted click and a close → `progwin: PASS`. `documentation/kernel/syscalls.md` lists the calls.
+
+## 2.3 — Program Manager / Warp 3 desktop
+
+From the 2.3 milestone in `ROADMAP.md`. Start after **2.2-progwin** is on `main`. Design notes in `documentation/apps/desktop.md` and new pages under `documentation/apps/`.
+
+- [ ] **2.3-icons** — An original 32×32, 16-colour icon format, `tools/mkicon.py` (text art → icon file), `gfx_drawicon` with a transparent colour, and original icons for the built-in programs, folders and files. `icontest` reads back pixels → `icon: PASS`.
+- [ ] **2.3-groups** — Program Manager: the desktop shows `/desktop` folders as group windows full of icons with captions; double-click (or Enter) launches, drag moves an icon (saved), groups open, close and arrange. The 1.9 object model (`Program`, `Folder`) stays underneath. Checks for launch, move-and-reboot, and arrange (`pm-*`).
+- [ ] **2.3-filemgr** — Two-pane File Manager: directory tree left, file list right, copy / move / delete / rename / make directory by menu, keys and drag between panes. Checks on a data disk of their own (`fm-*`).
+- [ ] **2.3-clipboard** — Clipboard: kernel text clipboard with syscalls to put and get, Ctrl+Ins / Shift+Ins / Shift+Del (and Ctrl+C / Ctrl+V) in field widgets and the editors, and a Clipboard viewer program. `cliptest` copies from a field and pastes into another → `clip: PASS`.
+- [ ] **2.3-control** — Control Panel v1: colours (theme scheme from **W.1-theme**), mouse (double-click time, button swap, speed), date and time (reads and sets the RTC), keyboard (repeat rate and delay). Settings saved in `/desktop/control.cfg` and applied at boot. Checks that a change survives a reboot (`cp-*`).
+- [ ] **2.3-bevel-default** — Warp-style bevelled 3D controls are the default for every widget (buttons press in, fields and lists are sunken, group boxes etched), all through `gfx_bevel` and `theme.inc`. Pixel-probe check `bevwidgets` → `bevwidgets: PASS`.
+
 ## Later milestones
 
 The milestones after 2.1 (GUI generations 2.2–4.x, ring 3 in 2.4, the 64-bit bridge 2.8–2.9, built-in apps A.1–A.7, games G.1–G.9, calculator suite C.1–C.9, Warp styling W.1–W.6, foreign programs P.1–P.12) are in `ROADMAP.md` and the epics #114–#119. Each one is split into boxes here, in a docs-only PR, when it comes up.
+
+## P — Foreign programs, first steps
+
+From P.1–P.12 in `ROADMAP.md` and epic #118 (stream OS2-FOREIGN). Each box ships with a hand-written test program in `programs/` and a regression check. Design: `documentation/architecture/foreign-compatibility.md`.
+
+- [x] **P.1-linux-elf** — Linux i386 static ELF32 (`EI_OSABI` 3): Linux initial stack, `int 0x80` personality with `write` and `exit`/`exit_group`, `-ENOSYS` for the rest.
+  **Acceptance:** `run lxhello` prints `lxhello: PASS` and its argc/argv; a native program run afterwards in the same slot still uses native calls. Checks `lx-hello`, `lx-argv`, `lx-then-native`.
+- [x] **P.2-linux-files** — Linux `read`, `open`, `close`, `lseek`, `brk`, anonymous `mmap`/`mmap2`, `munmap`, `getpid`, with `-errno` results.
+  **Acceptance:** `run lxfile` prints `lxfile: PASS`; `echo acorns | run lxcat` prints `lx: acorns`. Checks `lx-file`, `lx-pipe`.
+- [x] **P.2-linux-more** — `writev`/`readv`, `ioctl` (isatty), `uname`, `stat64`/`fstat64`, `openat`, `_llseek`, `access`, `rename`/`unlink`/`mkdir`/`rmdir`, `getcwd`, time calls, uid calls, signal-mask stubs, `set_thread_area` on a per-process TLS segment.
+  **Acceptance:** `run lxsys` prints `lxsys: PASS` (and reads a value through GS). Checks `lx-sys`, `lx-uname`.
+- [x] **P.5-win32-console** — Win32 PE32 console programs: `winrun` (PE loader with relocations and import binding, KERNEL32 shim), and the kernel loader hands `MZ` files to it.
+  **Acceptance:** `run winhello` prints `winhello: PASS`; an import without a shim is named when called. Checks `win-hello`, `win-cmdline`, `win-missing`, `win-notpe`.
+- [x] **P.5-win32-crt** — The TEB through FS (`SYS_SETTLS`, per-process TLS segment) and an msvcrt subset (start-up, stdio and printf, strings, memory, atexit/exit) plus the KERNEL32 start-up calls, so MinGW-built console programs run.
+  **Acceptance:** `run wincrt acorn` prints `crt: -5 acorn 00ab x  |` and `wincrt: PASS`. Checks `win-crt`, `win-printf`.
+- [x] **P.8-dos-design** — DOS `.COM` personality design (V86 monitor, `INT 21h` subset, memory map, tests) in `documentation/architecture/dos-personality.md`. Building it waits for 2.4.
 
 ## Installer (unscheduled)
 
@@ -331,6 +374,14 @@ Kept here so they are not added as tasks by accident. Reasons are in `ROADMAP.md
 - Ring 3 and growing stacks ahead of milestone 2.4.
 - Classic OS/2 binary compatibility, except the optional late P.9 text-mode personality.
 - `topo` (C.9) and foreign personalities (P.1–P.12) are now on the plan in `ROADMAP.md`; they are split into boxes when they come up, not before.
+
+## P.8 — DOS programs
+
+From P.8 in `ROADMAP.md` and epic #118 (stream OS2-FOREIGN). Notes: `documentation/architecture/dosrun.md`.
+
+- [x] **P.8-dosrun** — `dosrun`, an 8086/186 interpreter with the `INT 21h`/BIOS subset, runs DOS `.COM` and MZ `.EXE` programs as a user program (V86 waits for the low kernel image to leave the first megabyte).
+  **Acceptance:** `run dosrun doshello.com acorns`, `doscpu.com`, `dosfile.com` and `dosexe.exe` each print their PASS line, and the shell works afterwards. Checks `dos-hello`, `dos-cpu`, `dos-file`, `dos-exe`, `dos-missing`, `dos-after`.
+- [ ] **P.8-dos-launch** — `run prog.com` and `run prog.exe` (MZ without PE) go to dosrun without naming it.
 
 ## Modern hardware (2.8–2.9)
 

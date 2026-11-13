@@ -97,6 +97,8 @@ proc_spawn:
     mov dword [edi+PCB_PRIO], PRIO_NORM
     call proc_stamp             ; its wait for the CPU starts now (2.0.2)
     mov dword [edi+PCB_FPU], 0  ; starts with a freshly reset FPU
+    mov dword [edi+PCB_LINUX], 0    ; native ABI unless the loader says so (P.1)
+    call tls_clear              ; and no TLS segment base (P.5)
     call msg_reset              ; and an empty message queue (1.2)
     mov ebx, [proc_cur]
     push eax
@@ -196,6 +198,8 @@ proc_enter_user:
     pop esi
     mov edi, eax
 .arg:
+    cmp dword [ebx+PCB_LINUX], 0
+    jne lx_enter_user           ; a Linux program: its own start-up stack (P.1)
     mov [edi-4], eax            ; entry(arg)
     mov [edi-8], esi            ; returns into the stub
     lea eax, [edi-8]
@@ -463,6 +467,7 @@ proc_switch:
     mov [proc_cur], edi
     call vm_load
     call proc_set_esp0
+    call tls_switch             ; its FS/GS base (P.5)
     mov esp, [edi+PCB_ESP]
     popad
     popfd
