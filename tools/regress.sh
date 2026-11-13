@@ -13,11 +13,17 @@ cat "$out/boot.bin" "$out/pm.bin" > "$out/os.img"
 dd if=/dev/zero of="$out/floppy.img" bs=1024 count=1440 2>/dev/null
 dd if="$out/os.img" of="$out/floppy.img" conv=notrunc 2>/dev/null
 python3 "$root/tools/mkiso.py" "$out/floppy.img" "$out/cd.iso"    # installer I.6
-for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest; do
+for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3; do
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
 done
 python3 "$root/tools/sqfs.py" "$out/progs.img" format 1024
-for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
+for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
+# OS2-GAMES (G.x): the games get a disk of their own, so the file counts above stay put
+python3 "$root/tools/sqfs.py" "$out/games.img" format 1024
+for prog in mines reversi klondike freecell hearts chess mahjongg; do
+    nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
+    python3 "$root/tools/sqfs.py" "$out/games.img" put "$out/$prog"
+done
 printf 'one two\nthree\n' > "$out/notes"
 python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/notes"
 printf '2 + 3\n6 * 7\n' > "$out/exprs"
@@ -614,7 +620,7 @@ check seek          'seek: PASS'            'run seek' '<ret>' '<pause>'
 check devices       'hd1     block   ready 2048 sectors'  devices '<ret>'
 check devices-ro    '(read-only for programs)'  devices '<ret>'
 check devtest       'devtest: PASS'         'run devtest' '<ret>'
-check up-ls         '29 file(s)'             'run ls' '<ret>'
+check up-ls         '30 file(s)'             'run ls' '<ret>'
 # 1.2.1: a key arrives as a queue event as well as through SYS_GETC
 check_all keyev     'keyev: queue q getc q|keyev: PASS'  'run keyev' '<ret>' '<pause>' q '<pause>'
 check_all keyev-shift 'keyev: queue Q getc Q|keyev: PASS'  'run keyev' '<ret>' '<pause>' Q '<pause>'
@@ -627,6 +633,9 @@ check udp           'udp: PASS'             'run udptest' '<ret>'
 # KB-16: a wait that closes a cycle of waits returns -1 instead of a kernel panic
 check waitcycle     'waitcycle: PASS'       'run waitcycle' '<ret>'
 check_all stackover '*** stack overflow in pid|Program ended|stackover: PASS'  'run stackover' '<ret>'
+# 2.4: programs run in ring 3; bad pointers, kernel memory and privileged instructions are refused
+check_all ring3     '*** CPU exception 13 (general protection) in pid|Program ended|ring3: PASS'  'run ring3' '<ret>' '<pause>'
+check ring3-after   'systest: PASS'         'run ring3' '<ret>' '<pause>' systest '<ret>'
 # 1.1.0: the timer preempts a program that spins without a system call
 check_all sched-preempt 'spin: second process ran|preempt: PASS' 'run spin' '<ret>' '<pause>'
 check up-ls-filter  '4 file(s)'             'run ls he' '<ret>'
@@ -705,6 +714,23 @@ check drv           'drv: PASS'             'run drvtest' '<ret>'
 # time, past the four run-time slots, and devices no longer lists it
 check_none drv-devices 'null    char' 'con     char' 'run drvtest' '<ret>' devices '<ret>'
 check_none drv-again 'drv: FAIL' 'drv: PASS' 'run drvtest' '<ret>' 'run drvtest' '<ret>' 'run drvtest' '<ret>' 'run drvtest' '<ret>' 'run drvtest' '<ret>' 'run drvtest' '<ret>'
+# OS2-GAMES: each game's rules self-check, then a short scripted game
+disk=$out/games.img
+check mines-test    'mines: PASS'           'run mines test' '<ret>'
+check_all mines-play '  1 F |Mines left: 9' 'run mines 5' '<ret>' e5 '<ret>' 'f a1' '<ret>'
+check reversi-test  'reversi: PASS'         'run reversi test' '<ret>' '<pause>'
+check_all reversi-play 'Computer plays c3|You (X): 3   Computer (O): 3' 'run reversi 1' '<ret>' d3 '<ret>'
+check klondike-test 'klondike: PASS'        'run klondike test' '<ret>'
+check_all klondike-play 'Stock 23|That move is not allowed' 'run klondike 3' '<ret>' d '<ret>' 12 '<ret>'
+check freecell-test 'freecell: PASS'        'run freecell test' '<ret>'
+check freecell-play 'Cells (a b c d) 9C  -  -  -' 'run freecell 2' '<ret>' 1a '<ret>'
+check hearts-test   'hearts: PASS'          'run hearts test' '<ret>' '<pause>'
+check_all hearts-play 'You received:  JH  6H  4H|North plays 2C|You cannot play that card now' 'run hearts 3' '<ret>' 'ah kh jc' '<ret>' 2s '<ret>'
+check chess-test    'chess: PASS'           'run chess test' '<ret>' '<pause>' '<pause>'
+check_all chess-pgn '[Black "Squirrel Chess"]|1. e4 d5 *' 'run chess 1' '<ret>' e2e4 '<ret>' '<pause>' 'save g.pgn' '<ret>' q '<ret>' 'cat g.pgn' '<ret>'
+check mahjongg-test 'mahjongg: PASS'        'run mahjongg test' '<ret>' '<pause>'
+check_all mahjongg-play 'Try j1 a3|Tiles left: 106' 'run mahjongg 2' '<ret>' h '<ret>' 'j1 a3' '<ret>'
+disk=$out/progs.img
 # 1.0.6: calc, edit and draw titles follow lang
 check l10n-calc-tlh "mI' De'wI' (Esc to exit)" 'lang tlh' '<ret>' 'run calc' '<ret>'
 check l10n-edit-tlh "ghItlhwI': (untitled)" 'lang tlh' '<ret>' 'run edit' '<ret>'
