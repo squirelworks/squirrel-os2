@@ -20,7 +20,7 @@ python3 "$root/tools/sqfs.py" "$out/progs.img" format 1024
 for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3 lxhello lxfile lxcat lxsys winrun winhello wincrt winprog; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
 # OS2-GAMES (G.x): the games get a disk of their own, so the file counts above stay put
 python3 "$root/tools/sqfs.py" "$out/games.img" format 1024
-for prog in mines reversi klondike freecell hearts chess mahjongg; do
+for prog in mines reversi klondike freecell hearts chess mahjongg bridge checkers go; do
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
     python3 "$root/tools/sqfs.py" "$out/games.img" put "$out/$prog"
 done
@@ -776,7 +776,7 @@ check_none drv-again 'drv: FAIL' 'drv: PASS' 'run drvtest' '<ret>' 'run drvtest'
 disk=$out/games.img
 check mines-test    'mines: PASS'           'run mines test' '<ret>'
 check_all mines-play '  1 F |Mines left: 9' 'run mines 5' '<ret>' e5 '<ret>' 'f a1' '<ret>'
-check reversi-test  'reversi: PASS'         'run reversi test' '<ret>' '<pause>'
+check reversi-test  'reversi: PASS'         'run reversi test' '<ret>' '<pause>' '<pause>'
 check_all reversi-play 'Computer plays c3|You (X): 3   Computer (O): 3' 'run reversi 1' '<ret>' d3 '<ret>'
 check klondike-test 'klondike: PASS'        'run klondike test' '<ret>'
 check_all klondike-play 'Stock 23|That move is not allowed' 'run klondike 3' '<ret>' d '<ret>' 12 '<ret>'
@@ -788,6 +788,21 @@ check chess-test    'chess: PASS'           'run chess test' '<ret>' '<pause>' '
 check_all chess-pgn '[Black "Squirrel Chess"]|1. e4 d5 *' 'run chess 1' '<ret>' e2e4 '<ret>' '<pause>' 'save g.pgn' '<ret>' q '<ret>' 'cat g.pgn' '<ret>'
 check mahjongg-test 'mahjongg: PASS'        'run mahjongg test' '<ret>' '<pause>'
 check_all mahjongg-play 'Try j1 a3|Tiles left: 106' 'run mahjongg 2' '<ret>' h '<ret>' 'j1 a3' '<ret>'
+check bridge-test   'bridge: PASS'          'run bridge test' '<ret>' '<pause>'
+check_all bridge-play 'S pass  W pass  N 1H  E pass  S 3H|Contract: 3H by North|Trick: East AS|Play from South' 'run bridge 1' '<ret>' p '<ret>' 3h '<ret>'
+# OS2-GAMES: the graphical front ends (run <game> gui [seed]), read off the screen
+check klondike-gui  'gfx: That move is not allowed' 'run klondike gui 3' '<ret>' '<pause>' '<ret>' '<right>' '<ret>' '<pause>' '<gfx>'
+check freecell-gui  'gfx: That move is not allowed' 'run freecell gui 2' '<ret>' '<pause>' '<ret>' '<right>' '<ret>' '<pause>' '<gfx>'
+check hearts-gui    'gfx: You got JH 6H 4H - click to go on' 'run hearts gui 3' '<ret>' '<pause>' ' ' '<right>' ' ' '<right>' ' ' '<ret>' '<pause>' '<gfx>'
+check_all mines-gui 'gfx: Mines left: 9|gfx: Click or Enter: open' 'run mines gui 5' '<ret>' '<pause>' '<ret>' '<up>' '<up>' '<up>' '<up>' '<left>' '<left>' '<left>' '<left>' f '<pause>' '<gfx>'
+check mines-gui-big 'gfx: Boom! You hit a mine.' 'run mines gui 5 big' '<ret>' '<pause>' '<ret>' '<down>' '<down>' '<down>' '<ret>' '<pause>' '<gfx>'
+check_all reversi-gui 'gfx: You 3|gfx: Computer 3' 'run reversi gui 1' '<ret>' '<pause>' '<ret>' '<pause>' '<pause>' '<gfx>'
+check_all chess-gui 'gfx: You: e4|gfx: d5' 'run chess gui 1' '<ret>' '<pause>' '<ret>' '<up>' '<up>' '<ret>' '<pause>' '<pause>' '<pause>' '<gfx>'
+check mahjongg-gui  'gfx: Tiles left: 106' 'run mahjongg gui 2' '<ret>' '<pause>' '<right>' '<right>' '<right>' '<right>' '<right>' '<right>' '<right>' '<right>' '<right>' '<ret>' '<down>' '<down>' '<left>' '<left>' '<left>' '<left>' '<left>' '<left>' '<left>' '<left>' '<left>' '<ret>' '<pause>' '<gfx>'
+check checkers-test 'checkers: PASS'        'run checkers test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
+check_all checkers-play 'Computer plays f6-g5|You (b): 12   Computer (w): 12' 'run checkers 1' '<ret>' c3d4 '<ret>' '<pause>' '<pause>'
+check go-test       'go: PASS'              'run go test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>'
+check_all go-play   'Computer plays f3|You cannot play there' 'run go 1' '<ret>' e5 '<ret>' e5 '<ret>'
 disk=$out/progs.img
 # 1.0.6: calc, edit and draw titles follow lang
 check l10n-calc-tlh "mI' De'wI' (Esc to exit)" 'lang tlh' '<ret>' 'run calc' '<ret>'
