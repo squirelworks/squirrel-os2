@@ -391,7 +391,7 @@ bind:
     ret
 
 ; [dll_name] -> al = 1 if it is a DLL the shim stands in for:
-; kernel32.dll or msvcrt.dll (any case, ".dll" optional)
+; kernel32, msvcrt, user32, gdi32 or advapi32 (any case, ".dll" optional)
 is_known_dll:
     push edi
     mov edi, n_kernel32
@@ -404,6 +404,9 @@ is_known_dll:
     call dll_is
     je .yes
     mov edi, n_gdi32
+    call dll_is
+    je .yes
+    mov edi, n_advapi32
     call dll_is
 .yes:
     sete al
@@ -846,6 +849,7 @@ grow:
 %endmacro
 %include "winshim.inc"
 %include "wingui.inc"
+%include "winreg.inc"
 shims:
     K GetStdHandle
     K WriteFile
@@ -866,12 +870,14 @@ shims:
     K VirtualFree
     WINSHIM_TABLE
     WINGUI_TABLE
+    WINREG_TABLE
     dd 0
 
 n_kernel32 db 'kernel32', 0
 n_msvcrt db 'msvcrt', 0
 n_user32 db 'user32', 0
 n_gdi32 db 'gdi32', 0
+n_advapi32 db 'advapi32', 0
 m_prefix db 'winrun: ', 0
 m_usage db 'usage: run winrun prog.exe [arguments]', 10, 0
 m_open db 'cannot open the program file', 10, 0
@@ -912,4 +918,5 @@ stubs resb STUB_MAX*STUB_SIZE
 hdr resb HDR_MAX
 WINSHIM_BSS
 WINGUI_BSS
+WINREG_BSS
 SQX_END
