@@ -351,6 +351,8 @@ From P.1–P.12 in `ROADMAP.md` and epic #118 (stream OS2-FOREIGN). Each box shi
   **Acceptance:** `run lxsig` prints `lxsig: PASS` and then `Program ended by signal 15`, never `lxsig: still here`. Checks `lx-sig`, `lx-sig-term`, `lx-sig-after`.
 - [x] **P.10-freebsd** — FreeBSD i386 static ELF32 (`EI_OSABI` 9): a call table over the Linux handlers with FreeBSD numbers, stack arguments and CF + errno results.
   **Acceptance:** `run bsdhello` prints `Hello from FreeBSD land!` and `bsdhello: PASS`. Checks `bsd-hello`, `bsd-after`.
+- [ ] **P.9-os2-text** — OS/2 32-bit text-mode programs: `os2run` (LX loader with fixups, TIB/PIB, DOSCALLS shims by ordinal), and the kernel loader hands `MZ`+`LX` files to it.
+  **Acceptance:** `run os2hello acorns` prints `Hello from OS/2 land!`, `arguments: acorns` and `os2hello: PASS`; an import without a shim is named when called. Checks `os2-hello`, `os2-missing`, `os2-notlx`, `os2-after`.
 
 ## Installer (unscheduled)
 
