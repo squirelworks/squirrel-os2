@@ -27,11 +27,15 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `guitest.asm` | SQX | Self-check of `SYS_GUI` and `gui.inc`: draws a window, reads pixels back from the screen, the clock and `GUI_EVAL` (`run guitest`, `run guitest hold`) |
 | `calculator.asm` | SQX | Calculator in a window, standard and scientific keypads on the `sci` engine (`run calculator`, A.1) |
 | `clock.asm` | SQX | Analogue clock with the time and date (`run clock`, `run clock test`, A.1) |
-| `notepad.asm` | SQX | Text editor in a window (`run notepad [file]`, A.1) |
-| `grapher.asm` | SQX | 2D graphing calculator: explicit, polar and parametric functions, zoom, pan, trace, roots, extrema, intersections (`run grapher [f]`, `run grapher test`, C.2) |
+| `notepad.asm` | SQX | Text editor in a window, with syntax highlighting for .asm/.inc, .c/.h and .bas (`run notepad [file]`, `run notepad -test`, A.1, A.7) |
+| `grapher.asm` | SQX | 2D graphing calculator: explicit, polar, parametric and implicit functions, inequalities, sliders, zoom, pan, trace, roots, extrema, intersections (`run grapher [f]`, `run grapher test`, C.2) |
 | `charmap.asm` | SQX | Character map of the system font; collects characters, F2 saves them (`run charmap`, A.2) |
 | `paint.asm` | SQX | Bitmap painter: pen, line, box, solid box, fill, eraser, undo; 16 colours; saves and opens BMP (`run paint [f]`, `run paint test`, A.2) |
 | `viewer.asm` | SQX | Image viewer for 8- and 24-bit BMP with zoom and scrolling, dithered to a 192-colour cube (`run viewer f [test]`, A.2) |
+| `hexedit.asm` | SQX | Hex editor: hex and text columns, overwrite, insert, delete, go to offset, save; files up to 128 KB (`run hexedit f`, `run hexedit test`, A.7) |
+| `write.asm` | SQX | Write, a word processor: wrapping, bold/italic/underline, paragraph alignment, selection, SQWP or plain-text files (`run write f`, `run write test`, A.7) |
+| `graph3d.asm` | SQX | 3D grapher: surfaces z = f(x, y) as coloured meshes drawn back to front, space curves x, y, z = f(t); turn, tilt, zoom, wireframe (`run graph3d [f]`, `run graph3d test`, C.7) |
+| `stats.asm` | SQX | Statistics: two lists, one- and two-variable statistics, seven regression models, histogram, box plot, scatter plot, CSV files (`run stats [f]`, `run stats test`, C.3) |
 | `topology.asm` | SQX | Topology calculator: face counts, Euler characteristic and Betti numbers over Z/2 and Q of simplicial complexes, 11 ready-made ones or typed (`run topology`, `run topology test`, C.9) |
 | `matrixgui.asm` | SQX | Matrices A and B up to 4 x 4 in a grid: + - *, determinant, inverse, transpose, rank, solve A X = B (`run matrixgui`, `run matrixgui test`, C.9) |
 | `lxhello.asm` | ELF32 (Linux) | Linux i386 program: `write` to fd 1 and 2, argc/argv from the Linux stack, `-ENOSYS`, `exit` (`run lxhello`, P.1) |
