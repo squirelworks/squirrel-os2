@@ -45,7 +45,7 @@ for prog in guitest calculator clock notepad grapher charmap paint viewer topolo
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
     python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/$prog"
 done
-for prog in sheet geometry; do              # C.4, C.6
+for prog in sheet geometry cas; do          # C.4, C.6, C.5
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
     python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/$prog"
 done
@@ -842,6 +842,12 @@ check_all geometry-move 'gfx: B (4.5, 0)|gfx: m1 = 4.5|gfx: M (2.25, 0)' 'run ge
 check geometry-err  'gfx: Those are not the right kinds of object' 'run geometry' '<ret>' '<pause>' '(0,0)' '<ret>' '(4,0)' '<ret>' 'perp A B' '<ret>' '<pause>' '<gfx>'
 check geometry-save 'C=circle A 2'          'run geometry g.geo' '<ret>' '<pause>' '(0,0)' '<ret>' 'C=circle A 2' '<ret>' '<ctrl-s>' '<pause>' '<esc>' '<pause>' 'cat g.geo' '<ret>'
 check geometry-quit 'systest: PASS'         'run geometry' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
+# C.5: computer algebra
+check cas           'cas: PASS'             'run cas test' '<ret>' '<pause>' '<pause>' '<pause>'
+check_all cas-algebra 'gfx: (x + 3)*(x - 3)|gfx: x^2 - 9|gfx: x = -sqrt(2), x = sqrt(2)' 'run cas' '<ret>' '<pause>' 'factor(x^2-9)' '<ret>' 'expand(ans)' '<ret>' 'solve(x^2=2)' '<ret>' '<pause>' '<gfx>'
+check_all cas-calculus 'gfx: x^2*cos(x) + 2*x*sin(x)|gfx: sin(3*x)/3 + C|gfx: 1 - x^2/2 + x^4/24' 'run cas' '<ret>' '<pause>' 'diff(x^2*sin(x))' '<ret>' 'integrate(cos(3*x))' '<ret>' 'series(cos(x), 0, 4)' '<ret>' '<pause>' '<gfx>'
+check_all cas-err   'gfx: Error: syntax|gfx: Error: no answer yet for ans' 'run cas' '<ret>' '<pause>' 'ans' '<ret>' 'x +* 2' '<ret>' '<pause>' '<gfx>'
+check cas-quit      'systest: PASS'         'run cas' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
 # P.8: DOS .COM and .EXE programs run in the dosrun 8086 interpreter
 disk=$out/dos.img
 check_all dos-hello 'Hello from DOS land!|#! tail: acorns|doshello: PASS'  'run dosrun doshello.com acorns' '<ret>'

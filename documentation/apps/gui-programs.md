@@ -106,3 +106,4 @@ Until the 2.2 window manager gives programs real windows, each program owns the 
 
 The spreadsheet Sheet (C.4), with charts linked to its cells, is described in `sheet.md`.
 Geometry (C.6), constructions that follow their points, is described in `geometry.md`.
+The CAS (C.5), exact algebra and calculus in a console, is described in `cas.md`.
