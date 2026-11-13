@@ -921,6 +921,8 @@ check checkers-test 'checkers: PASS'        'run checkers test' '<ret>' '<pause>
 check_all checkers-play 'Computer plays f6-g5|You (b): 12   Computer (w): 12' 'run checkers 1' '<ret>' c3d4 '<ret>' '<pause>' '<pause>'
 check go-test       'go: PASS'              'run go test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>'
 check_all go-play   'Computer plays f3|You cannot play there' 'run go 1' '<ret>' e5 '<ret>' e5 '<ret>'
+# the directory checks' scratch entries go: progs.img's 64-entry directory is full by now
+for f in d2/n d2/s d2 d3 d5/e d5/g d5 la1 t1 edir; do python3 "$root/tools/sqfs.py" "$out/progs.img" rm "$f" >/dev/null 2>&1 || true; done
 disk=$out/progs.img
 # 1.0.6: calc, edit and draw titles follow lang
 check l10n-calc-tlh "mI' De'wI' (Esc to exit)" 'lang tlh' '<ret>' 'run calc' '<ret>'
