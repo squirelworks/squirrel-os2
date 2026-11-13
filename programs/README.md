@@ -34,9 +34,18 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `viewer.asm` | SQX | Image viewer for 8- and 24-bit BMP with zoom and scrolling, dithered to a 192-colour cube (`run viewer f [test]`, A.2) |
 | `topology.asm` | SQX | Topology calculator: face counts, Euler characteristic and Betti numbers over Z/2 and Q of simplicial complexes, 11 ready-made ones or typed (`run topology`, `run topology test`, C.9) |
 | `matrixgui.asm` | SQX | Matrices A and B up to 4 x 4 in a grid: + - *, determinant, inverse, transpose, rank, solve A X = B (`run matrixgui`, `run matrixgui test`, C.9) |
+| `mines.asm` | SQX | Minesweeper-class game, G.3 (`run mines [seed] [big]`, `run mines test`); see `documentation/apps/games.md` |
+| `reversi.asm` | SQX | Reversi against a two-ply computer player, G.8 (`run reversi [seed]`, `run reversi test`) |
+| `klondike.asm` | SQX | Klondike solitaire, draw one, G.1 (`run klondike [seed]`, `run klondike test`) |
+| `freecell.asm` | SQX | FreeCell, G.2 (`run freecell [seed]`, `run freecell test`) |
+| `hearts.asm` | SQX | Hearts against three computer players, G.4 (`run hearts [seed]`, `run hearts test`) |
+| `chess.asm` | SQX | Chess against an alpha-beta engine, with SAN and PGN save, G.5 (`run chess [seed]`, `run chess test`) |
+| `mahjongg.asm` | SQX | Mahjongg-style tile solitaire, always solvable deals, G.7 (`run mahjongg [seed]`, `run mahjongg test`) |
 | `sqx.inc` | — | SQX header macro and syscall numbers |
 | `bmp.inc` | — | BMP reader (8- and 24-bit) and 16-colour writer for programs |
 | `gui.inc` | — | Graphics toolkit for programs over `SYS_GUI`: back buffer, pixels, lines, text, windows, buttons, keys, mouse (`../documentation/apps/gui-programs.md`) |
+| `games.inc` | — | Shared runtime for the games: output, line input, seeded random numbers, self-test helpers |
+| `cards.inc` | — | Playing cards for the card games: deck, printing, parsing |
 
 Build and install:
 

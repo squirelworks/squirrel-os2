@@ -177,14 +177,14 @@ Each app is first built in squirrelsoft as a desktop program, then ported.
 
 Each has its rules core with unit tests in squirrelsoft first; card and board graphics are original.
 
-- [ ] **G.1** Solitaire (Klondike)
-- [ ] **G.2** FreeCell
-- [ ] **G.3** A Minesweeper-class game
-- [ ] **G.4** Hearts (three AI players)
-- [ ] **G.5** Chess (own alpha-beta engine, PGN)
+- [x] **G.1** Solitaire (Klondike)
+- [x] **G.2** FreeCell
+- [x] **G.3** A Minesweeper-class game
+- [x] **G.4** Hearts (three AI players)
+- [x] **G.5** Chess (own alpha-beta engine, PGN)
 - [ ] **G.6** Contract Bridge (bidding and play AI)
-- [ ] **G.7** Mahjongg solitaire
-- [ ] **G.8** Reversi
+- [x] **G.7** Mahjongg solitaire
+- [x] **G.8** Reversi
 - [ ] **G.9** Checkers or Go (stretch)
 
 ### Calculator suite — Desmos and TI-Nspire class (C.1–C.9, epic #119)
