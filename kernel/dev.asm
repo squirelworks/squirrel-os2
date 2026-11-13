@@ -8,7 +8,7 @@
 ; devices) instead of calling the driver directly.
 ; See documentation/kernel/drivers.md.
 
-DEV_MAX     equ 16
+DEV_MAX     equ 24                  ; 16 until the H.x drivers
 
 ; descriptor (40 bytes; DEV_FLAGS and DEV_SIZE are filled in here)
 DEV_NAME    equ 0                   ; 8 bytes, zero-padded
