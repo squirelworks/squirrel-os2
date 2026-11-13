@@ -321,7 +321,7 @@ From the 2.2 milestone in `ROADMAP.md` and epic #114. Start after the last 2.1 b
 
 From the 2.3 milestone in `ROADMAP.md`. Start after **2.2-progwin** is on `main`. Design notes in `documentation/apps/desktop.md` and new pages under `documentation/apps/`.
 
-- [ ] **2.3-icons** — An original 32×32, 16-colour icon format, `tools/mkicon.py` (text art → icon file), `gfx_drawicon` with a transparent colour, and original icons for the built-in programs, folders and files. `icontest` reads back pixels → `icon: PASS`.
+- [x] **2.3-icons** — An original 32×32, 16-colour icon format, `tools/mkicon.py` (text art → icon file), `gfx_drawicon` with a transparent colour, and original icons for the built-in programs, folders and files. `icontest` reads back pixels → `icon: PASS`.
 - [ ] **2.3-groups** — Program Manager: the desktop shows `/desktop` folders as group windows full of icons with captions; double-click (or Enter) launches, drag moves an icon (saved), groups open, close and arrange. The 1.9 object model (`Program`, `Folder`) stays underneath. Checks for launch, move-and-reboot, and arrange (`pm-*`).
 - [ ] **2.3-filemgr** — Two-pane File Manager: directory tree left, file list right, copy / move / delete / rename / make directory by menu, keys and drag between panes. Checks on a data disk of their own (`fm-*`).
 - [ ] **2.3-clipboard** — Clipboard: kernel text clipboard with syscalls to put and get, Ctrl+Ins / Shift+Ins / Shift+Del (and Ctrl+C / Ctrl+V) in field widgets and the editors, and a Clipboard viewer program. `cliptest` copies from a field and pastes into another → `clip: PASS`.
