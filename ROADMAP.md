@@ -187,7 +187,7 @@ Each has its rules core with unit tests in squirrelsoft first; card and board gr
 
 ### Calculator suite — Desmos and TI-Nspire class (C.1–C.9, epic #119)
 
-- [ ] **C.1** — Expression engine v2: real and complex numbers, arbitrary-precision decimals, units, variables, user functions (a shared C core, `sqmath`, in squirrelsoft).
+- [x] **C.1** — Expression engine v2: real and complex numbers, arbitrary-precision decimals, units, variables, user functions (a shared C core, `sqmath`, in squirrelsoft).
   - In-OS: `programs/sqmath.inc` (NASM) has all of this and is shared by the programs that include it (the notebook's math cells, `documentation/apps/sqmath.md`), so the box is satisfied in Squirrel-OS/2; a C port of `sqmath` to squirrelsoft is optional.
 - [x] **C.2** — 2D graphing: y = f(x), implicit, parametric, polar, inequalities, sliders, zoom and pan, trace, intersections, roots and extrema. This replaces the `graph` scaffold.
 - [x] **C.3** — Tables and lists, 1- and 2-variable statistics, regressions (linear, polynomial, exponential, logarithmic, power, logistic), histograms and box plots.
@@ -195,7 +195,7 @@ Each has its rules core with unit tests in squirrelsoft first; card and board gr
 - [x] **C.5** — CAS: simplify, expand, factor, solve, symbolic derivatives and integrals, limits, series.
 - [x] **C.6** — Geometry: points, lines, circles, constructions, measurements, dynamic dragging.
 - [x] **C.7** — 3D graphing: surfaces and parametric curves.
-- [ ] **C.8** — Notebooks whose pages mix notes, graphs, geometry and spreadsheets; scripting in an original BASIC- or Lua-like interpreter.
+- [x] **C.8** — Notebooks whose pages mix notes, graphs, geometry and spreadsheets; scripting in an original BASIC- or Lua-like interpreter.
 - [x] **C.9** — `topo` (topology / surveying calculator) and a matrix / linear-algebra GUI.
 
 ### Warp styling (W.1–W.6, every generation, epic #117)
