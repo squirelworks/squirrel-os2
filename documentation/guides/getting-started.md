@@ -70,6 +70,11 @@ screen, so a check can look for words in windows (1.6.0).
 The hidden shell command `trap` executes `ud2` to show the CPU exception report, and
 `overflow` makes the shell run off its own stack to show the stack-overflow report (KB-17).
 
+GitHub Actions runs the same suite on every pull request and every push to main
+(`.github/workflows/ci.yml`): a quick `build` job, then `regress`, the whole of
+`tools/regress.sh` with OVMF installed. A green `regress` check means every check passed;
+the run's summary lists any `FAIL` lines and the full log is kept as an artifact.
+
 ## Stress run
 
 `tools/soak.py` keeps one QEMU boot busy for a long time and checks that nothing
