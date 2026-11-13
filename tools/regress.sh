@@ -45,7 +45,7 @@ for prog in guitest calculator clock notepad grapher charmap paint viewer topolo
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
     python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/$prog"
 done
-for prog in sheet; do                       # C.4
+for prog in sheet geometry; do              # C.4, C.6
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
     python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/$prog"
 done
@@ -835,6 +835,13 @@ check_all sheet-chart 'gfx: Line A1:B3|gfx: one|gfx: two' 'run sheet' '<ret>' '<
 check sheet-cyc     'gfx: #CYC: it depends on itself' 'run sheet' '<ret>' '<pause>' '=A2' '<ret>' '=A1+1' '<ret>' '<up>' '<pause>' '<gfx>'
 check sheet-csv     '1,=A1*2'               'run sheet s.csv' '<ret>' '<pause>' '1' '<tab>' '=A1*2' '<ret>' '<ctrl-s>' '<pause>' '<esc>' '<pause>' 'cat s.csv' '<ret>'
 check sheet-quit    'systest: PASS'         'run sheet' '<ret>' '<pause>' 'x' '<ret>' '<esc>' '<pause>' 'n' '<pause>' systest '<ret>'
+# C.6: geometry
+check geometry      'geometry: PASS'        'run geometry test' '<ret>' '<pause>' '<pause>' '<pause>'
+check_all geometry-cmds 'gfx: s1: length 5|gfx: m1 = 5|gfx: D (-1.9365, 3.5)|gfx: E (1.9365, 3.5)' 'run geometry' '<ret>' '<pause>' '(0,0)' '<ret>' '(4,0)' '<ret>' 'C=(0,3)' '<ret>' 'seg B C' '<ret>' 'k=circle C 2' '<ret>' 'circle A B' '<ret>' 'dist B C' '<ret>' 'inter c1 k' '<ret>' '<pause>' '<gfx>'
+check_all geometry-move 'gfx: B (4.5, 0)|gfx: m1 = 4.5|gfx: M (2.25, 0)' 'run geometry' '<ret>' '<pause>' '(0,0)' '<ret>' '(4,0)' '<ret>' 'dist A B' '<ret>' 'M=mid A B' '<ret>' '<tab>' '<tab>' '<right>' '<right>' '<pause>' '<gfx>'
+check geometry-err  'gfx: Those are not the right kinds of object' 'run geometry' '<ret>' '<pause>' '(0,0)' '<ret>' '(4,0)' '<ret>' 'perp A B' '<ret>' '<pause>' '<gfx>'
+check geometry-save 'C=circle A 2'          'run geometry g.geo' '<ret>' '<pause>' '(0,0)' '<ret>' 'C=circle A 2' '<ret>' '<ctrl-s>' '<pause>' '<esc>' '<pause>' 'cat g.geo' '<ret>'
+check geometry-quit 'systest: PASS'         'run geometry' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
 # P.8: DOS .COM and .EXE programs run in the dosrun 8086 interpreter
 disk=$out/dos.img
 check_all dos-hello 'Hello from DOS land!|#! tail: acorns|doshello: PASS'  'run dosrun doshello.com acorns' '<ret>'
