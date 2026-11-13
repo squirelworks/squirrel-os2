@@ -203,7 +203,7 @@ mouse_byte:
 ; leaves no trail. wm_redraw clears ptr_vis: a full repaint has already
 ; covered the pointer, and the saved pixels are stale.
 PTR_N       equ 4
-PTR_COLOUR  equ 0x0F
+PTR_COLOUR  equ TH_POINTER  ; theme.inc (W.1)
 
 ; Puts back the pixels under the pointer, if it is on screen.
 ptr_hide:
