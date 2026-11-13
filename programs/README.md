@@ -43,9 +43,18 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `wincrt.asm` | PE32 | Hand-written Win32 program on msvcrt: TEB via `fs:`, `__getmainargs`, printf/sprintf, malloc, FILE I/O, atexit/exit (`run wincrt acorn`, P.5) |
 | `winshim.inc` | — | The KERNEL32 start-up calls and the msvcrt subset that `winrun` binds imports to |
 | `lxelf.inc` | — | ELF header macro and Linux call numbers for the Linux test programs |
+| `mines.asm` | SQX | Minesweeper-class game, G.3 (`run mines [seed] [big]`, `run mines test`); see `documentation/apps/games.md` |
+| `reversi.asm` | SQX | Reversi against a two-ply computer player, G.8 (`run reversi [seed]`, `run reversi test`) |
+| `klondike.asm` | SQX | Klondike solitaire, draw one, G.1 (`run klondike [seed]`, `run klondike test`) |
+| `freecell.asm` | SQX | FreeCell, G.2 (`run freecell [seed]`, `run freecell test`) |
+| `hearts.asm` | SQX | Hearts against three computer players, G.4 (`run hearts [seed]`, `run hearts test`) |
+| `chess.asm` | SQX | Chess against an alpha-beta engine, with SAN and PGN save, G.5 (`run chess [seed]`, `run chess test`) |
+| `mahjongg.asm` | SQX | Mahjongg-style tile solitaire, always solvable deals, G.7 (`run mahjongg [seed]`, `run mahjongg test`) |
 | `sqx.inc` | — | SQX header macro and syscall numbers |
 | `bmp.inc` | — | BMP reader (8- and 24-bit) and 16-colour writer for programs |
 | `gui.inc` | — | Graphics toolkit for programs over `SYS_GUI`: back buffer, pixels, lines, text, windows, buttons, keys, mouse (`../documentation/apps/gui-programs.md`) |
+| `games.inc` | — | Shared runtime for the games: output, line input, seeded random numbers, self-test helpers |
+| `cards.inc` | — | Playing cards for the card games: deck, printing, parsing |
 
 Build and install:
 
