@@ -18,6 +18,12 @@ for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zomb
 done
 python3 "$root/tools/sqfs.py" "$out/progs.img" format 1024
 for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
+# OS2-GAMES (G.x): the games get a disk of their own, so the file counts above stay put
+python3 "$root/tools/sqfs.py" "$out/games.img" format 1024
+for prog in mines reversi klondike freecell hearts chess mahjongg; do
+    nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
+    python3 "$root/tools/sqfs.py" "$out/games.img" put "$out/$prog"
+done
 printf 'one two\nthree\n' > "$out/notes"
 python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/notes"
 printf '2 + 3\n6 * 7\n' > "$out/exprs"
@@ -701,6 +707,23 @@ check drv           'drv: PASS'             'run drvtest' '<ret>'
 # time, past the four run-time slots, and devices no longer lists it
 check_none drv-devices 'null    char' 'con     char' 'run drvtest' '<ret>' devices '<ret>'
 check_none drv-again 'drv: FAIL' 'drv: PASS' 'run drvtest' '<ret>' 'run drvtest' '<ret>' 'run drvtest' '<ret>' 'run drvtest' '<ret>' 'run drvtest' '<ret>' 'run drvtest' '<ret>'
+# OS2-GAMES: each game's rules self-check, then a short scripted game
+disk=$out/games.img
+check mines-test    'mines: PASS'           'run mines test' '<ret>'
+check_all mines-play '  1 F |Mines left: 9' 'run mines 5' '<ret>' e5 '<ret>' 'f a1' '<ret>'
+check reversi-test  'reversi: PASS'         'run reversi test' '<ret>' '<pause>'
+check_all reversi-play 'Computer plays c3|You (X): 3   Computer (O): 3' 'run reversi 1' '<ret>' d3 '<ret>'
+check klondike-test 'klondike: PASS'        'run klondike test' '<ret>'
+check_all klondike-play 'Stock 23|That move is not allowed' 'run klondike 3' '<ret>' d '<ret>' 12 '<ret>'
+check freecell-test 'freecell: PASS'        'run freecell test' '<ret>'
+check freecell-play 'Cells (a b c d) 9C  -  -  -' 'run freecell 2' '<ret>' 1a '<ret>'
+check hearts-test   'hearts: PASS'          'run hearts test' '<ret>' '<pause>'
+check_all hearts-play 'You received:  JH  6H  4H|North plays 2C|You cannot play that card now' 'run hearts 3' '<ret>' 'ah kh jc' '<ret>' 2s '<ret>'
+check chess-test    'chess: PASS'           'run chess test' '<ret>' '<pause>' '<pause>'
+check_all chess-pgn '[Black "Squirrel Chess"]|1. e4 d5 *' 'run chess 1' '<ret>' e2e4 '<ret>' '<pause>' 'save g.pgn' '<ret>' q '<ret>' 'cat g.pgn' '<ret>'
+check mahjongg-test 'mahjongg: PASS'        'run mahjongg test' '<ret>' '<pause>'
+check_all mahjongg-play 'Try j1 a3|Tiles left: 106' 'run mahjongg 2' '<ret>' h '<ret>' 'j1 a3' '<ret>'
+disk=$out/progs.img
 # 1.0.6: calc, edit and draw titles follow lang
 check l10n-calc-tlh "mI' De'wI' (Esc to exit)" 'lang tlh' '<ret>' 'run calc' '<ret>'
 check l10n-edit-tlh "ghItlhwI': (untitled)" 'lang tlh' '<ret>' 'run edit' '<ret>'
