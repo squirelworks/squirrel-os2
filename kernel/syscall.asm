@@ -43,7 +43,8 @@ SYS_DEVREG  equ 33          ; ebx = name -> register a null char device (1.9.12)
 SYS_DEVUNREG equ 34         ; ebx = name -> remove a device SYS_DEVREG made (2.0.2)
 SYS_GUI     equ 35          ; ebx = GUI_* op, ecx/edx = args: graphics for programs (appsys.asm)
 SYS_SETTLS  equ 36          ; ebx = base of the FS/GS segment -> its selector (P.5)
-SYS_COUNT   equ 37
+SYS_NET     equ 37          ; ebx = NET_* op: names, TCP, settings (3.0, netsys.asm)
+SYS_COUNT   equ 38
 
 SYS_ENOSYS  equ -1
 SYSCALL_VEC equ 0x80
@@ -106,6 +107,7 @@ UA_NETSEND  equ 9           ; ebx -> 16-byte block, its +8 -> its +12 bytes
 UA_NETRECV  equ 10          ; ebx -> 20-byte block, its +4 -> its +8 bytes
 UA_KERNEL   equ 11          ; refused from ring 3
 UA_GUI      equ 12          ; per GUI_* operation (gui_uargs, appsys.asm)
+UA_NET      equ 13          ; per NET_* operation (net_uargs, netsys.asm)
 
 SYS_EFAULT  equ -1
 
@@ -121,6 +123,7 @@ sys_uarg_kind:
     db UA_NONE, UA_BZ, UA_BZ                    ; setprio devreg devunreg
     db UA_GUI                                   ; gui
     db UA_NONE                                  ; settls
+    db UA_NET                                   ; net
 %if $-sys_uarg_kind != SYS_COUNT
 %error sys_uarg_kind needs one byte per system call
 %endif
@@ -130,11 +133,15 @@ sys_uarg_kind:
 sys_uargs:
     pushad
     movzx eax, byte [sys_uarg_kind+eax]
-    cmp eax, UA_GUI
+    cmp eax, UA_NET
     ja .ok
     jmp [.kinds+eax*4]
 .kinds:
-    dd .ok, .bz, .bz_cz, .bz_cz0, .c_d, .b_c, .c_512, .c_20, .dev, .netsend, .netrecv, .bad, .gui
+    dd .ok, .bz, .bz_cz, .bz_cz0, .c_d, .b_c, .c_512, .c_20, .dev, .netsend, .netrecv, .bad, .gui, .net
+.net:
+    call net_uargs
+    jc .bad
+    jmp .ok
 .gui:
     call gui_uargs
     jc .bad
@@ -376,6 +383,7 @@ syscall_table:
     dd sys_devunreg
     dd sys_gui
     dd sys_settls
+    dd sys_net
 %if $-syscall_table != SYS_COUNT*4
 %error syscall_table and SYS_COUNT disagree
 %endif
