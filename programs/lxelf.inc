@@ -31,10 +31,10 @@ LX_O_TRUNC  equ 0x200
 LX_PROT_RW  equ 3
 LX_MAP_PRIVATE_ANON equ 0x22
 
-%macro LX_ELF_HEADER 1
+%macro LX_ELF_HEADER 1-2 3         ; entry, EI_OSABI (3 Linux, 9 FreeBSD)
     org PROG_BASE
 lx_ehdr:
-    db 0x7F, 'ELF', 1, 1, 1, 3      ; ELF32, LSB, version 1, ELFOSABI_LINUX
+    db 0x7F, 'ELF', 1, 1, 1, %2     ; ELF32, LSB, version 1, OS ABI
     times 8 db 0
     dw 2                            ; ET_EXEC
     dw 3                            ; EM_386
