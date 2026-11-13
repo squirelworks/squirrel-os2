@@ -13,7 +13,7 @@ The other `.asm` files here are included from `pm.asm`.
 | `proc.asm` | Processes, cooperative scheduler | `documentation/kernel/processes.md` |
 | `mm.asm`, `vm.asm` | Page allocator, paging, per-program address spaces | `documentation/kernel/memory.md` |
 | `dev.asm`, `chardev.asm`, `ata.asm` | Driver table, `con`/`kbd`, ATA PIO disks | `documentation/kernel/drivers.md`, `block-device.md` |
-| `drivers/` | PCI, AHCI, NVMe, xHCI with USB keyboard and mass storage (OS2-HW, H.x) | `documentation/kernel/hardware.md` |
+| `drivers/` | PCI, AHCI, NVMe, xHCI with USB keyboard and mass storage, GOP text console (OS2-HW, H.x); the UEFI loaders are in `../boot/uefi/` | `documentation/kernel/hardware.md` |
 | `fs.asm` | SQFS file system with directories | `documentation/kernel/filesystem.md` |
 | `shell.asm`, `lineedit.asm`, `batch.asm` | Pipes and redirection, line editing and history, batch files | `documentation/kernel/shell.md` |
 | `loader.asm` | SQX and ELF32 program loader | `documentation/kernel/loader.md` |

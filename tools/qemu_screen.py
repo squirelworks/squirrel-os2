@@ -4,7 +4,8 @@
 Usage: qemu_screen.py [--disk DATA_IMAGE] [--target DISK] [--nic] [--floppy|--cdrom] IMAGE [KEYS...]
 Each KEYS argument is typed as text; a token like "<ret>", "<esc>",
 "<backspace>" or "<up>" is sent as that single QEMU key name, and
-"<pause>" waits a second before the next key, and "<gfx>" reads the text
+"<pause>" waits a second before the next key, "<gop>" reads the text the
+GOP console drew (UEFI boot, printed as "gop: <line>"), and "<gfx>" reads the text
 drawn in graphics mode (the 5 x 7 font of tools/font5x7.txt, in 6 x 8
 cells at any pixel offset) and prints each line found as "gfx: <text>"
 after the text screen.
@@ -13,7 +14,10 @@ after the text screen.
 always a scratch image, never a real disk).
 --floppy boots IMAGE from the floppy drive instead of the first hard disk.
 --cdrom boots IMAGE as a CD in the secondary master position (installer I.6).
-QEMU_EXTRA in the environment adds QEMU options (e.g. QEMU_EXTRA='-cpu 486,-pse'). The 80x25 VGA text buffer is printed at the end.
+QEMU_EXTRA in the environment adds QEMU options (e.g. QEMU_EXTRA='-cpu 486,-pse').
+QEMU_BIN picks the emulator (default qemu-system-i386; qemu-system-x86_64 for
+64-bit UEFI firmware), QEMU_TEXT the address the text screen is read from
+(default 0xb8000; a UEFI boot keeps it in RAM at 0x1f8000, OS2-HW H.2). The 80x25 VGA text buffer is printed at the end.
 """
 import os, socket, subprocess, sys, tempfile, time
 
@@ -89,6 +93,34 @@ def gfx_text(path):
     return lines
 
 
+def gop_text(path):
+    """Lines of the 80 x 25 text screen as the GOP console (OS2-HW H.2,
+    kernel/drivers/gopcon.asm) draws it: 8 x 16 cells from the top-left
+    corner, zoomed by the largest whole number that fits, the 5 x 7 glyph
+    at (1, 1) with every row doubled."""
+    import mkfont
+    font = {tuple(rows): chr(c) for c, rows in mkfont.read().items() if c != 0x20}
+    w, h, rgb = read_ppm(path)
+    if w < 640 or h < 400:
+        return []
+    z = min(w // 640, h // 400)
+
+    def px(x, y):
+        o = (y * w + x) * 3
+        return rgb[o:o + 3]
+    lines = []
+    for row in range(25):
+        text = ''
+        for col in range(80):
+            x0, y0 = col * 8 * z, row * 16 * z
+            bg = px(x0, y0)
+            rows = tuple(sum((px(x0 + (1 + c) * z, y0 + (1 + 2 * r) * z) != bg) << (4 - c) for c in range(5))
+                         for r in range(7))
+            text += font.get(rows, ' ')
+        lines.append(text.rstrip())
+    return lines
+
+
 def main():
     args = sys.argv[1:]
     drives = []
@@ -116,7 +148,7 @@ def main():
     path = os.path.join(tmp, 'mon')
     dump = os.path.join(tmp, 'vga.bin')
     gfx = []                            # text read from graphics mode
-    qemu = subprocess.Popen(['qemu-system-i386', '-display', 'none',
+    qemu = subprocess.Popen([os.environ.get('QEMU_BIN', 'qemu-system-i386'), '-display', 'none',
                              '-drive', (f'format=raw,file={image},index=2,media=cdrom' if cdrom
                                         else f'format=raw,file={image},if=floppy' if boot
                                         else f'format=raw,file={image},index=0,media=disk'),
@@ -133,6 +165,16 @@ def main():
         for chunk in keys:
             if chunk == '<pause>':      # let the guest run for a second
                 time.sleep(1)
+                continue
+            if chunk == '<gop>':        # OS2-HW H.2: read the GOP console's pixels
+                shot = os.path.join(tmp, f'gop{len(gfx)}.ppm')
+                monitor(sock, f'screendump "{shot}"')
+                for _ in range(50):
+                    if os.path.exists(shot) and os.path.getsize(shot) > 0:
+                        break
+                    time.sleep(0.1)
+                time.sleep(0.2)
+                gfx += ['\x00gop: ' + line for line in gop_text(shot) if line]
                 continue
             if chunk == '<gfx>':        # read the text off the graphics screen
                 shot = os.path.join(tmp, f'gfx{len(gfx)}.ppm')
@@ -161,7 +203,9 @@ def main():
                     key = 'shift-' + ch.lower()
                 monitor(sock, 'sendkey ' + key)
         time.sleep(0.5)
-        monitor(sock, f'pmemsave 0xb8000 4000 "{dump}"')
+        # OS2-HW H.2: on a UEFI boot the text screen lives in RAM at GOP_SHADOW
+        text_addr = os.environ.get('QEMU_TEXT', '0xb8000')
+        monitor(sock, f'pmemsave {text_addr} 4000 "{dump}"')
         for _ in range(50):
             if os.path.exists(dump) and os.path.getsize(dump) == 4000:
                 break
@@ -171,7 +215,7 @@ def main():
             line = data[row * 160:(row + 1) * 160:2].decode('cp437')
             print(line.rstrip())
         for line in gfx:
-            print('gfx: ' + line)
+            print(line[1:] if line.startswith('\x00') else 'gfx: ' + line)
     finally:
         qemu.kill()
 

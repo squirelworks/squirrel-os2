@@ -34,6 +34,7 @@ stage2:
     mov ds, ax
     mov es, ax
     mov [ld_drive], dl          ; the boot drive, from the boot sector
+    mov dword [UEFI_INFO], 0    ; a BIOS boot: no UEFI hand-off (H.1, drivers/gopcon.asm)
     ; the CPU must have CPUID, an FPU and 4 MB pages (PSE): a Pentium or
     ; later (0.9.3). Say so instead of crashing later.
     pushfd
@@ -117,6 +118,10 @@ gdt_desc:
     dw $-gdt-1
     dd gdt
 e820_count dw 0                 ; written in real mode, so also below 32 KB
+; UEFI hand-off header (H.1): boot/uefi/ finds it by its signature, then
+; fills E820_BUF, e820_count, ld_drive and UEFI_INFO, copies the two
+; images and enters pm through this GDT. See documentation/kernel/hardware.md.
+uefi_hdr dd 'S2UE', pm, gdt_desc, ld_drive, e820_count, KERNEL_SIZE, KHIGH_BASE
 msg_oldcpu db 'Squirrel-OS/2 needs a Pentium-class CPU (CPUID, FPU, 4 MB pages).', 13, 10, 0
 %include "khigh.asm"
 
@@ -1409,12 +1414,16 @@ khigh_start:
 %include "drivers/xhci.asm"
 %include "drivers/usbkbd.asm"
 %include "drivers/usbmsd.asm"
+%include "drivers/gopcon.asm"
 
 
 ; the high image ends on a sector boundary, with its signature last
 KHIGH_LIMIT equ (INS_PART_LBA-KHIGH_LBA)*512 ; to the installer's partition
 %if $-$$ > KHIGH_MAX-4 || $-$$ > KHIGH_LIMIT-4
 %error the high kernel image is larger than KHIGH_MAX or KHIGH_LIMIT
+%endif
+%if $-$$ > GOP_SHADOW-KHIGH_BASE-4
+%error the high kernel image runs into the GOP console's text shadow (drivers/gopcon.asm)
 %endif
 times (512-(($-$$+4) % 512)) % 512 db 0
 dd KHIGH_SIG

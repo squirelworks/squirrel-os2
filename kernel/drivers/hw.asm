@@ -10,13 +10,15 @@
 ; See documentation/kernel/hardware.md.
 
 hw_init:
+    call gopcon_init
     call ahci_init
     call nvme_init
     call xhci_init
     jmp hw_pick_data_disk
 
 hw_tick:
-    jmp xhci_poll
+    call xhci_poll
+    jmp gopcon_tick
 
 ; With no ATA data disk (hd1 absent, as on a q35 or other AHCI/NVMe-only
 ; machine), the first of the new disks whose sector 0 holds an SQFS

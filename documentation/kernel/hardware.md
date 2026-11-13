@@ -1,6 +1,6 @@
 # Modern hardware drivers (OS2-HW, H.1–H.6)
 
-Location: `../../kernel/drivers/`. Roadmap 2.8–2.9, boxes H.1–H.6 in `../../TODO.md`.
+Location: `../../kernel/drivers/`, `../../boot/uefi/`. Roadmap 2.8–2.9, boxes H.1–H.6 in `../../TODO.md`.
 
 The 1.x/2.x drivers talk to the PC's ISA-era hardware: ATA PIO on ports `0x1F0`/`0x170`, the
 8042 keyboard, VGA text mode. These drivers add the hardware that a PC built since about 2010
@@ -17,6 +17,8 @@ DMA memory from `pg_alloc`.
 | `xhci.asm` | H.5: xHCI host controller, root-hub ports, device enumeration, rings and events |
 | `usbkbd.asm` | H.5: USB boot keyboard into the `kbd` scan-code queue |
 | `usbmsd.asm` | H.6: USB mass storage (bulk-only, SCSI) as `ud0` |
+| `gopcon.asm` | H.2: the 80 x 25 text console drawn into a UEFI GOP framebuffer |
+| `../../boot/uefi/` | H.1: `BOOTX64.EFI`, `BOOTIA32.EFI` and their shared hand-off |
 
 ## Start-up
 
@@ -100,6 +102,51 @@ becomes the data disk on a machine without `hd1`, like `sd0`/`nv0`.
 (SeaBIOS and SquirrelBIOS do this for USB on xHCI); the kernel then finds the stick as `ud0`.
 `hw-usb-boot` boots that way on a `q35` machine with no IDE disk at all.
 
+## UEFI boot (H.1)
+
+`boot/uefi/bootx64.asm` and `bootia32.asm` are EFI applications that carry `os.img` inside and
+start the kernel the way the BIOS path does, so the kernel needs almost nothing new:
+
+1. Find the GOP (`LocateProtocol`), set its current mode again (some firmware only programs the
+   adapter on `SetMode`) and note the framebuffer: base (must be below 4 GB), width, height,
+   bytes per line, and pixel order (RGB or BGR; bit-mask and Blt-only modes are not used).
+2. If the firmware loaded the loader or its stack where the kernel goes (below 640 KB or at
+   1–2 MB; SquirrelBIOS 2.1.0 does), copy the whole loader to pages from `AllocatePages`
+   below 4 GB, with a new stack, and go on there. The code is position-independent.
+3. `GetMemoryMap`, check that nothing the firmware keeps after exit (runtime, ACPI, reserved,
+   MMIO) is in `0x1000–0x9FFFF` or `0x100000–0x1FFFFF`, then `ExitBootServices` (with
+   up to three tries if the map key went stale).
+4. Long mode → 32-bit compatibility mode → protected mode with paging off, `EFER.LME` and
+   `CR4` cleared (the 32-bit loader only turns paging off). From here `handoff32.inc`:
+5. Find the kernel's hand-off header (`uefi_hdr` in `kernel/pm.asm`: signature `S2UE`, then the
+   addresses of `pm`, `gdt_desc`, `ld_drive`, `e820_count`, `KERNEL_SIZE`, `KHIGH_BASE`), copy
+   the low image to `0x8000` and the high image to `KHIGH_BASE`.
+6. Turn the UEFI memory map into E820 entries in `E820_BUF` (loader, boot-services and free
+   memory → usable; ACPI reclaim → 3; ACPI NVS → 4; unusable → 5; the rest → reserved;
+   neighbours of one type merged, at most 32 entries) and set `e820_count`, `ld_drive` = 80h.
+7. Put the interrupt hardware back the way a BIOS leaves it, since the kernel drives the 8259:
+   local APIC LINT0 as ExtINT (virtual wire), LINT1 NMI, APIC timer masked, every I/O APIC
+   entry masked; and the 8042 keyboard controller with scan-code translation and IRQ 1 on.
+   (SquirrelBIOS 2.1.0 leaves LINT0 masked and translation off.)
+8. Fill `UEFI_INFO` (`0x1300`, signature `S2EF`) with the framebuffer, load the kernel's GDT
+   and far-jump to `08h:pm`.
+
+`stage2` (the BIOS path) clears `UEFI_INFO`, so the kernel can tell the two apart.
+
+## GOP text console (H.2)
+
+On a UEFI boot the screen is a linear framebuffer, and a PC without a VGA has nothing at
+`0xB8000`. `gopcon_init` (first in `hw_init`) maps the framebuffer and points the eight page
+table entries of `0xB8000–0xBFFFF` at RAM (`GOP_SHADOW`, the last 32 KB of the high image's
+megabyte). Every address space copies that page table, so `putc`, `cls`, the editors and every
+other writer of the text screen keep working unchanged. `gopcon_tick` (every other timer tick)
+compares the 80 × 25 cells with what it drew last and draws the cells that changed with the
+5 × 7 font from `font.inc`: 8 × 16 pixel cells with the glyph at (1, 1) and its rows doubled
+(6 × 8 cells on screens smaller than 640 × 400), zoomed by the largest whole number that still
+fits (2 at 1280 × 800). The 16 text colours come from the attribute byte; the cursor is an
+underline at `[cur]`; CP437 box-drawing characters are drawn as single lines and the block
+characters solid. While a graphics program has the screen (`gfx_saved`) nothing is drawn.
+
 ## Tests
 
 `programs/blkdev.asm` (`run blkdev NAME`) reads sector 0 (`SQHW`) and sector 100 (`S100`) of a
@@ -118,10 +165,21 @@ sector 5 of the image file.
 | `hw-usb-kbd`, `hw-usb-kbd-edit`, `hw-usb-keyev` | `-device qemu-xhci -device usb-kbd` | typing (shift, punctuation, Up, Backspace) and `keyev`. QEMU sends typed keys only to the USB keyboard once it exists, so the 8042 path cannot make these pass |
 | `hw-usb-devices`, `hw-usb-msd`, `hw-usb-msd-disk`, `hw-usb-after` | and `-device usb-storage` | `ud0` with 8192 sectors, `blkdev ud0`, sector 5 of the image |
 | `hw-usb-boot` | `-M q35`, `usb-storage` with `bootindex=0` | boots from the stick: `hd0` absent, `ud0` present, data disk on AHCI |
+| `uefi-x64`, `uefi-x64-mem` | `qemu-system-x86_64 -bios OVMF.fd`, ESP as the first disk | `BOOTX64.EFI` starts the kernel: banner, `systest`, the data disk (`ls`), the converted memory map |
+| `uefi-x64-gop` | same | `<gop>` reads the text back off the framebuffer's pixels (`tools/qemu_screen.py`) |
+| `uefi-ia32` | 32-bit OVMF (`OVMF32_CODE_4M.fd`, pflash) | `BOOTIA32.EFI`: `systest`, and the GOP screen |
+| `uefi-squirrelbios` | SquirrelBIOS 2.1.0 `x86_64-uefi` (`SQUIRRELBIOS_FD`), ESP on virtio-blk | the same on our own firmware; three tries, because SquirrelBIOS 2.1.0 sometimes fails to read the 200 KB `BOOTX64.EFI` and falls back to its CSM |
+
+The UEFI checks read the text screen from `GOP_SHADOW` (`QEMU_TEXT=0x1f8000`) and print `skip`
+when the firmware files are not there (`OVMF_FD`, `OVMF32_CODE`, `OVMF32_VARS`; on Debian and
+Ubuntu the `ovmf` and `ovmf-ia32` packages).
 
 ## Not yet
 
 - Interrupts (MSI/INTx): everything polls.
+- UEFI: graphics programs (VGA mode 13h, Bochs VBE) still program the VGA directly, so on a
+  machine without one they do not work after a UEFI boot. Secure Boot signing of the loaders.
+  A framebuffer above 4 GB or with a bit-mask pixel format gets no console.
 - USB hubs, more than one stick, keyboard repeat and LEDs, USB mice, isochronous transfers.
 - More than one sector per command, more than one AHCI controller, NVMe namespaces past 1.
 - Disks above 2^32 sectors (2 TB) are capped at 2^32−1 sectors; BARs above 4 GB are skipped.

@@ -58,6 +58,10 @@ nasm -f bin -i "$root/programs/" "$root/programs/dosrun.asm" -o "$out/dosrun"
 for prog in doshello doscpu dosfile; do nasm -f bin "$root/programs/$prog.asm" -o "$out/$prog.com"; done
 nasm -f bin "$root/programs/dosexe.asm" -o "$out/dosexe.exe"
 for f in dosrun winrun doshello.com doscpu.com dosfile.com dosexe.exe; do python3 "$root/tools/sqfs.py" "$out/dos.img" put "$out/$f"; done
+# OS2-HW H.1: the UEFI loaders carry this os.img; an EFI system partition image holds both
+(cd "$root/boot/uefi" && nasm -f bin -DOS_IMG="\"$out/os.img\"" bootx64.asm -o "$out/BOOTX64.EFI" \
+    && nasm -f bin -DOS_IMG="\"$out/os.img\"" bootia32.asm -o "$out/BOOTIA32.EFI")
+python3 "$root/tools/mkesp.py" "$out/esp.img" "$out/BOOTX64.EFI" "$out/BOOTIA32.EFI"
 # OS2-HW (H.3-H.6): blkdev on a disk of its own; marked scratch disks for the AHCI/NVMe/USB drivers
 python3 "$root/tools/sqfs.py" "$out/hw.img" format 1024
 nasm -f bin -i "$root/programs/" "$root/programs/blkdev.asm" -o "$out/blkdev"
@@ -925,6 +929,51 @@ export QEMU_EXTRA="-M q35 -device qemu-xhci,id=xhci -drive if=none,id=st,file=$o
 boot=$out/blank.img; disk=$out/hw-q35.img
 check_all hw-usb-boot 'hd0     block   absent|ud0     block   ready 8192 sectors|blkdev  '  devices '<ret>' ls '<ret>'
 unset QEMU_EXTRA boot
+# OS2-HW H.1/H.2: boot through UEFI firmware from the EFI system partition. The kernel's text
+# screen is then in RAM at 0x1f8000 and drawn into the GOP framebuffer, which <gop> reads back.
+# Needs OVMF (OVMF_FD, OVMF32_CODE/OVMF32_VARS) and, optionally, SquirrelBIOS (SQUIRRELBIOS_FD);
+# without them these checks print "skip".
+skip() { echo "skip $1 ($2)"; }
+uefi_keys="<pause> <pause> <pause> <pause> <pause> <pause> <pause> <pause>"
+OVMF_FD=${OVMF_FD:-/usr/share/ovmf/OVMF.fd}
+OVMF32_CODE=${OVMF32_CODE:-/usr/share/OVMF/OVMF32_CODE_4M.fd}
+OVMF32_VARS=${OVMF32_VARS:-/usr/share/OVMF/OVMF32_VARS_4M.fd}
+disk=$out/hw.img; boot=$out/esp.img
+export QEMU_TEXT=0x1f8000 QEMU_BIN=qemu-system-x86_64
+if [ -f "$OVMF_FD" ] && command -v qemu-system-x86_64 >/dev/null; then
+    export QEMU_EXTRA="-bios $OVMF_FD"
+    check_all uefi-x64      'Squirrel-OS/2 2.1|systest: PASS|blkdev  '  $uefi_keys systest '<ret>' ls '<ret>'
+    check_all uefi-x64-mem  'BIOS memory map:|usable|KB free'  $uefi_keys mem '<ret>'
+    check_all uefi-x64-gop  'gop: Squirrel-OS/2 2.1|gop: > echo UEFI GOP x|gop: UEFI GOP x'  $uefi_keys 'echo UEFI GOP x' '<ret>' '<pause>' '<gop>'
+else
+    skip uefi-x64 "no OVMF at $OVMF_FD"
+fi
+if [ -f "$OVMF32_CODE" ] && [ -f "$OVMF32_VARS" ] && command -v qemu-system-x86_64 >/dev/null; then
+    cp "$OVMF32_VARS" "$out/ovmf32-vars.fd"
+    export QEMU_EXTRA="-drive if=pflash,format=raw,readonly=on,file=$OVMF32_CODE -drive if=pflash,format=raw,file=$out/ovmf32-vars.fd"
+    check_all uefi-ia32     'Squirrel-OS/2 2.1|systest: PASS|gop: > systest'  $uefi_keys systest '<ret>' '<pause>' '<gop>'
+else
+    skip uefi-ia32 "no 32-bit OVMF at $OVMF32_CODE"
+fi
+if [ -n "$SQUIRRELBIOS_FD" ] && [ -f "$SQUIRRELBIOS_FD" ]; then
+    # SquirrelBIOS 2.1.0 x86_64-uefi reads its ESP from virtio-blk only. It sometimes misses
+    # BOOTX64.EFI and falls back to its CSM, so this check gets three tries.
+    # hd0 is an empty disk with only a boot signature (systest reads it); nothing on it boots
+    python3 -c "import sys; open(sys.argv[1], 'wb').write(bytes(510) + b'\x55\xaa' + bytes(1 << 20))" "$out/sig.img"
+    boot=$out/sig.img
+    export QEMU_EXTRA="-bios $SQUIRRELBIOS_FD -drive if=none,id=esp,format=raw,file=$out/esp.img -device virtio-blk-pci,drive=esp"
+    for try in 1 2 3; do
+        screen=$(python3 "$root/tools/qemu_screen.py" --disk "$disk" "$boot" '<pause>' '<pause>' '<pause>' systest '<ret>' '<pause>' '<gop>')
+        case $screen in *"systest: PASS"*"gop: > systest"*) break ;; esac
+    done
+    case $screen in
+        *"systest: PASS"*"gop: > systest"*) echo "ok   uefi-squirrelbios" ;;
+        *) echo "FAIL uefi-squirrelbios (no shell after 3 boots)"; fail=1 ;;
+    esac
+else
+    skip uefi-squirrelbios "set SQUIRRELBIOS_FD to SquirrelBIOS-2.1.0-x86_64-uefi.fd"
+fi
+unset QEMU_EXTRA QEMU_TEXT QEMU_BIN boot
 disk=$out/auto.img
 check bat-autoexec  'autoexec ran'
 check lang-autoexec 'Tabulae:'              ls '<ret>'
