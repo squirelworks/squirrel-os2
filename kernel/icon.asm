@@ -148,13 +148,13 @@ ict_expect:
     dd ICT_X + 2, ICT_Y + 9
     db 0x00                     ; folder: outline, black
     dd ICT_X + 10, ICT_Y + 15
-    db 0x0E                     ; folder: body, yellow
+    db 0x3E                     ; folder: body, yellow
     dd ICT_X + 3, ICT_Y + 10
-    db 0x0F                     ; folder: highlight, white
+    db 0x3F                     ; folder: highlight, white
     dd ICT_X + 40 + 10, ICT_Y + 5
-    db 0x0A                     ; calc: display, light green
+    db 0x3A                     ; calc: display, light green
     dd ICT_X + 40 + 20, ICT_Y + 26
-    db 0x0C                     ; calc: the last key, light red
+    db 0x3C                     ; calc: the last key, light red
     dd ICT_X + 40 + 31, ICT_Y + 31
     db TH_DESKTOP               ; calc: bottom right corner, transparent
     dd ICT_X + 80, ICT_Y + 2

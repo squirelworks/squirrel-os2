@@ -528,6 +528,19 @@ check_all desktop-objs 'Program < DesktopObject|0 live' desktop '<ret>' '<pause>
 # "Program < DesktopObject" (one space after "<").
 check_once desktop-objs-2 'Program < DesktopObject|  DesktopObject|0 live' \
                    desktop '<ret>' '<pause>' '<esc>' desktop '<ret>' '<pause>' '<esc>' objs '<ret>'
+# 2.3-groups: the Program Manager on a disk of its own (its places file in /desktop)
+pm_disk=$disk
+python3 "$root/tools/sqfs.py" "$out/pm.img" format 1024 >/dev/null
+disk=$out/pm.img
+check pmtest        'pm: PASS'              pmtest '<ret>' '<pause>'
+check_all pm-groups 'gfx: Main|gfx: Tools|gfx: calc|gfx: draw' progman '<ret>' '<pause>' '<gfx>'
+check_all pm-launch 'gfx: calc> 2 + 2|gfx: = 4' \
+                   progman '<ret>' '<pause>' '<right>' '<ret>' '<pause>' '2 + 2' '<ret>' '<pause>' '<gfx>'
+check pm-move       'calc 88 12'            progman '<ret>' '<pause>' '<right>' m '<right>' '<right>' '<down>' '<ret>' '<esc>' 'cat /desktop/progman.pos' '<ret>'
+check pm-move-reboot 'calc 96 12'           progman '<ret>' '<pause>' '<right>' m '<right>' '<ret>' '<esc>' 'cat /desktop/progman.pos' '<ret>'
+check pm-arrange    'calc 72 4'             progman '<ret>' '<pause>' a '<esc>' 'cat /desktop/progman.pos' '<ret>'
+check pm-text       'systest: PASS'         progman '<ret>' '<pause>' '<esc>' systest '<ret>'
+disk=$pm_disk
 # 1.8.3: the desktop's entries are object files in /desktop, written the
 # first time; a removed file's entry is gone. A disk of their own, so the
 # other desktop checks keep all five entries.

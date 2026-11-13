@@ -12,7 +12,7 @@ colour Y 0x0E
 ..KYYYYYYK......................   a named letter, or "." for transparent
 ```
 
-At most 15 `colour` lines. Palette indices are the screen's 8-bit indices (0–15 are the 16 standard colours in both the VBE and the mode 13h palette), so an icon looks the same in both modes.
+At most 15 `colour` lines. Palette indices are the screen's 8-bit indices. The DAC keeps the 64-colour EGA palette in both the VBE mode and mode 13h (index bits: 0x01 blue, 0x02 green, 0x04 red at two thirds, 0x08, 0x10, 0x20 the same at one third), so an icon looks the same in both: black 0x00, blue 0x01, green 0x02, cyan 0x03, red 0x04, brown 0x14, light grey 0x07, dark grey 0x38, light blue 0x39, light green 0x3A, light red 0x3C, yellow 0x3E, white 0x3F (as `theme.inc`).
 
 ## Icon file (SQIC)
 

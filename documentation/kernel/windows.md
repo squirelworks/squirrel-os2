@@ -156,6 +156,8 @@ Two original proportional faces sit beside the 5 × 7 font: `FONT_9`, the window
 
 Since 1.5.0, `wm_draw` draws a window's widgets after its client area, and `wm_close` drops them (`widgets.md`).
 
+Since 2.3-groups a window record has `WIN_PAINT`: 0, or code that `wm_draw` calls after the widgets to paint the client area itself, with edi = the record and eax, ebx, ecx, edx = the client area (it keeps every register). `wm_create` sets it to 0. The Program Manager's group windows use it (`apps/progman.md`).
+
 ## The 2.2 API (planned)
 
 This section is the window, event and drawing interface that the 2.2 boxes in `TODO.md` build, published before the code so programs (calculator, paint, games) can be written against it. It is a plan: register details can still change while a box is reviewed, and each box updates the section when it lands. Until then the 1.4–2.1 routines above are what the kernel has. Everything above stays valid; 2.2 adds to it.

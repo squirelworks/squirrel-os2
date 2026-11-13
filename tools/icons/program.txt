@@ -4,8 +4,8 @@
 colour K 0x00   # black
 colour B 0x01   # blue
 colour L 0x07   # light grey
-colour D 0x08   # dark grey
-colour W 0x0F   # white
+colour D 0x38   # dark grey
+colour W 0x3F   # white
 ................................
 ................................
 ................................

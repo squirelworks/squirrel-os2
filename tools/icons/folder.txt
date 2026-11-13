@@ -2,9 +2,9 @@
 # "colour X n" names a letter of the art; "." is transparent.
 # tools/mkicon.py turns it into an icon (kernel/icons.inc, or a file).
 colour K 0x00   # black
-colour N 0x06   # brown
-colour Y 0x0E   # yellow
-colour W 0x0F   # white
+colour N 0x14   # brown
+colour Y 0x3E   # yellow
+colour W 0x3F   # white
 ................................
 ................................
 ................................
