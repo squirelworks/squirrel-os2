@@ -29,7 +29,9 @@ KEYMAP = {' ': 'spc', '\n': 'ret', '-': 'minus', '=': 'equal', '/': 'slash',
           '+': 'shift-equal', '*': 'shift-8', '%': 'shift-5', '!': 'shift-1',
           '?': 'shift-slash', '(': 'shift-9', ')': 'shift-0', ':': 'shift-semicolon', '_': 'shift-minus',
           '^': 'shift-6', '[': 'bracket_left', ']': 'bracket_right',
-          '<': 'shift-comma', '>': 'shift-dot', '|': 'shift-backslash'}
+          '<': 'shift-comma', '>': 'shift-dot', '|': 'shift-backslash',
+          '"': 'shift-apostrophe', "'": 'apostrophe', '~': 'shift-grave_accent',
+          '\\': 'backslash'}   # 2.7: quoted paths, aliases (NAME~1)
 
 
 def monitor(sock, cmd):

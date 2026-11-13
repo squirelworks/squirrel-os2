@@ -692,7 +692,8 @@ check topo-stub     'Scaffolded. Simplicial homology'  'run topo' '<ret>'
 check sh-usage      'Usage: mkdir <dir>'    mkdir '<ret>'
 check sh-unknown    'Unknown command'       bogus '<ret>'
 check fs-e-exists   'Already exists'        'mkdir e1' '<ret>' 'mkdir e1' '<ret>'
-check fs-e-name     'Bad name'              'mk abcdefghijklmnopq' '<ret>'
+# (2.7: names may be 63 characters long, so 64 is the shortest bad one)
+check fs-e-name     'Bad name'              'mk nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn' '<ret>'
 check fs-e-nodir    'No such directory'     'mk nod/x' '<ret>'
 check fs-e-isdir    'Is a directory'        'cat e1' '<ret>'
 check fs-e-notempty 'Directory not empty'   'mkdir e1/sub' '<ret>' 'put e1/sub/f x' '<ret>' 'rm e1' '<ret>'
@@ -925,6 +926,8 @@ check checkers-test 'checkers: PASS'        'run checkers test' '<ret>' '<pause>
 check_all checkers-play 'Computer plays f6-g5|You (b): 12   Computer (w): 12' 'run checkers 1' '<ret>' c3d4 '<ret>' '<pause>' '<pause>'
 check go-test       'go: PASS'              'run go test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>'
 check_all go-play   'Computer plays f3|You cannot play there' 'run go 1' '<ret>' e5 '<ret>' e5 '<ret>'
+# the directory checks' scratch entries go: progs.img's 64-entry directory is full by now
+for f in d2/n d2/s d2 d3 d5/e d5/g d5 la1 t1 edir; do python3 "$root/tools/sqfs.py" "$out/progs.img" rm "$f" >/dev/null 2>&1 || true; done
 disk=$out/progs.img
 # 1.0.6: calc, edit and draw titles follow lang
 check l10n-calc-tlh "mI' De'wI' (Esc to exit)" 'lang tlh' '<ret>' 'run calc' '<ret>'
@@ -1018,6 +1021,74 @@ check_all write-count 'gfx: Write - wdoc.swp|gfx: words 5|gfx: chars 22 *' 'run 
 check_all write-styles 'gfx: Opened|gfx: Centred line' 'run write wdoc.swp' '<ret>' '<pause>' 'Plain ' '<ctrl-i>' 'italic ' '<ctrl-i>' '<ctrl-u>' 'under' '<ctrl-u>' '<ret>' 'Centred line' '<ctrl-e>' '<ctrl-s>' '<pause>' '<esc>' '<pause>' 'run write wdoc.swp' '<ret>' '<pause>' '<pause>' '<gfx>'
 check write-ask     'gfx: Save changes? y/n' 'run write' '<ret>' '<pause>' 'x' '<esc>' '<pause>' '<gfx>'
 check write-quit    'systest: PASS'         'run write' '<ret>' '<pause>' 'x' '<esc>' '<pause>' 'n' '<pause>' systest '<ret>'
+# 2.7 (OS2-FS): long names in SQFS, FAT12/16/32 drives. tools/fatimg.py makes
+# the FAT images and checks them afterwards (chains, sizes, long names), so
+# no dosfstools or mtools are needed; each check gets its own disks.
+saved_disk=$disk; saved_target=$target
+sq=$out/fs27.img; disk=$sq; target=
+python3 "$root/tools/sqfs.py" "$sq" format 1024
+python3 "$root/tools/sqfs.py" "$sq" mkdir 'My Documents'
+printf 'one two\nthree\n' > "$out/notes27"
+python3 "$root/tools/sqfs.py" "$sq" put "$out/notes27" 'My Documents/notes about the winter stores.txt'
+check lfntest        'lfntest: PASS'        lfntest '<ret>'
+check_all lfn-host   'notes about the winter stores.txt 14|one two' 'cd "My Documents"' '<ret>' ls '<ret>' 'cat "notes about the winter stores.txt"' '<ret>'
+check_all lfn-kernel 'a folder with a long name/|ok' 'mkdir "a folder with a long name"' '<ret>' 'put "a folder with a long name/and a file in it too" acorns' '<ret>' ls '<ret>'
+lfnout=$(python3 "$root/tools/sqfs.py" "$sq" get 'a folder with a long name/and a file in it too' 2>&1)
+if [ "$lfnout" = acorns ]; then echo "ok   lfn-sqfs-py"; else echo "FAIL lfn-sqfs-py ($lfnout)"; fail=1; fi
+python3 - "$sq" <<'PYEOF'    # an orphaned long-name part (its owner, entry 60, is free)
+import sys
+f = open(sys.argv[1], 'r+b'); f.seek(512 + 63 * 32)
+f.write(b'left behind by an old kernel'[:23] + bytes([0x5A]) + bytes(4) + bytes([0xFF, 2, 60, 1])); f.close()
+PYEOF
+check lfn-sweep      'Files:'               ls '<ret>'
+sweep=$(python3 -c "import sys; f=open(sys.argv[1],'rb'); f.seek(512+63*32); print(f.read(1)[0])" "$sq")
+if [ "$sweep" = 0 ]; then echo "ok   lfn-sweep-freed"; else echo "FAIL lfn-sweep-freed"; fail=1; fi
+fat() { python3 "$root/tools/fatimg.py" "$@"; }
+fatok() {   # fatok NAME IMAGE: the image passes fatimg.py check
+    if r=$(fat "$2" check 2>&1); then echo "ok   $1"; else echo "FAIL $1 ($r)"; fail=1; fi
+}
+printf 'Hello from a FAT floppy\n' > "$out/fatreadme"
+for spec in "12 1440" "16 16384 --part" "32 40960 --part"; do
+    set -- $spec
+    fat "$out/fat$1.img" format $2 $1 $3
+    fat "$out/fat$1.img" mkdir docs
+    fat "$out/fat$1.img" put "$out/fatreadme" README.TXT
+    fat "$out/fat$1.img" put "$out/notes27" 'docs/A Long Document Name.txt'
+done
+target=$out/fat12.img
+check_all fat12-read 'D: FAT12, 1440 KB, hd2|README.TXT|docs/|Hello from a FAT floppy|one two' 'mount d: hd2' '<ret>' 'ls d:/' '<ret>' 'cat d:/readme.txt' '<ret>' 'cat "d:/DOCS/a long document name.txt"' '<ret>'
+check fat12-write    'fattest: PASS'        'mount d: hd2' '<ret>' 'fattest d:' '<ret>' '<pause>' '<pause>'
+check_all fat12-cp   '24 bytes copied|14 bytes copied|Hello from a FAT floppy' 'mount d: hd2' '<ret>' 'cp d:/readme.txt "fat copy with a long name"' '<ret>' 'cp "My Documents/notes about the winter stores.txt" "d:/docs/Copied From SQFS.txt"' '<ret>' 'cat "fat copy with a long name"' '<ret>'
+fatout=$(fat "$out/fat12.img" get 'docs/copied from sqfs.txt' 2>&1)
+if [ "$fatout" = "$(cat "$out/notes27")" ]; then echo "ok   fat12-host-read"; else echo "FAIL fat12-host-read ($fatout)"; fail=1; fi
+check_all fat12-mv   'ok|Read Me First.txt|New Folder/' 'mount d: hd2' '<ret>' 'mv d:/readme.txt "Read Me First.txt"' '<ret>' 'mkdir "d:/New Folder"' '<ret>' 'ls d:' '<ret>'
+check fat-xdev       'Cannot move between drives' 'mount d: hd2' '<ret>' 'mv "fat copy with a long name" d:/x' '<ret>'
+check fat-nodrive    'No such drive'        'cat e:/nothing' '<ret>'
+check_all fat-letter 'That drive letter is in use|Already mounted on another drive letter' 'mount d: hd2' '<ret>' 'mount d: hd2' '<ret>' 'mount f: hd2' '<ret>'
+fatok fat12-fsck "$out/fat12.img"
+target=$out/fat16.img
+check_all fat16-part 'D: FAT16, 15 MB, hd2|fattest: PASS' 'mount d: hd2' '<ret>' 'fattest d:' '<ret>' '<pause>' '<pause>'
+fatok fat16-fsck "$out/fat16.img"
+# drive and shredder objects (fsobj.asm)
+check fsobjtest      'fsobjtest: PASS'      fsobjtest '<ret>'
+check_all drive-obj  'class Drive|name: Drive D|path: D:/|shredder.obj' 'mount d: hd2' '<ret>' 'objcat /desktop/drive-d.obj' '<ret>' 'ls /desktop' '<ret>'
+check_none drive-obj-boot 'drive-d.obj' 'shredder.obj' 'ls /desktop' '<ret>'
+check_all drive-browse 'd:/docs|> A Long Document Name.txt 14|Esc: close' 'mount d: hd2' '<ret>' 'drive d:' '<ret>' '<ret>'
+check_all drive-show 'one two|(press a key)' 'mount d: hd2' '<ret>' 'drive d:' '<ret>' '<ret>' '<ret>'
+check_all drive-up   '> docs/|  README.TXT 24' 'mount d: hd2' '<ret>' 'drive d:' '<ret>' '<ret>' '<backspace>'
+target=$out/fat32.img
+check_all fat32-part 'D: FAT32, 39 MB, hd2|A Long Document Name.txt|fattest: PASS' 'mount d: hd2' '<ret>' 'ls d:/docs' '<ret>' 'fattest d:' '<ret>' '<pause>' '<pause>'
+check_all fat32-cp   '14 bytes copied|notes about the winter stores.txt 14' 'mount d: hd2' '<ret>' 'cp "My Documents/notes about the winter stores.txt" d:/docs' '<ret>' 'ls d:/docs' '<ret>'
+fatok fat32-fsck "$out/fat32.img"
+# a FAT image file on the SQFS disk, mounted as a drive
+fat "$out/floppy27.img" format 160 12
+fat "$out/floppy27.img" put "$out/fatreadme" inside.txt
+python3 "$root/tools/sqfs.py" "$sq" put "$out/floppy27.img" 'disk image.img'
+target=
+check_all fat-loop   'E: FAT12, 160 KB, disk image.img|inside.txt|fattest: PASS|File is open|ok' 'mount e: "disk image.img"' '<ret>' 'ls e:' '<ret>' 'fattest e:' '<ret>' '<pause>' 'rm "disk image.img"' '<ret>' 'umount e:' '<ret>'
+python3 "$root/tools/sqfs.py" "$sq" get 'disk image.img' "$out/floppy27b.img"
+fatok fat-loop-fsck "$out/floppy27b.img"
+disk=$saved_disk; target=$saved_target
 # C.4: spreadsheet with charts
 check sheet         'sheet: PASS'           'run sheet test' '<ret>' '<pause>' '<pause>' '<pause>'
 check_all sheet-calc 'gfx: A3: =A1*A2+1|gfx: = 7' 'run sheet' '<ret>' '<pause>' '2' '<ret>' '3' '<ret>' '=A1*A2+1' '<ret>' '<up>' '<pause>' '<gfx>'

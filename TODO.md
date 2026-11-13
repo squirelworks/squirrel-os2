@@ -400,6 +400,15 @@ From P.8 in `ROADMAP.md` and epic #118 (stream OS2-FOREIGN). Notes: `documentati
   **Acceptance:** `run dosgfx.com` draws and writes `dosgfx: drawn` in graphics (read by `<gfx>`), and after a key prints `dosgfx: PASS` in text. Checks `dos-gfx`, `dos-gfx-after`.
 - [ ] **P.8-dos-window** — the DOS screen (text or mode 13h) inside a window of its own, once programs own windows (2.2).
 
+## 2.7 — Long names, FAT, drive objects (OS2-FS)
+
+Roadmap 2.7 and the FAT/long-name side of A.5's disk utility. The desktop parts (drive and shredder objects) are coordinated with the 2.2/2.3 desktop work.
+
+- [x] **2.7-lfn** — SQFS names up to 63 characters: unique short aliases in the entry, the whole name in continuation entries older kernels ignore, orphans freed at mount. Checks `lfntest`, `lfn-host`, `lfn-kernel`, `lfn-sqfs-py`, `lfn-sweep`, `lfn-sweep-freed`.
+- [x] **2.7-fat** — FAT12/16/32 read and write on drive letters (`mount`, `umount`, `cp`; disks, partitions, image files), VFAT long names both ways. Checks `fat12-*`, `fat16-*`, `fat32-*`, `fat-*`; images checked afterwards by `tools/fatimg.py check`.
+- [x] **2.7-objects** — Drive objects (one per mounted drive, opening lists it) and a shredder object (a file dropped on it is deleted).
+- [ ] **2.7-diskutil** — `diskutil` understands FAT volumes and long names (partition types, format FAT, check a FAT volume).
+
 ## 2.8–2.9 core — 64-bit kernel and SMP (OS2-K)
 
 From the 2.8–2.9 bridge in `ROADMAP.md` (the hardware drivers H.1–H.6 are the next section). Each box is a branch the condenser folds into a PR; the BIOS boot path and every regression check keep passing, and checks that need x86-64 run under `qemu-system-x86_64`. Design notes in `documentation/kernel/long-mode.md` and `documentation/kernel/smp.md`.

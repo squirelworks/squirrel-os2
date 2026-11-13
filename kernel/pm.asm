@@ -610,6 +610,8 @@ run_simple:
     call [ebx+4]
     jmp .empty
 .unknown:
+    call vol_command            ; mount, umount, cp, lfntest, fattest (2.7)
+    jnc .empty
     call sh_usage               ; a command word without its arguments?
     jnc .empty
     mov esi, [lstr+LS_UNKNOWN*4]
@@ -1181,7 +1183,7 @@ banner_rest db ' 2.1.0', 10  ; OS version: here only (see releases/PROCESS.md)
        db 'Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>', 10
        db '          mv <f> <new> | mkdir <d> | cd <d> | pwd | echo | batch <f> | format', 10
        db '          ps | disk | mem | devices | lang <en|la|tlh> | desktop | install', 10
-       db '          objcat', 10
+       db '          objcat | mount [x: <disk|file>] | umount x: | cp <from> <to>', 10
        db 'Tests: systest | proctest | blktest | fstest | memtest | keys', 10
        db '       gfxtest | gfxprim | gfxtext | vbetest | wintest | winmove | winfocus | nettest', 10
        db '       labeltest | buttontest | fieldtest | listtest | drawpx | objtest | objs', 10
@@ -1196,7 +1198,7 @@ cmd_trap db 'trap', 0
 cmd_overflow db 'overflow', 0
 
 ; argument for the next app started with run (e.g. run edit notes)
-run_arg times 64 db 0           ; FS_PATHMAX
+run_arg times 96 db 0           ; FS_PATHMAX (fs.asm)
 run_rest dd 0                   ; whole argument text, for loaded programs
 cmd_ps db 'ps', 0
 cmd_mem db 'mem', 0
@@ -1578,6 +1580,10 @@ khigh_start:
 %include "audio/hda.asm"
 %include "audio/audio.asm"
 %include "appsys.asm"
+%include "fslfn.asm"
+%include "volume.asm"
+%include "fat.asm"
+%include "fsobj.asm"
 %include "drivers/hw.asm"
 %include "drivers/pci.asm"
 %include "drivers/ahci.asm"
