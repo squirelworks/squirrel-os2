@@ -142,6 +142,16 @@ Other keys return CF set. Minimised windows are not in the z-order, so they are 
 
 `winalttab` opens One, Two and Three (Three on top). Alt+Tab and letting go brings Two up; Alt+Tab twice shows the box (read on the visible page) and letting go brings One up; Alt+Esc sends One to the bottom and Two has the focus. It prints the titles from the top (`Two Three One`) and `alttab: PASS` or `alttab: FAIL`. Check `winalttab`.
 
+## Proportional fonts (2.2-propfont)
+
+Two original proportional faces sit beside the 5 × 7 font: `FONT_9`, the window face (9 pixels high: seven above the baseline, two of descender), and `FONT_12`, a bold display face 12 pixels high. Their sources are `tools/fontp9.txt` and `tools/fontp12.txt`, one line per glyph: the code in hex, then the rows, each one to eight `#` or `.` wide (every row of a glyph the same width). `tools/mkfont.py` writes `kernel/fontp.inc` from them (a width table and one byte per row, bit 7 the leftmost column) and `--check` fails the regress run if it is stale. Each glyph is followed by one spacing column; the space is 3 pixels in `FONT_9`, 4 in `FONT_12`.
+
+`gfx_drawstr_p` and `gfx_strwidth_p` (`kernel/pfont.asm`) draw and measure a string; see the table below. A background of `0xFF` in `gfx_bg` is transparent: only the ink is drawn. `wm_drawtitle` uses `FONT_9`, so title bars, pop-up menus (their width is the widest item's `gfx_strwidth_p`), icon labels, the Alt+Tab box, labels and buttons are in the window face. Typed text in a window, fields and lists keep the 5 × 7 font in 6 × 8 cells (`wm_drawtext5`), because there a character's cell is its place (the field cursor, list rows).
+
+`tools/qemu_screen.py` reads both faces as well as the 5 × 7 font: a run of glyphs on a solid background, each matched column for column, with a spacing column after it; a gap one space wide is a space. Words it finds inside 5 × 7 text are dropped. It needs numpy; without it only the 5 × 7 font is read.
+
+`pfont` draws a line in each face on a blue band, reads back ink, clear and spacing pixels, a descender, a transparent `i` and the pixel left of the string, and checks `gfx_strwidth_p` against the x that `gfx_drawstr_p` returns (`Wg` is 11 pixels in `FONT_9`, 13 in `FONT_12`). The lines stay up until a key, then text mode and `pfont: PASS` or `pfont: FAIL`. Checks `pfont`, `pfont-read` (the screen reader finds both lines) and `pfont-text`. Programs draw the window face with `WD_PTEXT`; `progwin` checks its width and a pixel.
+
 ## Widgets
 
 Since 1.5.0, `wm_draw` draws a window's widgets after its client area, and `wm_close` drops them (`widgets.md`).
@@ -163,8 +173,8 @@ This section is the window, event and drawing interface that the 2.2 boxes in `T
 | `gfx_noclip` | — | the clip is the whole screen again |
 | `gfx_copyrect` | eax, ebx = source top left, ecx = width, edx = height, esi, edi = destination top left | copies within the draw target, overlapping rectangles allowed; the destination is clipped (**2.1-blit-clip**) |
 | `gfx_bevel` | eax, ebx = top left, ecx = width, edx = height, esi = 0 raised / 1 sunken | a `TH_BEVEL_W` bevel around the rectangle's edge, face not filled (**W.1-theme**) |
-| `gfx_drawstr_p` | esi = string, eax, ebx = top left, ecx = face (`FONT_9` / `FONT_12`), colours in `gfx_colour` / `gfx_bg` (`-1` bg = transparent) | eax = x after the last character (**2.2-propfont**) |
-| `gfx_strwidth_p` | esi = string, ecx = face | eax = width in pixels |
+| `gfx_drawstr_p` | esi = string, eax, ebx = top left, ecx = face (`FONT_9` / `FONT_12`), colours in `gfx_colour` / `gfx_bg` (`0xFF` bg = transparent) | eax = x after the last character's spacing column (**2.2-propfont**) |
+| `gfx_strwidth_p` | esi = string, ecx = face | eax = width in pixels, spacing columns included (what `gfx_drawstr_p` advances) |
 
 ### Windows (kernel)
 
@@ -205,11 +215,12 @@ The calls are in `kernel/winsys.asm`, numbers 37–44 (`SYS_COUNT` is 45; 35 is 
 | `WD_FILL` (0) | filled rectangle at x, y, size a × b |
 | `WD_LINE` (1) | line from x, y to a, b |
 | `WD_TEXT` (2) | the 5×7 font string at `ptr`, background `a` (−1: the client colour) |
+| `WD_PTEXT` (3) | the proportional string at `ptr`, background `a` (−1: none, only the ink), face `b` (0 `FONT_9`, 1 `FONT_12`); returns its width in pixels (**2.2-propfont**) |
 | `WD_BLIT` (4) | a × b bytes of 8-bit pixels at `ptr` (rows packed) to x, y; `colour` = an index left transparent, or −1 |
 | `WD_BEVEL` (5) | bevel around x, y, a × b; `colour` 0 raised / 1 sunken |
 | `WD_PIXEL` (7) | returns the colour at x, y on the visible page (for checks) |
 
-`WD_PTEXT` (3, proportional text) comes with **2.2-propfont** and `WD_COPY` (6) later.
+`WD_COPY` (6) comes later.
 
 There is no backing store. When the window manager repaints part of a program's window (uncovered, moved, focus changed), it paints the frame and a plain client area and posts `WE_PAINT`; the program draws again.
 
