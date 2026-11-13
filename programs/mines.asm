@@ -1,6 +1,8 @@
 ; mines — a Minesweeper-class game (G.3). Original code.
 ;
 ;   run mines [seed] [big]     play: 9 x 9 with 10 mines, or 16 x 16 with 40
+;   run mines gui [seed] [big]  the same on the graphics screen: click or
+;                        Enter opens, f flags, arrows move, n new, q quit
 ;   run mines test             rules self-check, prints "mines: PASS"
 ;
 ; Commands: a cell is a column letter and a row number ("c5").
@@ -11,6 +13,9 @@
 %include "sqx.inc"
 SQX_HEADER main
 %include "games.inc"
+%include "cards.inc"
+%include "gui.inc"
+%include "gamegui.inc"
 
 MAXW    equ 16
 MAXN    equ MAXW*MAXW
@@ -30,6 +35,8 @@ main:
     mov dword [width], 16
     mov dword [nmines], 40
 .small:
+    cmp byte [g_gui], 0
+    jne gui_play
     mov esi, m_title
     call g_puts
 .new:
@@ -365,6 +372,309 @@ cellchar:
 
 ; ---------- self-test ----------
 
+; ---------- graphics ----------
+
+; The field in the middle of the table, 18-pixel cells (11 for the big
+; field). A click or Enter opens the cell under the cursor, f flags it.
+BY0     equ 12
+
+gui_play:
+    call gui_open
+    jnc .ok
+    mov esi, m_nogui
+    call g_puts
+    mov eax, 1
+    ret
+.ok:
+    mov eax, 18
+    cmp dword [width], 9
+    je .cs
+    mov eax, 11
+.cs:mov [gcs], eax
+    imul eax, [width]
+    mov ecx, SCR_W
+    sub ecx, eax
+    shr ecx, 1
+    mov [gx0], ecx
+.new:
+    call newgame
+    mov eax, [width]
+    shr eax, 1
+    mov ecx, [width]
+    inc ecx
+    imul eax, ecx
+    mov [cursor], eax           ; the middle cell
+.draw:
+    call gdraw
+    call gui_flip
+    xor ecx, ecx
+    call gui_event
+    cmp eax, EV_CLICK
+    je .click
+    cmp eax, EV_DRAG
+    je .draw
+    cmp al, 27
+    je .quit
+    cmp al, 'q'
+    je .quit
+    cmp al, 'n'
+    je .new
+    cmp al, 'f'
+    je .flag
+    cmp al, 13
+    je .open
+    cmp al, ' '
+    je .open
+    shr eax, 8
+    cmp al, K_ENTER
+    je .open
+    call gmove
+    jmp .draw
+.click:
+    mov eax, [gui_mx]
+    mov ebx, [gui_my]
+    call ghit
+    cmp eax, -1
+    je .draw
+    mov [cursor], eax
+.open:
+    cmp byte [over], 0
+    jne .draw
+    mov ebx, [cursor]
+    call open
+    jmp .draw
+.flag:
+    cmp byte [over], 0
+    jne .draw
+    mov ebx, [cursor]
+    call flag
+    jmp .draw
+.quit:
+    call gui_close
+    xor eax, eax
+    ret
+
+; al = scancode: the arrows move the cursor
+gmove:
+    pushad
+    movzx esi, al
+    mov eax, [cursor]
+    xor edx, edx
+    div dword [width]           ; eax = row, edx = column
+    mov ecx, [width]
+    dec ecx                     ; the last row and column
+    mov ebx, [width]
+    cmp esi, K_LEFT
+    jne .rt
+    test edx, edx
+    jz .r
+    dec dword [cursor]
+    jmp .r
+.rt:cmp esi, K_RIGHT
+    jne .up
+    cmp edx, ecx
+    jae .r
+    inc dword [cursor]
+    jmp .r
+.up:cmp esi, K_UP
+    jne .dn
+    test eax, eax
+    jz .r
+    sub [cursor], ebx
+    jmp .r
+.dn:cmp esi, K_DOWN
+    jne .r
+    cmp eax, ecx
+    jae .r
+    add [cursor], ebx
+.r: popad
+    ret
+
+; eax, ebx = a point -> eax = the cell there, or -1
+ghit:
+    push ecx
+    push edx
+    sub eax, [gx0]
+    js .no
+    sub ebx, BY0
+    js .no
+    xor edx, edx
+    div dword [gcs]
+    cmp eax, [width]
+    jae .no
+    mov ecx, eax                ; column
+    mov eax, ebx
+    xor edx, edx
+    div dword [gcs]
+    cmp eax, [width]
+    jae .no
+    imul eax, [width]
+    add eax, ecx
+    jmp .r
+.no:
+    mov eax, -1
+.r: pop edx
+    pop ecx
+    ret
+
+; ecx = cell -> eax, ebx = its top left corner
+gpos:
+    push edx
+    mov eax, ecx
+    xor edx, edx
+    div dword [width]
+    imul ebx, eax, 1
+    imul ebx, [gcs]
+    add ebx, BY0
+    imul eax, edx, 1
+    imul eax, [gcs]
+    add eax, [gx0]
+    pop edx
+    ret
+
+gdraw:
+    pushad
+    call gg_table
+    ; the mines left on the top line
+    mov edi, gtitle
+    call gg_sb_start
+    mov esi, m_mines
+    call gg_sb_str
+    mov eax, [nmines]
+    sub eax, [flags]
+    jns .ml
+    xor eax, eax
+.ml:call gg_sb_num
+    mov esi, gtitle
+    call gg_title
+    xor ecx, ecx
+.c: call gcell
+    inc ecx
+    cmp ecx, [ncells]
+    jb .c
+    ; the cursor
+    mov ecx, [cursor]
+    call gpos
+    dec eax
+    dec ebx
+    mov ecx, [gcs]
+    inc ecx
+    mov edx, ecx
+    mov byte [gui_ink], C_YELLOW
+    call gui_box
+    mov esi, m_g_help
+    cmp byte [over], 0
+    je .s
+    mov esi, m_g_lost
+    cmp byte [over], 1
+    je .s
+    mov esi, m_g_won
+.s: call gg_status
+    popad
+    ret
+
+; ecx = cell: draws it
+gcell:
+    pushad
+    call gpos
+    mov [gpx], eax
+    mov [gpy], ebx
+    mov ecx, [gcs]
+    dec ecx
+    mov edx, ecx
+    mov byte [gui_ink], C_LGREY
+    call gui_fill
+    mov esi, [esp+24]           ; the cell (saved ecx)
+    cmp byte [state+esi], ST_OPEN
+    je .open
+    ; hidden: a raised tile, with a flag on it, or its mine at the end
+    mov byte [gui_bevel_up], 1
+    call gui_bevel
+    cmp byte [state+esi], ST_FLAG
+    je .flag
+    cmp byte [over], 1
+    jne .r
+    cmp byte [mine+esi], 0
+    je .r
+    jmp .mine
+.flag:
+    mov eax, [gpx]
+    mov ebx, [gpy]
+    mov ecx, [gcs]
+    shr ecx, 1
+    add eax, ecx                ; the pole in the middle
+    add ebx, 2
+    mov edx, [gcs]
+    sub edx, 5
+    mov ecx, 1
+    mov byte [gui_ink], C_BLACK
+    call gui_fill
+    mov ecx, [gcs]
+    shr ecx, 2
+    sub eax, ecx                ; the cloth to its left
+    mov edx, ecx
+    mov byte [gui_ink], C_RED
+    call gui_fill
+    jmp .r
+.open:
+    mov byte [gui_ink], C_WHITE  ; open cells are flat and light
+    call gui_fill
+    mov byte [gui_ink], C_LGREY
+    call gui_box
+    cmp byte [mine+esi], 0
+    je .num
+    mov byte [gui_ink], C_RED   ; the mine that went off
+    inc eax
+    inc ebx
+    sub ecx, 2
+    sub edx, 2
+    call gui_fill
+.mine:
+    mov eax, [gpx]
+    mov ebx, [gpy]
+    mov ecx, [gcs]
+    shr ecx, 1
+    add eax, ecx
+    add ebx, ecx
+    sub eax, 2
+    sub ebx, 2
+    mov ecx, 4
+    mov edx, 4
+    mov byte [gui_ink], C_BLACK
+    call gui_fill
+    dec eax
+    inc ebx
+    mov ecx, 6
+    mov edx, 2
+    call gui_fill
+    add eax, 2
+    sub ebx, 2
+    mov ecx, 2
+    mov edx, 6
+    call gui_fill
+    jmp .r
+.num:
+    movzx ecx, byte [adj+esi]
+    test ecx, ecx
+    jz .r
+    mov al, [gnumink+ecx-1]
+    mov [gui_ink], al
+    mov byte [gui_bg], C_WHITE
+    lea eax, [ecx+'0']
+    mov [gdigit], ax
+    mov esi, gdigit
+    mov eax, [gcs]
+    sub eax, 5
+    shr eax, 1
+    add eax, [gpx]
+    mov ebx, [gcs]
+    sub ebx, 7
+    shr ebx, 1
+    add ebx, [gpy]
+    call gui_text
+.r: popad
+    ret
+
 selftest:
     ; 1. a seeded game lays exactly 10 mines, none near the first cell,
     ;    and adj[] matches the mines
@@ -547,6 +857,11 @@ layout_hash:                    ; -> eax = hash of the mine positions
     ret
 
 m_name db 'mines', 0
+m_nogui db 'mines: no graphics screen', 10, 0
+m_g_help db 'Click or Enter: open. f flag, n new, q quit', 0
+m_g_lost db 'Boom! You hit a mine. n new game, q quit', 0
+m_g_won db 'You cleared the field! n new game, q quit', 0
+gnumink db C_BLUE, C_GREEN, C_RED, C_MAGENTA, C_BROWN, C_CYAN, C_BLACK, C_DGREY
 m_title db 'Squirrel Mines - open every cell without a mine', 10
         db 'c5 opens a cell, f c5 flags it, n new game, q quits', 10, 0
 m_cols db '    ', 0
@@ -577,4 +892,14 @@ mine resb MAXN
 adj resb MAXN
 state resb MAXN
 queue resw MAXN
+alignb 4
+cursor resd 1
+gcs resd 1
+gx0 resd 1
+gpx resd 1
+gpy resd 1
+gdigit resb 4
+gtitle resb GG_SBMAX
+GUI_BSS
+GG_BSS
 SQX_END
