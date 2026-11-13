@@ -1113,8 +1113,15 @@ fs_list_dir:
 
 ; cat <name>
 fs_cat:
+    cmp byte [esi], '"'         ; cat "a name with spaces" (2.7)
+    jne .whole
+    call next_word
+.whole:
+    call vol_path               ; cat d:/... works without SQFS too
+    jnc .open
     cmp byte [fs_mounted], 0
     je rom_cat
+.open:
     xor ecx, ecx
     call fs_open
     cmp eax, -1

@@ -824,6 +824,67 @@ check_all matrixgui-inv 'gfx: inv A =|gfx: -2|gfx: 1.5|gfx: -0.5' 'run matrixgui
 check matrixgui-det 'gfx: det A = -2'      'run matrixgui' '<ret>' '<pause>' '1' '<right>' '2' '<down>' '4' '<left>' '3' '<ret>' 'd' '<pause>' '<gfx>'
 check matrixgui-sing 'gfx: The matrix is singular' 'run matrixgui' '<ret>' '<pause>' 'i' '<pause>' '<gfx>'
 check matrixgui-quit 'systest: PASS'        'run matrixgui' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
+# 2.7 (OS2-FS): long names in SQFS, FAT12/16/32 drives. tools/fatimg.py makes
+# the FAT images and checks them afterwards (chains, sizes, long names), so
+# no dosfstools or mtools are needed; each check gets its own disks.
+saved_disk=$disk; saved_target=$target
+sq=$out/fs27.img; disk=$sq; target=
+python3 "$root/tools/sqfs.py" "$sq" format 1024
+python3 "$root/tools/sqfs.py" "$sq" mkdir 'My Documents'
+printf 'one two\nthree\n' > "$out/notes27"
+python3 "$root/tools/sqfs.py" "$sq" put "$out/notes27" 'My Documents/notes about the winter stores.txt'
+check lfntest        'lfntest: PASS'        lfntest '<ret>'
+check_all lfn-host   'notes about the winter stores.txt 14|one two' 'cd "My Documents"' '<ret>' ls '<ret>' 'cat "notes about the winter stores.txt"' '<ret>'
+check_all lfn-kernel 'a folder with a long name/|ok' 'mkdir "a folder with a long name"' '<ret>' 'put "a folder with a long name/and a file in it too" acorns' '<ret>' ls '<ret>'
+lfnout=$(python3 "$root/tools/sqfs.py" "$sq" get 'a folder with a long name/and a file in it too' 2>&1)
+if [ "$lfnout" = acorns ]; then echo "ok   lfn-sqfs-py"; else echo "FAIL lfn-sqfs-py ($lfnout)"; fail=1; fi
+python3 - "$sq" <<'PYEOF'    # an orphaned long-name part (its owner, entry 60, is free)
+import sys
+f = open(sys.argv[1], 'r+b'); f.seek(512 + 63 * 32)
+f.write(b'left behind by an old kernel'[:23] + bytes([0x5A]) + bytes(4) + bytes([0xFF, 2, 60, 1])); f.close()
+PYEOF
+check lfn-sweep      'Files:'               ls '<ret>'
+sweep=$(python3 -c "import sys; f=open(sys.argv[1],'rb'); f.seek(512+63*32); print(f.read(1)[0])" "$sq")
+if [ "$sweep" = 0 ]; then echo "ok   lfn-sweep-freed"; else echo "FAIL lfn-sweep-freed"; fail=1; fi
+fat() { python3 "$root/tools/fatimg.py" "$@"; }
+fatok() {   # fatok NAME IMAGE: the image passes fatimg.py check
+    if r=$(fat "$2" check 2>&1); then echo "ok   $1"; else echo "FAIL $1 ($r)"; fail=1; fi
+}
+printf 'Hello from a FAT floppy\n' > "$out/fatreadme"
+for spec in "12 1440" "16 16384 --part" "32 40960 --part"; do
+    set -- $spec
+    fat "$out/fat$1.img" format $2 $1 $3
+    fat "$out/fat$1.img" mkdir docs
+    fat "$out/fat$1.img" put "$out/fatreadme" README.TXT
+    fat "$out/fat$1.img" put "$out/notes27" 'docs/A Long Document Name.txt'
+done
+target=$out/fat12.img
+check_all fat12-read 'D: FAT12, 1440 KB, hd2|README.TXT|docs/|Hello from a FAT floppy|one two' 'mount d: hd2' '<ret>' 'ls d:/' '<ret>' 'cat d:/readme.txt' '<ret>' 'cat "d:/DOCS/a long document name.txt"' '<ret>'
+check fat12-write    'fattest: PASS'        'mount d: hd2' '<ret>' 'fattest d:' '<ret>' '<pause>' '<pause>'
+check_all fat12-cp   '24 bytes copied|14 bytes copied|Hello from a FAT floppy' 'mount d: hd2' '<ret>' 'cp d:/readme.txt "fat copy with a long name"' '<ret>' 'cp "My Documents/notes about the winter stores.txt" "d:/docs/Copied From SQFS.txt"' '<ret>' 'cat "fat copy with a long name"' '<ret>'
+fatout=$(fat "$out/fat12.img" get 'docs/copied from sqfs.txt' 2>&1)
+if [ "$fatout" = "$(cat "$out/notes27")" ]; then echo "ok   fat12-host-read"; else echo "FAIL fat12-host-read ($fatout)"; fail=1; fi
+check_all fat12-mv   'ok|Read Me First.txt|New Folder/' 'mount d: hd2' '<ret>' 'mv d:/readme.txt "Read Me First.txt"' '<ret>' 'mkdir "d:/New Folder"' '<ret>' 'ls d:' '<ret>'
+check fat-xdev       'Cannot move between drives' 'mount d: hd2' '<ret>' 'mv "fat copy with a long name" d:/x' '<ret>'
+check fat-nodrive    'No such drive'        'cat e:/nothing' '<ret>'
+check_all fat-letter 'That drive letter is in use|Already mounted on another drive letter' 'mount d: hd2' '<ret>' 'mount d: hd2' '<ret>' 'mount f: hd2' '<ret>'
+fatok fat12-fsck "$out/fat12.img"
+target=$out/fat16.img
+check_all fat16-part 'D: FAT16, 15 MB, hd2|fattest: PASS' 'mount d: hd2' '<ret>' 'fattest d:' '<ret>' '<pause>' '<pause>'
+fatok fat16-fsck "$out/fat16.img"
+target=$out/fat32.img
+check_all fat32-part 'D: FAT32, 39 MB, hd2|A Long Document Name.txt|fattest: PASS' 'mount d: hd2' '<ret>' 'ls d:/docs' '<ret>' 'fattest d:' '<ret>' '<pause>' '<pause>'
+check_all fat32-cp   '14 bytes copied|notes about the winter stores.txt 14' 'mount d: hd2' '<ret>' 'cp "My Documents/notes about the winter stores.txt" d:/docs' '<ret>' 'ls d:/docs' '<ret>'
+fatok fat32-fsck "$out/fat32.img"
+# a FAT image file on the SQFS disk, mounted as a drive
+fat "$out/floppy27.img" format 160 12
+fat "$out/floppy27.img" put "$out/fatreadme" inside.txt
+python3 "$root/tools/sqfs.py" "$sq" put "$out/floppy27.img" 'disk image.img'
+target=
+check_all fat-loop   'E: FAT12, 160 KB, disk image.img|inside.txt|fattest: PASS|File is open|ok' 'mount e: "disk image.img"' '<ret>' 'ls e:' '<ret>' 'fattest e:' '<ret>' '<pause>' 'rm "disk image.img"' '<ret>' 'umount e:' '<ret>'
+python3 "$root/tools/sqfs.py" "$sq" get 'disk image.img' "$out/floppy27b.img"
+fatok fat-loop-fsck "$out/floppy27b.img"
+disk=$saved_disk; target=$saved_target
 # P.8: DOS .COM and .EXE programs run in the dosrun 8086 interpreter
 disk=$out/dos.img
 check_all dos-hello 'Hello from DOS land!|#! tail: acorns|doshello: PASS'  'run dosrun doshello.com acorns' '<ret>'

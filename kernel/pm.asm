@@ -1043,7 +1043,7 @@ banner_rest db ' 2.1.0', 10  ; OS version: here only (see releases/PROCESS.md)
        db 'Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>', 10
        db '          mv <f> <new> | mkdir <d> | cd <d> | pwd | echo | batch <f> | format', 10
        db '          ps | disk | mem | devices | lang <en|la|tlh> | desktop | install', 10
-       db '          objcat', 10
+       db '          objcat | mount [x: <disk|file>] | umount x: | cp <from> <to>', 10
        db 'Tests: systest | proctest | blktest | fstest | memtest | keys', 10
        db '       gfxtest | gfxprim | gfxtext | vbetest | wintest | winmove | winfocus | nettest', 10
        db '       labeltest | buttontest | fieldtest | listtest | drawpx | objtest | objs', 10
