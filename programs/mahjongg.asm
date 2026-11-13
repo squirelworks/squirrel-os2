@@ -1,6 +1,8 @@
 ; mahjongg — Mahjongg-style tile solitaire (G.7). Original code and layout.
 ;
 ;   run mahjongg [seed]    play a seeded deal (always solvable)
+;   run mahjongg gui [seed]  the same on the graphics screen: click two free
+;                        tiles that match; h hint, n new deal, q quit
 ;   run mahjongg test      rules self-check, prints "mahjongg: PASS"
 ;
 ; 108 tiles of 27 kinds (three suits, Acorns, Leaves and Stars, 1-9; four
@@ -19,6 +21,9 @@
 %include "sqx.inc"
 SQX_HEADER main
 %include "games.inc"
+%include "cards.inc"
+%include "gui.inc"
+%include "gamegui.inc"
 
 GW     equ 10                   ; grid width
 GH     equ 6                    ; grid height
@@ -31,6 +36,8 @@ main:
     mov ebx, m_name
     call g_start
     jc selftest
+    cmp byte [g_gui], 0
+    jne gui_play
     mov esi, m_title
     call g_puts
 .new:
@@ -431,6 +438,312 @@ draw:
     popad
     ret
 
+; ---------- graphics ----------
+
+; The pyramid seen from above: each stack is drawn tile by tile, every
+; layer two pixels up and to the left, with the top tile's face showing
+; its number and its sign (an acorn, a leaf or a star). Click two free
+; matching tiles (or use the arrows and Enter) to take them.
+TW      equ 28                  ; a grid cell
+TH      equ 26
+GX0     equ (SCR_W - GW * TW) / 2 + 4
+GY0     equ 18
+
+gui_play:
+    call gui_open
+    jnc .new
+    mov esi, m_nogui
+    call g_puts
+    mov eax, 1
+    ret
+.new:
+    call deal
+    mov dword [cursor], 0
+    mov dword [gsel], -1
+    mov dword [hint_a], -1
+    mov dword [hint_b], -1
+.say:
+    call gstate
+.draw:
+    call gdraw
+    call gui_flip
+    xor ecx, ecx
+    call gui_event
+    cmp eax, EV_CLICK
+    je .click
+    cmp eax, EV_DRAG
+    je .draw
+    cmp al, 27
+    je .quit
+    cmp al, 'q'
+    je .quit
+    cmp al, 'n'
+    je .new
+    cmp al, 'h'
+    je .hint
+    cmp al, 13
+    je .act
+    cmp al, ' '
+    je .act
+    shr eax, 8
+    cmp al, K_ENTER
+    je .act
+    call gmove
+    jmp .draw
+.hint:
+    call find_pair
+    test eax, eax
+    jnz .draw                   ; hint_a / hint_b are framed
+    mov dword [gmsg], m_g_stuck
+    jmp .draw
+.click:
+    mov eax, [gui_mx]
+    mov ebx, [gui_my]
+    call ghit
+    cmp eax, -1
+    je .draw
+    mov [cursor], eax
+.act:
+    mov dword [hint_a], -1
+    mov dword [hint_b], -1
+    mov eax, [cursor]
+    call isfree
+    test eax, eax
+    jnz .free
+    mov dword [gmsg], m_g_notfree
+    jmp .draw
+.free:
+    mov ecx, [cursor]
+    mov ebx, [gsel]
+    cmp ebx, -1
+    je .pick
+    cmp ebx, ecx
+    je .drop
+    call take_pair
+    test eax, eax
+    jnz .taken
+    mov dword [gmsg], m_g_nomatch
+.pick:
+    mov [gsel], ecx
+    jmp .draw
+.drop:
+    mov dword [gsel], -1
+    jmp .draw
+.taken:
+    mov dword [gsel], -1
+    jmp .say
+.quit:
+    call gui_close
+    xor eax, eax
+    ret
+
+; Sets gmsg: tiles left, won, or stuck
+gstate:
+    pushad
+    mov edi, gbuf
+    call gg_sb_start
+    mov esi, m_g_won
+    cmp dword [left], 0
+    je .s
+    mov esi, m_g_stuck
+    call find_pair
+    mov dword [hint_a], -1      ; (only looking)
+    mov dword [hint_b], -1
+    test eax, eax
+    jz .s
+    mov esi, m_left
+    call gg_sb_str
+    mov eax, [left]
+    call gg_sb_num
+    mov esi, m_g_keys
+.s: call gg_sb_str
+    mov dword [gmsg], gbuf
+    popad
+    ret
+
+; al = scancode: the arrows move the cursor over the grid
+gmove:
+    pushad
+    movzx esi, al
+    mov eax, [cursor]
+    xor edx, edx
+    div dword [c_gw]            ; eax = row, edx = column
+    cmp esi, K_LEFT
+    jne .rt
+    test edx, edx
+    jz .r
+    dec dword [cursor]
+.rt:cmp esi, K_RIGHT
+    jne .up
+    cmp edx, GW - 1
+    jae .r
+    inc dword [cursor]
+.up:cmp esi, K_UP
+    jne .dn
+    test eax, eax
+    jz .r
+    sub dword [cursor], GW
+.dn:cmp esi, K_DOWN
+    jne .r
+    cmp eax, GH - 1
+    jae .r
+    add dword [cursor], GW
+.r: popad
+    ret
+
+; eax, ebx = a point -> eax = the cell there, or -1
+ghit:
+    push ecx
+    push edx
+    sub eax, GX0 - 4            ; the stacks lean up and left
+    js .no
+    sub ebx, GY0 - 4
+    js .no
+    xor edx, edx
+    mov ecx, TW
+    div ecx
+    cmp eax, GW
+    jae .no
+    xchg eax, ebx
+    xor edx, edx
+    mov ecx, TH
+    div ecx
+    cmp eax, GH
+    jae .no
+    imul eax, GW
+    add eax, ebx
+    jmp .r
+.no:
+    mov eax, -1
+.r: pop edx
+    pop ecx
+    ret
+
+; ecx = cell, edx = layer (1 = the bottom) -> eax, ebx = the tile's corner
+gpos:
+    push edx
+    mov eax, ecx
+    push ecx
+    xor edx, edx
+    mov ecx, GW
+    div ecx                     ; eax = row, edx = column
+    imul ebx, eax, TH
+    imul eax, edx, TW
+    pop ecx
+    pop edx
+    add eax, GX0 + 2
+    add ebx, GY0 + 2
+    sub eax, edx
+    sub eax, edx
+    sub ebx, edx
+    sub ebx, edx
+    ret
+
+; ecx = cell -> eax, ebx, ecx, edx = its top tile's rectangle
+grect:
+    movzx edx, byte [height+ecx]
+    call gpos
+    mov ecx, TW - 1
+    mov edx, TH - 1
+    ret
+
+gdraw:
+    pushad
+    call gg_table
+    mov esi, m_g_title
+    call gg_title
+    ; layer by layer, so the higher tiles cover the lower ones
+    mov edx, 1
+.layer:
+    xor ecx, ecx
+.cell:
+    movzx eax, byte [height+ecx]
+    cmp eax, edx
+    jb .cn
+    call gpos
+    push ecx
+    push edx
+    ; the side of the tile, then its face
+    mov ecx, TW - 1
+    mov edx, TH - 1
+    mov byte [gui_ink], C_BLACK
+    call gui_box
+    inc eax
+    inc ebx
+    sub ecx, 2
+    sub edx, 2
+    mov byte [gui_ink], C_LGREY
+    call gui_fill
+    mov byte [gui_ink], C_WHITE
+    sub ecx, 2
+    sub edx, 2
+    call gui_fill
+    dec eax
+    dec ebx
+    pop edx
+    pop ecx
+    movzx esi, byte [height+ecx]
+    cmp esi, edx
+    jne .cn
+    call gface                  ; the top tile shows its face
+.cn:inc ecx
+    cmp ecx, NCELL
+    jb .cell
+    inc edx
+    cmp edx, NL
+    jbe .layer
+    ; the picked tile, a hint, and the cursor
+    mov ecx, [gsel]
+    cmp ecx, -1
+    je .h
+    call grect
+    call gg_frame
+.h: mov ecx, [hint_a]
+    cmp ecx, -1
+    je .cu
+    call grect
+    mov byte [gui_ink], C_LGREEN
+    call gui_box
+    mov ecx, [hint_b]
+    call grect
+    call gui_box
+.cu:mov ecx, [cursor]
+    call grect
+    call gg_cursor
+    mov esi, [gmsg]
+    call gg_status
+    popad
+    ret
+
+; ecx = cell, eax, ebx = its top tile's corner: the number and the sign
+gface:
+    pushad
+    push eax
+    mov eax, ecx
+    call topkind
+    xor edx, edx
+    div dword [c_nine]          ; eax = suit, edx = number - 1
+    mov esi, eax
+    pop eax
+    mov cl, [gsuitink+esi]
+    lea edi, [edx+'1']
+    mov [gdigit], di
+    push esi
+    mov esi, gdigit
+    add eax, 3
+    add ebx, 3
+    mov [gui_ink], cl
+    mov byte [gui_bg], C_WHITE
+    call gui_text
+    pop esi
+    imul esi, 7
+    add esi, gsigns
+    add eax, 8
+    add ebx, 5
+    call gg_glyph2
+    popad
+    ret
+
 ; ---------- self-test ----------
 
 %macro EXPECT 1
@@ -609,6 +922,18 @@ t_j6 db 'j6', 0
 t_k1 db 'k1', 0
 
 m_name db 'mahjongg', 0
+m_nogui db 'mahjongg: no graphics screen', 10, 0
+m_g_title db 'Squirrel Mahjongg', 0
+m_g_keys db '   h hint, n new, q quit', 0
+m_g_notfree db 'That tile is not free', 0
+m_g_nomatch db 'Those two tiles do not match', 0
+m_g_won db 'The board is clear - you win! n new deal', 0
+m_g_stuck db 'No free pair is left: n for a new deal', 0
+gsuitink db C_BROWN, C_GREEN, C_BLUE
+; the signs of the suits, 7 x 7, bit 6 = left: acorn, leaf, star
+gsigns db 0x1C, 0x3E, 0x7F, 0x3E, 0x3E, 0x1C, 0x08
+       db 0x06, 0x1E, 0x3E, 0x3C, 0x38, 0x50, 0x40
+       db 0x08, 0x08, 0x7F, 0x3E, 0x1C, 0x36, 0x63
 m_title db 'Squirrel Mahjongg - remove matching pairs of free tiles', 10
         db 'Each cell shows its top tile (A, L or S and 1-9), the stack height', 10
         db 'and * if the tile is free. c3 f5 takes a pair, h hints, n new, q quits', 10, 0
@@ -635,4 +960,12 @@ pairs resb NTILE/2
 freelist resb NCELL
 order resb NTILE
 count resb NKIND
+alignb 4
+cursor resd 1
+gsel resd 1
+gmsg resd 1
+gdigit resb 4
+gbuf resb GG_SBMAX
+GUI_BSS
+GG_BSS
 SQX_END

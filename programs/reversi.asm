@@ -1,6 +1,8 @@
 ; reversi — Reversi against the computer (G.8). Original code.
 ;
 ;   run reversi [seed]     you play X (moves first), the computer plays O
+;   run reversi gui [seed] the same on the graphics screen: click a square
+;                        (or arrows and Enter); n new game, q quit
 ;   run reversi test       rules self-check (perft from the start, AI), "reversi: PASS"
 ;
 ; Commands: a move is a column letter and a row number ("d3"); the
@@ -12,6 +14,9 @@
 %include "sqx.inc"
 SQX_HEADER main
 %include "games.inc"
+%include "cards.inc"
+%include "gui.inc"
+%include "gamegui.inc"
 
 EMPTY equ 0
 BLACK equ 1                     ; X, the player
@@ -23,6 +28,8 @@ main:
     mov ebx, m_name
     call g_start
     jc selftest
+    cmp byte [g_gui], 0
+    jne gui_play
     mov esi, m_title
     call g_puts
 .new:
@@ -515,6 +522,317 @@ result:
     popad
     ret
 
+; ---------- graphics ----------
+
+; An 8 x 8 board of 22-pixel squares in the middle of the table. Small
+; light dots mark the squares you may play; a red dot marks the
+; computer's last move.
+SQ      equ 22
+BX0     equ (SCR_W - 8 * SQ) / 2
+BY0     equ 12
+DELAY   equ 40
+
+gui_play:
+    call gui_open
+    jnc .new
+    mov esi, m_nogui
+    call g_puts
+    mov eax, 1
+    ret
+.new:
+    mov edi, board
+    call setup
+    mov dword [cursor], 43      ; c4, beside the discs
+    mov dword [last], 0
+.turn:
+    mov dword [gmsg], m_g_help
+    call game_over
+    test eax, eax
+    jnz .over
+    mov edi, board
+    mov al, BLACK
+    call count_moves
+    test eax, eax
+    jnz .draw
+    mov dword [gmsg], m_g_pass  ; you must pass: the computer plays on
+    call .reply
+    jc .quit
+    jz .new
+    jmp .turn
+.draw:
+    call gdraw
+    call gui_flip
+    xor ecx, ecx
+    call gui_event
+    cmp eax, EV_CLICK
+    je .click
+    cmp eax, EV_DRAG
+    je .draw
+    cmp al, 27
+    je .quit
+    cmp al, 'q'
+    je .quit
+    cmp al, 'n'
+    je .new
+    cmp al, 13
+    je .move
+    cmp al, ' '
+    je .move
+    shr eax, 8
+    cmp al, K_ENTER
+    je .move
+    call gmove
+    jmp .draw
+.click:
+    mov eax, [gui_mx]
+    mov ebx, [gui_my]
+    call ghit
+    test eax, eax
+    jz .draw
+    mov [cursor], eax
+.move:
+    mov ebx, [cursor]
+    mov edi, board
+    mov al, BLACK
+    mov ecx, 1
+    call play
+    test eax, eax
+    jnz .moved
+    mov dword [gmsg], m_g_illegal
+    jmp .draw
+.moved:
+    mov dword [last], 0
+    mov dword [gmsg], m_g_think
+    call .reply
+    jc .quit
+    jz .new
+    jmp .turn
+.over:
+    mov edi, board
+    mov al, BLACK
+    call count_discs
+    mov edx, eax
+    mov al, WHITE
+    call count_discs
+    mov esi, m_g_draw
+    cmp edx, eax
+    je .ov
+    mov esi, m_g_youwin
+    ja .ov
+    mov esi, m_g_iwin
+.ov:mov [gmsg], esi
+.overw:
+    call gdraw
+    call gui_flip
+    xor ecx, ecx
+    call gui_event
+    cmp al, 27
+    je .quit
+    cmp al, 'q'
+    je .quit
+    cmp al, 'n'
+    je .new
+    jmp .overw
+.quit:
+    call gui_close
+    xor eax, eax
+    ret
+; The computer's move, after a short wait so you see yours first.
+; -> CF set for q / Esc during the wait, ZF set for n
+.reply:
+    call gdraw
+    call gui_flip
+    mov ecx, DELAY
+    call gui_event
+    cmp al, 27
+    je .rq
+    cmp al, 'q'
+    je .rq
+    cmp al, 'n'
+    je .rn
+    call choose
+    test eax, eax
+    jz .rr
+    mov [last], eax
+    mov ebx, eax
+    mov edi, board
+    mov al, WHITE
+    mov ecx, 1
+    call play
+.rr:or eax, 1                   ; ZF clear
+    clc
+    ret
+.rn:clc                         ; ZF is set from the compare
+    ret
+.rq:stc
+    ret
+
+; al = scancode: the arrows move the cursor
+gmove:
+    push eax
+    push ebx
+    mov ebx, [cursor]
+    cmp al, K_LEFT
+    jne .rt
+    dec ebx
+.rt:cmp al, K_RIGHT
+    jne .up
+    inc ebx
+.up:cmp al, K_UP
+    jne .dn
+    sub ebx, 10
+.dn:cmp al, K_DOWN
+    jne .ck
+    add ebx, 10
+.ck:cmp byte [board+ebx], WALL
+    je .r
+    mov [cursor], ebx
+.r: pop ebx
+    pop eax
+    ret
+
+; eax, ebx = a point -> eax = the square there, or 0
+ghit:
+    push ecx
+    push edx
+    sub eax, BX0
+    js .no
+    sub ebx, BY0
+    js .no
+    xor edx, edx
+    mov ecx, SQ
+    div ecx
+    cmp eax, 8
+    jae .no
+    xchg eax, ebx
+    xor edx, edx
+    div ecx
+    cmp eax, 8
+    jae .no
+    inc eax
+    imul eax, 10
+    lea eax, [eax+ebx+1]
+    jmp .r
+.no:
+    xor eax, eax
+.r: pop edx
+    pop ecx
+    ret
+
+; ebx = square -> eax, ebx = its top left corner
+gpos:
+    push edx
+    push ecx
+    mov eax, ebx
+    xor edx, edx
+    mov ecx, 10
+    div ecx                     ; eax = row + 1, edx = column + 1
+    dec eax
+    dec edx
+    imul ebx, eax, SQ
+    add ebx, BY0
+    imul eax, edx, SQ
+    add eax, BX0
+    pop ecx
+    pop edx
+    ret
+
+gdraw:
+    pushad
+    call gg_table
+    ; the disc counts on the top line
+    mov edi, gtitle
+    call gg_sb_start
+    mov esi, m_g_you
+    call gg_sb_str
+    mov edi, board
+    mov al, BLACK
+    call count_discs
+    call gg_sb_num
+    mov esi, m_g_me
+    call gg_sb_str
+    mov al, WHITE
+    call count_discs
+    call gg_sb_num
+    mov esi, gtitle
+    call gg_title
+    ; the board: a dark frame and the grid
+    mov eax, BX0 - 2
+    mov ebx, BY0 - 2
+    mov ecx, 8 * SQ + 5
+    mov edx, ecx
+    mov byte [gui_ink], C_BLACK
+    call gui_fill
+    mov ebx, 11
+.sq:cmp byte [board+ebx], WALL
+    je .sn
+    push ebx
+    call gpos
+    inc eax
+    inc ebx
+    mov ecx, SQ - 1
+    mov edx, SQ - 1
+    mov byte [gui_ink], C_GREEN
+    call gui_fill
+    add eax, SQ / 2 - 1         ; the middle of the square
+    add ebx, SQ / 2 - 1
+    mov esi, [esp]
+    mov cl, C_BLACK
+    cmp byte [board+esi], BLACK
+    je .disc
+    mov cl, C_WHITE
+    cmp byte [board+esi], WHITE
+    je .disc
+    ; empty: a dot if you may play here
+    push eax
+    push ebx
+    mov edi, board
+    mov ebx, esi
+    mov al, BLACK
+    xor ecx, ecx
+    call play
+    test eax, eax
+    pop ebx
+    pop eax
+    jz .sd
+    dec eax
+    dec ebx
+    mov ecx, 3
+    mov edx, 3
+    mov byte [gui_ink], C_LGREEN
+    call gui_fill
+    jmp .sd
+.disc:
+    call gg_disc
+    cmp esi, [last]
+    jne .sd
+    dec eax
+    dec ebx
+    mov ecx, 3
+    mov edx, 3
+    mov byte [gui_ink], C_RED
+    call gui_fill
+.sd:pop ebx
+.sn:inc ebx
+    cmp ebx, 89
+    jb .sq
+    ; the cursor
+    mov ebx, [cursor]
+    call gpos
+    mov ecx, SQ + 1
+    mov edx, SQ + 1
+    mov byte [gui_ink], C_YELLOW
+    call gui_box
+    inc eax
+    inc ebx
+    sub ecx, 2
+    sub edx, 2
+    call gui_box
+    mov esi, [gmsg]
+    call gg_status
+    popad
+    ret
+
 ; ---------- self-test ----------
 
 ; edi = board, al = side to move, ecx = depth -> eax = leaf count.
@@ -753,6 +1071,16 @@ weights:
     db 0,   0,   0,  0,  0,  0,  0,   0,   0, 0
 
 m_name db 'reversi', 0
+m_nogui db 'reversi: no graphics screen', 10, 0
+m_g_help db 'Your move (black): click a dotted square', 0
+m_g_think db 'The computer is thinking...', 0
+m_g_pass db 'You have no move and pass', 0
+m_g_illegal db 'You cannot play there', 0
+m_g_you db 'You ', 0
+m_g_me db '    Computer ', 0
+m_g_youwin db 'Game over: you win! n new game, q quit', 0
+m_g_iwin db 'Game over: the computer wins. n new game, q quit', 0
+m_g_draw db 'Game over: a draw. n new game, q quit', 0
 m_title db 'Squirrel Reversi - you are X and move first; + marks your moves', 10
         db 'Type a square like d3, n for a new game, q to quit', 10, 0
 m_cols db '    a b c d e f g h', 10, 0
@@ -781,4 +1109,11 @@ alignb 4
 board resb BSIZE
 ply1 resb BSIZE
 ply2 resb BSIZE
+alignb 4
+cursor resd 1
+last resd 1
+gmsg resd 1
+gtitle resb GG_SBMAX
+GUI_BSS
+GG_BSS
 SQX_END
