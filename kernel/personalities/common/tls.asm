@@ -9,7 +9,7 @@
 ; makes it an ordinary flat data segment), and FS and GS are reloaded
 ; with it. The kernel itself never uses FS or GS.
 ;
-; SYS_SETTLS (35): ebx = base -> eax = the selector to load (TLS_SEL);
+; SYS_SETTLS (36): ebx = base -> eax = the selector to load (TLS_SEL);
 ; also loads it into FS and GS at once. Linux set_thread_area (243) uses
 ; the same slot (linux.asm). See
 ; documentation/architecture/foreign-compatibility.md.

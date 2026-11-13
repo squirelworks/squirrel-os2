@@ -24,6 +24,16 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `udptest.asm` | SQX | Sends a UDP datagram to 127.0.0.1 and reads it back; a second process is refused that port (`run udptest`, 1.9.7) |
 | `priotest.asm` | SQX | High-priority spin must keep a low-priority child from running until the priority drops (`run priotest`, 1.9.9) |
 | `drvtest.asm` | SQX | Registers a null char device with `SYS_DEVREG`, writes and reads it (`run drvtest`, 1.9.12) |
+| `guitest.asm` | SQX | Self-check of `SYS_GUI` and `gui.inc`: draws a window, reads pixels back from the screen, the clock and `GUI_EVAL` (`run guitest`, `run guitest hold`) |
+| `calculator.asm` | SQX | Calculator in a window, standard and scientific keypads on the `sci` engine (`run calculator`, A.1) |
+| `clock.asm` | SQX | Analogue clock with the time and date (`run clock`, `run clock test`, A.1) |
+| `notepad.asm` | SQX | Text editor in a window (`run notepad [file]`, A.1) |
+| `grapher.asm` | SQX | 2D graphing calculator: explicit, polar and parametric functions, zoom, pan, trace, roots, extrema, intersections (`run grapher [f]`, `run grapher test`, C.2) |
+| `charmap.asm` | SQX | Character map of the system font; collects characters, F2 saves them (`run charmap`, A.2) |
+| `paint.asm` | SQX | Bitmap painter: pen, line, box, solid box, fill, eraser, undo; 16 colours; saves and opens BMP (`run paint [f]`, `run paint test`, A.2) |
+| `viewer.asm` | SQX | Image viewer for 8- and 24-bit BMP with zoom and scrolling, dithered to a 192-colour cube (`run viewer f [test]`, A.2) |
+| `topology.asm` | SQX | Topology calculator: face counts, Euler characteristic and Betti numbers over Z/2 and Q of simplicial complexes, 11 ready-made ones or typed (`run topology`, `run topology test`, C.9) |
+| `matrixgui.asm` | SQX | Matrices A and B up to 4 x 4 in a grid: + - *, determinant, inverse, transpose, rank, solve A X = B (`run matrixgui`, `run matrixgui test`, C.9) |
 | `lxhello.asm` | ELF32 (Linux) | Linux i386 program: `write` to fd 1 and 2, argc/argv from the Linux stack, `-ENOSYS`, `exit` (`run lxhello`, P.1) |
 | `lxfile.asm` | ELF32 (Linux) | Linux `open`/`write`/`close`/`lseek`/`read`, `brk`, `mmap2`, `-errno` results (`run lxfile`, P.2) |
 | `lxcat.asm` | ELF32 (Linux) | Copies Linux stdin to stdout with `read(0)` (`echo hi \| run lxcat`, P.2) |
@@ -34,6 +44,8 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `winshim.inc` | — | The KERNEL32 start-up calls and the msvcrt subset that `winrun` binds imports to |
 | `lxelf.inc` | — | ELF header macro and Linux call numbers for the Linux test programs |
 | `sqx.inc` | — | SQX header macro and syscall numbers |
+| `bmp.inc` | — | BMP reader (8- and 24-bit) and 16-colour writer for programs |
+| `gui.inc` | — | Graphics toolkit for programs over `SYS_GUI`: back buffer, pixels, lines, text, windows, buttons, keys, mouse (`../documentation/apps/gui-programs.md`) |
 
 Build and install:
 

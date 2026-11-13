@@ -222,7 +222,7 @@ print their low word). The data imports `_iob`, `__initenv`, `__mb_cur_max`, `_f
 
 **TEB and PEB.** Before the entry point, `winrun` builds a TEB (exception list −1, stack base
 and limit, `Self` at `+0x18`, ids, the PEB at `+0x30`, TLS slots at `+0xE10`) and a PEB (image
-base at `+8`) and asks the kernel for a segment based there with `SYS_SETTLS` (35). FS then
+base at `+8`) and asks the kernel for a segment based there with `SYS_SETTLS` (36). FS then
 reaches the TEB as on Windows. The kernel keeps one TLS base per process slot and reloads FS
 and GS on every switch (`kernel/personalities/common/tls.asm`, GDT selector `0x3B`); for every
 other process the base is 0, a plain flat segment.
