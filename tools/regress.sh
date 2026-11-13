@@ -20,7 +20,7 @@ python3 "$root/tools/sqfs.py" "$out/progs.img" format 1024
 for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3 lxhello lxfile lxcat lxsys winrun winhello wincrt winprog; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
 # OS2-GAMES (G.x): the games get a disk of their own, so the file counts above stay put
 python3 "$root/tools/sqfs.py" "$out/games.img" format 1024
-for prog in mines reversi klondike freecell hearts chess mahjongg; do
+for prog in mines reversi klondike freecell hearts chess mahjongg bridge; do
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
     python3 "$root/tools/sqfs.py" "$out/games.img" put "$out/$prog"
 done
@@ -786,6 +786,8 @@ check chess-test    'chess: PASS'           'run chess test' '<ret>' '<pause>' '
 check_all chess-pgn '[Black "Squirrel Chess"]|1. e4 d5 *' 'run chess 1' '<ret>' e2e4 '<ret>' '<pause>' 'save g.pgn' '<ret>' q '<ret>' 'cat g.pgn' '<ret>'
 check mahjongg-test 'mahjongg: PASS'        'run mahjongg test' '<ret>' '<pause>'
 check_all mahjongg-play 'Try j1 a3|Tiles left: 106' 'run mahjongg 2' '<ret>' h '<ret>' 'j1 a3' '<ret>'
+check bridge-test   'bridge: PASS'          'run bridge test' '<ret>' '<pause>'
+check_all bridge-play 'S pass  W pass  N 1H  E pass  S 3H|Contract: 3H by North|Trick: East AS|Play from South' 'run bridge 1' '<ret>' p '<ret>' 3h '<ret>'
 disk=$out/progs.img
 # 1.0.6: calc, edit and draw titles follow lang
 check l10n-calc-tlh "mI' De'wI' (Esc to exit)" 'lang tlh' '<ret>' 'run calc' '<ret>'
