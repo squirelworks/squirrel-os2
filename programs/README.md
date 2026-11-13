@@ -42,6 +42,7 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `lxfile.asm` | ELF32 (Linux) | Linux `open`/`write`/`close`/`lseek`/`read`, `brk`, `mmap2`, `-errno` results (`run lxfile`, P.2) |
 | `lxcat.asm` | ELF32 (Linux) | Copies Linux stdin to stdout with `read(0)` (`echo hi \| run lxcat`, P.2) |
 | `lxsys.asm` | ELF32 (Linux) | More Linux calls: `writev`, `ioctl`, `uname`, `stat64`, `openat`, `rename`/`unlink`/`mkdir`, `set_thread_area` + GS (`run lxsys`, P.2) |
+| `lxsig.asm` | ELF32 (Linux) | Linux signals: handlers with and without a restorer, `SA_SIGINFO`, masks and pending, `SIG_IGN`, `SA_RESETHAND`, then `SIGTERM` ends it (`run lxsig`, P.2) |
 | `winrun.asm` | SQX | Win32 PE32 console loader and KERNEL32 shim; the kernel runs it for `MZ` files with a PE header, and it passes DOS `MZ` files on to `dosrun` (`run winrun prog.exe`, P.5) |
 | `dosrun.asm` | SQX | DOS `.COM`/`.EXE` runner: an 8086/186 interpreter with the `INT 21h`/BIOS subset; the kernel runs it for `*.com` and DOS `MZ` files (`run prog.com`, P.8, `../documentation/architecture/dosrun.md`) |
 | `doshello.asm` | DOS .COM | INT 21h output, the BIOS teletype, the command tail (`run doshello.com acorns`, P.8) |

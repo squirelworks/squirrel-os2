@@ -150,7 +150,11 @@ the call.
 | 183 | `getcwd` | `/` |
 | 13, 78, 265 | `time`, `gettimeofday`, `clock_gettime` | time since boot from the 100 Hz tick (there is no clock call yet) |
 | 162 | `nanosleep` | one yield |
-| 174, 175 | `rt_sigaction`, `rt_sigprocmask` | accepted; old values read as default / nothing blocked; no signal is ever delivered |
+| 174, 175, 176 | `rt_sigaction`, `rt_sigprocmask`, `rt_sigpending` | per process, signals 1–32 (below); `SIGKILL`/`SIGSTOP` cannot be caught or blocked |
+| 37, 238, 270 | `kill`, `tkill`, `tgkill` | pid 0, −1 or its own: itself; another Linux process: pending there; a native program `-EPERM` |
+| 119, 173 | `sigreturn`, `rt_sigreturn` | reload the registers and the mask from the signal frame |
+| 29 | `pause` | waits for a deliverable signal, then `-EINTR` |
+| 64 | `getppid` | the parent's pid |
 | 24, 47, 49, 50, 199–202 | uid and gid calls | 0 |
 | 224, 258 | `gettid`, `set_tid_address` | the pid |
 | 125, 219 | `mprotect`, `madvise` | accepted (0) |
@@ -160,7 +164,21 @@ File descriptors: Linux 0–2 are the console; Linux fd *n* ≥ 3 is native fd *
 anonymous `mmap` share the one native heap at `0x40000000`, so shrinking `brk` below a mapping
 returns that mapping's pages too; real programs grow `brk` and do not do this.
 
-Not yet: signal delivery, `clone`/`fork`/`execve`, `dup`/`pipe`, `getdents64`, `chdir`, a real
+Signals: a pending, unblocked signal is delivered when its process returns from `int 0x80`.
+The kernel pushes a frame on the user stack: the return address (`sa_restorer` with
+`SA_RESTORER`, else a `mov eax, 173 / int 0x80` stub inside the frame), the signal number,
+pointers to a `siginfo` (`si_signo`, `SI_USER`, `si_pid`) and a `ucontext` holding the i386
+`sigcontext` and the old mask, and starts the handler with the signal and `SA_NODEFER`-less
+self-blocking applied; `SA_RESETHAND` is honoured. `sigreturn`/`rt_sigreturn` restore the
+general registers, `eip`, `esp`, the arithmetic flags and DF, and the mask. Default actions:
+`SIGCHLD`, `SIGCONT`, `SIGURG`, `SIGWINCH` and the stop signals are ignored (no job control);
+every other signal ends the process with exit code 128 + n and the line
+`Program ended by signal n`. A frame that does not fit the user stack ends it with `SIGSEGV`.
+Test: `programs/lxsig.asm` (checks `lx-sig`, `lx-sig-term`, `lx-sig-after`).
+
+Not yet: signals from CPU exceptions (a fault still ends the program as for native ones),
+signals that interrupt a blocked call, `sigaltstack`, `alarm`/timers, real-time signals above 32,
+`clone`/`fork`/`execve`, `dup`/`pipe`, `getdents64`, `chdir`, a real
 clock, dynamic linking (P.3), ELF64.
 
 The TLS segment is the same per-process descriptor the Windows layer uses for FS (see the TEB
