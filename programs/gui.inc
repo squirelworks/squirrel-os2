@@ -28,6 +28,7 @@ GUI_TICKS   equ 7
 GUI_TIME    equ 8
 GUI_DATE    equ 9
 GUI_EVAL    equ 10
+GUI_PALETTE equ 11
 
 SCR_W       equ 320
 SCR_H       equ 200
@@ -636,12 +637,14 @@ gui_waitkey:
 ; The pointer is drawn on the screen only, never into the back buffer:
 ; gui_flip puts it back on top after copying the buffer.
 EV_CLICK    equ 0x80000000      ; gui_event: a left click at gui_mx, gui_my
+EV_DRAG     equ 0x40000000      ; gui_event: moved with the left button down
 PTR_W       equ 7
 PTR_H       equ 10
 
 ; ecx = ticks to wait at most (0: no limit) -> eax = a key (as
-; gui_pollkey), EV_CLICK for a left-button press (position in gui_mx /
-; gui_my), or 0 when the time ran out. Moves the pointer as the mouse moves.
+; gui_pollkey), EV_CLICK for a left-button press or EV_DRAG for a move
+; with it held (position in gui_mx / gui_my), or 0 when the time ran out.
+; Moves the pointer as the mouse moves.
 gui_event:
     push ebx
     push edx
@@ -673,14 +676,23 @@ gui_event:
     mov [gui_mx], edx
     mov [gui_my], ebx
     call gui_ptr_show
+    mov bl, 1                   ; moved
+    jmp .b
 .btn:
+    xor bl, bl
+.b:
     shr eax, 20
-    mov bl, [gui_btns]
+    mov bh, [gui_btns]
     mov [gui_btns], al
     test al, 1
     jz .time
-    test bl, 1
-    jnz .time
+    test bh, 1
+    jz .press
+    test bl, bl                 ; held: a drag if it moved
+    jz .time
+    mov eax, EV_DRAG
+    jmp .r
+.press:
     mov eax, EV_CLICK
     jmp .r
 .time:

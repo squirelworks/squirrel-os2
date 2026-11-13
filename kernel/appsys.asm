@@ -21,7 +21,8 @@ GUI_TICKS   equ 7               ; -> timer ticks (100 a second)
 GUI_TIME    equ 8               ; -> hours << 16 | minutes << 8 | seconds
 GUI_DATE    equ 9               ; -> year << 16 | month << 8 | day
 GUI_EVAL    equ 10              ; ecx = eval block -> 0, or -1 with the message
-GUI_OPS     equ 11
+GUI_PALETTE equ 11              ; ecx = first | count << 16, edx = RGB bytes (0-63)
+GUI_OPS     equ 12
 
 ; Rect block: dd x, y, width, height, buffer, pitch (bytes per buffer row).
 ; One byte per pixel. The part of the rectangle off the screen is skipped.
@@ -53,7 +54,7 @@ sys_gui:
 
 gui_ops:
     dd gui_enter, gui_leave, gui_blit, gui_read, gui_key, gui_mouse
-    dd gui_font, gui_ticks, gui_time, gui_date, gui_eval
+    dd gui_font, gui_ticks, gui_time, gui_date, gui_eval, gui_palette
 
 gui_enter:
     call gfx_mode13
@@ -286,6 +287,29 @@ gui_eval:
     mov byte [edi], 0
 .r:
     mov eax, ebx
+    ret
+
+; ecx = first entry | count << 16, edx = 3 bytes (red, green, blue, 0-63)
+; an entry. Only DAC entries 64-255 may change: the text mode uses 0-63,
+; so the text screen comes back with its colours. -> 0, or -1.
+gui_palette:
+    movzx eax, cx               ; first
+    shr ecx, 16                 ; count
+    cmp eax, 64
+    jb .bad
+    lea ebx, [eax+ecx]
+    cmp ebx, 256
+    ja .bad
+    mov esi, edx
+    mov dx, 0x3C8
+    out dx, al
+    inc dx
+    lea ecx, [ecx+ecx*2]
+    rep outsb
+    xor eax, eax
+    ret
+.bad:
+    or eax, -1
     ret
 
 gui_dir db 0

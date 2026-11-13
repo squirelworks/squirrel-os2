@@ -110,6 +110,7 @@ through headless QEMU.
 | 8 | `GUI_TIME` | — | hours << 16 \| minutes << 8 \| seconds, from the CMOS clock (BCD or binary) |
 | 9 | `GUI_DATE` | — | year << 16 \| month << 8 \| day (the century register, or 20) |
 | 10 | `GUI_EVAL` | eval block | 0, or −1 on an error. Evaluates an expression with the `sci` engine |
+| 11 | `GUI_PALETTE` | first entry \| count << 16; `edx` = 3 bytes an entry (red, green, blue, 0–63) | 0, or −1 if the entries are not all within 64–255. Sets VGA DAC entries; 0–63 are refused because text mode uses them |
 
 Rect block: six dwords, `x`, `y`, `width`, `height`, `buffer`, `pitch` (bytes from one buffer row to the next).
 

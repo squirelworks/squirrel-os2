@@ -1,6 +1,6 @@
 # Graphical programs (A.1)
 
-Programs on the data disk that draw in graphics mode through `SYS_GUI` (`../kernel/syscalls.md`) and the toolkit in `programs/gui.inc`. They run with `run <name>` from the shell, take over the screen in VGA mode 13h (320 × 200) and give the text screen back as it was when they quit. The grapher (C.2) is described in `grapher.md`. Each draws a window in the window manager's look (white frame, blue title bar, light grey client area) and uses the kernel's 5 × 7 font, so the regression run reads their text with `<gfx>`. A mouse moves a pointer and left clicks work where the program says so.
+Programs on the data disk that draw in graphics mode through `SYS_GUI` (`../kernel/syscalls.md`) and the toolkit in `programs/gui.inc`. They run with `run <name>` from the shell, take over the screen in VGA mode 13h (320 × 200) and give the text screen back as it was when they quit. The grapher (C.2) is described in `grapher.md`, Paint and the image viewer (A.2) in `paint.md`. Each draws a window in the window manager's look (white frame, blue title bar, light grey client area) and uses the kernel's 5 × 7 font, so the regression run reads their text with `<gfx>`. A mouse moves a pointer and left clicks work where the program says so.
 
 They are separate files, not kernel code, so they do not use kernel image space. Build and install one as any program (`../../programs/README.md`).
 
@@ -44,6 +44,21 @@ A text editor in a full-screen window, the graphical counterpart of `edit`: up t
 | Esc | quit; with unsaved changes it asks `Save changes? y/n` first (Esc there goes back) |
 
 The title is `Notepad - <file>`; the status row shows the name, `*` while there are unsaved changes, `Ln` and `Col`, and the last message (`Saved`, `Opened`, `New file`, `Not saved!`). Checks: `notepad`, `notepad-save` (the file holds the text afterwards), `notepad-open`, `notepad-ask`, `notepad-quit`.
+
+## Character map (`run charmap`)
+
+The 95 characters of the system font (0x20–0x7E) in a grid of 16 columns, the chosen one four times larger beside it with its code in hex and decimal (`0x7E`, `126`), and a field of collected characters underneath.
+
+| Key | Action |
+|-----|--------|
+| arrows, Home, End, or a click | choose a character |
+| a typed character | jumps to it |
+| Enter or Space | adds the chosen character to the field (up to 40) |
+| Backspace | removes the last one |
+| F2 | saves the field as the file `charmap.txt` |
+| Esc | quits |
+
+Checks: `charmap` (A, B, then `~` reached by typing `z` and Down), `charmap-save`.
 
 ## Writing one
 

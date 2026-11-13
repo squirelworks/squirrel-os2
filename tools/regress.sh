@@ -35,10 +35,18 @@ mkdir -p "$out/dk" && printf 'desktop\n' > "$out/dk/autoexec.bat"
 python3 "$root/tools/sqfs.py" "$out/dkauto.img" put "$out/dk/autoexec.bat"
 # OS2-APPS: graphical programs (SYS_GUI) on a data disk of their own
 python3 "$root/tools/sqfs.py" "$out/apps.img" format 1024
-for prog in guitest calculator clock notepad grapher; do
+for prog in guitest calculator clock notepad grapher charmap paint viewer; do
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
     python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/$prog"
 done
+python3 - "$out/grad.bmp" <<'PYEOF'    # A.2: a 24-bit test picture, 64 x 48
+import struct, sys
+w, h = 64, 48
+rows = b''.join(bytes(c for x in range(w) for c in (128, y * 255 // (h - 1), x * 255 // (w - 1))) for y in range(h - 1, -1, -1))
+open(sys.argv[1], 'wb').write(b'BM' + struct.pack('<IHHI', 54 + len(rows), 0, 0, 54)
+    + struct.pack('<IiiHHIIiiII', 40, w, h, 1, 24, 0, len(rows), 2835, 2835, 0, 0) + rows)
+PYEOF
+python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/grad.bmp"
 rm -f "$out/data.img"
 dd if=/dev/zero of="$out/data.img" bs=1024 count=1024 2>/dev/null
 
@@ -735,6 +743,18 @@ check_all grapher-trace 'gfx: 2: x = 4*cos(t), y = 2*sin(t)|gfx: t=0.0262|gfx: x
 check grapher-zoom  'gfx: roots: -3.1416'   'run grapher sin(x)' '<ret>' '<pause>' '+' 'z' '<pause>' '<gfx>'
 check grapher-syn   'gfx: Error: syntax at column 4' 'run grapher' '<ret>' '<pause>' 'y = 2*(' '<ret>' '<pause>' '<gfx>'
 check grapher-quit  'systest: PASS'         'run grapher sin(x)' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
+# A.2: character map, paint, image viewer
+check_all charmap   'gfx: Character map|gfx: AB~|gfx: 0x7E|gfx: 126' 'run charmap' '<ret>' '<pause>' '<ret>' '<right>' '<ret>' 'z' '<down>' '<ret>' '<pause>' '<gfx>'
+check charmap-save  'AB~'                   'run charmap' '<ret>' '<pause>' '<ret>' '<right>' '<ret>' 'z' '<down>' '<ret>' '<f2>' '<pause>' '<esc>' '<pause>' 'cat charmap.txt' '<ret>'
+check paint         'paint: PASS'           'run paint test' '<ret>' '<pause>' '<pause>' '<pause>'
+check_all paint-keys 'gfx: Paint - pic.bmp|gfx: Saved' 'run paint' '<ret>' '<pause>' 's' '<spc>' '<ctrl-right>' '<ctrl-down>' '<spc>' '<ctrl-s>' 'pic.bmp' '<ret>' '<pause>' '<gfx>'
+check_all paint-open 'gfx: Paint - pic.bmp|gfx: Opened' 'run paint pic.bmp' '<ret>' '<pause>' '<pause>' '<gfx>'
+check paint-quit    'systest: PASS'         'run paint' '<ret>' '<pause>' '<spc>' '<esc>' '<esc>' 'n' '<pause>' systest '<ret>'
+check_all viewer    'viewer: ptest.bmp 272 x 160, 8 bits|viewer: PASS' 'run viewer ptest.bmp test' '<ret>' '<pause>' '<pause>'
+check_all viewer-24 'viewer: grad.bmp 64 x 48, 24 bits|viewer: PASS' 'run viewer grad.bmp test' '<ret>' '<pause>' '<pause>'
+check_all viewer-gfx 'gfx: grad.bmp|gfx: 64 x 48, 24 bits|gfx: 2:1' 'run viewer grad.bmp' '<ret>' '<pause>' '<pause>' '+' '<pause>' '<gfx>'
+check viewer-bad    'viewer: not an 8- or 24-bit BMP, or not found' 'run viewer nosuch.bmp' '<ret>'
+check viewer-quit   'systest: PASS'         'run viewer grad.bmp' '<ret>' '<pause>' '<pause>' '<esc>' '<pause>' systest '<ret>'
 disk=$out/auto.img
 check bat-autoexec  'autoexec ran'
 check lang-autoexec 'Tabulae:'              ls '<ret>'
