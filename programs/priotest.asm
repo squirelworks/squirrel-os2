@@ -7,7 +7,7 @@
 %include "sqx.inc"
 SQX_HEADER main
 
-SPIN_LIMIT equ 1 << 28
+SPIN_LIMIT equ 1 << 26           ; well under AGE_TICKS (2 s at 100 Hz) even on a slow TCG host, many slices long
 
 main:
     mov eax, SYS_SETPRIO
