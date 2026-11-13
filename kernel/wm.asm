@@ -89,10 +89,10 @@ wm_fits:
     test ebx, ebx
     js .no
     lea ebp, [eax+ecx]
-    cmp ebp, GFX_W
+    cmp ebp, [gfx_width]        ; the live mode (2.2-vbe-wm)
     jg .no
     lea ebp, [ebx+edx]
-    cmp ebp, GFX_H
+    cmp ebp, [gfx_height]
     jg .no
     pop ebp
     clc
@@ -253,8 +253,8 @@ wm_redraw:
     mov byte [ptr_vis], 0       ; the repaint covers the pointer (2.0.1)
     xor eax, eax
     xor ebx, ebx
-    mov ecx, GFX_W
-    mov edx, GFX_H
+    mov ecx, [gfx_width]
+    mov edx, [gfx_height]
     mov byte [gfx_colour], WM_DESKTOP
     call gfx_fillrect
     xor ebp, ebp
@@ -644,3 +644,105 @@ wm_table times WM_MAX * WIN_SIZE db 0
 wm_z times WM_MAX db 0          ; open window ids, bottom first
 wm_zn dd 0                      ; how many
 wm_drawbar db WM_BAR            ; title bar colour for wm_draw
+
+; ---------- the window manager's screen (2.2-vbe-wm) ----------
+
+; Enters the screen the window manager draws on: 640 x 480 at 8 bpp through
+; VBE, or mode 13h when VBE is not there or refuses the mode. Colours are
+; palette indices either way (the DAC keeps the EGA palette). CF set when
+; neither could be entered (no pages to save the text screen).
+wm_screen:
+    call vbe_setup
+    jc .vga
+    push eax
+    push ebx
+    push ecx
+    mov eax, WM_SCR_W
+    mov ebx, WM_SCR_H
+    mov cl, 8
+    call vbe_mode
+    pop ecx
+    pop ebx
+    pop eax
+    jnc .r
+.vga:
+    jmp gfx_mode13
+.r:
+    ret
+
+WM_SCR_W equ 640
+WM_SCR_H equ 480
+
+; winvbe: a window right of x = 320 and below y = 200 in the window
+; manager's VBE screen; reads back its frame, title bar and title text, then
+; closes it and reads the desktop there. Prints `winvbe: PASS`, or
+; `winvbe: FAIL` (also when VBE was not entered).
+WV_X equ 400
+WV_Y equ 300
+cmd_winvbe_run:
+    call wm_screen
+    jc .out
+    mov byte [gfxt_ok], 0
+    cmp byte [gfx_vbe], 0
+    je .text
+    mov byte [gfxt_ok], 1
+    mov eax, WV_X
+    mov ebx, WV_Y
+    mov ecx, WT_W
+    mov edx, WT_H
+    mov esi, wt_title
+    call wm_create
+    push eax
+    call wm_redraw
+    mov esi, wv_open
+    call wv_expect
+    pop eax
+    call wm_close
+    call wm_redraw
+    mov esi, wv_shut
+    call wv_expect
+.text:
+    call gfx_text
+.out:
+    mov esi, wv_pass
+    cmp byte [gfxt_ok], 1
+    je .say
+    mov esi, wv_fail
+.say:
+    jmp puts
+
+; esi = x (dd), y (dd), colour (db) ..., x = -1 ends; a miss clears gfxt_ok
+wv_expect:
+    lodsd
+    cmp eax, -1
+    je .r
+    mov ebx, [esi]
+    mov dl, [esi+4]
+    add esi, 5
+    call gfx_getpixel
+    cmp cl, dl
+    je wv_expect
+    mov byte [gfxt_ok], 0
+    jmp wv_expect
+.r:
+    ret
+
+wv_open:
+    dd WV_X, WV_Y + WT_H / 2
+    db WM_FRAME                 ; left edge
+    dd WV_X + WT_W - 1, WV_Y + WT_H - 1
+    db WM_FRAME                 ; bottom right corner
+    dd WV_X + WT_W / 2, WV_Y + 1
+    db WM_BAR                   ; title bar (focused)
+    dd WV_X + WT_W / 2, WV_Y + WT_H / 2
+    db WM_CLIENT                ; client area
+    dd WV_X - 1, WV_Y + WT_H / 2
+    db WM_DESKTOP               ; just left of it
+    dd -1
+wv_shut:
+    dd WV_X, WV_Y + WT_H / 2
+    db WM_DESKTOP               ; the frame is gone
+    dd -1
+
+wv_pass db 'winvbe: PASS', 10, 0
+wv_fail db 'winvbe: FAIL', 10, 0

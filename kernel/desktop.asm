@@ -14,15 +14,26 @@ DK_W equ 240
 DK_H equ 150
 
 cmd_desktop_run:
-    call gfx_mode13
+    call wm_screen              ; 640 x 480 x 8 VBE, or mode 13h (2.2-vbe-wm)
     jnc .ok
     mov esi, dk_nomem
     jmp puts
 .ok:
+    mov eax, [gfx_width]        ; the 320 x 200 layout, centred on the screen
+    sub eax, GFX_W
+    shr eax, 1
+    mov [dk_ox], eax
+    add [mouse_x], eax          ; the pointer keeps its place on the layout
+    mov eax, [gfx_height]
+    sub eax, GFX_H
+    shr eax, 1
+    mov [dk_oy], eax
+    add [mouse_y], eax
     call dk_mkobjs              ; the entries are objects (1.7.6)
     mov dword [dk_cur], 0       ; the top level (1.9.0)
     mov eax, DK_X
     mov ebx, DK_Y
+    call dk_org
     mov ecx, DK_W
     mov edx, DK_H
     mov esi, dk_title
@@ -133,6 +144,10 @@ cmd_desktop_run:
     mov eax, [dk_win]
     call wm_close
     call dk_freeobjs
+    mov eax, [dk_ox]            ; the pointer back to the 320 x 200 layout
+    sub [mouse_x], eax
+    mov eax, [dk_oy]
+    sub [mouse_y], eax
     call gfx_text
     mov esi, dk_bye
     jmp puts
@@ -304,6 +319,7 @@ dk_rename:
     call dk_cpy
     mov eax, DK_X + 20
     mov ebx, DK_Y + 50
+    call dk_org
     mov ecx, DK_W - 40
     mov edx, 34
     mov esi, dk_rtitle
@@ -721,6 +737,7 @@ dk_textwin:
     mov byte [run_arg], 0       ; no file name: edit asks when it saves
     mov eax, DKT_X
     mov ebx, DKT_Y
+    call dk_org
     mov ecx, DKT_W
     mov edx, DKT_H
     mov esi, [dk_name]
@@ -765,6 +782,17 @@ dk_refresh:
 ; Soft mouse pointer: a white plus at mouse_x, mouse_y (1.9.10). Since
 ; 2.0.1 it keeps the pixels under it and puts them back when it moves
 ; (ptr_show in mouse.asm), so it leaves no trail.
+; eax, ebx = a place on the 320 x 200 layout -> the same place on the
+; screen (2.2-vbe-wm: the layout is centred in a larger mode).
+dk_org:
+    add eax, [dk_ox]
+    add ebx, [dk_oy]
+    ret
+
+align 4
+dk_ox dd 0
+dk_oy dd 0
+
 dk_ptr:
     jmp ptr_show
 
@@ -781,11 +809,13 @@ dk_mouse:
     je .no
     ; screen → list row
     mov eax, [mouse_x]
+    sub eax, [dk_ox]
     sub eax, DK_X + 1 + 4
     js .no
     cmp eax, DK_W - 2 - 4
     jae .no
     mov eax, [mouse_y]
+    sub eax, [dk_oy]
     sub eax, DK_Y + 1 + WM_TITLE_H + 16
     js .no
     xor edx, edx

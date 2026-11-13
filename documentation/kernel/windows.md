@@ -1,6 +1,12 @@
 # Windows
 
-The window manager (`kernel/wm.asm`, since 1.4.0) draws windows in graphics mode with the primitives in `graphics.md`. Keyboard only; there is no mouse. It still runs in VGA mode 13h (320×200); VBE modes from 2.1 are exercised by `vbetest` and are not yet the window manager's display.
+The window manager (`kernel/wm.asm`, since 1.4.0) draws windows in graphics mode with the primitives in `graphics.md`. Keyboard, and on the desktop a mouse (`mouse.md`).
+
+## Screen (2.2-vbe-wm)
+
+`wm_screen` enters the screen the window manager draws on: 640×480 at 8 bpp through VBE (`vbe_setup`, `vbe_mode`), or VGA mode 13h (320×200) when VBE is not there or refuses the mode. CF means neither could be entered. Colours are palette indices in both, from `kernel/theme.inc`; the DAC keeps the EGA palette in either mode. `wm_create`, `wm_move`, `wm_resize` and `wm_redraw` use the live size (`gfx_width`, `gfx_height`), not 320×200. The desktop (`../apps/desktop.md`) uses `wm_screen`; the 1.4 tests (`wintest`, `winmove`, `winfocus`) and the widget tests still enter mode 13h themselves, so their pixel positions are unchanged. Drawing is straight to the visible page for now; double buffering with dirty-rectangle flips comes with **2.2-clip-z**.
+
+`winvbe` enters the screen, opens a 200 × 120 window at (400, 300), which is wholly outside 320×200, redraws, and reads back its left edge and bottom-right corner (frame), the title bar, the client area and the desktop just left of it. It closes the window, redraws, and checks the left edge is desktop again. It returns to text mode and prints `winvbe: PASS`, or `winvbe: FAIL` (also when VBE was not entered). Checks `winvbe` and `winvbe-text`.
 
 ## Windows
 

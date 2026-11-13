@@ -13,7 +13,7 @@ Mouse bytes are drained everywhere, not only on the desktop. In 1.9.10 they were
 | Symbol | Meaning |
 |--------|---------|
 | `mouse_up` | 1 after a successful enable at boot |
-| `mouse_x`, `mouse_y` | cursor in mode-13h pixels (0..319, 0..199) |
+| `mouse_x`, `mouse_y` | cursor in pixels, kept inside the live mode (`gfx_width` × `gfx_height`; 320 × 200 before 2.2) |
 | `mouse_btns` | bits 0–2: left, right, middle |
 | `mouse_clicks` | count of left-button make edges |
 | `mouse_irqs` | count of IRQ 12 interrupts (2.0.1) |

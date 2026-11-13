@@ -59,21 +59,26 @@ def read_ppm(path):
 
 def gfx_text(path):
     """Lines of text drawn with the kernel's font on a 320 x 200 screen
-    (QEMU may dump it doubled to 640 x 400). A cell is read only when its
+    (QEMU may dump it doubled to 640 x 400) or on a VBE screen such as
+    640 x 480 (2.2-vbe-wm), read at its own size. A cell is read only when its
     spacing column and bottom row are all one colour (the background); its
     other pixels are ink where they differ from that colour."""
     import mkfont
     font = {tuple(rows): chr(c) for c, rows in mkfont.read().items() if c != 0x20}
     w, h, rgb = read_ppm(path)
-    sx, sy = w // 320, h // 200
+    if w * 200 == h * 320:              # mode 13h, maybe doubled
+        sw, sh = 320, 200
+    else:                               # 2.2-vbe-wm: a VBE mode, read as is
+        sw, sh = w, h
+    sx, sy = w // sw, h // sh
     px = [[rgb[((y * sy) * w + x * sx) * 3:((y * sy) * w + x * sx) * 3 + 3]
-           for x in range(320)] for y in range(200)]
+           for x in range(sw)] for y in range(sh)]
     lines = []
     for oy in range(8):
         for ox in range(6):
-            for top in range(oy, 200 - 7, 8):
+            for top in range(oy, sh - 7, 8):
                 text = ''
-                for left in range(ox, 320 - 5, 6):
+                for left in range(ox, sw - 5, 6):
                     bg = px[top + 7][left + 5]
                     ch = ' '
                     if all(px[top + 7][left + i] == bg for i in range(6)) and \
