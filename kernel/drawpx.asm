@@ -42,6 +42,7 @@ dp_run:
     mov dword [dp_msg], dp_m_ready
 .loop:
     call dp_render
+    call vbe_flip               ; on the desktop's back page: show it (2.2-clip-z)
     call fb_waitkey
     call dp_key
     jnc .loop
