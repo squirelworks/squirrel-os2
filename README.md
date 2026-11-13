@@ -48,4 +48,4 @@ Font: lowercase `q` now has a straight stem with a right-hand tail on its descen
 
 ## License
 
-Squirrel OS/2 is released into the public domain under [the Unlicense](LICENSE).
+Squirrel OS/2 is free software under the [GNU General Public License, version 3](LICENSE) (GPL-3.0), the same license as SquirrelSoft.
