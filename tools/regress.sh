@@ -870,6 +870,60 @@ check_all dos-run-com 'Hello from DOS land!|#! tail: acorns|doshello: PASS'  'ru
 check_all dos-run-exe 'Hello from an MZ .EXE!|dosexe: PASS'  'run dosexe.exe' '<ret>'
 check_all dos-winrun  'Hello from an MZ .EXE!|dosexe: PASS'  'run winrun dosexe.exe' '<ret>'
 check dos-run-after   'systest: PASS'         'run doscpu.com' '<ret>' systest '<ret>'
+# 3.0 (OS2-NET-AUDIO): sound. AC'97 and Intel HDA under QEMU (-audiodev none paces the DMA in
+# real time; -audiodev wav writes what was played, which tools/wavcheck.py listens to)
+python3 "$root/tools/sqfs.py" "$out/snd.img" format 1024
+for prog in wavplay sndrec mixer spectrum; do
+    nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
+    python3 "$root/tools/sqfs.py" "$out/snd.img" put "$out/$prog"
+done
+python3 - "$out" <<'PYEOF'    # test tones: 1 kHz 16-bit mono 22050 Hz, 440 Hz 8-bit stereo 11025 Hz
+import math, struct, sys
+def wav(name, rate, ch, bits, freq, secs, amp):
+    data = bytearray()
+    for i in range(int(rate * secs)):
+        v = math.sin(2 * math.pi * freq * i / rate)
+        for _ in range(ch):
+            data += struct.pack('<h', int(v * amp)) if bits == 16 else bytes([128 + int(v * amp / 256)])
+    fmt = struct.pack('<HHIIHH', 1, ch, rate, rate * ch * bits // 8, ch * bits // 8, bits)
+    open(sys.argv[1] + '/' + name, 'wb').write(b'RIFF' + struct.pack('<I', 36 + len(data)) + b'WAVEfmt '
+        + struct.pack('<I', 16) + fmt + b'data' + struct.pack('<I', len(data)) + data)
+wav('tone1k.wav', 22050, 1, 16, 1000, 0.5, 12000)
+wav('tone8.wav', 11025, 2, 8, 440, 0.5, 20000)
+PYEOF
+for f in tone1k.wav tone8.wav; do python3 "$root/tools/sqfs.py" "$out/snd.img" put "$out/$f"; done
+snd_disk=$disk; disk=$out/snd.img
+check audio-none    'audio: no device'      audio '<ret>'
+check spectrum-test 'spectrum: peak 1000 Hz, 80 dB' 'run spectrum tone1k.wav test' '<ret>' '<pause>'
+check spectrum-8bit 'spectrum: peak 440 Hz' 'run spectrum tone8.wav test' '<ret>' '<pause>'
+check wavplay-nodev 'wavplay: no sound device' 'run wavplay tone1k.wav' '<ret>'
+export QEMU_EXTRA='-audiodev none,id=snd0 -device AC97,audiodev=snd0'
+check audio-ac97    'audio: ac97'           audio '<ret>'
+check audiotest-ac97 'audio: PASS ac97'     audiotest '<ret>' '<pause>'
+check_all wavplay-ac97 'wavplay: 22050 Hz, 16-bit, mono, 0.50 s|wavplay: played 11025 frames' 'run wavplay tone1k.wav' '<ret>' '<pause>' '<pause>'
+check_all wavplay-ac97-8 'wavplay: 11025 Hz, 8-bit, stereo, 0.49 s|wavplay: played 5512 frames' 'run wavplay tone8.wav' '<ret>' '<pause>' '<pause>'
+check_all sndrec-ac97 'sndrec: 1.00 s, 88200 bytes, peak 0 -> rec.wav|wavplay: 22050 Hz, 16-bit, stereo, 1.00 s' 'run sndrec rec.wav 1' '<ret>' '<pause>' '<pause>' 'run wavplay rec.wav' '<ret>' '<pause>' '<pause>'
+check_all mixer-ac97 'master  39%  39%  on|pcm     74%  74%  muted|record  100%  100%  on' 'run mixer master 40' '<ret>' 'run mixer pcm mute' '<ret>' 'run mixer record 100' '<ret>'
+check_all mixer-gui-ac97 'gfx: Mixer|gfx: Device: ac97|gfx: 65%|gfx: muted' 'run mixer' '<ret>' '<pause>' '<down>' '<down>' '<pgdn>' '<right>' m '<pause>' '<gfx>'
+check mixer-quit    'systest: PASS'         'run mixer' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
+check_all spectrum-gui 'gfx: Spectrum Analyser|gfx: Peak 1000 Hz|gfx: 11025 Hz' 'run spectrum tone1k.wav' '<ret>' '<pause>' '<gfx>'
+export QEMU_EXTRA='-audiodev none,id=snd0 -device intel-hda -device hda-duplex,audiodev=snd0'
+check audio-hda     'audio: hda codec 0, dac 2, pin 3, adc 4' audio '<ret>'
+check audiotest-hda 'audio: PASS hda'       audiotest '<ret>' '<pause>'
+check_all wavplay-hda 'wavplay: 11025 Hz, 8-bit, stereo, 0.49 s|wavplay: played 5512 frames' 'run wavplay tone8.wav' '<ret>' '<pause>' '<pause>'
+check sndrec-hda    'sndrec: 1.00 s, 88200 bytes, peak 0 -> rec.wav' 'run sndrec rec.wav 1' '<ret>' '<pause>' '<pause>'
+check_all mixer-hda 'master  41%  41%  on|record  30%  30%  on' 'run mixer master 40' '<ret>' 'run mixer record 30' '<ret>'
+check_all mixer-hda-mute 'master  100%  100%  muted|pcm     100%  100%  muted' 'run mixer master mute' '<ret>'
+# what reached QEMU's audio backend: the 1 kHz tone, from both drivers
+for snd in "AC97,audiodev=snd0" "intel-hda -device hda-output,audiodev=snd0"; do
+    rm -f "$out/played.wav"
+    export QEMU_EXTRA="-audiodev wav,id=snd0,path=$out/played.wav -device $snd"
+    python3 "$root/tools/qemu_screen.py" --disk "$disk" "$out/os.img" 'run wavplay tone1k.wav' '<ret>' '<pause>' '<pause>' >/dev/null 2>&1 || true
+    name=wavout-${snd%%,*}; name=${name%% *}
+    if result=$(python3 "$root/tools/wavcheck.py" "$out/played.wav" 1000 0.25); then echo "ok   $name"; else echo "FAIL $name ($result)"; fail=1; fi
+done
+unset QEMU_EXTRA
+disk=$snd_disk
 disk=$out/auto.img
 check bat-autoexec  'autoexec ran'
 check lang-autoexec 'Tabulae:'              ls '<ret>'

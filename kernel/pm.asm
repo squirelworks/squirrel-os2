@@ -468,6 +468,12 @@ run_simple:
     mov edi, cmd_ifconfig       ; 1.9.11 bare
     call streq
     je .ifconfig
+    mov edi, cmd_audio          ; 3.0
+    call streq
+    je .audio
+    mov edi, cmd_audiotest      ; 3.0
+    call streq
+    je .audiotest
     mov edi, cmd_objs           ; 1.7.2
     call streq
     je .objs
@@ -707,6 +713,12 @@ run_simple:
     jmp .empty
 .ifconfig:
     call cmd_ifconfig_show
+    jmp .empty
+.audio:
+    call cmd_audio_run
+    jmp .empty
+.audiotest:
+    call cmd_audiotest_run
     jmp .empty
 .objs:
     call cmd_objs_run
@@ -1201,6 +1213,8 @@ cmd_arp db 'arp ', 0
 cmd_ping db 'ping ', 0
 cmd_fetch db 'fetch ', 0
 cmd_ifconfig_arg db 'ifconfig ', 0
+cmd_audio db 'audio', 0
+cmd_audiotest db 'audiotest', 0
 cmd_desktop db 'desktop', 0
 cmd_proctest db 'proctest', 0
 proc_full db 'Too many processes', 10, 0
@@ -1397,6 +1411,10 @@ khigh_start:
 %include "ip.asm"
 %include "udp.asm"
 %include "tcp.asm"
+%include "audio/pci.asm"           ; 3.0 (OS2-NET-AUDIO)
+%include "audio/ac97.asm"
+%include "audio/hda.asm"
+%include "audio/audio.asm"
 %include "appsys.asm"
 
 
