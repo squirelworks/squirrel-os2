@@ -8,7 +8,7 @@ are ordinary 32-bit near calls.
 | Part | Source | On the boot disk | Runs at | Size |
 |------|--------|------------------|---------|------|
 | Low image | `pm.asm` section `.text`: `stage2`, the GDT, the real-mode loader `khigh.asm`, the core (interrupts, processes, memory, paging, ATA, SQFS, shell, crash reports, mouse) | sectors 1–192 | `0x8000–0x1FFFF` | fixed 96 KB (`KERNEL_SIZE`), signature `S2OK` last |
-| High image | `pm.asm` section `.high` (`vstart=KHIGH_BASE`): apps, editors, calculators, graphics apps, window manager, widgets, desktop, objects, loader, network stack | sector 193 (`KHIGH_LBA`) on, as many as it needs (`KHIGH_SECTS`) | `0x100000` (`KHIGH_BASE`) upward | whole sectors, signature `S2HI` last; at most `KHIGH_MAX` (1 MB, the reserved RAM) and `KHIGH_LIMIT` (it must end before the installer's partition at sector 2048: 949,248 bytes) |
+| High image | `pm.asm` section `.high` (`vstart=KHIGH_BASE`): apps, editors, calculators, graphics apps, window manager, widgets, desktop, objects, loader, network stack | sector 193 (`KHIGH_LBA`) on, as many as it needs (`KHIGH_SECTS`) | `0x100000` (`KHIGH_BASE`) upward | whole sectors, signature `S2HI` last; at most `KHIGH_MAX` (1 MB, the reserved RAM) and `KHIGH_LIMIT` (it must end before the installer's partition at sector 2048: 949,760 bytes) |
 
 **New kernel code goes in the high image**: add the `%include` between `khigh_start:` and the
 `section .text` line near the end of `pm.asm`. The low image keeps code that must stay below
