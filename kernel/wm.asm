@@ -10,6 +10,8 @@
 WM_MAX          equ 4           ; open windows at most
 
 ; window record
+%include "theme.inc"     ; W.1: colours and sizes
+
 WIN_USED        equ 0           ; byte: 1 while the window is open
 WIN_X           equ 4
 WIN_Y           equ 8
@@ -25,14 +27,14 @@ WM_TITLE_H      equ GFX_CELL_H + 2  ; title bar: one text row and a margin
 WM_MIN_W        equ 16
 WM_MIN_H        equ WM_TITLE_H + 4
 
-; colours (the text mode's EGA palette, as graph uses it)
-WM_DESKTOP      equ 0x03        ; cyan
-WM_FRAME        equ 0x3F        ; white
-WM_BAR          equ 0x01        ; blue: the focused window
-WM_BAR_IDLE     equ 0x38        ; dark grey: the others
-WM_BAR_TEXT     equ 0x3F        ; white
-WM_CLIENT       equ 0x07        ; light grey
-WM_TEXT         equ 0x00        ; black, typed text in the client area
+; colours: aliases of the theme's names (kernel/theme.inc)
+WM_DESKTOP      equ TH_DESKTOP     ; theme.inc
+WM_FRAME        equ TH_FRAME     ; theme.inc
+WM_BAR          equ TH_TITLE     ; theme.inc
+WM_BAR_IDLE     equ TH_TITLE_IDLE     ; theme.inc
+WM_BAR_TEXT     equ TH_TITLE_TEXT     ; theme.inc
+WM_CLIENT       equ TH_CLIENT     ; theme.inc
+WM_TEXT         equ TH_TEXT     ; theme.inc
 
 ; eax = x, ebx = y, ecx = width, edx = height, esi = title
 ; -> eax = window id (0..WM_MAX-1), or -1 if the table is full or the
