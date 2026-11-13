@@ -22,7 +22,8 @@ GUI_TIME    equ 8               ; -> hours << 16 | minutes << 8 | seconds
 GUI_DATE    equ 9               ; -> year << 16 | month << 8 | day
 GUI_EVAL    equ 10              ; ecx = eval block -> 0, or -1 with the message
 GUI_PALETTE equ 11              ; ecx = first | count << 16, edx = RGB bytes (0-63)
-GUI_OPS     equ 12
+GUI_SYSINFO equ 12              ; edx = part, ecx = buffer or argument (sysinfo.asm, A.5)
+GUI_OPS     equ 13
 
 ; Rect block: dd x, y, width, height, buffer, pitch (bytes per buffer row).
 ; One byte per pixel. The part of the rectangle off the screen is skipped.
@@ -55,6 +56,7 @@ sys_gui:
 gui_ops:
     dd gui_enter, gui_leave, gui_blit, gui_read, gui_key, gui_mouse
     dd gui_font, gui_ticks, gui_time, gui_date, gui_eval, gui_palette
+    dd gui_sysinfo
 
 gui_enter:
     call gfx_mode13
@@ -167,6 +169,8 @@ gui_uargs:
     je .font
     cmp ebx, GUI_EVAL
     je .eval
+    cmp ebx, GUI_SYSINFO
+    je .sysinfo
     cmp ebx, GUI_PALETTE
     jne .ok
     shr ecx, 16                 ; count
@@ -185,6 +189,10 @@ gui_uargs:
     mov ecx, 40
 .range:
     call ua_range
+    jc .bad
+    jmp .ok
+.sysinfo:
+    call gui_sysinfo_uargs
     jc .bad
 .ok:
     popad

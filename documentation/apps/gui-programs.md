@@ -115,3 +115,8 @@ SQX_END
 Colours are the `C_*` names of the EGA palette mode 13h keeps (`C_BLUE` 0x01 … `C_WHITE` 0x3F), key scancodes the `K_*` names.
 
 Until the 2.2 window manager gives programs real windows, each program owns the whole screen while it runs; it draws its window over a cyan desktop of its own. The programs will move to the 2.2 window API when it is published in `../kernel/windows.md`.
+
+The spreadsheet Sheet (C.4), with charts linked to its cells, is described in `sheet.md`.
+Geometry (C.6), constructions that follow their points, is described in `geometry.md`.
+The CAS (C.5), exact algebra and calculus in a console, is described in `cas.md`.
+The System Monitor, Log Viewer and Disk Utility (A.5) are described in `sysmon.md`, `logview.md` and `diskutil.md`; they read the system through `GUI_SYSINFO` (`../kernel/syscalls.md`).

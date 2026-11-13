@@ -114,11 +114,25 @@ through headless QEMU.
 | 9 | `GUI_DATE` | — | year << 16 \| month << 8 \| day (the century register, or 20) |
 | 10 | `GUI_EVAL` | eval block | 0, or −1 on an error. Evaluates an expression with the `sci` engine |
 | 11 | `GUI_PALETTE` | first entry \| count << 16; `edx` = 3 bytes an entry (red, green, blue, 0–63) | 0, or −1 if the entries are not all within 64–255. Sets VGA DAC entries; 0–63 are refused because text mode uses them |
+| 12 | `GUI_SYSINFO` | buffer, or pid \| priority << 16; `edx` = part | see below (A.5, `kernel/sysinfo.asm`) |
 
 Rect block: six dwords, `x`, `y`, `width`, `height`, `buffer`, `pitch` (bytes from one buffer row to the next). Width and height up to 4096 and pitch up to 65536, or the call returns −1.
 
 Eval block (40 bytes): `+0` the expression (zero-terminated); `+4` flags: bits 0–1 the variables allowed (0 none, 1 `x`, 2 `x` and `y`), bit 8 degrees, bit 9 store the result as `ans`; `+8` x and `+16` y (doubles); `+24` the result (double, out); `+32` the address of a 40-byte buffer for the result as `sci` prints it, or for the error message (`syntax at column `, `division by zero`, `outside the function domain`, ...), or 0; `+36` (out) the column of a syntax error, from 1. The call resets the FPU.
 
 From ring 3 (`ring3.md`) every buffer must be the program's own memory, or the call returns −1 without running: the rect block and the `pitch × (height − 1) + width` bytes of its buffer, the font buffer, the eval block with its expression and its text buffer, and the palette bytes. The block's pointers are read once and checked on that copy.
+
+### GUI_SYSINFO (A.5)
+
+`GUI_SYSINFO` (12, `kernel/sysinfo.asm`, layouts in `programs/sysinfo.inc`) gives the system monitor and the log viewer a snapshot of the system. `edx` picks the part:
+
+| `edx` | `ecx` | Returns |
+|-------|-------|---------|
+| 0 | a 32-byte buffer | 0. Dwords: `+0` timer ticks since boot, `+4` of them idle (the CPU halted in `proc_idle`), `+8` pages of RAM the kernel manages (4 KB), `+12` of them free, `+16` process slots in use, `+20` slots (`PROC_MAX`), `+24` preemptions by the timer, `+28` bytes in the kernel log |
+| 1 | `PROC_MAX` × 40 bytes | 0. A row for each slot: `+0` pid, `+4` state (0 free, 1 ready, 2 running, 3 waiting, 4 zombie), `+8` priority, `+12` parent's pid, `+16` KB of its own address space (−1: the kernel's), `+20` ticks it has had the CPU, `+24` name (16 bytes, zero-terminated) |
+| 2 | a 4096-byte buffer | the bytes copied: the kernel log, lines of `[seconds] text` |
+| 3 | pid \| priority << 16 | 0, or −1 if there is no such live process or the priority is above 3. Sets that process's priority (`SYS_SETPRIO` sets only the caller's) |
+
+Any other part returns −1. CPU time is counted by the timer: each tick goes to the process that was running, or to idle time while `proc_idle` has halted the CPU; a slot's count starts again at 0 when `proc_spawn` reuses it. The kernel log keeps the last 4 KB (the oldest lines go first): the boot (`Squirrel-OS/2 started: N KB of memory`), each program the loader starts (`started NAME (pid N)`), each process that ends (`ended NAME (pid N), exit code C`), and each exception report (`crashed NAME (pid N): page fault`). From ring 3 the buffer of parts 0 to 2 must be the program's own memory.
 
 Check: `guitest` (`run guitest`: a window drawn by a program, five pixels read back from the screen, a key poll with nothing typed, the ticks and the date, `2^10` = `1024`, a syntax error at column 4, and `x^2` at x = 3; in ring 3, that kernel-memory buffers are refused for each operation that takes one; it prints `guitest: PASS`), and `guitest-gfx` (`run guitest hold` keeps the window up so the run reads its title and text).
