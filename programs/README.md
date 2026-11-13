@@ -24,7 +24,16 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `udptest.asm` | SQX | Sends a UDP datagram to 127.0.0.1 and reads it back; a second process is refused that port (`run udptest`, 1.9.7) |
 | `priotest.asm` | SQX | High-priority spin must keep a low-priority child from running until the priority drops (`run priotest`, 1.9.9) |
 | `drvtest.asm` | SQX | Registers a null char device with `SYS_DEVREG`, writes and reads it (`run drvtest`, 1.9.12) |
+| `mines.asm` | SQX | Minesweeper-class game, G.3 (`run mines [seed] [big]`, `run mines test`); see `documentation/apps/games.md` |
+| `reversi.asm` | SQX | Reversi against a two-ply computer player, G.8 (`run reversi [seed]`, `run reversi test`) |
+| `klondike.asm` | SQX | Klondike solitaire, draw one, G.1 (`run klondike [seed]`, `run klondike test`) |
+| `freecell.asm` | SQX | FreeCell, G.2 (`run freecell [seed]`, `run freecell test`) |
+| `hearts.asm` | SQX | Hearts against three computer players, G.4 (`run hearts [seed]`, `run hearts test`) |
+| `chess.asm` | SQX | Chess against an alpha-beta engine, with SAN and PGN save, G.5 (`run chess [seed]`, `run chess test`) |
+| `mahjongg.asm` | SQX | Mahjongg-style tile solitaire, always solvable deals, G.7 (`run mahjongg [seed]`, `run mahjongg test`) |
 | `sqx.inc` | — | SQX header macro and syscall numbers |
+| `games.inc` | — | Shared runtime for the games: output, line input, seeded random numbers, self-test helpers |
+| `cards.inc` | — | Playing cards for the card games: deck, printing, parsing |
 
 Build and install:
 
