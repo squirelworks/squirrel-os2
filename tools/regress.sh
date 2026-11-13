@@ -671,7 +671,7 @@ check seek          'seek: PASS'            'run seek' '<ret>' '<pause>'
 check devices       'hd1     block   ready 2048 sectors'  devices '<ret>'
 check devices-ro    '(read-only for programs)'  devices '<ret>'
 check devtest       'devtest: PASS'         'run devtest' '<ret>'
-check up-ls         '40 file(s)'             'run ls' '<ret>'   # 30 + the 7 P.1-P.5 programs + lxfile.txt, win.txt, crt.txt
+check up-ls         '41 file(s)'             'run ls' '<ret>'   # 30 + the 7 P.1-P.5 programs + lxfile.txt, win.txt, crt.txt + winprog
 # 1.2.1: a key arrives as a queue event as well as through SYS_GETC
 check_all keyev     'keyev: queue q getc q|keyev: PASS'  'run keyev' '<ret>' '<pause>' q '<pause>'
 check_all keyev-shift 'keyev: queue Q getc Q|keyev: PASS'  'run keyev' '<ret>' '<pause>' Q '<pause>'
