@@ -8,11 +8,20 @@ ORG 0x8000
 
 ; Memory map (see documentation/kernel/memory-map.md)
 KSCRATCH equ 0x20000            ; 64 KB kernel scratch (driver/FS buffers)
+; The kernel image has two parts (2.4, documentation/kernel/kernel-image.md):
+; the low image (this file up to KERNEL_SIZE) that the boot sector loads to
+; 0x8000, and the high image (section .high, after it on the disk) that
+; stage2 reads itself and copies to KHIGH_BASE before protected mode.
+KHIGH_BASE  equ 0x100000        ; the high image runs here (1 MB)
+KHIGH_MAX   equ 0x100000        ; reserved for it: 1 MB, to 0x1FFFFF
+KHIGH_LBA   equ 1+KERNEL_SIZE/512 ; its first sector on the boot disk
+KHIGH_SIG   equ 0x49483253      ; 'S2HI', its last dword
 stage2:
     cli
     xor ax, ax                  ; the boot sector may leave ES elsewhere
     mov ds, ax
     mov es, ax
+    mov [ld_drive], dl          ; the boot drive, from the boot sector
     ; the CPU must have CPUID, an FPU and 4 MB pages (PSE): a Pentium or
     ; later (0.9.3). Say so instead of crashing later.
     pushfd
@@ -51,6 +60,7 @@ stage2:
     or al, 2
     and al, 0xFE
     out 0x92, al
+    call load_high              ; the high kernel image above 1 MB
     ; BIOS memory map (int 0x15, E820) into E820_BUF for mm_init
     xor ebx, ebx
     mov di, E820_BUF
@@ -92,6 +102,7 @@ gdt_desc:
     dd gdt
 e820_count dw 0                 ; written in real mode, so also below 32 KB
 msg_oldcpu db 'Squirrel-OS/2 needs a Pentium-class CPU (CPUID, FPU, 4 MB pages).', 13, 10, 0
+%include "khigh.asm"
 
 BITS 32
 pm:
@@ -1320,6 +1331,15 @@ puthex:
 %include "chardev.asm"
 %include "lang.asm"
 %include "crash.asm"
+%include "mouse.asm"
+
+; ---------- high image (2.4) ----------
+; Everything from here to the next "section .text" runs at KHIGH_BASE
+; (1 MB), copied there by load_high (khigh.asm) before protected mode.
+; New kernel code goes here: the low image above is capped at 96 KB, this
+; part at KHIGH_LIMIT. See documentation/kernel/kernel-image.md.
+section .high vstart=KHIGH_BASE follows=.text align=16
+khigh_start:
 %include "browser.asm"
 %include "calc.asm"
 %include "editor.asm"
@@ -1340,8 +1360,19 @@ puthex:
 %include "ip.asm"
 %include "udp.asm"
 %include "tcp.asm"
-%include "mouse.asm"
 
+
+; the high image ends on a sector boundary, with its signature last
+KHIGH_LIMIT equ (INS_PART_LBA-KHIGH_LBA)*512 ; to the installer's partition
+%if $-$$ > KHIGH_MAX-4 || $-$$ > KHIGH_LIMIT-4
+%error the high kernel image is larger than KHIGH_MAX or KHIGH_LIMIT
+%endif
+times (512-(($-$$+4) % 512)) % 512 db 0
+dd KHIGH_SIG
+khigh_end:
+KHIGH_SECTS equ (khigh_end-khigh_start)/512
+
+section .text
 align 8
 idt: times 256 dq 0
 idt_desc:

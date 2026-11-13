@@ -1,4 +1,4 @@
-# Physical Memory Map (as of 0.6.2; kernel size after 1.7.2)
+# Physical Memory Map (as of 0.6.2; kernel size after 1.7.2; high kernel image since 2.4)
 
 Paging is on since 0.6.1, but the kernel's page directory maps the first 256 MB to itself, so
 every address below is both virtual and physical. Only the program area differs per program.
@@ -8,7 +8,7 @@ every address below is both virtual and physical. Only the program area differs 
 | `0x00000–0x004FF` | Real-mode IVT / BIOS data (left alone) |
 | `0x01000–0x012FF` | BIOS E820 memory map, copied by `stage2` (0.6.0) |
 | `0x07C00–0x07DFF` | Boot sector |
-| `0x08000–0x1FFFF` | Kernel image (`pm.asm`, 96 KB after 1.7.2; 64 KB from 0.5.1; 32 KB from 0.2.1), loaded by the boot sector |
+| `0x08000–0x1FFFF` | Low kernel image (`pm.asm` section `.text`, 96 KB after 1.7.2; 64 KB from 0.5.1; 32 KB from 0.2.1), loaded by the boot sector |
 | `0x20000–0x2FFFF` | `KSCRATCH`: kernel scratch buffers (ATA identify/test buffers, later FS cache) |
 | `0x30000–0x3FFFF` | Program area. Each loaded program sees its own 16 pages here (0.6.1, `memory.md`) |
 | `0x40000–0x4FFFF` | Loader staging buffer |
@@ -19,7 +19,8 @@ every address below is both virtual and physical. Only the program area differs 
 | `0x7C000–0x91FFF` | Process stacks, 12 KB per slot: an unmapped guard page, then 8 KB of stack (slot *i* top = `0x7C000 + i*0x3000`, guard pages at `0x7C000 + k*0x3000`, k = 0–7; KB-17) |
 | `0x92000–0x9EFFF` | Boot / shell (pid 0) stack, down from `0x9F000` to the guard page at `0x91000` |
 | `0xB8000–0xB8F9F` | VGA text buffer |
-| `0x100000` and up | Pages handed out by the page allocator (usable RAM up to 256 MB), including page directories and tables |
+| `0x100000–0x1FFFFF` | High kernel image (`pm.asm` section `.high`, 2.4), copied here by `stage2`; the rest of the megabyte is reserved for it (`kernel-image.md`) |
+| `0x200000` and up | Pages handed out by the page allocator (usable RAM up to 256 MB), including page directories and tables. Before 2.4 they started at `0x100000` |
 | `0x10000000` and up | Not mapped: any access faults (0.6.1) |
 | `0x40000000–0x403FFFFF` | A program's heap, mapped page by page as `SYS_SBRK` grows it (0.6.2, `memory.md`) |
 
