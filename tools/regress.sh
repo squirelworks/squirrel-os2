@@ -13,11 +13,11 @@ cat "$out/boot.bin" "$out/pm.bin" > "$out/os.img"
 dd if=/dev/zero of="$out/floppy.img" bs=1024 count=1440 2>/dev/null
 dd if="$out/os.img" of="$out/floppy.img" conv=notrunc 2>/dev/null
 python3 "$root/tools/mkiso.py" "$out/floppy.img" "$out/cd.iso"    # installer I.6
-for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3 lxhello lxfile lxcat lxsys winrun winhello wincrt winprog; do
+for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3 smpspin lxhello lxfile lxcat lxsys winrun winhello wincrt winprog; do
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
 done
 python3 "$root/tools/sqfs.py" "$out/progs.img" format 1024
-for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3 lxhello lxfile lxcat lxsys winrun winhello wincrt winprog; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
+for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3 smpspin lxhello lxfile lxcat lxsys winrun winhello wincrt winprog; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
 # OS2-GAMES (G.x): the games get a disk of their own, so the file counts above stay put
 python3 "$root/tools/sqfs.py" "$out/games.img" format 1024
 for prog in mines reversi klondike freecell hearts chess mahjongg bridge checkers go; do
@@ -646,6 +646,18 @@ boot="$out/lowonly.img"
 check khigh-missing 'cannot read the high kernel image'
 boot=
 check khigh-mem     'Pages above 2 MB:'     mem '<ret>'
+# 2.8-smp-ap: the APs from the ACPI MADT start and park; one CPU is still fine
+check cpus-one      '1 CPU(s) online'       cpus '<ret>'
+export QEMU_EXTRA='-smp 4'
+check_all smp-4     'CPU 0: APIC id 0, boot processor|CPU 3: APIC id 3, online|4 CPU(s) online' cpus '<ret>'
+check smp-4-systest 'systest: PASS'         cpus '<ret>' systest '<ret>'
+unset QEMU_EXTRA
+# 2.8-lm-entry: a round trip through long mode (qemu-system-x86_64), and a clean refusal without it
+export QEMU_BIN=qemu-system-x86_64
+check lm-test       'lm: PASS'              lmtest '<ret>'
+check_all lm-again  'lm: PASS|systest: PASS' lmtest '<ret>' lmtest '<ret>' systest '<ret>'
+unset QEMU_BIN
+check lm-nolm       'lm: no long mode'      lmtest '<ret>'
 export QEMU_EXTRA='-cpu 486,-pse'
 check cpu-nopse     'needs a Pentium-class CPU'
 export QEMU_EXTRA='-cpu pentium,-fpu'
@@ -698,7 +710,7 @@ check seek          'seek: PASS'            'run seek' '<ret>' '<pause>'
 check devices       'hd1     block   ready 2048 sectors'  devices '<ret>'
 check devices-ro    '(read-only for programs)'  devices '<ret>'
 check devtest       'devtest: PASS'         'run devtest' '<ret>'
-check up-ls         '41 file(s)'             'run ls' '<ret>'   # 30 + the 7 P.1-P.5 programs + lxfile.txt, win.txt, crt.txt + winprog
+check up-ls         '42 file(s)'             'run ls' '<ret>'   # 30 + smpspin (2.8) + winprog + the 7 P.1-P.5 programs + lxfile.txt, win.txt, crt.txt
 # 1.2.1: a key arrives as a queue event as well as through SYS_GETC
 check_all keyev     'keyev: queue q getc q|keyev: PASS'  'run keyev' '<ret>' '<pause>' q '<pause>'
 check_all keyev-shift 'keyev: queue Q getc Q|keyev: PASS'  'run keyev' '<ret>' '<pause>' Q '<pause>'
@@ -714,6 +726,19 @@ check_all stackover '*** stack overflow in pid|Program ended|stackover: PASS'  '
 # 2.4: programs run in ring 3; bad pointers, kernel memory and privileged instructions are refused
 check_all ring3     '*** CPU exception 13 (general protection) in pid|Program ended|ring3: PASS'  'run ring3' '<ret>' '<pause>'
 check ring3-after   'systest: PASS'         'run ring3' '<ret>' '<pause>' systest '<ret>'
+# 2.8-smp-sched: ring-3 threads on the application processors; kernel entries go to the BSP
+check_all smpspin-1 'smpspin: 1 CPU(s)|smpspin: threads ok'  'run smpspin' '<ret>' '<pause>' '<pause>' '<pause>'
+export QEMU_EXTRA='-smp 4'
+check_all smpspin-4 'smpspin: 4 CPU(s)|smpspin: threads ok'  'run smpspin 4' '<ret>' '<pause>' '<pause>' '<pause>'
+check smp-ring3     'ring3: PASS'           'run ring3' '<ret>' '<pause>' '<pause>'
+check smp-stackover 'stackover: PASS'       'run stackover' '<ret>' '<pause>'
+check smp-thread    'thread: PASS'          'run thread' '<ret>' '<pause>'
+check smp-msg       'msg: PASS'             'run msg' '<ret>' '<pause>'
+check smp-fpu       'fpu: PASS'             'run fpu' '<ret>' '<pause>'
+check smp-preempt   'preempt: PASS'         'run spin' '<ret>' '<pause>'
+check smp-heap      'heap: PASS'            'run heap' '<ret>' '<pause>'
+check smp-after     'systest: PASS'         'run smpspin 4' '<ret>' '<pause>' '<pause>' '<pause>' systest '<ret>'
+unset QEMU_EXTRA
 # 1.1.0: the timer preempts a program that spins without a system call
 check_all sched-preempt 'spin: second process ran|preempt: PASS' 'run spin' '<ret>' '<pause>'
 check up-ls-filter  '6 file(s)'             'run ls he' '<ret>'
@@ -860,7 +885,7 @@ check_all grapher-trace 'gfx: 2: x = 4*cos(t), y = 2*sin(t)|gfx: t=0.0262|gfx: x
 check grapher-zoom  'gfx: roots: -3.1416'   'run grapher sin(x)' '<ret>' '<pause>' '+' 'z' '<pause>' '<gfx>'
 check grapher-syn   'gfx: Error: syntax at column 4' 'run grapher' '<ret>' '<pause>' 'y = 2*(' '<ret>' '<pause>' '<gfx>'
 check grapher-quit  'systest: PASS'         'run grapher sin(x)' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
-check_all grapher-impl 'gfx: 1: x^2+y^2=25|gfx: only for y = f(x)' 'run grapher x^2+y^2=25' '<ret>' '<pause>' 'z' '<pause>' '<gfx>'
+check_all grapher-impl 'gfx: 1: x^2+y^2=25|gfx: only for y = f(x)' 'run grapher x^2+y^2=25' '<ret>' '<pause>' '<pause>' 'z' '<pause>' '<gfx>'
 check_all grapher-ineq 'gfx: 1: y >= x^2|gfx: Trace is for y =, r = and x =, y =' 'run grapher' '<ret>' '<pause>' 'y >= x^2' '<ret>' '<pause>' 't' '<pause>' '<gfx>'
 check grapher-slider 'gfx: a = 2.2'         'run grapher y=a*sin(x)' '<ret>' '<pause>' 'a' '<pause>' '<right>' '<pause>' '<right>' '<pause>' '<up>' '<pause>' '<pause>' '<gfx>'
 check grapher-form  'gfx: Use y = f(x), r = f(t), x = f(t), y = g(t), = < >' 'run grapher' '<ret>' '<pause>' 'y < x < 2' '<ret>' '<pause>' '<gfx>'
