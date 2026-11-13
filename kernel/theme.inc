@@ -16,4 +16,6 @@ TH_CLIENT           equ 0x07    ; client area, light grey
 TH_TEXT             equ 0x00    ; text on the client area, black
 TH_BTN_FACE         equ 0x3F    ; button face
 TH_POINTER          equ 0x0F    ; the mouse pointer (mouse.asm)
+TH_SELECT           equ 0x01    ; a chosen menu row (2.2-sysmenu)
+TH_SELECT_TEXT      equ 0x3F
 TH_BEVEL_W          equ 2       ; rings in a bevel (gfx_bevel)

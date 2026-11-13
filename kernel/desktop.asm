@@ -14,15 +14,26 @@ DK_W equ 240
 DK_H equ 150
 
 cmd_desktop_run:
-    call gfx_mode13
+    call wm_screen              ; 640 x 480 x 8 VBE, or mode 13h (2.2-vbe-wm)
     jnc .ok
     mov esi, dk_nomem
     jmp puts
 .ok:
+    mov eax, [gfx_width]        ; the 320 x 200 layout, centred on the screen
+    sub eax, GFX_W
+    shr eax, 1
+    mov [dk_ox], eax
+    add [mouse_x], eax          ; the pointer keeps its place on the layout
+    mov eax, [gfx_height]
+    sub eax, GFX_H
+    shr eax, 1
+    mov [dk_oy], eax
+    add [mouse_y], eax
     call dk_mkobjs              ; the entries are objects (1.7.6)
     mov dword [dk_cur], 0       ; the top level (1.9.0)
     mov eax, DK_X
     mov ebx, DK_Y
+    call dk_org
     mov ecx, DK_W
     mov edx, DK_H
     mov esi, dk_title
@@ -55,6 +66,8 @@ cmd_desktop_run:
     call dk_ptr
 .key:
     call mouse_poll
+    call dk_wm                  ; move, size, boxes (2.2-mouse); CF: close
+    jc .quit
     call dk_ptr
     call dk_mouse               ; CF clear: open the selection
     jnc .open
@@ -133,6 +146,10 @@ cmd_desktop_run:
     mov eax, [dk_win]
     call wm_close
     call dk_freeobjs
+    mov eax, [dk_ox]            ; the pointer back to the 320 x 200 layout
+    sub [mouse_x], eax
+    mov eax, [dk_oy]
+    sub [mouse_y], eax
     call gfx_text
     mov esi, dk_bye
     jmp puts
@@ -304,6 +321,7 @@ dk_rename:
     call dk_cpy
     mov eax, DK_X + 20
     mov ebx, DK_Y + 50
+    call dk_org
     mov ecx, DK_W - 40
     mov edx, 34
     mov esi, dk_rtitle
@@ -721,6 +739,7 @@ dk_textwin:
     mov byte [run_arg], 0       ; no file name: edit asks when it saves
     mov eax, DKT_X
     mov ebx, DKT_Y
+    call dk_org
     mov ecx, DKT_W
     mov edx, DKT_H
     mov esi, [dk_name]
@@ -765,6 +784,69 @@ dk_refresh:
 ; Soft mouse pointer: a white plus at mouse_x, mouse_y (1.9.10). Since
 ; 2.0.1 it keeps the pixels under it and puts them back when it moves
 ; (ptr_show in mouse.asm), so it leaves no trail.
+; Gives the mouse to the window manager when it moved or a button changed
+; (2.2-mouse): the desktop window can be moved, sized and maximised with
+; it. CF set when its close box was clicked (the desktop then closes).
+dk_wm:
+    cmp byte [dk_quit], 0
+    je .live
+    mov byte [dk_quit], 0
+    stc
+    ret
+.live:
+    pushad
+    pushfd
+    cli
+    mov eax, [mouse_x]
+    mov ebx, [mouse_y]
+    mov cl, [mouse_btns]
+    popfd
+    cmp eax, [dk_lmx]
+    jne .go
+    cmp ebx, [dk_lmy]
+    jne .go
+    cmp cl, [dk_lmb]
+    je .no
+.go:
+    mov [dk_lmx], eax
+    mov [dk_lmy], ebx
+    mov [dk_lmb], cl
+    call wm_mouse
+    cmp eax, WME_CLOSE
+    jne .upd
+    cmp ebx, [dk_win]
+    jne .upd
+    popad
+    stc
+    ret
+.upd:
+    cmp dword [wm_dn], 0        ; anything moved: repaint just that
+    jne .paint
+    cmp byte [wm_dfull], 0
+    je .no
+.paint:
+    call wm_update
+.no:
+    popad
+    clc
+    ret
+
+align 4
+dk_lmx dd -1
+dk_lmy dd -1
+dk_lmb db 0
+
+; eax, ebx = a place on the 320 x 200 layout -> the same place on the
+; screen (2.2-vbe-wm: the layout is centred in a larger mode).
+dk_org:
+    add eax, [dk_ox]
+    add ebx, [dk_oy]
+    ret
+
+align 4
+dk_ox dd 0
+dk_oy dd 0
+
 dk_ptr:
     jmp ptr_show
 
@@ -779,14 +861,21 @@ dk_mouse:
     mov [dk_mclicks], eax
     cmp dword [dk_nvis], 0
     je .no
-    ; screen → list row
+    ; screen → list row, from where the window is now (it can be moved)
+    mov edi, [dk_win]
+    imul edi, WIN_SIZE
+    add edi, wm_table
     mov eax, [mouse_x]
-    sub eax, DK_X + 1 + 4
+    sub eax, [edi+WIN_X]
+    sub eax, 1 + 4
     js .no
-    cmp eax, DK_W - 2 - 4
+    mov edx, [edi+WIN_W]
+    sub edx, 2 + 4
+    cmp eax, edx
     jae .no
     mov eax, [mouse_y]
-    sub eax, DK_Y + 1 + WM_TITLE_H + 16
+    sub eax, [edi+WIN_Y]
+    sub eax, 1 + WM_TITLE_H + 16
     js .no
     xor edx, edx
     mov ebx, GFX_CELL_H
@@ -821,10 +910,47 @@ dk_trykey:
     call kbd_dequeue
     sti
     jc .none
+    cmp al, 0xB8                ; Alt let go: Alt+Tab raises its choice
+    jne .notaltup
+    call wm_altup
+    call dk_wmdone
+.notaltup:
     call kbd_shift_track
     je dk_trykey
     cmp al, 0x80
     jae dk_trykey
+    cmp byte [kbd_alt], 0       ; Alt+Tab, Esc, Space, F4 (2.2-alttab)
+    je .noalt
+    push eax
+    call wm_altkey
+    jc .altno
+    add esp, 4
+    call dk_wmreply
+    jmp dk_trykey
+.altno:
+    pop eax
+.noalt:
+    mov ah, WK_LEFT             ; the side arrows, for keyboard move / size
+    cmp al, 0x4B
+    je .wmk
+    mov ah, WK_RIGHT
+    cmp al, 0x4D
+    je .wmk
+    cmp byte [wm_kmode], 0      ; a menu or keyboard move / size takes keys
+    jne .wmmap
+    cmp dword [wm_mn], 0
+    je .map
+.wmmap:
+    call .map                   ; -> al = key, CF set if none
+    jc dk_trykey
+    mov ah, al
+.wmk:
+    mov al, ah
+    call wm_menukey
+    jc dk_trykey                ; (a side arrow nobody wants)
+    call dk_wmreply
+    jmp dk_trykey
+.map:
     mov ah, 27
     cmp al, 0x01
     je .got
@@ -843,7 +969,9 @@ dk_trykey:
     call kbd_ascii
     mov ah, al
     test al, al
-    jz dk_trykey
+    jnz .got
+    stc                         ; unmapped
+    ret
 .got:
     mov al, ah
     clc
@@ -852,6 +980,24 @@ dk_trykey:
     call proc_idle
     stc
     ret
+
+; eax, ebx = a window manager reply (wm_altkey, wm_menukey): the desktop's
+; own close (Alt+F4, the system menu's Close) asks the loop to quit; then
+; repaints what changed.
+dk_wmreply:
+    cmp eax, WME_CLOSE
+    jne dk_wmdone
+    cmp ebx, [dk_win]
+    jne dk_wmdone
+    mov byte [dk_quit], 1
+dk_wmdone:
+    pushad
+    call wm_update
+    call dk_ptr
+    popad
+    ret
+
+dk_quit db 0
 
 ; Waits for a key -> al = what wg_key takes: ASCII, 8 for Backspace,
 ; 27 for Esc, WK_UP and WK_DOWN for the arrows.

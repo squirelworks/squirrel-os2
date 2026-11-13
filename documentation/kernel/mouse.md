@@ -13,7 +13,7 @@ Mouse bytes are drained everywhere, not only on the desktop. In 1.9.10 they were
 | Symbol | Meaning |
 |--------|---------|
 | `mouse_up` | 1 after a successful enable at boot |
-| `mouse_x`, `mouse_y` | cursor in mode-13h pixels (0..319, 0..199) |
+| `mouse_x`, `mouse_y` | cursor in pixels, kept inside the live mode (`gfx_width` × `gfx_height`; 320 × 200 before 2.2) |
 | `mouse_btns` | bits 0–2: left, right, middle |
 | `mouse_clicks` | count of left-button make edges |
 | `mouse_irqs` | count of IRQ 12 interrupts (2.0.1) |
@@ -25,6 +25,8 @@ Mouse bytes are drained everywhere, not only on the desktop. In 1.9.10 they were
 The desktop's pointer is a small plus (centre, below, left, right) in colour `0x0F`, drawn by `ptr_show` in `kernel/mouse.asm`. Before drawing it, `ptr_show` reads the pixels it will cover into `ptr_save`. When the pointer moves, `ptr_hide` writes them back first, so it leaves no trail. Before 2.0.1 the old position was never restored, so a pointer that crossed the program list wiped out letters.
 
 `wm_redraw` clears `ptr_vis`. A full repaint has already painted over the pointer, so the saved pixels are stale and must not be written back. The next `ptr_show` saves the new pixels and draws the pointer again. Off-screen pixels are skipped (`gfx_putpixel` clips them, and `gfx_getpixel` returns 0 for them).
+
+Since 2.2-clip-z the desktop is double buffered: `ptr_show` (and the `ptr_hide` inside it) draw on the back page, then `ptr_present` marks a 9 × 9 box around the old and the new position as dirty and `ptr_show` flips only those (`vbe_flip`).
 
 `ptrtest` fills mode 13h with a pattern, shows the pointer, moves it, hides it, and checks that the pattern comes back each time. It prints `ptr: PASS` or `ptr: FAIL`.
 
