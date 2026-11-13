@@ -80,8 +80,21 @@ prog_exec:
     je .known
     cmp dword [LD_STAGE], ELF_MAGIC
     je .known
-    cmp word [LD_STAGE], 'MZ'   ; a Windows program: winrun loads it (P.5)
-    je .win
+    cmp word [LD_STAGE], 'MZ'   ; MZ: winrun (PE, P.5) or dosrun (DOS, P.8)
+    je .mz
+    ; a DOS .COM has no header: known by its name alone
+    mov esi, [esp+8]            ; the file name (saved esi)
+.end:
+    lodsb
+    test al, al
+    jnz .end
+    sub esi, 5                  ; the last four characters
+    cmp esi, [esp+8]
+    jb .badfmt
+    mov eax, [esi]
+    or eax, 0x20202000          ; lower-case the letters
+    cmp eax, '.com'
+    je .dos
 .badfmt:
     mov eax, LD_EFORMAT
     jmp .out
@@ -91,8 +104,24 @@ prog_exec:
 .enoent:
     mov eax, LD_ENOENT
     jmp .out
-.win:
-    ; run "winrun <file> <argument>", the argument built on the stack
+.mz:
+    ; PE when e_lfanew points inside the file at 'PE',0,0; else DOS
+    cmp edx, 0x40
+    jb .dos
+    mov eax, [LD_STAGE+0x3C]
+    cmp eax, edx
+    jae .dos
+    lea ecx, [eax+4]
+    cmp ecx, edx
+    ja .dos
+    cmp dword [LD_STAGE+eax], 'PE'
+    jne .dos
+    mov ebx, ld_winrun
+    jmp .hand
+.dos:
+    mov ebx, ld_dosrun
+.hand:
+    ; run "<helper> <file> <argument>", the argument built on the stack
     sub esp, LD_ARGMAX
     mov edi, esp
     mov esi, [esp+LD_ARGMAX+8]  ; the file name (saved esi)
@@ -108,7 +137,7 @@ prog_exec:
     call .cpy
 .wz:
     mov byte [edi], 0
-    mov esi, ld_winrun
+    mov esi, ebx
     mov edi, esp
     call prog_exec
     add esp, LD_ARGMAX
@@ -357,6 +386,7 @@ sys_exec:                       ; ebx = name, ecx = argument (or 0)
 ld_as dd 0
 ld_linux dd 0
 ld_winrun db 'winrun', 0
+ld_dosrun db 'dosrun', 0
 prog_arg times LD_ARGMAX db 0
 prog_args times PROC_MAX*LD_ARGMAX db 0
 ld_probe db 0

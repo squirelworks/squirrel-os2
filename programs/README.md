@@ -38,7 +38,12 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `lxfile.asm` | ELF32 (Linux) | Linux `open`/`write`/`close`/`lseek`/`read`, `brk`, `mmap2`, `-errno` results (`run lxfile`, P.2) |
 | `lxcat.asm` | ELF32 (Linux) | Copies Linux stdin to stdout with `read(0)` (`echo hi \| run lxcat`, P.2) |
 | `lxsys.asm` | ELF32 (Linux) | More Linux calls: `writev`, `ioctl`, `uname`, `stat64`, `openat`, `rename`/`unlink`/`mkdir`, `set_thread_area` + GS (`run lxsys`, P.2) |
-| `winrun.asm` | SQX | Win32 PE32 console loader and KERNEL32 shim; the kernel runs it for every `MZ` file (`run winrun prog.exe`, P.5) |
+| `winrun.asm` | SQX | Win32 PE32 console loader and KERNEL32 shim; the kernel runs it for `MZ` files with a PE header, and it passes DOS `MZ` files on to `dosrun` (`run winrun prog.exe`, P.5) |
+| `dosrun.asm` | SQX | DOS `.COM`/`.EXE` runner: an 8086/186 interpreter with the `INT 21h`/BIOS subset; the kernel runs it for `*.com` and DOS `MZ` files (`run prog.com`, P.8, `../documentation/architecture/dosrun.md`) |
+| `doshello.asm` | DOS .COM | INT 21h output, the BIOS teletype, the command tail (`run doshello.com acorns`, P.8) |
+| `doscpu.asm` | DOS .COM | 8086/186 instructions and flags, steps a–k (`run doscpu.com`, P.8) |
+| `dosfile.asm` | DOS .COM | DOS files, memory blocks and buffered input (`run dosfile.com`, P.8) |
+| `dosexe.asm` | DOS .EXE | Hand-written MZ with relocations, three segments and a far call (`run dosexe.exe`, P.8) |
 | `winhello.asm` | PE32 | Hand-written Win32 console program: console, files, heap, relocations, imports (`run winhello`, P.5) |
 | `wincrt.asm` | PE32 | Hand-written Win32 program on msvcrt: TEB via `fs:`, `__getmainargs`, printf/sprintf, malloc, FILE I/O, atexit/exit (`run wincrt acorn`, P.5) |
 | `winshim.inc` | — | The KERNEL32 start-up calls and the msvcrt subset that `winrun` binds imports to |
