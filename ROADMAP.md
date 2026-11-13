@@ -171,7 +171,7 @@ Each app is first built in squirrelsoft as a desktop program, then ported.
 - [ ] **A.4** (2.4+) — Debugger: process list, INT3 breakpoints, single step, registers, memory view, an original disassembler, symbols from SQX / ELF
 - [ ] **A.5** (2.5+) — Task / system monitor (CPU, memory, processes, priorities), disk utility, log viewer
 - [ ] **A.6** (3.0+) — Media player (WAV first), sound recorder, spectrum analyser (port of SquirrelSound)
-- [ ] **A.7** (3.0+) — Text editor with syntax highlighting, hex editor, a simple word processor
+- [x] **A.7** (3.0+) — Text editor with syntax highlighting, hex editor, a simple word processor
 
 ### Games (G.1–G.9, epic #116)
 
@@ -190,12 +190,12 @@ Each has its rules core with unit tests in squirrelsoft first; card and board gr
 ### Calculator suite — Desmos and TI-Nspire class (C.1–C.9, epic #119)
 
 - [ ] **C.1** — Expression engine v2: real and complex numbers, arbitrary-precision decimals, units, variables, user functions (a shared C core, `sqmath`, in squirrelsoft).
-- [ ] **C.2** — 2D graphing: y = f(x), implicit, parametric, polar, inequalities, sliders, zoom and pan, trace, intersections, roots and extrema. This replaces the `graph` scaffold.
-- [ ] **C.3** — Tables and lists, 1- and 2-variable statistics, regressions (linear, polynomial, exponential, logarithmic, power, logistic), histograms and box plots.
+- [x] **C.2** — 2D graphing: y = f(x), implicit, parametric, polar, inequalities, sliders, zoom and pan, trace, intersections, roots and extrema. This replaces the `graph` scaffold.
+- [x] **C.3** — Tables and lists, 1- and 2-variable statistics, regressions (linear, polynomial, exponential, logarithmic, power, logistic), histograms and box plots.
 - [ ] **C.4** — A spreadsheet linked to graphs.
 - [ ] **C.5** — CAS: simplify, expand, factor, solve, symbolic derivatives and integrals, limits, series.
 - [ ] **C.6** — Geometry: points, lines, circles, constructions, measurements, dynamic dragging.
-- [ ] **C.7** — 3D graphing: surfaces and parametric curves.
+- [x] **C.7** — 3D graphing: surfaces and parametric curves.
 - [ ] **C.8** — Notebooks whose pages mix notes, graphs, geometry and spreadsheets; scripting in an original BASIC- or Lua-like interpreter.
 - [x] **C.9** — `topo` (topology / surveying calculator) and a matrix / linear-algebra GUI.
 
