@@ -98,7 +98,7 @@ Since 1.9.8 the kernel can keep one TCP connection: connect, send, receive, clos
 
 `fetch <ip> <port> <path>` connects, sends `GET <path> HTTP/1.0` and a blank line, and prints whatever comes back until the server closes or the wait ends. `No reply` means the handshake or the request was not acknowledged.
 
-The regression listens on the host at 127.0.0.1:18080 (`tools/fileserve.py`). QEMU's user network delivers a guest connection to 10.0.2.2:18080 there. `fetch 10.0.2.2 18080 /hello.txt` prints the file (check `fetch-hello`).
+The regression listens on the host at 127.0.0.1 on a free port, or on `FETCH_PORT` if it is set (`tools/fileserve.py`), so two runs at once do not clash. QEMU's user network delivers a guest connection to 10.0.2.2 on that port there. `fetch 10.0.2.2 PORT /hello.txt` prints the file (check `fetch-hello`).
 
 ## Broadcasts (3.0)
 

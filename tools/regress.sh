@@ -519,9 +519,11 @@ check arp-none      'No reply'              'arp 10.0.2.99' '<ret>' '<pause>' '<
 check arp-bad       'Bad address'           'arp nope' '<ret>'
 check ping-gw       '4 of 4'                'ping 10.0.2.2' '<ret>' '<pause>'
 # 1.9.8: the host answers one HTTP/1.0 GET; slirp delivers 10.0.2.2 to it
-python3 -u "$root/tools/fileserve.py" 18080 'hello from squirrel' >"$out/fileserve.log" 2>&1 &
+# FETCH_PORT picks the host port; by default a free one, so two runs at once do not clash
+fetch_port=${FETCH_PORT:-$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')}
+python3 -u "$root/tools/fileserve.py" $fetch_port 'hello from squirrel' >"$out/fileserve.log" 2>&1 &
 fetch_pid=$!
-check fetch-hello   'hello from squirrel'   'fetch 10.0.2.2 18080 /hello.txt' '<ret>' '<pause>' '<pause>' '<pause>'
+check fetch-hello   'hello from squirrel'   "fetch 10.0.2.2 $fetch_port /hello.txt" '<ret>' '<pause>' '<pause>' '<pause>'
 kill $fetch_pid 2>/dev/null || true
 wait $fetch_pid 2>/dev/null || true
 # 3.0 (OS2-NET-AUDIO): DHCP from slirp; DNS and HTTP/1.1 from tools/netserve.py on the host
