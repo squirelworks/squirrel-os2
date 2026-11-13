@@ -213,7 +213,7 @@ Foreign programs should show up as ordinary Squirrel windows.
 Each P step ships a tiny original test binary in the tree and a regression `PASS`. All of them need 2.4 (ring 3) first.
 
 - [x] **P.1** (= F.1–F.4) — Linux static ELF32 (`write` / `exit`).
-- [ ] **P.2** — Linux file I/O, `mmap`, `brk`, signals.
+- [x] **P.2** — Linux file I/O, `mmap`, `brk`, signals.
 - [ ] **P.3** — Dynamic ELF with a glibc / musl loader, ELF64.
 - [ ] **P.4** — An X11-protocol (or Wayland) server that maps foreign windows onto Squirrel windows.
 - [x] **P.5** (= F.5 / F.9) — Win32 PE console subset.
