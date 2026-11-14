@@ -1,32 +1,25 @@
 ; wingui.inc — the Win32 GUI subset for winrun (P.6): USER32 and GDI32 on
-; SYS_GUI. Original code, written from the documented Win32 API; no Wine
-; or ReactOS code. Included by winrun.asm after winshim.inc.
+; the 2.2 program-window calls (SYS_WINOPEN..SYS_WININFO). Original code,
+; written from the documented Win32 API; no Wine or ReactOS code. Included
+; by winrun.asm after winshim.inc.
 ;
-; The screen is SYS_GUI's 320 x 200, 256 colours, drawn in a back buffer
-; and copied with GUI_BLIT. Top-level windows (up to WG_MAXW) get a frame
-; and a title bar (WG_TITLE pixels, the 5 x 7 font in 6 x 8 cells) and are
-; painted in the order they were made, the newest on top and with the
-; keyboard. The client area is drawn straight into the back buffer, clipped
-; to the window. Colours (COLORREF) go to the nearest of the 64 EGA colours
-; the display keeps in entries 0-63.
+; Top-level windows (up to WG_MAXW) are real desktop windows: title bar,
+; move, size, z-order and close box from the window manager. Drawing goes
+; through SYS_WINDRAW into the client area; GetMessage pumps SYS_WINEVENT
+; (WE_PAINT, WE_KEY, WE_DOWN, WE_CLOSE → WM_*). Timers still use GUI_TICKS
+; (10 ms). COLORREFs go to the nearest of the 64 EGA colours.
 ;
-; Messages: one queue for the process. GetMessage/PeekMessage hand out, in
-; order: posted messages; WM_PAINT for a window that is invalid; WM_TIMER
-; for a timer that is due (GUI_TICKS, 10 ms); then keys from GUI_KEY
-; (WM_KEYDOWN, and WM_CHAR through TranslateMessage) and left clicks from
-; GUI_MOUSE (WM_LBUTTONDOWN/UP in client coordinates; a click in the title
-; bar's right end is WM_CLOSE). The message filters are ignored.
+; Specs: Microsoft Win32 API (CreateWindowEx, the message loop, GDI) and
+; the PE subsystem-2 convention; see documentation/architecture/
+; foreign-compatibility.md.
 ;
 ; Not provided: child windows and controls, menus, dialogs from
 ; resources, fonts other than the system one, regions, bitmaps, and a
-; mouse pointer on the screen.
+; mouse pointer of our own (the kernel draws it).
 
 WG_MAXW     equ 4
 WG_MAXC     equ 4
-WG_TITLE    equ 10
-WG_DESK     equ 3               ; cyan
-WG_FRAME    equ 0x38            ; dark grey
-WG_BAR      equ 1               ; blue
+WG_TITLE    equ 10              ; matches WM_TITLE_H (FONT_H+1+2)
 WG_QMAX     equ 32
 WG_TMAX     equ 8
 WG_HBASE    equ 0x1000          ; hwnd = WG_HBASE + slot
@@ -49,12 +42,13 @@ W_BK        equ 48
 W_BKMODE    equ 52
 W_CURX      equ 56
 W_CURY      equ 60
-W_HPEN      equ 64              ; the handles SelectObject gives back
+W_HPEN      equ 64
 W_HBRUSH    equ 68
 W_TITLE     equ 72              ; 32 bytes
-WSIZE       equ 104
+W_WID       equ 104             ; native SYS_WINOPEN id, or -1
+WSIZE       equ 108
 
-H_BRUSH     equ 0x10000000      ; GDI handles: type | host colour
+H_BRUSH     equ 0x10000000
 H_PEN       equ 0x20000000
 H_FONT      equ 0x30000000
 H_NULLCOL   equ 0x100
@@ -72,219 +66,106 @@ WM_TIMER    equ 0x0113
 WM_LBUTTONDOWN equ 0x0201
 WM_LBUTTONUP equ 0x0202
 
+WE_KEY      equ 1
+WE_DOWN     equ 2
+WE_CLOSE    equ 6
+WE_PAINT    equ 8
+
+WD_FILL     equ 0
+WD_LINE     equ 1
+WD_TEXT     equ 2
+WD_PIXEL    equ 7
+
+SYS_WINOPEN  equ 37
+SYS_WINCLOSE equ 38
+SYS_WINMOVE  equ 39
+SYS_WINTITLE equ 40
+SYS_WINDRAW  equ 41
+SYS_WINFLUSH equ 42
+SYS_WINEVENT equ 43
+SYS_WININFO  equ 44
+
 %define PA(n) [esp+36+4*(n)]    ; stdcall arguments after pushad
 
-; ---------- screen ----------
+; ---------- life cycle ----------
 
-; graphics on, once: the back buffer, the font, the desktop
+; Mark the GUI personality as running (windows open through SYS_WIN*).
 wg_on:
-    cmp byte [wg_active], 0
-    jne .r
-    pushad
-    mov eax, SYS_SBRK
-    mov ebx, 64000 + 96*7
-    int 0x80
-    cmp eax, -1
-    je .no
-    mov [wg_buf], eax
-    add eax, 64000
-    mov [wg_font], eax
-    mov ecx, eax
-    mov eax, 35                 ; SYS_GUI
-    mov ebx, 6                  ; GUI_FONT
-    int 0x80
-    mov eax, 35
-    mov ebx, 0                  ; GUI_ENTER
-    int 0x80
-    test eax, eax
-    jnz .no
     mov byte [wg_active], 1
-    mov dword [wg_mouse], -1
-    call wg_redraw
-.no:
-    popad
-.r:
     ret
 
-; graphics off at the end (ExitProcess, exit, the entry's return)
+; Close every native window when the program ends.
 gui_end:
     cmp byte [wg_active], 0
     je .r
-    push eax
-    push ebx
-    mov eax, 35
-    mov ebx, 1                  ; GUI_LEAVE
-    int 0x80
-    mov byte [wg_active], 0
-    pop ebx
-    pop eax
-.r:
-    ret
-
-; the back buffer to the screen
-wg_flip:
-    cmp byte [wg_active], 0
-    je .r
     pushad
-    mov eax, [wg_buf]
-    mov [wg_rect+16], eax
-    mov eax, 35
-    mov ebx, 2                  ; GUI_BLIT
-    mov ecx, wg_rect
-    int 0x80
-    mov byte [wg_dirty], 0
-    popad
-.r:
-    ret
-
-; desktop, then every visible window's frame and client, all invalid
-wg_redraw:
-    cmp byte [wg_active], 0
-    je .r
-    pushad
-    mov edi, [wg_buf]
-    mov ecx, 64000/4
-    mov eax, WG_DESK * 0x01010101
-    rep stosd
     mov edi, wg_wnds
     mov ecx, WG_MAXW
 .w:
     cmp dword [edi+W_USED], 0
     je .n
-    cmp dword [edi+W_VISIBLE], 0
+    cmp dword [edi+W_WID], -1
     je .n
-    call wg_frame
-    mov dword [edi+W_INVALID], 1
+    mov eax, SYS_WINCLOSE
+    mov ebx, [edi+W_WID]
+    int 0x80
+    mov dword [edi+W_WID], -1
 .n:
     add edi, WSIZE
     loop .w
-    mov byte [wg_dirty], 1
+    mov byte [wg_active], 0
     popad
 .r:
     ret
 
-; edi = window: border, title bar with its title, client in its colour
-wg_frame:
+; edi = window: open it on the desktop if it is not open yet.
+; -> CF set when SYS_WINOPEN failed.
+wg_native_open:
+    cmp dword [edi+W_WID], -1
+    jne .ok
     pushad
+    call wg_on
     mov eax, [edi+W_X]
-    mov ebx, [edi+W_Y]
-    mov ecx, [edi+W_X]
-    add ecx, [edi+W_W]
-    mov edx, [edi+W_Y]
-    add edx, [edi+W_H]
-    mov ebp, WG_FRAME
-    call wg_sfill               ; the whole frame
-    inc eax
-    inc ebx
-    dec ecx
-    push edx
-    lea edx, [ebx+WG_TITLE-1]
-    mov ebp, WG_BAR
-    call wg_sfill               ; the title bar
-    pop edx
-    push eax
-    push ebx                    ; the close box: a light square at the right
-    push ecx
-    push edx
-    lea eax, [ecx-8]
-    inc ebx
-    lea edx, [ebx+WG_TITLE-3]
-    dec ecx
-    mov ebp, 7
-    call wg_sfill
-    pop edx
-    pop ecx
-    pop ebx
-    pop eax
-    add ebx, WG_TITLE
-    dec edx
-    mov ebp, [edi+W_BG]
-    cmp ebp, -1
-    jne .bg
-    mov ebp, 63
-.bg:
-    call wg_sfill               ; the client
-    ; the title, white on the bar
-    lea esi, [edi+W_TITLE]
-    mov eax, [edi+W_X]
-    add eax, 3
-    mov ebx, [edi+W_Y]
-    add ebx, 2
-    mov ecx, 63
-    mov ebp, WG_BAR
-.t:
-    cmp byte [esi], 0
-    je .td
-    mov edx, [edi+W_X]
-    add edx, [edi+W_W]
-    sub edx, 16
-    cmp eax, edx
-    jg .td
-    movzx edx, byte [esi]
-    call wg_sglyph
-    add eax, 6
-    inc esi
-    jmp .t
-.td:
+    mov [wg_open], eax
+    mov eax, [edi+W_Y]
+    mov [wg_open+4], eax
+    mov eax, [edi+W_W]
+    mov [wg_open+8], eax
+    mov eax, [edi+W_H]
+    mov [wg_open+12], eax
+    lea eax, [edi+W_TITLE]
+    mov [wg_open+16], eax
+    mov dword [wg_open+20], 0       ; WF_DEFAULT
+    mov eax, SYS_WINOPEN
+    mov ebx, wg_open
+    int 0x80
+    cmp eax, -1
+    je .fail
+    mov [edi+W_WID], eax
+    mov dword [edi+W_VISIBLE], 1
+    mov dword [edi+W_INVALID], 1
     popad
-    ret
-
-; screen rectangle eax, ebx to ecx, edx (exclusive) in colour ebp,
-; clipped to the screen
-wg_sfill:
-    pushad
-    call wg_sclip
-    jc .r
-.y:
-    cmp ebx, edx
-    jge .r
-    imul edi, ebx, 320
-    add edi, eax
-    add edi, [wg_buf]
-    push ecx
-    sub ecx, eax
-    push eax
-    mov eax, ebp
-    rep stosb
-    pop eax
-    pop ecx
-    inc ebx
-    jmp .y
-.r:
-    popad
-    ret
-wg_sclip:                       ; clip eax..ecx, ebx..edx to 0..320, 0..200
-    test eax, eax
-    jns .a
-    xor eax, eax
-.a:
-    test ebx, ebx
-    jns .b
-    xor ebx, ebx
-.b:
-    cmp ecx, 320
-    jle .c
-    mov ecx, 320
-.c:
-    cmp edx, 200
-    jle .d
-    mov edx, 200
-.d:
-    cmp eax, ecx
-    jge .no
-    cmp ebx, edx
-    jge .no
+.ok:
     clc
     ret
-.no:
+.fail:
+    popad
     stc
     ret
 
-; one glyph at screen eax, ebx: edx = character, ecx = ink, ebp =
-; background or -1
-wg_sglyph:
-    pushad
-    jmp wg_glyph_any
+; edi = window: flush its area to the visible page
+wg_flush:
+    push eax
+    push ebx
+    cmp dword [edi+W_WID], -1
+    je .r
+    mov eax, SYS_WINFLUSH
+    mov ebx, [edi+W_WID]
+    int 0x80
+.r:
+    pop ebx
+    pop eax
+    ret
 
 ; ---------- window and DC lookup ----------
 
@@ -292,7 +173,6 @@ wg_sglyph:
 wg_win:
     sub eax, WG_HBASE
     jmp wg_slot
-; eax = hdc -> edi
 wg_dc:
     sub eax, WG_DCBASE
 wg_slot:
@@ -322,49 +202,75 @@ wg_hwnd_of:
     add eax, WG_HBASE
     ret
 
-; edi = window -> eax, ebx = client origin on the screen, ecx, edx = size
+; eax = native window id -> edi = Win32 window, CF if none
+wg_from_wid:
+    push ecx
+    mov edi, wg_wnds
+    mov ecx, WG_MAXW
+.f:
+    cmp dword [edi+W_USED], 0
+    je .n
+    cmp [edi+W_WID], eax
+    je .ok
+.n:
+    add edi, WSIZE
+    loop .f
+    stc
+    pop ecx
+    ret
+.ok:
+    clc
+    pop ecx
+    ret
+
+; edi = window -> eax, ebx unused; ecx, edx = client width, height
 wg_client:
-    mov eax, [edi+W_X]
-    inc eax
-    mov ebx, [edi+W_Y]
-    add ebx, WG_TITLE + 1
     mov ecx, [edi+W_W]
     sub ecx, 2
     mov edx, [edi+W_H]
     sub edx, WG_TITLE + 2
     ret
 
-; edi = window, eax, ebx = client point, cl = colour: one pixel, clipped
+; ---------- drawing through SYS_WINDRAW ----------
+
+; edi = window; [wg_cmd] filled: issue SYS_WINDRAW
+wg_draw:
+    push eax
+    push ebx
+    push ecx
+    cmp dword [edi+W_WID], -1
+    je .r
+    mov eax, SYS_WINDRAW
+    mov ebx, [edi+W_WID]
+    mov ecx, wg_cmd
+    int 0x80
+.r:
+    pop ecx
+    pop ebx
+    pop eax
+    ret
+
+; edi = window, eax, ebx = client point, cl = colour
 wg_pset:
     pushad
+    movzx ebp, cl               ; colour (wg_client overwrites ecx)
     test eax, eax
     js .r
     test ebx, ebx
     js .r
-    push eax
-    push ebx
-    push ecx
     call wg_client
-    mov esi, ecx                ; width
-    mov ebp, edx                ; height
-    pop ecx
-    pop edx                     ; y
-    pop edi                     ; x  (edi no longer the window)
-    cmp edi, esi
+    cmp eax, ecx
     jge .r
-    cmp edx, ebp
+    cmp ebx, edx
     jge .r
-    add edi, eax
-    add edx, ebx
-    cmp edi, 320
-    jae .r
-    cmp edx, 200
-    jae .r
-    imul edx, 320
-    add edx, edi
-    add edx, [wg_buf]
-    mov [edx], cl
-    mov byte [wg_dirty], 1
+    mov dword [wg_cmd], WD_FILL
+    mov [wg_cmd+4], eax
+    mov [wg_cmd+8], ebx
+    mov dword [wg_cmd+12], 1
+    mov dword [wg_cmd+16], 1
+    mov [wg_cmd+20], ebp
+    mov dword [wg_cmd+24], 0
+    call wg_draw
 .r:
     popad
     ret
@@ -380,23 +286,25 @@ wg_pget:
     js .no
     test ebx, ebx
     js .no
-    push eax
-    push ebx
-    call wg_client
-    mov esi, ecx
-    mov ebp, edx
-    pop edx
-    pop ecx
-    cmp ecx, esi
+    mov esi, eax                ; x
+    mov ebp, ebx                ; y
+    call wg_client              ; ecx = w, edx = h
+    cmp esi, ecx
     jge .no
-    cmp edx, ebp
+    cmp ebp, edx
     jge .no
-    add ecx, eax
-    add edx, ebx
-    imul edx, 320
-    add edx, ecx
-    add edx, [wg_buf]
-    movzx eax, byte [edx]
+    call wg_flush
+    mov dword [wg_cmd], WD_PIXEL
+    mov [wg_cmd+4], esi
+    mov [wg_cmd+8], ebp
+    mov dword [wg_cmd+12], 0
+    mov dword [wg_cmd+16], 0
+    mov dword [wg_cmd+20], 0
+    mov dword [wg_cmd+24], 0
+    mov eax, SYS_WINDRAW
+    mov ebx, [edi+W_WID]
+    mov ecx, wg_cmd
+    int 0x80
     jmp .r
 .no:
     mov eax, -1
@@ -422,182 +330,106 @@ wg_cfill:
     jns .b
     xor ebx, ebx
 .b:
-    push eax
-    push ebx
-    push ecx
-    push edx
-    call wg_client              ; eax, ebx origin; ecx, edx size
-    mov esi, ecx
-    mov edi, edx
-    mov [wg_ox], eax
-    mov [wg_oy], ebx
-    pop edx
-    pop ecx
-    pop ebx
-    pop eax
+    ; clip exclusive right/bottom to the client size
+    mov esi, [edi+W_W]
+    sub esi, 2
     cmp ecx, esi
     jle .c
     mov ecx, esi
 .c:
-    cmp edx, edi
+    mov esi, [edi+W_H]
+    sub esi, WG_TITLE + 2
+    cmp edx, esi
     jle .d
-    mov edx, edi
+    mov edx, esi
 .d:
-    add eax, [wg_ox]
-    add ecx, [wg_ox]
-    add ebx, [wg_oy]
-    add edx, [wg_oy]
-    call wg_sfill
-    mov byte [wg_dirty], 1
+    cmp eax, ecx
+    jge .r
+    cmp ebx, edx
+    jge .r
+    sub ecx, eax                ; width
+    sub edx, ebx                ; height
+    mov dword [wg_cmd], WD_FILL
+    mov [wg_cmd+4], eax
+    mov [wg_cmd+8], ebx
+    mov [wg_cmd+12], ecx
+    mov [wg_cmd+16], edx
+    mov [wg_cmd+20], ebp
+    mov dword [wg_cmd+24], 0
+    call wg_draw
 .r:
     popad
     ret
 
-; edi = window; eax, ebx = client position; esi = text, ecx = length:
-; the DC's text colour, and its background when the mode is OPAQUE
+; edi = window; eax, ebx = client; esi = text, ecx = length
 wg_text:
     pushad
-.c:
     jecxz .r
-    push ecx
-    movzx edx, byte [esi]
-    mov ecx, [edi+W_TEXT]
-    mov ebp, [edi+W_BK]
-    cmp dword [edi+W_BKMODE], 1     ; TRANSPARENT
-    jne .g
-    mov ebp, -1
-.g:
-    call wg_cglyph
-    pop ecx
-    add eax, 6
-    inc esi
-    dec ecx
-    jmp .c
+    cmp ecx, 127
+    jbe .n
+    mov ecx, 127
+.n:
+    push edi
+    mov edi, wg_tbuf
+    rep movsb
+    mov byte [edi], 0
+    pop edi
+    mov dword [wg_cmd], WD_TEXT
+    mov [wg_cmd+4], eax
+    mov [wg_cmd+8], ebx
+    mov eax, [edi+W_BK]
+    cmp dword [edi+W_BKMODE], 1
+    jne .bg
+    mov eax, -1
+.bg:
+    mov [wg_cmd+12], eax
+    mov dword [wg_cmd+16], 0
+    mov eax, [edi+W_TEXT]
+    mov [wg_cmd+20], eax
+    mov dword [wg_cmd+24], wg_tbuf
+    call wg_draw
 .r:
     popad
     ret
 
-; edi = window; eax, ebx client; edx = character, ecx = ink, ebp =
-; background or -1
-wg_cglyph:
-    pushad
-    mov [wg_gwin], edi
-    mov [wg_gx], eax
-    mov [wg_gy], ebx
-    mov byte [wg_gclient], 1
-    jmp wg_glyph_body
-; screen version: eax, ebx screen; edx, ecx, ebp as above (pushad done)
-wg_glyph_any:
-    mov [wg_gx], eax
-    mov [wg_gy], ebx
-    mov byte [wg_gclient], 0
-wg_glyph_body:
-    sub edx, 0x20
-    cmp edx, 0x7E - 0x20
-    jbe .ok
-    mov edx, '?' - 0x20
-.ok:
-    imul esi, edx, 7
-    add esi, [wg_font]
-    xor edx, edx                ; row
-.row:
-    xor edi, edi
-    cmp edx, 7
-    jae .bits
-    movzx edi, byte [esi+edx]
-.bits:
-    xor eax, eax                ; column
-.col:
-    push ecx
-    bt edi, 4
-    jc .ink
-    cmp ebp, -1
-    je .skip
-    mov ecx, ebp
-.ink:
-    push eax
-    push ebx
-    add eax, [wg_gx]
-    mov ebx, [wg_gy]
-    add ebx, edx
-    cmp byte [wg_gclient], 0
-    je .scr
-    push edi
-    mov edi, [wg_gwin]
-    call wg_pset
-    pop edi
-    jmp .done
-.scr:
-    cmp eax, 320
-    jae .done
-    cmp ebx, 200
-    jae .done
-    imul ebx, 320
-    add ebx, eax
-    add ebx, [wg_buf]
-    mov [ebx], cl
-.done:
-    pop ebx
-    pop eax
-.skip:
-    pop ecx
-    shl edi, 1
-    inc eax
-    cmp eax, 6
-    jb .col
-    inc edx
-    cmp edx, 8
-    jb .row
-    popad
-    ret
-
-; edi = window: a line from eax, ebx to ecx, edx in colour ebp, the last
-; point left out (as LineTo)
+; edi = window: a line from eax, ebx to ecx, edx in colour ebp (last
+; point left out, as LineTo)
 wg_line:
     pushad
     cmp ebp, -1
     je .r
-    mov [wg_lx1], ecx
-    mov [wg_ly1], edx
-    sub ecx, eax                ; dx
-    mov esi, 1
-    jns .px
-    neg ecx
-    neg esi
-.px:
-    mov [wg_sx], esi
-    sub edx, ebx                ; dy
-    mov esi, 1
-    jns .py
-    neg edx
-    neg esi
-.py:
-    mov [wg_sy], esi
-    neg edx                     ; err = dx - dy (dy as negative)
-    mov [wg_ldx], ecx
-    mov [wg_ldy], edx
-    lea esi, [ecx+edx]          ; err
-.l:
-    cmp eax, [wg_lx1]
-    jne .draw
-    cmp ebx, [wg_ly1]
+    cmp eax, ecx
+    jne .go
+    cmp ebx, edx
     je .r
+.go:
+    ; nudge the end back one step toward the start
+    cmp ecx, eax
+    je .vx
+    jl .xl
+    dec ecx
+    jmp .vy
+.xl:
+    inc ecx
+    jmp .vy
+.vx:
+.vy:
+    cmp edx, ebx
+    je .draw
+    jl .yl
+    dec edx
+    jmp .draw
+.yl:
+    inc edx
 .draw:
-    push ecx
-    mov ecx, ebp
-    call wg_pset
-    pop ecx
-    lea ecx, [esi+esi]
-    cmp ecx, [wg_ldy]
-    jl .noy
-    add esi, [wg_ldy]
-    add eax, [wg_sx]
-.noy:
-    cmp ecx, [wg_ldx]
-    jg .l
-    add esi, [wg_ldx]
-    add ebx, [wg_sy]
-    jmp .l
+    mov dword [wg_cmd], WD_LINE
+    mov [wg_cmd+4], eax
+    mov [wg_cmd+8], ebx
+    mov [wg_cmd+12], ecx
+    mov [wg_cmd+16], edx
+    mov [wg_cmd+20], ebp
+    mov dword [wg_cmd+24], 0
+    call wg_draw
 .r:
     popad
     ret
@@ -609,8 +441,8 @@ wg_host:
     push ebx
     push ecx
     push edx
-    xor edx, edx                ; result
-    xor ecx, ecx                ; channel: 0 red, 1 green, 2 blue
+    xor edx, edx
+    xor ecx, ecx
 .ch:
     movzx ebx, al
     add ebx, 42
@@ -619,15 +451,15 @@ wg_host:
     push edx
     xor edx, edx
     mov ebx, 85
-    div ebx                     ; 0..3
+    div ebx
     pop edx
     mov ebx, 2
-    sub ebx, ecx                ; red bit 2, green 1, blue 0
-    test eax, 2                 ; two thirds
+    sub ebx, ecx
+    test eax, 2
     jz .lo
     bts edx, ebx
 .lo:
-    test eax, 1                 ; a third
+    test eax, 1
     jz .nx
     add ebx, 3
     bts edx, ebx
@@ -650,7 +482,7 @@ wg_rgb:
     push edx
     mov edx, eax
     xor eax, eax
-    mov ecx, 2                  ; blue first: built from the top byte down
+    mov ecx, 2
 .ch:
     shl eax, 8
     xor ebx, ebx
@@ -658,7 +490,6 @@ wg_rgb:
     jnc .l
     add ebx, 170
 .l:
-    lea ebx, [ebx]
     push ecx
     add ecx, 3
     bt edx, ecx
@@ -669,7 +500,6 @@ wg_rgb:
     or eax, ebx
     dec ecx
     jns .ch
-    ; built as R G B from high to low: swap to 0x00BBGGRR
     bswap eax
     shr eax, 8
     pop edx
@@ -681,16 +511,16 @@ wg_rgb:
 wg_brush_col:
     cmp eax, 64
     jae .h
-    cmp eax, 2                  ; COLOR_BACKGROUND + 1: the desktop
+    cmp eax, 2
     je .desk
-    cmp eax, 16                 ; COLOR_BTNFACE + 1
+    cmp eax, 16
     je .face
     test eax, eax
     jz .none
-    mov eax, 63                 ; COLOR_WINDOW + 1 and the rest: white
+    mov eax, 63
     ret
 .desk:
-    mov eax, WG_DESK
+    mov eax, 3                  ; cyan desktop feel
     ret
 .face:
     mov eax, 7
@@ -706,8 +536,7 @@ wg_brush_col:
 
 ; ---------- the queue ----------
 
-; eax = hwnd, ebx = message, ecx = wParam, edx = lParam, [wg_qascii] the
-; key's ASCII for TranslateMessage
+; eax = hwnd, ebx = message, ecx = wParam, edx = lParam, [wg_qascii] ASCII
 wg_post:
     push esi
     mov esi, [wg_qn]
@@ -729,6 +558,66 @@ wg_post:
     inc dword [wg_qn]
 .full:
     pop esi
+    ret
+
+; Pull SYS_WINEVENT into the Win32 queue (poll; always pumps the WM).
+wg_poll:
+    pushad
+.more:
+    mov eax, SYS_WINEVENT
+    mov ebx, wg_ev
+    mov ecx, 1                  ; poll
+    int 0x80
+    cmp eax, -1
+    je .r
+    mov eax, [wg_ev]            ; type
+    mov ebx, [wg_ev+4]          ; native window id
+    push eax
+    mov eax, ebx
+    call wg_from_wid
+    pop eax
+    jc .more
+    call wg_hwnd_of
+    mov ebp, eax                ; hwnd
+    mov eax, [wg_ev]
+    cmp eax, WE_CLOSE
+    je .close
+    cmp eax, WE_PAINT
+    je .paint
+    cmp eax, WE_KEY
+    je .key
+    cmp eax, WE_DOWN
+    je .down
+    jmp .more
+.close:
+    mov eax, ebp
+    mov ebx, WM_CLOSE
+    xor ecx, ecx
+    xor edx, edx
+    call wg_post
+    jmp .more
+.paint:
+    mov dword [edi+W_INVALID], 1
+    jmp .more
+.key:
+    movzx ecx, byte [wg_ev+8]   ; key as wg_key / ASCII
+    mov [wg_qascii], cl
+    call wg_vk
+    mov ecx, eax
+    mov eax, ebp
+    mov ebx, WM_KEYDOWN
+    mov edx, 1
+    call wg_post
+    jmp .more
+.down:
+    mov eax, ebp
+    mov ebx, WM_LBUTTONDOWN
+    mov ecx, 1                  ; MK_LBUTTON
+    mov edx, [wg_ev+8]          ; client x | y << 16
+    call wg_post
+    jmp .more
+.r:
+    popad
     ret
 
 ; edi = MSG, al = 1 to remove, ah = 1 to wait -> CF clear with a message
@@ -786,7 +675,7 @@ wg_next:
     mov esi, wg_timers
     mov ecx, WG_TMAX
 .tm:
-    cmp dword [esi+8], 0        ; interval 0: a free slot
+    cmp dword [esi+8], 0
     je .tn
     cmp eax, [esi+12]
     jb .tn
@@ -796,22 +685,28 @@ wg_next:
     add edx, [esi+8]
     mov [esi+12], edx
 .tgive:
-    mov edx, [esi+16]           ; TIMERPROC, or 0
-    mov ecx, [esi+4]            ; the id
+    mov edx, [esi+16]
+    mov ecx, [esi+4]
     mov ebx, WM_TIMER
     mov eax, [esi]
     jmp .give
 .tn:
     add esi, 20
     loop .tm
-    ; input
     call wg_poll
     cmp dword [wg_qn], 0
     jne .again
-    cmp byte [wg_dirty], 0
-    je .nd
-    call wg_flip
-.nd:
+    ; any window marked invalid by WE_PAINT?
+    mov esi, wg_wnds
+    mov ecx, WG_MAXW
+.iv:
+    cmp dword [esi+W_USED], 0
+    je .ivn
+    cmp dword [esi+W_INVALID], 0
+    jne .again
+.ivn:
+    add esi, WSIZE
+    loop .iv
     cmp byte [wg_wait], 0
     je .none
     push edi
@@ -836,122 +731,10 @@ wg_next:
     mov edx, eax
     pop eax
     pop edi
-    mov [edi+16], edx           ; time, in ms
-    mov edx, [wg_mouse]
-    mov ebx, edx
-    and edx, 0x3FF
-    shr ebx, 10
-    and ebx, 0x3FF
-    mov [edi+20], edx
-    mov [edi+24], ebx
+    mov [edi+16], edx
+    mov dword [edi+20], 0
+    mov dword [edi+24], 0
     clc
-    ret
-
-; keys and the left button into the queue, for the top window
-wg_poll:
-    pushad
-    call wg_top
-    mov [wg_focus], eax
-    mov eax, 35
-    mov ebx, 4                  ; GUI_KEY
-    int 0x80
-    test eax, eax
-    jz .mouse
-    mov edx, eax
-    shr edx, 8
-    and edx, 0xFF               ; scan code
-    movzx ecx, al               ; ASCII
-    mov [wg_qascii], al
-    call wg_vk
-    mov ecx, eax                ; wParam = the virtual key
-    shl edx, 16
-    or edx, 1                   ; lParam: repeat 1, the scan code
-    mov eax, [wg_focus]
-    mov ebx, WM_KEYDOWN
-    test eax, eax
-    jz .mouse
-    call wg_post
-.mouse:
-    mov byte [wg_qascii], 0
-    mov eax, 35
-    mov ebx, 5                  ; GUI_MOUSE
-    int 0x80
-    cmp eax, -1
-    je .r
-    mov edx, [wg_mouse]
-    mov [wg_mouse], eax
-    cmp edx, -1
-    jne .edge
-    xor edx, edx
-.edge:
-    shr eax, 20
-    shr edx, 20
-    and eax, 1
-    and edx, 1
-    cmp eax, edx
-    je .r
-    mov ebx, WM_LBUTTONDOWN
-    test eax, eax
-    jnz .hit
-    mov ebx, WM_LBUTTONUP
-.hit:
-    mov ecx, [wg_mouse]
-    mov edx, ecx
-    and ecx, 0x3FF              ; x
-    shr edx, 10
-    and edx, 0x3FF              ; y
-    ; the topmost window under the point
-    mov edi, wg_wnds + (WG_MAXW-1)*WSIZE
-    mov ebp, WG_MAXW
-.w:
-    cmp dword [edi+W_USED], 0
-    je .wn
-    cmp dword [edi+W_VISIBLE], 0
-    je .wn
-    mov eax, ecx
-    sub eax, [edi+W_X]
-    js .wn
-    cmp eax, [edi+W_W]
-    jge .wn
-    mov esi, edx
-    sub esi, [edi+W_Y]
-    js .wn
-    cmp esi, [edi+W_H]
-    jge .wn
-    cmp esi, WG_TITLE
-    jge .client
-    cmp ebx, WM_LBUTTONDOWN
-    jne .r
-    mov esi, [edi+W_W]          ; the close box: the bar's last 10 pixels
-    sub esi, 10
-    cmp eax, esi
-    jl .r
-    call wg_hwnd_of
-    mov ebx, WM_CLOSE
-    xor ecx, ecx
-    xor edx, edx
-    call wg_post
-    jmp .r
-.client:
-    dec eax                     ; client coordinates
-    sub esi, WG_TITLE + 1
-    shl esi, 16
-    or esi, eax
-    mov edx, esi
-    call wg_hwnd_of
-    xor ecx, ecx
-    cmp ebx, WM_LBUTTONDOWN
-    jne .post
-    inc ecx                     ; MK_LBUTTON
-.post:
-    call wg_post
-    jmp .r
-.wn:
-    sub edi, WSIZE
-    dec ebp
-    jnz .w
-.r:
-    popad
     ret
 
 ; -> eax = the top visible window's hwnd, or 0
@@ -976,7 +759,7 @@ wg_top:
     pop edi
     ret
 
-; ecx = ASCII, edx = scan code -> eax = the virtual-key code
+; ecx = ASCII, edx = scan (unused here) -> eax = virtual-key code
 wg_vk:
     mov eax, ecx
     cmp al, 'a'
@@ -987,52 +770,17 @@ wg_vk:
     ret
 .ascii:
     test al, al
-    jz .scan
+    jz .none
     cmp al, 10
     jne .r
     mov al, 13
 .r:
     ret
-.scan:
-    mov eax, 0x26
-    cmp dl, 0x48
-    je .r
-    mov eax, 0x28
-    cmp dl, 0x50
-    je .r
-    mov eax, 0x25
-    cmp dl, 0x4B
-    je .r
-    mov eax, 0x27
-    cmp dl, 0x4D
-    je .r
-    mov eax, 0x24
-    cmp dl, 0x47
-    je .r
-    mov eax, 0x23
-    cmp dl, 0x4F
-    je .r
-    mov eax, 0x21
-    cmp dl, 0x49
-    je .r
-    mov eax, 0x22
-    cmp dl, 0x51
-    je .r
-    mov eax, 0x2E
-    cmp dl, 0x53
-    je .r
-    movzx eax, dl               ; F1-F10: VK_F1 = 0x70
-    sub eax, 0x3B
-    cmp eax, 9
-    ja .none
-    add eax, 0x70
-    ret
 .none:
     xor eax, eax
     ret
 
-; eax = hwnd, ebx = msg, ecx = wParam, edx = lParam -> eax = the window
-; procedure's result (0 for no such window)
+; eax = hwnd, ebx = msg, ecx = wParam, edx = lParam -> eax = result
 wg_send:
     push edi
     push eax
@@ -1057,11 +805,10 @@ wg_send:
 u_RegisterClassA:
     pushad
     mov esi, PA(0)
-    mov eax, [esi+4]            ; lpfnWndProc
-    mov ebx, [esi+28]           ; hbrBackground
-    mov edx, [esi+36]           ; lpszClassName
+    mov eax, [esi+4]
+    mov ebx, [esi+28]
+    mov edx, [esi+36]
     jmp wg_register
-; ATOM RegisterClassExA(WNDCLASSEXA *)
 u_RegisterClassExA:
     pushad
     mov esi, PA(0)
@@ -1100,12 +847,10 @@ wg_register:
     popad
     ret 4
 
-; HWND CreateWindowExA(exstyle, class, name, style, x, y, w, h, parent,
-;                      menu, instance, param)
+; HWND CreateWindowExA(...)
 u_CreateWindowExA:
     pushad
     call wg_on
-    ; the class, by name
     mov edx, PA(1)
     mov esi, wg_classes
     mov ecx, WG_MAXC
@@ -1135,7 +880,6 @@ u_CreateWindowExA:
 .cfound:
     pop edx
     pop esi
-    ; a free window
     mov edi, wg_wnds
     mov ecx, WG_MAXW
 .wf:
@@ -1151,6 +895,7 @@ u_CreateWindowExA:
     rep stosd
     pop edi
     mov dword [edi+W_USED], 1
+    mov dword [edi+W_WID], -1
     mov eax, [esi+32]
     mov [edi+W_PROC], eax
     mov eax, [esi+36]
@@ -1162,20 +907,20 @@ u_CreateWindowExA:
     mov dword [edi+W_BRUSH], 63
     mov dword [edi+W_HPEN], H_PEN | 0
     mov dword [edi+W_HBRUSH], H_BRUSH | 63
-    ; the place: CW_USEDEFAULT gives 10, 10, 300 x 180
+    ; CW_USEDEFAULT: place the close box near the default pointer (160,100)
     mov eax, PA(4)
     mov ebx, PA(5)
     mov ecx, PA(6)
     mov edx, PA(7)
     cmp eax, 0x80000000
     jne .px
-    mov eax, 10
-    mov ebx, 10
+    mov eax, 6
+    mov ebx, 94
 .px:
     cmp ecx, 0x80000000
     jne .ps
-    mov ecx, 300
-    mov edx, 180
+    mov ecx, 160
+    mov edx, 120
 .ps:
     mov [edi+W_X], eax
     mov [edi+W_Y], ebx
@@ -1184,7 +929,6 @@ u_CreateWindowExA:
     mov esi, PA(2)
     lea ebx, [edi+W_TITLE]
     call wg_settitle
-    ; WM_CREATE with a CREATESTRUCT, then WM_SIZE
     call wg_hwnd_of
     mov ebp, eax
     mov ecx, PA(11)
@@ -1225,13 +969,19 @@ u_CreateWindowExA:
     call wg_send
     test dword PA(3), 0x10000000    ; WS_VISIBLE
     jz .ok
-    mov dword [edi+W_VISIBLE], 1
-    call wg_redraw
+    call wg_native_open
+    jc .refused
 .ok:
     mov [esp+28], ebp
     popad
     ret 48
 .refused:
+    cmp dword [edi+W_WID], -1
+    je .cl
+    mov eax, SYS_WINCLOSE
+    mov ebx, [edi+W_WID]
+    int 0x80
+.cl:
     mov dword [edi+W_USED], 0
 .fail:
     mov dword [esp+28], 0
@@ -1259,7 +1009,7 @@ wg_settitle:
     pop ecx
     ret
 
-; BOOL ShowWindow(hwnd, cmd): SW_HIDE (0) hides, the rest show
+; BOOL ShowWindow(hwnd, cmd)
 u_ShowWindow:
     pushad
     mov eax, PA(0)
@@ -1269,11 +1019,16 @@ u_ShowWindow:
     mov [esp+28], eax
     xor eax, eax
     cmp dword PA(1), 0
-    je .set
-    inc eax
-.set:
+    je .hide
+    call wg_native_open
+    jc .no
+    mov eax, 1
     mov [edi+W_VISIBLE], eax
-    call wg_redraw
+    popad
+    ret 8
+.hide:
+    mov [edi+W_VISIBLE], eax
+    ; still open on the desktop; a real HideWindow can wait
     popad
     ret 8
 .no:
@@ -1281,7 +1036,7 @@ u_ShowWindow:
     popad
     ret 8
 
-; BOOL UpdateWindow(hwnd): WM_PAINT now, if it is invalid
+; BOOL UpdateWindow(hwnd)
 u_UpdateWindow:
     pushad
     mov eax, PA(0)
@@ -1312,9 +1067,16 @@ u_DestroyWindow:
     xor ecx, ecx
     xor edx, edx
     call wg_send
+    cmp dword [edi+W_WID], -1
+    je .gone
+    mov eax, SYS_WINCLOSE
+    mov ebx, [edi+W_WID]
+    int 0x80
+    mov dword [edi+W_WID], -1
+.gone:
     mov dword [edi+W_USED], 0
     mov eax, PA(0)
-    mov esi, wg_timers          ; its timers stop
+    mov esi, wg_timers
     mov ecx, WG_TMAX
 .t:
     cmp [esi], eax
@@ -1323,7 +1085,6 @@ u_DestroyWindow:
 .tn:
     add esi, 20
     loop .t
-    call wg_redraw
     mov dword [esp+28], 1
     popad
     ret 4
@@ -1352,7 +1113,7 @@ u_DefWindowProcA:
     xor eax, eax
     ret 16
 .paint:
-    push wg_ps                  ; validate: BeginPaint and EndPaint
+    push wg_ps
     push dword [esp+8]
     call u_BeginPaint
     push wg_ps
@@ -1361,11 +1122,11 @@ u_DefWindowProcA:
     xor eax, eax
     ret 16
 
-; BOOL GetMessageA(MSG *, hwnd, min, max): 0 for WM_QUIT
+; BOOL GetMessageA(MSG *, hwnd, min, max)
 u_GetMessageA:
     pushad
     mov edi, PA(0)
-    mov ax, 0x0101              ; remove, wait
+    mov ax, 0x0101
     call wg_next
     xor eax, eax
     cmp dword [edi+4], WM_QUIT
@@ -1381,7 +1142,7 @@ u_PeekMessageA:
     pushad
     mov edi, PA(0)
     mov eax, PA(4)
-    and eax, 1                  ; PM_REMOVE
+    and eax, 1
     call wg_next
     mov eax, 0
     jc .q
@@ -1391,7 +1152,7 @@ u_PeekMessageA:
     popad
     ret 20
 
-; BOOL TranslateMessage(MSG *): WM_KEYDOWN with a character -> WM_CHAR
+; BOOL TranslateMessage(MSG *)
 u_TranslateMessage:
     pushad
     mov esi, PA(0)
@@ -1425,7 +1186,7 @@ u_DispatchMessageA:
     mov edx, [esi+12]
     cmp ebx, WM_TIMER
     jne .send
-    test edx, edx               ; a TIMERPROC(hwnd, WM_TIMER, id, time)
+    test edx, edx
     jz .send
     push dword [esi+16]
     push ecx
@@ -1475,7 +1236,7 @@ u_SendMessageA:
     popad
     ret 16
 
-; HDC BeginPaint(hwnd, PAINTSTRUCT *): erases with the class colour
+; HDC BeginPaint(hwnd, PAINTSTRUCT *)
 u_BeginPaint:
     pushad
     mov eax, PA(0)
@@ -1485,15 +1246,16 @@ u_BeginPaint:
     mov ebp, [edi+W_BG]
     xor eax, eax
     xor ebx, ebx
-    mov ecx, 320
-    mov edx, 200
+    call wg_client
+    add ecx, eax
+    add edx, ebx
     call wg_cfill
     mov esi, PA(1)
     mov eax, PA(0)
     add eax, WG_DCBASE - WG_HBASE
-    mov [esi], eax              ; hdc
+    mov [esi], eax
     mov [esp+28], eax
-    mov dword [esi+4], 0        ; fErase: done
+    mov dword [esi+4], 0
     call wg_client
     mov dword [esi+8], 0
     mov dword [esi+12], 0
@@ -1506,10 +1268,16 @@ u_BeginPaint:
     popad
     ret 8
 
-; BOOL EndPaint(hwnd, PAINTSTRUCT *) / int ReleaseDC(hwnd, hdc)
+; BOOL EndPaint / int ReleaseDC
 u_EndPaint:
 u_ReleaseDC:
-    call wg_flip
+    pushad
+    mov eax, PA(0)
+    call wg_win
+    jc .r
+    call wg_flush
+.r:
+    popad
     mov eax, 1
     ret 8
 
@@ -1526,7 +1294,7 @@ u_GetDC:
 .r:
     ret 4
 
-; BOOL InvalidateRect(hwnd, RECT *, erase): the whole client; hwnd 0: all
+; BOOL InvalidateRect(hwnd, RECT *, erase)
 u_InvalidateRect:
     pushad
     mov eax, PA(0)
@@ -1600,8 +1368,7 @@ u_FillRect:
     popad
     ret 12
 
-; int DrawTextA(hdc, text, n, RECT *, format): one line; DT_CENTER (1),
-; DT_RIGHT (2), DT_VCENTER (4), DT_BOTTOM (8)
+; int DrawTextA(hdc, text, n, RECT *, format): one line
 u_DrawTextA:
     pushad
     mov eax, PA(0)
@@ -1619,49 +1386,15 @@ u_DrawTextA:
     jmp .len
 .n:
     mov ebp, PA(3)
-    mov eax, [ebp]              ; left
-    mov ebx, [ebp+4]            ; top
-    mov edx, PA(4)
-    test edx, 1
-    jz .nc
-    mov eax, [ebp+8]
-    sub eax, [ebp]
-    imul edx, ecx, 6
-    sub eax, edx
-    sar eax, 1
-    add eax, [ebp]
-    mov edx, PA(4)
-.nc:
-    test edx, 2
-    jz .nr
-    mov eax, [ebp+8]
-    push edx
-    imul edx, ecx, 6
-    sub eax, edx
-    pop edx
-.nr:
-    test edx, 4
-    jz .nv
-    mov ebx, [ebp+12]
-    sub ebx, [ebp+4]
-    sub ebx, 8
-    sar ebx, 1
-    add ebx, [ebp+4]
-.nv:
-    test edx, 8
-    jz .nb
-    mov ebx, [ebp+12]
-    sub ebx, 8
-.nb:
+    mov eax, [ebp]
+    mov ebx, [ebp+4]
     call wg_text
 .r:
     mov dword [esp+28], 8
     popad
     ret 20
 
-; int MessageBoxA(hwnd, text, caption, type): a box in the middle of the
-; screen, or two lines on the console before graphics; IDOK, or IDYES /
-; IDNO for MB_YESNO (Y and N)
+; int MessageBoxA: console before graphics; a short-lived window after
 u_MessageBoxA:
     pushad
     cmp byte [wg_active], 0
@@ -1681,132 +1414,108 @@ u_MessageBoxA:
     popad
     ret 16
 .gfx:
-    mov esi, PA(1)
-    call wg_strlen
-    mov ebp, ecx
+    ; a small window with the caption; wait for a key or close
     mov esi, PA(2)
-    call wg_strlen
-    cmp ecx, ebp
-    jbe .w
-    mov ebp, ecx
-.w:
-    imul ebp, 6
-    add ebp, 16                 ; width
-    cmp ebp, 316
-    jbe .w2
-    mov ebp, 316
-.w2:
-    mov eax, 320
-    sub eax, ebp
-    shr eax, 1                  ; left
-    mov [wg_mbx], eax
-    lea ecx, [eax+ebp]
-    mov ebx, 70
-    mov edx, 130
-    push ebp
-    mov ebp, WG_FRAME
-    call wg_sfill
-    inc eax
-    inc ebx
-    dec ecx
-    dec edx
-    mov ebp, 7
-    call wg_sfill
-    mov edx, ebx
-    add edx, WG_TITLE-1
-    mov ebp, WG_BAR
-    call wg_sfill
-    pop ebp
-    mov esi, PA(2)
-    mov eax, [wg_mbx]
-    add eax, 4
-    mov ebx, 72
-    mov ecx, 63
-    mov ebp, WG_BAR
-    call wg_stext
-    mov esi, PA(1)
-    mov eax, [wg_mbx]
-    add eax, 8
-    mov ebx, 90
-    mov ecx, 0
-    mov ebp, 7
-    call wg_stext
+    test esi, esi
+    jnz .cap
     mov esi, m_ok
-    mov eax, PA(3)
-    and eax, 15
-    cmp eax, 4                  ; MB_YESNO
-    jne .bt
-    mov esi, m_yesno
-.bt:
-    mov eax, 136
-    mov ebx, 112
-    mov ecx, 0
-    mov ebp, 7
-    call wg_stext
-    call wg_flip
+.cap:
+    mov [wg_open+16], esi
+    mov dword [wg_open], 120
+    mov dword [wg_open+4], 140
+    mov dword [wg_open+8], 280
+    mov dword [wg_open+12], 100
+    mov dword [wg_open+20], 0
+    mov eax, SYS_WINOPEN
+    mov ebx, wg_open
+    int 0x80
+    cmp eax, -1
+    je .idok
+    mov [wg_mbwid], eax
+    mov dword [wg_cmd], WD_FILL
+    mov dword [wg_cmd+4], 0
+    mov dword [wg_cmd+8], 0
+    mov dword [wg_cmd+12], 276
+    mov dword [wg_cmd+16], 86
+    mov dword [wg_cmd+20], 7
+    mov dword [wg_cmd+24], 0
+    mov ebx, eax
+    mov eax, SYS_WINDRAW
+    mov ecx, wg_cmd
+    int 0x80
+    mov esi, PA(1)
+    test esi, esi
+    jz .flush
+    mov ecx, 120
+    mov edi, wg_tbuf
+.cp:
+    lodsb
+    stosb
+    test al, al
+    jz .tx
+    loop .cp
+    mov byte [edi], 0
+.tx:
+    mov dword [wg_cmd], WD_TEXT
+    mov dword [wg_cmd+4], 8
+    mov dword [wg_cmd+8], 8
+    mov dword [wg_cmd+12], -1
+    mov dword [wg_cmd+16], 0
+    mov dword [wg_cmd+20], 0
+    mov dword [wg_cmd+24], wg_tbuf
+    mov eax, SYS_WINDRAW
+    mov ebx, [wg_mbwid]
+    mov ecx, wg_cmd
+    int 0x80
+.flush:
+    mov eax, SYS_WINFLUSH
+    mov ebx, [wg_mbwid]
+    int 0x80
 .key:
-    mov eax, 35
-    mov ebx, 4
+    mov eax, SYS_WINEVENT
+    mov ebx, wg_ev
+    xor ecx, ecx
     int 0x80
-    test eax, eax
-    jnz .got
-    mov eax, SYS_YIELD
-    int 0x80
-    jmp .key
-.got:
+    mov eax, [wg_ev]
+    cmp eax, WE_CLOSE
+    je .close
+    cmp eax, WE_KEY
+    jne .key
+    mov al, [wg_ev+8]
     or al, 0x20
-    mov ecx, 1                  ; IDOK
+    mov ecx, 1
     mov edx, PA(3)
     and edx, 15
     cmp edx, 4
     jne .done
-    mov ecx, 6                  ; IDYES
+    mov ecx, 6
     cmp al, 'y'
     je .done
-    mov ecx, 7                  ; IDNO
+    mov ecx, 7
     cmp al, 'n'
     jne .key
+    jmp .done
+.close:
+    mov ecx, 1
 .done:
+    mov eax, SYS_WINCLOSE
+    mov ebx, [wg_mbwid]
+    int 0x80
     mov [esp+28], ecx
-    call wg_redraw
+    popad
+    ret 16
+.idok:
+    mov dword [esp+28], 1
     popad
     ret 16
 
-; esi = ASCIIZ -> ecx = its length
-wg_strlen:
-    xor ecx, ecx
-.l:
-    cmp byte [esi+ecx], 0
-    je .r
-    inc ecx
-    jmp .l
-.r:
-    ret
-
-; esi = ASCIIZ at screen eax, ebx; ecx ink, ebp background
-wg_stext:
-    pushad
-.c:
-    movzx edx, byte [esi]
-    test edx, edx
-    jz .r
-    cmp eax, 314
-    jg .r
-    call wg_sglyph
-    add eax, 6
-    inc esi
-    jmp .c
-.r:
-    popad
-    ret
-
-; HCURSOR LoadCursorA(...), HICON LoadIconA(...): a token
+; HCURSOR / HICON
 u_LoadCursorA:
 u_LoadIconA:
     mov eax, 1
     ret 8
 
-; int GetSystemMetrics(index): screen 320 x 200, caption 10
+; int GetSystemMetrics(index)
 u_GetSystemMetrics:
     mov eax, [esp+4]
     cmp eax, 0
@@ -1818,10 +1527,32 @@ u_GetSystemMetrics:
     xor eax, eax
     ret 4
 .w:
+    cmp byte [wg_active], 0
+    je .w320
+    mov eax, SYS_WININFO
+    mov ebx, -1
+    mov ecx, wg_info
+    int 0x80
+    mov eax, [wg_info+8]
+    test eax, eax
+    jnz .wr
+.w320:
     mov eax, 320
+.wr:
     ret 4
 .h:
+    cmp byte [wg_active], 0
+    je .h200
+    mov eax, SYS_WININFO
+    mov ebx, -1
+    mov ecx, wg_info
+    int 0x80
+    mov eax, [wg_info+12]
+    test eax, eax
+    jnz .hr
+.h200:
     mov eax, 200
+.hr:
     ret 4
 .cap:
     mov eax, WG_TITLE
@@ -1833,7 +1564,7 @@ u_SetTimer:
     mov esi, wg_timers
     mov ecx, WG_TMAX
 .f:
-    mov eax, PA(0)              ; the same window and id: replaced
+    mov eax, PA(0)
     cmp [esi], eax
     jne .fn
     mov eax, PA(1)
@@ -1858,7 +1589,7 @@ u_SetTimer:
     mov eax, PA(1)
     test eax, eax
     jnz .id
-    mov eax, esi                ; hwnd 0: an id of our own
+    mov eax, esi
 .id:
     mov [esi+4], eax
     mov [esp+28], eax
@@ -1910,7 +1641,12 @@ u_SetWindowTextA:
     mov esi, PA(1)
     lea ebx, [edi+W_TITLE]
     call wg_settitle
-    call wg_redraw
+    cmp dword [edi+W_WID], -1
+    je .r
+    mov eax, SYS_WINTITLE
+    mov ebx, [edi+W_WID]
+    lea ecx, [edi+W_TITLE]
+    int 0x80
 .r:
     mov dword [esp+28], 1
     popad
@@ -1923,7 +1659,6 @@ u_MessageBeep:
 
 ; ---------- GDI32 ----------
 
-; HGDIOBJ GetStockObject(i)
 g_GetStockObject:
     mov eax, [esp+4]
     cmp eax, 5
@@ -1949,14 +1684,12 @@ g_GetStockObject:
     or eax, H_PEN
     ret 4
 
-; HBRUSH CreateSolidBrush(colorref)
 g_CreateSolidBrush:
     mov eax, [esp+4]
     call wg_host
     or eax, H_BRUSH
     ret 4
 
-; HPEN CreatePen(style, width, colorref): PS_NULL (5) draws nothing
 g_CreatePen:
     mov eax, [esp+12]
     call wg_host
@@ -1967,12 +1700,10 @@ g_CreatePen:
     or eax, H_PEN
     ret 12
 
-; BOOL DeleteObject(h)
 g_DeleteObject:
     mov eax, 1
     ret 4
 
-; HGDIOBJ SelectObject(hdc, h) -> the one it replaces
 g_SelectObject:
     pushad
     mov eax, PA(0)
@@ -1985,7 +1716,7 @@ g_SelectObject:
     je .brush
     cmp eax, H_PEN
     je .pen
-    mov dword [esp+28], H_FONT  ; fonts: the system font stays
+    mov dword [esp+28], H_FONT
     popad
     ret 8
 .brush:
@@ -2014,7 +1745,6 @@ g_SelectObject:
     popad
     ret 8
 
-; COLORREF SetTextColor(hdc, c) / SetBkColor(hdc, c): the old one
 g_SetTextColor:
     mov edx, W_TEXT
     jmp wg_setcol
@@ -2038,7 +1768,6 @@ wg_setcol:
     popad
     ret 8
 
-; int SetBkMode(hdc, mode): TRANSPARENT 1, OPAQUE 2
 g_SetBkMode:
     pushad
     mov eax, PA(0)
@@ -2055,7 +1784,6 @@ g_SetBkMode:
     popad
     ret 8
 
-; BOOL TextOutA(hdc, x, y, text, n)
 g_TextOutA:
     pushad
     mov eax, PA(0)
@@ -2071,7 +1799,6 @@ g_TextOutA:
     popad
     ret 20
 
-; COLORREF SetPixel(hdc, x, y, c): the colour it really got
 g_SetPixel:
     pushad
     mov eax, PA(0)
@@ -2093,7 +1820,6 @@ g_SetPixel:
     popad
     ret 16
 
-; COLORREF GetPixel(hdc, x, y): CLR_INVALID outside
 g_GetPixel:
     pushad
     mov eax, PA(0)
@@ -2113,7 +1839,6 @@ g_GetPixel:
     popad
     ret 12
 
-; BOOL MoveToEx(hdc, x, y, POINT *old)
 g_MoveToEx:
     pushad
     mov eax, PA(0)
@@ -2136,7 +1861,6 @@ g_MoveToEx:
     popad
     ret 16
 
-; BOOL LineTo(hdc, x, y)
 g_LineTo:
     pushad
     mov eax, PA(0)
@@ -2155,7 +1879,6 @@ g_LineTo:
     popad
     ret 12
 
-; BOOL Rectangle(hdc, left, top, right, bottom): brush inside, pen edge
 g_Rectangle:
     pushad
     mov eax, PA(0)
@@ -2170,7 +1893,7 @@ g_Rectangle:
     mov ebp, [edi+W_PEN]
     cmp ebp, -1
     je .r
-    push edx                    ; top and bottom edges
+    push edx
     lea edx, [ebx+1]
     call wg_cfill
     pop edx
@@ -2178,7 +1901,7 @@ g_Rectangle:
     lea ebx, [edx-1]
     call wg_cfill
     pop ebx
-    push ecx                    ; left and right edges
+    push ecx
     lea ecx, [eax+1]
     call wg_cfill
     pop ecx
@@ -2231,7 +1954,7 @@ g_Rectangle:
     U KillTimer
     U SetWindowTextA
     U MessageBeep
-    dd m_sprintf                    ; wsprintfA: cdecl, like sprintf
+    dd m_sprintf
     db 'wsprintfA', 0
     G GetStockObject
     G CreateSolidBrush
@@ -2249,45 +1972,30 @@ g_Rectangle:
     G Rectangle
 %endmacro
 
-; stock objects 0-8: white, light grey, grey, dark grey, black brushes,
-; the null brush; white, black, null pens
 wg_stockcol db 63, 7, 0x38, 0x38, 0, 0xFF, 63, 0, 0xFF
-wg_rect dd 0, 0, 320, 200, 0, 320
 m_colon db ': ', 0
 m_ok db '[ OK ]', 0
 m_yesno db '[Y]es [N]o', 0
 
 %macro WINGUI_BSS 0
 alignb 4
-wg_buf resd 1
-wg_font resd 1
-wg_mouse resd 1
-wg_focus resd 1
 wg_qh resd 1
 wg_qn resd 1
-wg_ox resd 1
-wg_oy resd 1
-wg_gx resd 1
-wg_gy resd 1
-wg_gwin resd 1
-wg_lx1 resd 1
-wg_ly1 resd 1
-wg_sx resd 1
-wg_sy resd 1
-wg_ldx resd 1
-wg_ldy resd 1
-wg_mbx resd 1
 wg_cs resd 12
 wg_ps resd 16
+wg_open resd 6
+wg_ev resd 4
+wg_cmd resd 7
+wg_info resd 4
+wg_mbwid resd 1
 wg_wnds resb WG_MAXW*WSIZE
 wg_classes resb WG_MAXC*40
 wg_queue resb WG_QMAX*20
 wg_timers resb WG_TMAX*20
+wg_tbuf resb 128
 wg_active resb 1
-wg_dirty resb 1
 wg_rm resb 1
 wg_wait resb 1
 wg_qascii resb 1
 wg_lastascii resb 1
-wg_gclient resb 1
 %endmacro
