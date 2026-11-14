@@ -873,7 +873,7 @@ check smp-after     'systest: PASS'         'run smpspin 4' '<ret>' '<pause>' '<
 unset QEMU_EXTRA
 # 1.1.0: the timer preempts a program that spins without a system call
 check_all sched-preempt 'spin: second process ran|preempt: PASS' 'run spin' '<ret>' '<pause>'
-check up-ls-filter  '6 file(s)'             'run ls he' '<ret>'
+check up-ls-filter  '7 file(s)'             'run ls he' '<ret>'   # +nxheap (2.8-pae); shell.hist matches "he" too
 # 1.0.3: programs read why a file call failed (SYS_FSERROR), in the shell's words
 check errno-nf      'errno: Not found'      'run errno missing' '<ret>'
 check errno-dir     'errno: Is a directory' 'mkdir edir' '<ret>' 'run errno edir' '<ret>'

@@ -6,8 +6,8 @@
 ; local APIC, and waits for it. An application processor (AP) begins in
 ; real mode at SMP_TRAMP, the page where the BSP copied ap_tramp: it
 ; loads the kernel's GDT, enters protected mode, takes the next AP stack,
-; turns on the kernel's paging and IDT, enables its local APIC, counts
-; itself online and enters ap_idle.
+; turns on PAE (and NXE when needed), the kernel's PDPT and IDT, enables
+; its local APIC, counts itself online and enters ap_idle.
 ;
 ; Scheduling (2.8-smp-sched): the kernel itself still runs only on the
 ; BSP. An AP runs ring-3 threads: in ap_idle it claims a READY thread
@@ -333,10 +333,14 @@ ap_pm32:
     mov gs, ax
     mov edi, [smp_ap_rec]       ; this AP's record: the BSP waits for us
     mov esp, [edi+CPU_STACK]
+    ; Same paging mode as the BSP (2.8-pae): PAE before CR3/PG. Without
+    ; PAE the PDPT is read as a 32-bit page directory and the AP writes
+    ; through the wrong map, which can corrupt the BSP.
     mov eax, cr4
-    or eax, 0x10                ; PSE, as the kernel's directory needs
+    or eax, 1 << 5              ; PAE (2 MB pages via PG_PS in the PD)
     mov cr4, eax
-    mov eax, [kernel_pd]
+    call nx_enable              ; EFER.NXE when the BSP mapped NX pages
+    mov eax, [kernel_pd]        ; PDPT
     mov cr3, eax
     mov eax, cr0
     or eax, 0x80000000
