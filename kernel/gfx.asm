@@ -1001,12 +1001,14 @@ clip_fail db 'clip: FAIL', 10, 0
 
 ; ---------- bevels (W.1-theme) ----------
 
-; eax, ebx = top left, ecx = width, edx = height, esi = 0 raised / 1 sunken.
+; eax, ebx = top left, ecx = width, edx = height,
+; esi = 0 raised / 1 sunken / 2 etched.
 ; Draws TH_BEVEL_W rings just inside the rectangle's edge: per ring a top
 ; row and a left column in one colour, then a bottom row and a right column
 ; in another (so the top-right and bottom-left corners take the second).
 ; Raised: light / dark outside, light / shadow inside. Sunken: shadow /
-; light outside, dark / face inside. The face is not filled.
+; light outside, dark / face inside. Etched: a groove (shadow / light
+; outside, light / shadow inside). The face is not filled.
 gfx_bevel:
     pushad
     mov [bv_w], ecx
@@ -1064,6 +1066,7 @@ bv_h dd 0
 bev_cols:
     db TH_LIGHT, TH_LIGHT, TH_DARK, TH_SHADOW       ; raised
     db TH_SHADOW, TH_DARK, TH_LIGHT, TH_FACE        ; sunken
+    db TH_SHADOW, TH_LIGHT, TH_LIGHT, TH_SHADOW     ; etched
 
 ; bevtest: on a face-grey band in mode 13h, draws a raised and a sunken
 ; bevel and reads back each ring's colours, a shared corner and the face.

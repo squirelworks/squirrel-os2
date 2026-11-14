@@ -18,9 +18,12 @@ WG_TEXT         equ 12          ; zero-terminated string
 WG_PID          equ 16          ; button: the process its events go to
 WG_CODE         equ 20          ; button: the low 24 bits of its event;
                                 ; field: the most characters it holds;
-                                ; list: how many items
-WG_SEL          equ 24          ; list: the selected item, from 0
-WG_TOP          equ 28          ; list: the first item shown (2.0.2)
+                                ; list: how many items;
+                                ; group: width in pixels
+WG_SEL          equ 24          ; list: the selected item, from 0;
+                                ; button: 1 while drawn pressed (2.3-bevel)
+WG_TOP          equ 28          ; list: the first item shown (2.0.2);
+                                ; group: height in pixels
 WG_ROWS         equ 32          ; list: how many rows fit, from the last draw
 WG_SIZE         equ 36
 
@@ -29,6 +32,7 @@ WGK_BUTTON      equ 2           ; text in a box; Enter or Space posts an event
 WGK_FIELD       equ 3           ; a one-line edit field over a caller's buffer
 WGK_LIST        equ 4           ; items in a column, one selected
 WGK_CONSOLE     equ 5           ; an 80 x 25 text screen buffer, shown in part
+WGK_GROUP       equ 6           ; etched group box with an optional caption
 
 WK_UP           equ 0x18        ; wg_key codes for the arrow keys (the
 WK_DOWN         equ 0x19        ; ASCII control codes CAN and EM)
@@ -38,7 +42,9 @@ WK_RIGHT        equ 0x12
 
 MSG_BUTTON      equ 0x42000000  ; 'B' in the top byte, the button's code below
 WG_BTN_PAD      equ 2           ; pixels between a button's box and its text
-WG_BTN_FILL     equ TH_BTN_FACE ; theme.inc
+WG_BTN_FILL     equ TH_FACE     ; raised/sunken button face (Warp grey)
+WG_WELL_FILL    equ TH_BTN_FACE ; sunken field and list interior
+WG_CHROME       equ (2 * WG_BTN_PAD + 2 * TH_BEVEL_W)
 
 ; eax = window id, ebx = x, ecx = y (in the client area), esi = text
 ; -> eax = widget id, or -1 if the window is not open or the table is full.
@@ -69,11 +75,24 @@ wg_button:
     add edi, wg_table
     and edx, 0x00FFFFFF
     mov [edi+WG_CODE], edx
+    mov dword [edi+WG_SEL], 0   ; not pressed
     mov edx, [proc_cur]
     mov edx, [edx+PCB_PID]
     mov [edi+WG_PID], edx
 .out:
     pop edx
+    pop edi
+    ret
+
+; eax = a button's widget id, ebx = 0 raised / 1 pressed. The caller redraws.
+wg_press:
+    push edi
+    imul edi, eax, WG_SIZE
+    add edi, wg_table
+    cmp byte [edi+WG_KIND], WGK_BUTTON
+    jne .r
+    mov [edi+WG_SEL], ebx
+.r:
     pop edi
     ret
 
@@ -164,6 +183,30 @@ wg_console:
 .out:
     pop edx
     pop edi
+    ret
+
+; eax = window id, ebx = x, ecx = y, esi = caption (may be empty),
+; edx = width, edi = height -> eax = widget id, or -1. An etched frame;
+; the caption sits on the top edge. Takes no keys. The caller redraws.
+wg_group:
+    push ebp
+    push edx
+    push edi                    ; height
+    mov ebp, edi
+    mov dl, WGK_GROUP
+    call wg_new
+    pop edi
+    pop edx
+    cmp eax, -1
+    je .out
+    push edi
+    imul edi, eax, WG_SIZE
+    add edi, wg_table
+    mov [edi+WG_CODE], edx      ; width
+    mov [edi+WG_TOP], ebp       ; height
+    pop edi
+.out:
+    pop ebp
     ret
 
 ; eax = a list's widget id -> eax = its selected item, from 0
@@ -382,12 +425,68 @@ wg_draw:
     je .list
     cmp byte [edi+WG_KIND], WGK_CONSOLE
     je .console
+    cmp byte [edi+WG_KIND], WGK_GROUP
+    je .group
     mov byte [gfx_colour], WM_TEXT
     mov byte [gfx_bg], WM_CLIENT
     call wm_drawtitle           ; as many characters as fit
 .out:
     popad
     ret
+.group:                         ; etched frame; caption on the top edge
+    mov edx, [edi+WG_Y]
+    add edx, [edi+WG_TOP]
+    cmp edx, [wg_ch]
+    jg .out
+    mov edx, [edi+WG_CODE]      ; width
+    cmp edx, ecx
+    jle .gfit
+    mov edx, ecx
+.gfit:
+    mov ecx, edx
+    mov edx, [edi+WG_TOP]
+    cmp ecx, 2 * TH_BEVEL_W + 8
+    jl .out
+    cmp edx, 2 * TH_BEVEL_W + 4
+    jl .out
+    mov esi, TH_BEVEL_ETCHED
+    call gfx_bevel
+    mov esi, [edi+WG_TEXT]
+    cmp byte [esi], 0
+    je .out
+    push eax                    ; x
+    push ebx                    ; y
+    push ecx                    ; w
+    mov ecx, FONT_9
+    call gfx_strwidth_p         ; eax = caption width
+    add eax, 4                  ; pad beside the letters
+    pop ecx
+    mov edx, eax                ; strip width
+    cmp edx, ecx
+    jb .gcapw
+    lea edx, [ecx-4]
+    cmp edx, 4
+    jle .gcapdone
+.gcapw:
+    pop ebx
+    pop eax
+    push eax
+    add eax, 4
+    mov byte [gfx_colour], WM_CLIENT
+    mov ecx, edx
+    mov edx, TH_BEVEL_W         ; cover the top etched rings under the text
+    call gfx_fillrect
+    pop eax
+    add eax, 6
+    mov esi, [edi+WG_TEXT]
+    mov byte [gfx_colour], WM_TEXT
+    mov byte [gfx_bg], WM_CLIENT
+    call wm_drawtitle
+    jmp .out
+.gcapdone:
+    pop ebx
+    pop eax
+    jmp .out
 .console:                       ; rows of the buffer, cut to the client area
     mov edx, [edi+WG_CODE]
     imul edx, GFX_CELL_H
@@ -447,8 +546,8 @@ wg_draw:
     dec ebp
     jnz .crow
     jmp .out
-.list:                          ; a box as wide as the longest item, one
-    push eax                    ; row per item, the selected one inverted
+.list:                          ; a sunken well as wide as the longest item
+    push eax
     xor edx, edx
     mov ebp, [edi+WG_CODE]
 .lw:
@@ -468,7 +567,7 @@ wg_draw:
 .lwd:
     pop eax
     imul edx, GFX_CELL_W
-    add edx, 2 * WG_BTN_PAD + 2
+    add edx, WG_CHROME
     cmp edx, ecx
     jle .lfit
     mov edx, ecx                ; cut at the client area's right edge
@@ -479,7 +578,7 @@ wg_draw:
     ; selection is one of them
     mov edx, [wg_ch]
     sub edx, [edi+WG_Y]
-    sub edx, 2 * WG_BTN_PAD + 2
+    sub edx, WG_CHROME
     jle .out
     push eax
     push ecx
@@ -519,19 +618,15 @@ wg_draw:
     mov [edi+WG_TOP], edx       ; no empty rows at the bottom
 .ltop3:
     imul edx, eax, GFX_CELL_H
-    add edx, 2 * WG_BTN_PAD + 2
+    add edx, WG_CHROME
     pop eax
-    mov byte [gfx_colour], WM_TEXT
+    mov byte [gfx_colour], WG_WELL_FILL
     call gfx_fillrect
-    inc eax
-    inc ebx
-    sub ecx, 2
-    sub edx, 2
-    mov byte [gfx_colour], WG_BTN_FILL
-    call gfx_fillrect
-    add eax, WG_BTN_PAD
-    add ebx, WG_BTN_PAD
-    sub ecx, 2 * WG_BTN_PAD
+    mov esi, TH_BEVEL_SUNKEN
+    call gfx_bevel
+    add eax, TH_BEVEL_W + WG_BTN_PAD
+    add ebx, TH_BEVEL_W + WG_BTN_PAD
+    sub ecx, 2 * (TH_BEVEL_W + WG_BTN_PAD)
     mov edx, GFX_CELL_H
     mov ebp, [edi+WG_TOP]
 .row:
@@ -544,22 +639,22 @@ wg_draw:
     mov esi, [edi+WG_TEXT]
     mov esi, [esi+ebp*4]
     mov byte [gfx_colour], WM_TEXT
-    mov byte [gfx_bg], WG_BTN_FILL
+    mov byte [gfx_bg], WG_WELL_FILL
     cmp ebp, [edi+WG_SEL]
     jne .rowd
     call gfx_fillrect           ; the selected row: a black bar,
-    mov byte [gfx_colour], WG_BTN_FILL
+    mov byte [gfx_colour], WG_WELL_FILL
     mov byte [gfx_bg], WM_TEXT  ; white text on it
 .rowd:
     call wm_drawtext5           ; lists keep the 5 x 7 rows
     add ebx, GFX_CELL_H
     inc ebp
     jmp .row
-.field:                         ; a box as wide as its most characters, an
-    push eax                    ; underline cursor after the text
+.field:                         ; a sunken well as wide as its most characters
+    push eax
     mov eax, [edi+WG_CODE]
     jmp .boxw
-.button:                        ; a black box, white inside, the text in it
+.button:                        ; a raised (or pressed/sunken) face with text
     push eax
     push ecx
     mov ecx, FONT_9
@@ -572,11 +667,11 @@ wg_draw:
     imul edx, eax, GFX_CELL_W
     pop eax
 .boxp:
-    add edx, 2 * WG_BTN_PAD + 2 ; the box's width
+    add edx, WG_CHROME          ; the box's width
 .boxh:
     push edx
     mov edx, [edi+WG_Y]
-    add edx, GFX_CELL_H + 2 * WG_BTN_PAD + 2
+    add edx, GFX_CELL_H + WG_CHROME
     cmp edx, [wg_ch]
     pop edx
     jg .out
@@ -585,25 +680,43 @@ wg_draw:
     mov edx, ecx                ; cut at the client area's right edge
 .fits:
     mov ecx, edx
-    mov edx, GFX_CELL_H + 2 * WG_BTN_PAD + 2
-    mov byte [gfx_colour], WM_TEXT
-    call gfx_fillrect
-    inc eax
-    inc ebx
-    sub ecx, 2
-    sub edx, 2
+    mov edx, GFX_CELL_H + WG_CHROME
+    cmp byte [edi+WG_KIND], WGK_FIELD
+    je .well
     mov byte [gfx_colour], WG_BTN_FILL
     call gfx_fillrect
-    add eax, WG_BTN_PAD
-    add ebx, WG_BTN_PAD
-    sub ecx, 2 * WG_BTN_PAD
+    push esi
+    mov esi, TH_BEVEL_RAISED
+    cmp dword [edi+WG_SEL], 0
+    je .bbev
+    mov esi, TH_BEVEL_SUNKEN    ; pressed
+.bbev:
+    call gfx_bevel
+    pop esi                     ; the label text
+    add eax, TH_BEVEL_W + WG_BTN_PAD
+    add ebx, TH_BEVEL_W + WG_BTN_PAD
+    cmp dword [edi+WG_SEL], 0
+    je .btxt
+    inc eax                     ; pressed: the label moves with the face
+    inc ebx
+.btxt:
+    sub ecx, 2 * (TH_BEVEL_W + WG_BTN_PAD)
     mov byte [gfx_colour], WM_TEXT
     mov byte [gfx_bg], WG_BTN_FILL
-    cmp byte [edi+WG_KIND], WGK_FIELD
-    je .ftext
     call wm_drawtitle
     jmp .out
-.ftext:
+.well:
+    mov byte [gfx_colour], WG_WELL_FILL
+    call gfx_fillrect
+    push esi
+    mov esi, TH_BEVEL_SUNKEN
+    call gfx_bevel
+    pop esi                     ; the field buffer
+    add eax, TH_BEVEL_W + WG_BTN_PAD
+    add ebx, TH_BEVEL_W + WG_BTN_PAD
+    sub ecx, 2 * (TH_BEVEL_W + WG_BTN_PAD)
+    mov byte [gfx_colour], WM_TEXT
+    mov byte [gfx_bg], WG_WELL_FILL
     call wm_drawtext5           ; a field's cursor goes by 6 x 8 cells
     push eax                    ; the cursor: an underline in the next cell
     call strlen
@@ -732,7 +845,7 @@ cmd_buttontest_run:
     mov edx, BT_CODE
     call wg_button
     call wm_redraw
-    mov eax, LT_X + 1 + BT_BX   ; the box's top left: black
+    mov eax, LT_X + 1 + BT_BX   ; the box's top left: raised light
     mov ebx, LT_Y + 1 + WM_TITLE_H + BT_BY
     call gfx_getpixel
     mov [bt_box], cl
@@ -753,7 +866,7 @@ cmd_buttontest_run:
     mov eax, [lt_win]
     call wm_close
     call gfx_text
-    cmp byte [bt_box], WM_TEXT
+    cmp byte [bt_box], TH_LIGHT
     jne .bad
     mov dword [bt_n], 0
     mov dword [bt_other], 0
@@ -871,7 +984,7 @@ cmd_fieldtest_run:
     cmp al, 10                  ; Enter: not the field's
     jne .key
 .end:
-    mov eax, LT_X + 1 + FT_FX   ; the box's top left: black
+    mov eax, LT_X + 1 + FT_FX   ; the box's top left: sunken shadow
     mov ebx, LT_Y + 1 + WM_TITLE_H + FT_FY
     call gfx_getpixel
     mov [bt_box], cl
@@ -879,7 +992,7 @@ cmd_fieldtest_run:
     call wm_close
     call gfx_text
     mov esi, fd_fail
-    cmp byte [bt_box], WM_TEXT
+    cmp byte [bt_box], TH_SHADOW
     jne .say
     mov esi, fd_pass
     call puts
@@ -952,8 +1065,8 @@ cmd_listtest_run:
     call wg_selected
     mov [ls_sel], eax
     imul ebx, eax, GFX_CELL_H   ; the selected row's bottom left pixel: in
-    add ebx, LT_Y + 1 + WM_TITLE_H + LS_Y + 1 + WG_BTN_PAD + GFX_CELL_H - 1
-    mov eax, LT_X + 1 + LS_X + 1 + WG_BTN_PAD  ; the bar, below the glyph
+    add ebx, LT_Y + 1 + WM_TITLE_H + LS_Y + TH_BEVEL_W + WG_BTN_PAD + GFX_CELL_H - 1
+    mov eax, LT_X + 1 + LS_X + TH_BEVEL_W + WG_BTN_PAD  ; the bar, below the glyph
     call gfx_getpixel
     mov [bt_box], cl
     mov eax, [lt_win]
@@ -1051,15 +1164,15 @@ cmd_scrolltest_run:
     jnc .bad                    ; past the last row shown
     ; the bar is drawn in the selection's row, not in row 0
     imul ebx, [sc_row], GFX_CELL_H
-    add ebx, LT_Y + 1 + WM_TITLE_H + SC_Y + 1 + WG_BTN_PAD + GFX_CELL_H - 1
-    mov eax, LT_X + 1 + SC_X + 1 + WG_BTN_PAD
+    add ebx, LT_Y + 1 + WM_TITLE_H + SC_Y + TH_BEVEL_W + WG_BTN_PAD + GFX_CELL_H - 1
+    mov eax, LT_X + 1 + SC_X + TH_BEVEL_W + WG_BTN_PAD
     call gfx_getpixel
     cmp cl, WM_TEXT
     jne .bad
-    mov ebx, LT_Y + 1 + WM_TITLE_H + SC_Y + 1 + WG_BTN_PAD + GFX_CELL_H - 1
-    mov eax, LT_X + 1 + SC_X + 1 + WG_BTN_PAD
+    mov ebx, LT_Y + 1 + WM_TITLE_H + SC_Y + TH_BEVEL_W + WG_BTN_PAD + GFX_CELL_H - 1
+    mov eax, LT_X + 1 + SC_X + TH_BEVEL_W + WG_BTN_PAD
     call gfx_getpixel
-    cmp cl, WG_BTN_FILL
+    cmp cl, WG_WELL_FILL
     je .done
 .bad:
     mov byte [sc_ok], 0
@@ -1118,6 +1231,167 @@ fd_end db '"', 10, 0
 fd_fail db 'field: FAIL', 10, 0
 fd_nomem db 'field: no memory for graphics', 10, 0
 fd_buf times FT_MAX + 1 db 0
+
+; bevwidgets (2.3-bevel-default): a window with a button (up then pressed),
+; a field, a list and a group box. Reads back light / face / dark (or the
+; etched groove) pixels of each and prints `bevwidgets: PASS`.
+BW_X equ 40
+BW_Y equ 20
+BW_W equ 240
+BW_H equ 160
+BW_BX equ 8
+BW_BY equ 8
+BW_FX equ 8
+BW_FY equ 36
+BW_LX equ 120
+BW_LY equ 8
+BW_GX equ 8
+BW_GY equ 72
+BW_GW equ 200
+BW_GH equ 48
+
+cmd_bevwidgets_run:
+    call gfx_mode13
+    mov esi, bw_fail
+    jc .say
+    mov byte [gfxt_ok], 1
+    mov byte [fd_buf], 0
+    mov eax, BW_X
+    mov ebx, BW_Y
+    mov ecx, BW_W
+    mov edx, BW_H
+    mov esi, bw_title
+    call wm_create
+    mov [lt_win], eax
+    cmp eax, -1
+    je .fail
+    mov ebx, BW_BX
+    mov ecx, BW_BY
+    mov esi, bw_btn
+    mov edx, 1
+    call wg_button
+    mov [bw_bid], eax
+    mov eax, [lt_win]
+    mov ebx, BW_FX
+    mov ecx, BW_FY
+    mov esi, fd_buf
+    mov edx, 8
+    call wg_field
+    mov eax, [lt_win]
+    mov ebx, BW_LX
+    mov ecx, BW_LY
+    mov esi, ls_items
+    mov edx, 2
+    call wg_list
+    mov eax, [lt_win]
+    mov ebx, BW_GX
+    mov ecx, BW_GY
+    mov esi, bw_grp
+    mov edx, BW_GW
+    mov edi, BW_GH
+    call wg_group
+    call wm_redraw
+    ; button up: raised light / face / dark
+    mov eax, BW_X + 1 + BW_BX
+    mov ebx, BW_Y + 1 + WM_TITLE_H + BW_BY
+    mov dl, TH_LIGHT
+    call .probe
+    mov eax, BW_X + 1 + BW_BX + TH_BEVEL_W + WG_BTN_PAD
+    mov ebx, BW_Y + 1 + WM_TITLE_H + BW_BY + TH_BEVEL_W + WG_BTN_PAD
+    mov dl, WG_BTN_FILL
+    call .probe
+    mov eax, BW_X + 1 + BW_BX
+    mov ebx, BW_Y + 1 + WM_TITLE_H + BW_BY + GFX_CELL_H + WG_CHROME - 1
+    mov dl, TH_DARK            ; outer bottom row (raised)
+    call .probe
+    ; button pressed: sunken
+    mov eax, [bw_bid]
+    mov ebx, 1
+    call wg_press
+    call wm_redraw
+    mov eax, BW_X + 1 + BW_BX
+    mov ebx, BW_Y + 1 + WM_TITLE_H + BW_BY
+    mov dl, TH_SHADOW
+    call .probe
+    mov eax, BW_X + 1 + BW_BX + 1
+    mov ebx, BW_Y + 1 + WM_TITLE_H + BW_BY + 1
+    mov dl, TH_DARK
+    call .probe
+    mov eax, BW_X + 1 + BW_BX + TH_BEVEL_W + WG_BTN_PAD + 1
+    mov ebx, BW_Y + 1 + WM_TITLE_H + BW_BY + TH_BEVEL_W + WG_BTN_PAD + 1
+    mov dl, WG_BTN_FILL
+    call .probe
+    ; field: sunken well
+    mov eax, BW_X + 1 + BW_FX
+    mov ebx, BW_Y + 1 + WM_TITLE_H + BW_FY
+    mov dl, TH_SHADOW
+    call .probe
+    mov eax, BW_X + 1 + BW_FX + 1
+    mov ebx, BW_Y + 1 + WM_TITLE_H + BW_FY + 1
+    mov dl, TH_DARK
+    call .probe
+    mov eax, BW_X + 1 + BW_FX + TH_BEVEL_W + WG_BTN_PAD
+    mov ebx, BW_Y + 1 + WM_TITLE_H + BW_FY + TH_BEVEL_W + WG_BTN_PAD
+    mov dl, WG_WELL_FILL
+    call .probe
+    ; list: sunken well (face just inside the bevel, not the selected row)
+    mov eax, BW_X + 1 + BW_LX
+    mov ebx, BW_Y + 1 + WM_TITLE_H + BW_LY
+    mov dl, TH_SHADOW
+    call .probe
+    mov eax, BW_X + 1 + BW_LX + TH_BEVEL_W
+    mov ebx, BW_Y + 1 + WM_TITLE_H + BW_LY + TH_BEVEL_W
+    mov dl, WG_WELL_FILL
+    call .probe
+    ; group: etched groove (away from the caption on the left)
+    mov eax, BW_X + 1 + BW_GX + BW_GW - 1
+    mov ebx, BW_Y + 1 + WM_TITLE_H + BW_GY
+    mov dl, TH_LIGHT            ; etched outer top-right takes BR colour
+    call .probe
+    mov eax, BW_X + 1 + BW_GX
+    mov ebx, BW_Y + 1 + WM_TITLE_H + BW_GY + BW_GH - 1
+    mov dl, TH_LIGHT            ; outer bottom row
+    call .probe
+    mov eax, BW_X + 1 + BW_GX + BW_GW - 2
+    mov ebx, BW_Y + 1 + WM_TITLE_H + BW_GY + 1
+    mov dl, TH_SHADOW           ; inner top-right takes inner BR colour
+    call .probe
+    mov eax, BW_X + 1 + BW_GX
+    mov ebx, BW_Y + 1 + WM_TITLE_H + BW_GY + 20
+    mov dl, TH_SHADOW           ; outer left column, below the caption
+    call .probe
+    mov eax, [lt_win]
+    call wm_close
+    jmp .end
+.fail:
+    mov byte [gfxt_ok], 0
+    mov eax, [lt_win]
+    call wm_close
+.end:
+    call gfx_text
+    mov esi, bw_pass
+    cmp byte [gfxt_ok], 1
+    je .say
+    mov esi, bw_fail
+.say:
+    jmp puts
+.probe:                         ; dl = expected at (eax, ebx)
+    push edx
+    call gfx_getpixel
+    pop edx
+    cmp cl, dl
+    je .same
+    mov byte [gfxt_ok], 0
+.same:
+    ret
+
+bw_title db 'Bevels', 0
+bw_btn db 'OK', 0
+bw_grp db 'Group', 0
+bw_pass db 'bevwidgets: PASS', 10, 0
+bw_fail db 'bevwidgets: FAIL', 10, 0
+align 4
+bw_bid dd 0
 
 lt_title db 'Labels', 0
 lt_text db 'Name: Squirrel', 0
