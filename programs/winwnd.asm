@@ -3,8 +3,9 @@
 ; WM_PAINT with TextOut, a brush and Rectangle, SetPixel/GetPixel, a line,
 ; a timer, the keyboard through TranslateMessage, DestroyWindow and
 ; PostQuitMessage.
-;   run winwnd    a window "Acorn window"; Q checks and shows "winwnd: PASS"
-;                 (or "winwnd: FAIL"), X closes it
+;   run winwnd    a real 2.2 window "Acorn window"; Q checks and shows
+;                 "winwnd: PASS" (or "winwnd: FAIL"); the close box (or X)
+;                 delivers WM_CLOSE and ends the program
 ; Build: nasm -f bin winwnd.asm -o winwnd
 BITS 32
 

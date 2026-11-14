@@ -29,12 +29,13 @@ Used here, in `ROADMAP.md`, `TODO.md` and on the issues (as labels).
   Control Panel / bevels, 2.4 ring 3, 2.7 long names + FAT + drive objects
   (diskutil view/check), 2.8 long-mode entry and SMP, H.1–H.6, 3.0 networking
   and sound, A.1–A.7, C.1–C.9, G.1–G.9, P.1, P.2, P.5, P.6 (GUI, registry,
-  DLLs), P.8 (dosrun, launch, mode 13h), P.9 (32-bit LX), P.10 (FreeBSD).
-- **Test gate:** `tools/regress.sh` (558 `check` lines at 2.3.0) and GitHub CI
-  (`.github/workflows/ci.yml`: `build` and `regress`, on every PR). Wait for
-  a green `regress` before calling a PR ready.
-- **Open PRs:** none at the 2.3.0 prep. Take the next free box in the order
-  below; if a competing PR appears, stand down.
+  DLLs, desktop windows), P.8 (dosrun, launch, mode 13h), P.9 (32-bit LX),
+  P.10 (FreeBSD).
+- **Test gate:** `tools/regress.sh` and GitHub CI (`.github/workflows/ci.yml`:
+  `build` and `regress`, on every PR). Wait for a green `regress` before
+  calling a PR ready.
+- **Open PRs:** foreign-windows condense (P.6+P.8) for Sarah — do not
+  auto-merge.
 
 ## Rules (Squirrel's; do not break)
 
@@ -72,14 +73,13 @@ qemu-system-i386 -drive file=build/os.img,format=raw -drive file=build/data.img,
 
 1. ~~Merge `int/os2-control`, **2.3-bevel-default**, then **2.3.0 release notes**.~~ Done (#168, #172, and the 2.3.0 prep PR). Owner publishes `v2.3.0`.
 2. **2.7-diskutil** remainder (in-OS FAT format; #171 shipped view/check without ticking the box).
-3. **P.6-win32-windows** and **P.8-dos-window** (both only need 2.2, which is done).
-4. **Generation 2 desktop** from the split boxes in `TODO.md`: **2.5-bar →
+3. **Generation 2 desktop** from the split boxes in `TODO.md`: **2.5-bar →
    2.5-menu → 2.5-clock → W.3-launchpad**, then **2.6-icons → 2.6-drag →
    2.6-context → 2.6-notebook → 2.6-shadows → W.2-templates → W.4-views →
    W.5-openas**, then **W.6-startup → W.6-syssetup** (W.6 needs 2.6 + 2.7-objects).
-5. **2.8-pae → 2.9-lm-kernel → 2.9-syscall64** (the 64-bit kernel; largest risk).
-6. **3.0** remainder (accounts, permissions, services, event log, task manager, themes).
-7. **P.3, P.4, P.7, P.11, P.12**, then 3.x and 4.x.
+4. **2.8-pae → 2.9-lm-kernel → 2.9-syscall64** (the 64-bit kernel; largest risk).
+5. **3.0** remainder (accounts, permissions, services, event log, task manager, themes).
+6. **P.3, P.4, P.7, P.11, P.12**, then 3.x and 4.x.
 
 ## Task cards
 
@@ -104,7 +104,7 @@ Merged as #172.
   VFAT names; `tools/fatimg.py check` agrees on images it made. New checks
   already include `diskutil-fat*`.
 
-### P.6-win32-windows — Win32 top-level windows as desktop windows  `cursor-codex`
+### P.6-win32-windows — Win32 top-level windows as desktop windows  `done (this branch)`
 - **What:** `CreateWindowEx` top-level windows from `programs/wingui.inc`
   become real 2.2 windows (title bar, move, z-order, close → `WM_CLOSE`),
   instead of drawing through the full-screen `SYS_GUI` surface.
