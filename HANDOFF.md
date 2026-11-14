@@ -72,7 +72,7 @@ qemu-system-i386 -drive file=build/os.img,format=raw -drive file=build/data.img,
 
 1. ~~Merge `int/os2-control`, **2.3-bevel-default**, then **2.3.0 release notes**.~~ Done (#168, #172, and the 2.3.0 prep PR). Owner publishes `v2.3.0`.
 2. **2.7-diskutil** remainder (in-OS FAT format; #171 shipped view/check without ticking the box).
-3. **P.6-win32-windows** and **P.8-dos-window** (both only need 2.2, which is done).
+3. **P.8-dos-window** (only needs 2.2, which is done).
 4. **Generation 2 desktop** from the split boxes in `TODO.md`: **2.5-bar →
    2.5-menu → 2.5-clock → W.3-launchpad**, then **2.6-icons → 2.6-drag →
    2.6-context → 2.6-notebook → 2.6-shadows → W.2-templates → W.4-views →
@@ -104,7 +104,7 @@ Merged as #172.
   VFAT names; `tools/fatimg.py check` agrees on images it made. New checks
   already include `diskutil-fat*`.
 
-### P.6-win32-windows — Win32 top-level windows as desktop windows  `cursor-codex`
+### P.6-win32-windows — Win32 top-level windows as desktop windows  `done (this branch)`
 - **What:** `CreateWindowEx` top-level windows from `programs/wingui.inc`
   become real 2.2 windows (title bar, move, z-order, close → `WM_CLOSE`),
   instead of drawing through the full-screen `SYS_GUI` surface.
