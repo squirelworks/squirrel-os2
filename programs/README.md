@@ -72,7 +72,7 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `doshello.asm` | DOS .COM | INT 21h output, the BIOS teletype, the command tail (`run doshello.com acorns`, P.8) |
 | `doscpu.asm` | DOS .COM | 8086/186 instructions and flags, steps a–k (`run doscpu.com`, P.8) |
 | `dosfile.asm` | DOS .COM | DOS files, memory blocks and buffered input (`run dosfile.com`, P.8) |
-| `dosgfx.asm` | DOS .COM | VGA mode 13h: A000, INT 10h pixels and DAC, ports, teletype text in graphics (`run dosgfx.com`, then a key; P.8) |
+| `dosgfx.asm` | DOS .COM | VGA mode 13h in a 2.2 window: A000, INT 10h pixels and DAC, ports, teletype text in graphics (`run dosgfx.com`, then a key; P.8-dos-window) |
 | `dosexe.asm` | DOS .EXE | Hand-written MZ with relocations, three segments and a far call (`run dosexe.exe`, P.8) |
 | `os2run.asm` | SQX | OS/2 32-bit LX loader with DOSCALLS shims; the kernel runs it for `MZ` files with an `LX` header (`run os2run prog.exe`, P.9) |
 | `os2hello.asm` | LX | Hand-written OS/2 text-mode program: objects, fixups, DOSCALLS by ordinal, TIB/PIB, files, memory (`run os2hello`, P.9) |

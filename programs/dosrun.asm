@@ -19,9 +19,12 @@
 ; program may replace them (INT 21h AH=25h) and chain to the old ones.
 ; Arithmetic runs on the host CPU, so the flags are exactly the 8086's.
 ;
-; Not provided: the FPU, direct video memory (B800) on the screen, the
-; timer interrupts, BIOS disk services, ports (IN reads FFh, OUT is
-; ignored). An instruction it does not know ends the program with its
+; The DOS text screen and mode 13h output go to a 2.2 program window
+; (P.8-dos-window): scale 1x by default, or 2x with a leading "2x"
+; argument; "win" forces a text-mode window. Keys go to it while focused.
+; Not provided: the FPU, B800 on the hardware screen, the timer
+; interrupts, BIOS disk services, ports other than the VGA DAC and
+; status. An instruction it does not know ends the program with its
 ; address and exit code 3.
 %include "sqx.inc"
 SQX_HEADER main
@@ -64,9 +67,10 @@ main:
     mov esi, [esp+20]
     call setup
     jc .out
+    call vga_text_maybe         ; text window when "win" or on a VBE desktop
     call run
-    call vga_leave              ; closes a DOS window; replays its text to the console
-    call vga_report_win         ; doswin: PASS when mode 13h was checked
+    call vga_leave              ; a program that ends in graphics
+    call vga_win_hold           ; "win": keep the text window until a key
     movzx eax, byte [exit_code]
 .out:
     pop ebp
@@ -77,9 +81,55 @@ main:
 
 ; ======================== loading ========================
 
-; esi = argument text: "<file> [arguments]" -> CF and eax = 1 on error
+; esi = argument text: "[2x|win ...] <file> [arguments]" -> CF and eax = 1
 setup:
     cld
+    mov byte [vscale], 1
+    mov byte [vwantwin], 0
+    mov byte [vmode], 3
+    mov byte [vink], 15
+    mov dword [vslice], VGA_SLICE
+    mov dword [vwin], -1        ; BSS starts at 0; no window yet
+    mov dword [vrect], 0
+    mov dword [vrect+4], 0
+    mov dword [vrect+8], 320
+    mov dword [vrect+12], 200
+    mov dword [vrect+20], 320
+.flags:
+    call skip_sp
+    cmp byte [esi], 0
+    je .usage_early
+    ; "2x" -> scale 2
+    cmp word [esi], '2' | ('x' << 8)
+    jne .winflag
+    cmp byte [esi+2], ' '
+    je .got2x
+    cmp byte [esi+2], 0
+    jne .winflag
+.got2x:
+    mov byte [vscale], 2
+    add esi, 2
+    jmp .flags
+.winflag:
+    ; "win" -> force a text-mode DOS window
+    cmp dword [esi], 'w' | ('i' << 8) | ('n' << 16) | (' ' << 24)
+    je .gotwin
+    cmp dword [esi], 'w' | ('i' << 8) | ('n' << 16)
+    jne .file
+    cmp byte [esi+3], 0
+    jne .file
+.gotwin:
+    mov byte [vwantwin], 1
+    add esi, 3
+    jmp .flags
+.usage_early:
+    mov ebx, m_usage
+    call say
+    mov eax, 1
+    stc
+    ret
+.file:
+    call skip_sp
     mov edi, exe_name
     xor ecx, ecx
 .nm:
@@ -688,10 +738,9 @@ run:
 .bios:
     call bios_entry
     jmp .next
-.slice:                         ; now and then the DOS window is shown
+.slice:                         ; now and then the graphics screen is shown
     mov dword [vslice], VGA_SLICE
     call vga_tick
-    call vga_text_flush
     jmp .go
 .r:
     ret
@@ -2035,12 +2084,14 @@ int16:
 .peek:                          ; waits for a key, keeps it for 00h
     cmp byte [vmode], 0x13
     je .gpeek
+    cmp dword [vwin], -1
+    jne .gpeek                  ; text window: non-blocking peek
     call key_peek
     mov [rAX], ax
     and word [flags], ~F_ZF
     ret
 
-.gpeek:                         ; in graphics it does not wait
+.gpeek:                         ; in a DOS window it does not wait
     call key_poll
     mov [rAX], ax
     and word [flags], ~F_ZF
@@ -2049,7 +2100,7 @@ int16:
     or word [flags], F_ZF
     ret
 
-; graphics: -> ax = a key kept for key_get, or 0 when none is waiting
+; window: -> ax = a key kept for key_get, or 0 when none is waiting
 key_poll:
     mov ax, [key_held]
     test ax, ax
@@ -2074,8 +2125,10 @@ key_get:
     mov word [key_held], 0
     ret
 .read:
-    cmp dword [vwin], -1        ; keys go to the focused DOS window
-    jne .wread
+    cmp byte [vmode], 0x13
+    je .gread
+    cmp dword [vwin], -1
+    jne .gread                  ; text DOS window: keys while focused
     mov eax, SYS_GETC
     int 0x80
     cmp eax, -1
@@ -2088,16 +2141,18 @@ key_get:
 .m:
     movzx eax, al
     ret
-.wread:                         ; show the screen, then wait for WE_KEY
+.gread:                         ; window: show the screen, then wait
     cmp byte [vmode], 0x13
-    je .wf
-    mov byte [vtext_dirty], 1
-    call vga_text_flush
-    jmp .gw
-.wf:
+    jne .gw
     call vga_flush
 .gw:
-    call vga_key_wait
+    call vga_key
+    test eax, eax
+    jnz .gk
+    mov eax, SYS_YIELD
+    int 0x80
+    jmp .gw
+.gk:
     ret
 key_peek:
     cmp word [key_held], 0
@@ -2106,6 +2161,15 @@ key_peek:
     mov [key_held], ax
 .h:
     mov ax, [key_held]
+    ret
+
+; skip spaces in esi
+skip_sp:
+    cmp byte [esi], ' '
+    jne .r
+    inc esi
+    jmp skip_sp
+.r:
     ret
 
 ; ---------- INT 1Ah: time ----------
@@ -2692,7 +2756,7 @@ d_rename:
 
 ; ======================== output helpers ========================
 
-putch:                          ; al -> the DOS window (or the console)
+putch:                          ; al -> the console or the DOS window
     cmp byte [vmode], 0x13
     je .gfx
     cmp dword [vwin], -1
@@ -2707,15 +2771,14 @@ putch:                          ; al -> the DOS window (or the console)
     popad
     ret
 .twin:
-    call vga_text_putc
-    ret
+    jmp vga_text_putc
 .gfx:
     push ebx
     mov bl, [vink]
     call vga_tty
     pop ebx
     ret
-say:                            ; ebx = ASCIIZ (host messages: the console)
+say:                            ; ebx = ASCIIZ
     push eax
     mov eax, SYS_PUTS
     int 0x80
@@ -2810,7 +2873,7 @@ optab:
 %error the opcode table needs 256 entries
 %endif
 
-m_usage db 'usage: run dosrun prog.com [arguments]', 10, 0
+m_usage db 'usage: run dosrun [2x|win] prog.com [arguments]', 10, 0
 m_nomem db 'dosrun: not enough memory for DOS', 10, 0
 m_open db 'dosrun: cannot open the program file', 10, 0
 m_format db 'dosrun: not a DOS program (bad MZ header)', 10, 0
@@ -2860,6 +2923,30 @@ vfont resd 1
 vticks resd 1
 vdac resb 768
 vlut resb 256
+alignb 4
+vwin resd 1
+vdraw_rc resd 1
+vopen resd 6
+vcmd resd 7
+vev resd 4
+vinfo resd 4
+vrect resd 6
+vslice resd 1
+tcur resd 1
+trow resd 1
+tbuf resb 80*25
+tline resb 80+1
+vmode resb 1
+vink resb 1
+vscale resb 1
+vwantwin resb 1
+vtextwin resb 1
+vhold resb 1
+vdesk_have resb 1
+vdesk_ok resb 1
+vpix_ok resb 1
+vdesk resb 1
+vdeskpx resb 1
 alignb 4
 relent resb 4
 hdr resb 32

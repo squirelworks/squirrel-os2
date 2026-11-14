@@ -43,37 +43,34 @@ with AX=1. An instruction dosrun does not know prints
 `dosrun: unsupported instruction XX at CS:IP` and ends the program with exit
 code 3.
 
-Not provided yet: the FPU, the timer interrupts, BIOS disk services, and I/O
-ports other than the VGA's DAC (3C8h, 3C9h) and input status (3DAh); other
-ports read FFh and ignore writes.
+Not provided yet: the FPU, video memory at B800 on the screen, the timer
+interrupts, BIOS disk services, and I/O ports other than the VGA's DAC (3C8h, 3C9h)
+and input status (3DAh); other ports read FFh and ignore writes.
 
-## The DOS window (P.8-dos-window)
+## Graphics: VGA mode 13h in a window (P.8-dos-window)
 
-The DOS screen lives in a 2.2 program window (`SYS_WINOPEN` / `SYS_WINDRAW` /
-`SYS_WINEVENT`), not on the whole display via `SYS_GUI`:
+`INT 10h AX=0013h` opens a 2.2 program window whose client is the 320 × 200 DOS screen,
+scaled 1× (`WD_BLIT`) or 2× (`WD_SBLIT`, leading `2x` argument). The program's `A000:0000`
+is that buffer, one byte a pixel; dosrun copies it through the colour table when the
+program waits for a key, polls the keyboard, reads the clock or the retrace bit, changes
+mode or ends, and at least once a tick while it computes. Keys while the window is focused
+arrive as `WE_KEY`. The BIOS teletype (and INT 21h output in graphics) writes into `A000`
+with the kernel's 5 × 7 font in 6 × 8 cells, 53 columns by 25 rows. Port 3DAh toggles its
+retrace bits on every read. Any other mode (`AX=0003h` and the rest) closes the window and
+returns to the text screen; so does the program's end. The desktop around the window is
+left alone (checked by sampling a pixel outside it).
 
-- **Mode 13h:** `INT 10h AX=0013h` opens (or resizes) a window titled
-  `DOS 320x200` and keeps `A000:0000` as the program's 320 × 200 buffer.
-  dosrun maps it through an identity colour table and blits with `WD_BLIT`
-  (scale **1** on the usual 640 × 480 VBE screen; scale **2** expands in
-  userspace to 640 × 400 when the screen is large enough). The first window
-  id is 0, so "no window" is stored as `-1`. The BIOS teletype writes into
-  `A000` in 53 × 25 cells of 6 × 8. Keys for the focused window become the DOS
-  keyboard (`SYS_WINEVENT` wait). Leaving mode 13h checks that a known client
-  pixel matches the buffer and that a pixel outside the window is still the
-  desktop colour, then closes the window and prints `doswin: PASS` (or `FAIL`);
-  a log of text output is replayed to the host console so `dosgfx: PASS` still
-  appears for the shell checks.
-- **Text mode:** while a DOS window is open (after mode 13h, or if one was
-  opened for text), an 80 × 25 cell buffer is drawn with the 5 × 7 font in
-  6 × 8 cells into the client area; output goes there and is replayed to the
-  host console when the window closes. Text-only programs that never enter
-  mode 13h still use the host console, so the existing shell checks pass.
+Colours: the program has a full 256-entry DAC (default: 16 EGA colours, 16 greys and a hue
+wheel made here). Entries 64–255 go to the display's own entries as they are
+(`GUI_PALETTE`); entries 0–63 are shown as the nearest of the display's fixed 64 EGA colours.
 
-Colours: the program has a full 256-entry DAC (default: 16 EGA colours, 16 greys
-and a hue wheel made here). Entries 64–255 go to the display's own entries as
-they are (`GUI_PALETTE`); entries 0–63 are shown as the nearest of the display's
-fixed 64 EGA colours. Port 3DAh toggles its retrace bits on every read.
+## Text screen in a window
+
+`run dosrun win prog.com` (or a DOS program started while a VBE desktop is already up)
+opens a text-mode DOS window and draws the console there with `WD_TEXT`. Keys go to it
+while focused. After the program ends the window stays until a key, so a scripted `<gfx>`
+can read it. Ordinary shell runs without `win` still use the text console, so the existing
+`dos-*` checks keep working.
 
 ## Tests
 
@@ -89,15 +86,16 @@ All are original, hand-written programs in `programs/`, built with
 | `dosexe.asm` (.EXE) | a hand-written MZ with relocations, SS:SP from the header, a far call between segments |
 
 Regress checks: `dos-hello`, `dos-cpu`, `dos-file`, `dos-exe`, `dos-missing`, `dos-after`,
-`dos-run-com`, `dos-run-exe`, `dos-winrun`, `dos-run-after`, `dos-gfx`, `dos-gfx-after`,
-`dos-win` (mode 13h in a window: `gfx: dosgfx: drawn` and `doswin: PASS`), `dos-win-after`.
+`dos-gfx`, `dos-gfx-after`, `dos-win`, `dos-win-2x`, `dos-win-text`.
 
 ## Starting a DOS program
 
 `run prog.com [arguments]` and `run prog.exe [arguments]` work without naming dosrun: the
 kernel loader runs `dosrun <file> <arguments>` for a headerless file named `*.com` and for an
 `MZ` file without a PE header (`../kernel/loader.md`). `run winrun prog.exe` on a DOS `.EXE`
-passes it on to dosrun and returns its exit code.
+passes it on to dosrun and returns its exit code. Optional leading arguments to dosrun:
+`2x` (mode 13h at double size) and `win` (text screen in a window). Regress checks:
+`dos-run-com`, `dos-run-exe`, `dos-winrun`, `dos-run-after`.
 
 Not yet: DOS programs larger than 64 KB (the loader's staging limit refuses them before
 dosrun sees them; `run dosrun big.exe` works up to dosrun's own limit).
