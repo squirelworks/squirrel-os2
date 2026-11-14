@@ -20,7 +20,8 @@ PM_CH       equ 48
 PM_CAP_Y    equ 34              ; the caption, below the 32 x 32 icon
 PM_STEP     equ 8               ; keyboard move, pixels a press
 PM_DRAG     equ 4               ; a press that moves less than this is a click
-PM_DBL      equ 50              ; ticks between the presses of a double-click
+; Double-click window: default 50 ticks; live value is [cp_dbl] (2.3-control).
+PM_DBL      equ 50
 
 cmd_progman_run:
     call wm_screen              ; 640 x 480 x 8 VBE, or mode 13h
@@ -782,7 +783,7 @@ pm_press:
     jne .new
     mov edx, ecx
     sub edx, [pm_lastt]
-    cmp edx, PM_DBL
+    cmp edx, [cp_dbl]           ; 2.3-control
     ja .new
     mov dword [pm_last], -1     ; double-click: no drag
     mov dword [pm_drag], -1

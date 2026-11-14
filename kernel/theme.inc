@@ -2,6 +2,8 @@
 ; and the desktop draw with. Colours are palette indices: the text mode's EGA
 ; palette, which the DAC keeps in mode 13h (bright colours at 0x38-0x3F).
 ; Code uses these names, never the numbers (documentation/kernel/windows.md).
+; Since 2.3-control the window manager draws with the live th_* bytes in
+; control.asm (defaults match these TH_* values; schemes rewrite them).
 
 TH_DESKTOP          equ 0x03    ; cyan desktop
 TH_FACE             equ 0x07    ; 3D face grey

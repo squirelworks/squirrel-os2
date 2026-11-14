@@ -322,7 +322,8 @@ wm_paint:
     xor ebx, ebx
     mov ecx, [gfx_width]
     mov edx, [gfx_height]
-    mov byte [gfx_colour], WM_DESKTOP
+    mov al, [th_desktop]        ; 2.3-control: live scheme
+    mov [gfx_colour], al
     call gfx_fillrect
     call wm_icons               ; minimised windows (2.2-minmax)
     xor ebp, ebp
@@ -333,10 +334,12 @@ wm_paint:
     imul edi, eax, WIN_SIZE
     add edi, wm_table
     inc ebp
-    mov byte [wm_drawbar], WM_BAR_IDLE
+    mov al, [th_title_idle]     ; 2.3-control
+    mov [wm_drawbar], al
     cmp ebp, [wm_zn]
     jne .draw
-    mov byte [wm_drawbar], WM_BAR   ; the top window has the focus
+    mov al, [th_title]          ; the top window has the focus
+    mov [wm_drawbar], al
 .draw:
     call wm_draw
     jmp .w
@@ -349,17 +352,22 @@ wm_paint:
 ; edi = window record. Frame, title bar with the title, client area.
 wm_draw:
     pushad
-    mov eax, [edi+WIN_X]        ; the frame: the whole window in WM_FRAME,
+    mov eax, [edi+WIN_X]        ; the frame: the whole window in th_frame,
     mov ebx, [edi+WIN_Y]        ; then the inside painted over it
     mov ecx, [edi+WIN_W]
     mov edx, [edi+WIN_H]
-    mov byte [gfx_colour], WM_FRAME
+    push edx
+    mov dl, [th_frame]          ; 2.3-control
+    mov [gfx_colour], dl
+    pop edx
     call gfx_fillrect
     inc eax                     ; title bar, inside the frame
     inc ebx
     sub ecx, 2
+    push edx
     mov dl, [wm_drawbar]
     mov [gfx_colour], dl
+    pop edx
     mov edx, WM_TITLE_H
     call gfx_fillrect
     call wm_boxes               ; the title-bar boxes (2.2-frame)
@@ -372,7 +380,8 @@ wm_draw:
     add eax, 2
     inc ebx
     sub ecx, 4
-    mov byte [gfx_colour], WM_BAR_TEXT
+    mov dl, [th_title_text]
+    mov [gfx_colour], dl
     mov dl, [wm_drawbar]
     mov [gfx_bg], dl
     mov esi, [edi+WIN_TITLE]
@@ -383,7 +392,10 @@ wm_draw:
     add ebx, WM_TITLE_H         ; client area, below the bar
     mov edx, [edi+WIN_H]
     sub edx, WM_TITLE_H + 2
-    mov byte [gfx_colour], WM_CLIENT
+    push edx
+    mov dl, [th_client]
+    mov [gfx_colour], dl
+    pop edx
     call gfx_fillrect
     call wg_drawall             ; the window's widgets (widget.asm)
     cmp dword [edi+WIN_PAINT], 0    ; its own painting (2.3-groups): edi =
@@ -393,8 +405,10 @@ wm_draw:
     add eax, 2                  ; the typed text, 2 pixels in
     add ebx, 2
     sub ecx, 4
-    mov byte [gfx_colour], WM_TEXT
-    mov byte [gfx_bg], WM_CLIENT
+    mov dl, [th_text]
+    mov [gfx_colour], dl
+    mov dl, [th_client]
+    mov [gfx_bg], dl
     lea esi, [edi+WIN_BUF]
     call wm_drawtext5
     popad

@@ -227,6 +227,7 @@ pm:
 .whole:
     call fs_mount_boot
     call ins_mount_system       ; no data disk: an installed system's partition (I.4)
+    call cp_boot                ; 2.3-control: /desktop/control.cfg
     call hist_load
     mov byte [shell_up], 1      ; from here a crash can restart the shell
     sti                         ; autoexec.bat may run apps that need keys
@@ -487,6 +488,12 @@ run_simple:
     mov edi, cmd_cbtest         ; 2.3-clipboard
     call streq
     je .cbtest
+    mov edi, cmd_cptest         ; 2.3-control
+    call streq
+    je .cptest
+    mov edi, cmd_control
+    call streq
+    je .control
     mov edi, cmd_filemgr        ; 2.3-filemgr
     call streq
     je .filemgr
@@ -785,6 +792,13 @@ run_simple:
     jmp .empty
 .cbtest:
     call cmd_cbtest_run
+    jmp .empty
+.cptest:
+    call cmd_cptest_run
+    jmp .empty
+.control:
+    add esi, 7                  ; "control"
+    call cmd_control_run
     jmp .empty
 .filemgr:
     call cmd_filemgr_run
@@ -1320,6 +1334,7 @@ arg_cmds:
     dd cmd_cd_arg, cmd_cd_run
     dd cmd_mkdir, cmd_mkdir_run
     dd cmd_lang_arg, cmd_lang_run
+    dd cmd_control_arg, cmd_control_run
     dd cmd_echo, cmd_echo_run
     dd cmd_batch, cmd_batch_run
     dd cmd_objcat, cmd_objcat_run
@@ -1348,6 +1363,9 @@ cmd_winalttab db 'winalttab', 0
 cmd_progman db 'progman', 0
 cmd_filemgr db 'filemgr', 0
 cmd_cbtest db 'cbtest', 0
+cmd_cptest db 'cptest', 0
+cmd_control db 'control', 0
+cmd_control_arg db 'control ', 0
 cmd_fmtest db 'fmtest', 0
 cmd_pmtest db 'pmtest', 0
 cmd_pfont db 'pfont', 0
@@ -1573,6 +1591,7 @@ khigh_start:
 %include "wm.asm"
 %include "winsys.asm"
 %include "clip.asm"
+%include "control.asm"          ; 2.3-control (after wm: theme, windows)
 %include "widget.asm"
 %include "desktop.asm"
 %include "progman.asm"

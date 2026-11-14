@@ -164,6 +164,7 @@ mouse_byte:
     mov esi, mouse_pkt
     call mouse_decode           ; eax = dx, ebx = screen dy (2.0.1)
     jc .btns                    ; overflowed: buttons only
+    call cp_mouse_scale         ; 2.3-control: speed
     add [mouse_x], eax
     add [mouse_y], ebx
     ; clamp
@@ -189,6 +190,7 @@ mouse_byte:
 .btns:
     mov al, [mouse_pkt]
     and al, 7
+    call cp_mouse_btns          ; 2.3-control: button swap
     mov bl, [mouse_btns]
     mov [mouse_btns], al
     ; left button make edge

@@ -635,6 +635,25 @@ check fm-mkdir      '/w/new'                'cd w' '<ret>' filemgr '<ret>' '<pau
 check fm-delete     'Not found'             'cd w' '<ret>' filemgr '<ret>' '<pause>' '<ret>' '<delete>' y '<esc>' 'cat sub/a.txt' '<ret>'
 check fm-menu       'Not found'             'put w/m.txt x' '<ret>' 'cd w' '<ret>' filemgr '<ret>' '<pause>' '<down>' '<down>' f '<pause>' '<down>' '<down>' '<down>' '<down>' '<ret>' y '<esc>' 'cat m.txt' '<ret>'
 check fm-text       'systest: PASS'         filemgr '<ret>' '<pause>' '<esc>' systest '<ret>'
+# 2.3-control: Control Panel settings in /desktop/control.cfg, applied at boot
+python3 "$root/tools/sqfs.py" "$out/cp.img" format 1024 >/dev/null
+disk=$out/cp.img
+check cptest        'control: PASS'         cptest '<ret>'
+check_all cp-show   'scheme warp|dbl 50|swap 0|speed 1' 'control show' '<ret>'
+check_all cp-set    'scheme night|dbl 77|swap 1|speed 3' \
+                    'control set scheme night' '<ret>' 'control set dbl 77' '<ret>' \
+                    'control set swap 1' '<ret>' 'control set speed 3' '<ret>'
+check_all cp-save   'control: saved /desktop/control.cfg|scheme night|dbl 77' \
+                    'control set scheme night' '<ret>' 'control set dbl 77' '<ret>' \
+                    'control save' '<ret>' 'cat /desktop/control.cfg' '<ret>'
+# fresh QEMU boot: cp_boot must apply the file left by cp-save
+check_all cp-reboot 'scheme night|dbl 77'   'control show' '<ret>'
+check_all cp-time   'time 11:22:33'         'control set time 11 22 33' '<ret>'
+# leave Warp defaults on the disk for anything that reuses it later
+check cp-restore    'scheme warp'           'control set scheme warp' '<ret>' 'control set dbl 50' '<ret>' \
+                    'control set swap 0' '<ret>' 'control set speed 1' '<ret>' 'control save' '<ret>'
+check_all cp-gui    'gfx: Control Panel|gfx: Colours' control '<ret>' '<pause>' '<gfx>' '<esc>' '<pause>'
+check cp-text       'systest: PASS'         cptest '<ret>' systest '<ret>'
 disk=$pm_disk
 # 1.8.3: the desktop's entries are object files in /desktop, written the
 # first time; a removed file's entry is gone. A disk of their own, so the
