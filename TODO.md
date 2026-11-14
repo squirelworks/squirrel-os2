@@ -329,6 +329,7 @@ From the 2.3 milestone in `ROADMAP.md`. Start after **2.2-progwin** is on `main`
 - [x] **2.3-clipboard** — Clipboard: kernel text clipboard with syscalls to put and get, Ctrl+Ins / Shift+Ins / Shift+Del (and Ctrl+C / Ctrl+V) in field widgets and the editors, and a Clipboard viewer program. `cbtest` (2.1 already has a `cliptest`) copies from a field and pastes into another → `clip: PASS`; checks `cbtest`, `ed-clip-*`, `clip-*`.
 - [x] **2.3-control** — Control Panel v1: colours (theme scheme from **W.1-theme**), mouse (double-click time, button swap, speed), date and time (reads and sets the RTC), keyboard (repeat rate and delay). Settings saved in `/desktop/control.cfg` and applied at boot. Checks that a change survives a reboot (`cp-*`).
 - [x] **2.3-bevel-default** — Warp-style bevelled 3D controls are the default for every widget (buttons press in, fields and lists are sunken, group boxes etched), all through `gfx_bevel` and `theme.inc`. Pixel-probe check `bevwidgets` → `bevwidgets: PASS`.
+- [x] **2.3.0** — The release. Every 2.2 and 2.3 box above is on `main`: release note `documentation/releases/2.3.0.md`, banner `2.3.0`, PROCESS table, README, HANDOFF. **Ask the owner before tagging.**
 
 ## Later milestones
 

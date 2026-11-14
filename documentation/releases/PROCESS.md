@@ -141,12 +141,13 @@ This avoids retargeting chains and confirmation steps.
 | 2.0.1   | 2026-11-04 | Mouse on IRQ 12, no pointer trail    |
 | 2.0.2   | 2026-11-04 | 2.0 clean-up, part two               |
 | 2.1.0   | 2026-11-13 | Framebuffer, ring 3, apps, games, foreign programs |
+| 2.3.0   | 2026-11-14 | Real windows, Program Manager, FAT/LFN, UEFI/SMP, net/audio |
 
 ## Next planned release
 
-**2.1** — framebuffer graphics, the first milestone of the 2.0.0 → 4.x plan in `../../ROADMAP.md` (then 2.2 real windows, and so on). Its PR-sized boxes are in `../../TODO.md` (**2.1-vbe-mode** … **2.1-blit-clip**). Work resumed 2026-11-07.
+**2.3.0** release notes are ready (`2.3.0.md`); the owner publishes. After that: **P.6-win32-windows** and **P.8-dos-window**, then Generation 2 desktop (2.5 / 2.6 / W.2–W.6) and the 2.8-pae → 2.9 long-mode kernel path. Boxes are in `../../TODO.md` and `../../HANDOFF.md`.
 
-**2.0.2** is published (`2.0.2.md`). **2.0.1** is published (`v2.0.1`).
+**2.1.0** is published (`2.1.0.md`). **2.0.2** is published (`2.0.2.md`). **2.0.1** is published (`v2.0.1`).
 
 2.0.0 is the Warp-style tag of the 1.9.12 system (`2.0.0.md`).
 

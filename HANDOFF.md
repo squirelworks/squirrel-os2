@@ -23,19 +23,18 @@ Used here, in `ROADMAP.md`, `TODO.md` and on the issues (as labels).
 
 ## Where things are
 
-- **Released:** 2.1.0 (2026-11-13). `main` (`7844b67`, 2026-11-14) is far past
-  it and unreleased: 2.2 real windows, 2.3 icons / Program Manager / File
-  Manager / clipboard, 2.4 ring 3, 2.7 long names + FAT + drive objects,
-  2.8 long-mode entry and SMP, H.1–H.6 modern hardware, 3.0 networking and
-  sound, A.1–A.5, A.7, C.1–C.9, G.1–G.9, P.1, P.2, P.5, P.6 (GUI, registry,
+- **Released:** 2.1.0 (2026-11-13). **2.3.0** release notes are prepared
+  (`documentation/releases/2.3.0.md`); the owner publishes the tag. `main`
+  includes 2.2 real windows, 2.3 Program Manager / File Manager / clipboard /
+  Control Panel / bevels, 2.4 ring 3, 2.7 long names + FAT + drive objects
+  (diskutil view/check), 2.8 long-mode entry and SMP, H.1–H.6, 3.0 networking
+  and sound, A.1–A.7, C.1–C.9, G.1–G.9, P.1, P.2, P.5, P.6 (GUI, registry,
   DLLs), P.8 (dosrun, launch, mode 13h), P.9 (32-bit LX), P.10 (FreeBSD).
-- **Test gate:** `tools/regress.sh` (about 750 `check` lines) and GitHub CI
+- **Test gate:** `tools/regress.sh` (558 `check` lines at 2.3.0) and GitHub CI
   (`.github/workflows/ci.yml`: `build` and `regress`, on every PR). Wait for
   a green `regress` before calling a PR ready.
-- **Open PRs at hand-off:** none on GitHub. Branch `int/os2-control`
-  (2.3-control, ticks A.3) is being turned into a PR by the "condenser"
-  session; if it is still unmerged when you start, open the PR from that
-  branch rather than redoing it.
+- **Open PRs:** none at the 2.3.0 prep. Take the next free box in the order
+  below; if a competing PR appears, stand down.
 
 ## Rules (Squirrel's; do not break)
 
@@ -71,10 +70,8 @@ qemu-system-i386 -drive file=build/os.img,format=raw -drive file=build/data.img,
 
 ## Suggested order
 
-1. Merge `int/os2-control` (2.3-control), then **2.3-bevel-default** →
-   2.3 done. Then prepare the **2.3.0 release notes** (everything since 2.1.0)
-   for Squirrel to publish.
-2. **2.7-diskutil** (a stale branch already has most of it).
+1. ~~Merge `int/os2-control`, **2.3-bevel-default**, then **2.3.0 release notes**.~~ Done (#168, #172, and the 2.3.0 prep PR). Owner publishes `v2.3.0`.
+2. **2.7-diskutil** remainder (in-OS FAT format; #171 shipped view/check without ticking the box).
 3. **P.6-win32-windows** and **P.8-dos-window** (both only need 2.2, which is done).
 4. **W.2–W.6** together with **2.5** and **2.6** (Generation 2 desktop).
 5. **2.8-pae → 2.9-lm-kernel → 2.9-syscall64** (the 64-bit kernel; largest risk).
@@ -83,33 +80,26 @@ qemu-system-i386 -drive file=build/os.img,format=raw -drive file=build/data.img,
 
 ## Task cards
 
-### 2.3-bevel-default — Warp bevels on every widget  `cursor-codex`
-- **What:** every widget draws through `gfx_bevel` with `kernel/theme.inc`:
-  buttons press in, edit fields and lists are sunken, group boxes etched.
-- **Files:** `kernel/widget.asm`, `kernel/theme.inc`, `kernel/gfx.asm`,
-  `kernel/filemgr.asm`, `kernel/progman.asm`, `documentation/kernel/widgets.md`.
-- **Acceptance:** `bevwidgets` prints `bevwidgets: PASS` after reading the light,
-  face and dark pixels of a button (up and pressed), a field, a list and a
-  group box; every existing `wintest`/`dk-*`/`pm-*`/`fm-*`/`cp-*` check still passes.
-- **Closes:** TODO 2.3-bevel-default, ROADMAP 2.3 and W.1, #132 lines.
+### 2.3-bevel-default — Warp bevels on every widget  `status: done`
+Merged as #172.
 
-### 2.3.0 release notes  `cursor-codex` then `needs: squirrel`
-- Write `documentation/releases/2.3.0.md` (or 2.2.0 + 2.3.0 if Squirrel prefers
-  two) listing everything on `main` since 2.1.0 (PRs #151–#167 and the
-  control panel), add the row to `documentation/releases/PROCESS.md`, bump
-  the banner string. Run `Actions → Draft release`, then give Squirrel the
-  draft link and a zip of `os.img`, `floppy.img`, `data.img`, `cd.iso`, `uefi.img`.
+### 2.3.0 release notes  `needs: squirrel` (prep done)
+- Prep: `documentation/releases/2.3.0.md`, PROCESS row, banner `2.3.0`,
+  README / ROADMAP / HANDOFF / TODO **2.3.0** box. Owner runs
+  Actions → Draft release on the merge commit and Publishes `v2.3.0`
+  with `os.img`, `floppy.img`, `data.img`, `cd.iso`, `uefi.img`.
 
 ### 2.7-diskutil — FAT and long names in `diskutil`  `cursor-codex`
-- **Head start:** branch `ws/os2-fs/diskutil` (3 commits, ~130 behind `main`):
-  "other disks and FAT12/16/32 volumes: map, chains, lost and shared
-  clusters, FAT copies, VFAT names". Rebase it on `main` (conflicts expected
-  in `tools/regress.sh` and `kernel/pm.asm` includes) instead of starting over.
-- **Files:** `programs/diskutil.asm`,
+- **Partial on `main` (#171):** view and check of FAT12/16/32 volumes, VFAT
+  names, SQFS long-name accounting. **Still open:** format FAT from the OS
+  (images are still made on the host by `tools/fatimg.py`). Do not retick the
+  box until format is in, or reword the box with the owner.
+- **Files:** `programs/diskutil.asm`, `programs/dufat.inc`,
   `kernel/fat.asm`, `documentation/apps/diskutil.md`, `tools/fatimg.py`.
 - **Acceptance:** `diskutil` lists partition types, formats a FAT12/16/32
   volume, checks one (lost/shared clusters, mismatched FAT copies) and shows
-  VFAT names; `tools/fatimg.py check` agrees on images it made. New `du-fat-*` checks.
+  VFAT names; `tools/fatimg.py check` agrees on images it made. New checks
+  already include `diskutil-fat*`.
 
 ### P.6-win32-windows — Win32 top-level windows as desktop windows  `cursor-codex`
 - **What:** `CreateWindowEx` top-level windows from `programs/wingui.inc`
