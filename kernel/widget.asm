@@ -685,12 +685,14 @@ wg_draw:
     je .well
     mov byte [gfx_colour], WG_BTN_FILL
     call gfx_fillrect
+    push esi
     mov esi, TH_BEVEL_RAISED
     cmp dword [edi+WG_SEL], 0
     je .bbev
     mov esi, TH_BEVEL_SUNKEN    ; pressed
 .bbev:
     call gfx_bevel
+    pop esi                     ; the label text
     add eax, TH_BEVEL_W + WG_BTN_PAD
     add ebx, TH_BEVEL_W + WG_BTN_PAD
     cmp dword [edi+WG_SEL], 0
@@ -706,8 +708,10 @@ wg_draw:
 .well:
     mov byte [gfx_colour], WG_WELL_FILL
     call gfx_fillrect
+    push esi
     mov esi, TH_BEVEL_SUNKEN
     call gfx_bevel
+    pop esi                     ; the field buffer
     add eax, TH_BEVEL_W + WG_BTN_PAD
     add ebx, TH_BEVEL_W + WG_BTN_PAD
     sub ecx, 2 * (TH_BEVEL_W + WG_BTN_PAD)
