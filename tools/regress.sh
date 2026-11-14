@@ -1160,19 +1160,31 @@ check diskutil      'diskutil: PASS'        'run diskutil test' '<ret>' '<pause>
 check_all diskutil-check 'gfx: hd1 (data disk): SQFS, 2048 sectors, 1024 KB|gfx: Check: no problems found' 'run diskutil' '<ret>' '<pause>' 'c' '<pause>' '<gfx>'
 check diskutil-scan 'gfx: Surface scan: 2048 sectors read, 0 failed' 'run diskutil' '<ret>' '<pause>' 's' '<pause>' '<pause>' '<gfx>'
 check diskutil-quit 'systest: PASS'         'run diskutil' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
-# 2.7 (OS2-FS): diskutil on a FAT disk (hd2, mounted first so that it is a
-# block device), and on the FAT images the 2.7 checks above wrote to
+# 2.7-diskutil: FAT volumes in diskutil (check, VFAT names, partition types)
+# and mkfat (format FAT12/16/32). fatimg.py check agrees on images it made
+# and on those mkfat wrote.
 fat "$out/du16.img" format 16384 16 --part
 fat "$out/du16.img" mkdir docs
 fat "$out/du16.img" put "$out/fatreadme" README.TXT
 fat "$out/du16.img" put "$out/notes27" 'docs/A Long Document Name.txt'
 saved_target=$target; target=$out/du16.img
-check diskutil-fat   'diskutil: PASS'        'mount d: hd2' '<ret>' 'run diskutil test hd2' '<ret>' '<pause>' '<pause>'
-check_all diskutil-fat-gui 'gfx: hd2: FAT16, 30720 sectors, 15360 KB|gfx: Used 3 of 30449 clusters|gfx: A Long Document Name|gfx: Check: no problems found' 'mount d: hd2' '<ret>' 'run diskutil hd2' '<ret>' '<pause>' 'c' '<pause>' '<gfx>'
+check du-fat-test    'diskutil: PASS'        'mount d: hd2' '<ret>' 'run diskutil test hd2' '<ret>' '<pause>' '<pause>'
+check_all du-fat-gui 'gfx: hd2: FAT16, 30720 sectors, 15360 KB|gfx: Partition 1: type 04|gfx: Used 3 of 30449 clusters|gfx: A Long Document Name|gfx: Check: no problems found' 'mount d: hd2' '<ret>' 'run diskutil hd2' '<ret>' '<pause>' 'c' '<pause>' '<gfx>'
 for t in 12 16 32; do
     target=$out/fat$t.img
-    check_all diskutil-fat$t "gfx: hd2: FAT$t|gfx: Check: no problems found" 'mount d: hd2' '<ret>' 'run diskutil hd2' '<ret>' '<pause>' 'c' '<pause>' '<gfx>'
+    check_all du-fat-$t "gfx: hd2: FAT$t|gfx: Check: no problems found" 'mount d: hd2' '<ret>' 'run diskutil hd2' '<ret>' '<pause>' 'c' '<pause>' '<gfx>'
 done
+# mkfat: format a blank disk as FAT12/16/32; fatimg.py check agrees; diskutil sees it
+python3 -c "open('$out/mkblank.img','wb').write(b'\\0'*(1440*1024))"
+target=$out/mkblank.img
+check_all du-fat-mk12 'Formatted FAT12 on hd2|D: FAT12, 1440 KB|gfx: Check: no problems found' 'mkfat hd2 12' '<ret>' '<pause>' 'mount d: hd2' '<ret>' 'run diskutil hd2' '<ret>' '<pause>' 'c' '<pause>' '<gfx>'
+fatok du-fat-mk12-fsck "$out/mkblank.img"
+python3 -c "open('$out/mkblank.img','wb').write(b'\\0'*(16384*1024))"
+check_all du-fat-mk16 'Formatted FAT16 on hd2|D: FAT16|gfx: Partition 1: type 04|gfx: Check: no problems found' 'mkfat hd2 16 --part' '<ret>' '<pause>' 'mount d: hd2' '<ret>' 'run diskutil hd2' '<ret>' '<pause>' 'c' '<pause>' '<gfx>'
+fatok du-fat-mk16-fsck "$out/mkblank.img"
+python3 -c "open('$out/mkblank.img','wb').write(b'\\0'*(40960*1024))"
+check_all du-fat-mk32 'Formatted FAT32 on hd2|D: FAT32|gfx: Partition 1: type 0C|gfx: Check: no problems found' 'mkfat hd2 32 --part' '<ret>' '<pause>' 'mount d: hd2' '<ret>' 'run diskutil hd2' '<ret>' '<pause>' 'c' '<pause>' '<gfx>'
+fatok du-fat-mk32-fsck "$out/mkblank.img"
 target=$saved_target
 # C.8: notebooks (notes, Nut code, graphs, tables, geometry; C.1: math cells by sqmath)
 check notebook      'notebook: PASS'        'run notebook test' '<ret>' '<pause>' '<pause>' '<pause>'

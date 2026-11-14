@@ -409,7 +409,7 @@ Roadmap 2.7 and the FAT/long-name side of A.5's disk utility. The desktop parts 
 - [x] **2.7-lfn** — SQFS names up to 63 characters: unique short aliases in the entry, the whole name in continuation entries older kernels ignore, orphans freed at mount. Checks `lfntest`, `lfn-host`, `lfn-kernel`, `lfn-sqfs-py`, `lfn-sweep`, `lfn-sweep-freed`.
 - [x] **2.7-fat** — FAT12/16/32 read and write on drive letters (`mount`, `umount`, `cp`; disks, partitions, image files), VFAT long names both ways. Checks `fat12-*`, `fat16-*`, `fat32-*`, `fat-*`; images checked afterwards by `tools/fatimg.py check`.
 - [x] **2.7-objects** — Drive objects (one per mounted drive, opening lists it) and a shredder object (a file dropped on it is deleted).
-- [ ] **2.7-diskutil** *(head start: branch `ws/os2-fs/diskutil`, rebase it)* — `diskutil` understands FAT volumes and long names (partition types, format FAT, check a FAT volume).
+- [x] **2.7-diskutil** — `diskutil` understands FAT volumes and long names (partition types, VFAT names, check lost/shared clusters and FAT copies); `mkfat` formats FAT12/16/32. Checks `du-fat-*`; `tools/fatimg.py check` agrees.
 
 ## 2.8–2.9 core — 64-bit kernel and SMP (OS2-K)
 

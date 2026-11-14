@@ -74,12 +74,11 @@ qemu-system-i386 -drive file=build/os.img,format=raw -drive file=build/data.img,
 1. Merge `int/os2-control` (2.3-control), then **2.3-bevel-default** →
    2.3 done. Then prepare the **2.3.0 release notes** (everything since 2.1.0)
    for Squirrel to publish.
-2. **2.7-diskutil** (a stale branch already has most of it).
-3. **P.6-win32-windows** and **P.8-dos-window** (both only need 2.2, which is done).
-4. **W.2–W.6** together with **2.5** and **2.6** (Generation 2 desktop).
-5. **2.8-pae → 2.9-lm-kernel → 2.9-syscall64** (the 64-bit kernel; largest risk).
-6. **3.0** remainder (accounts, permissions, services, event log, task manager, themes).
-7. **P.3, P.4, P.7, P.11, P.12**, then 3.x and 4.x.
+2. **P.6-win32-windows** and **P.8-dos-window** (both only need 2.2, which is done).
+3. **W.2–W.6** together with **2.5** and **2.6** (Generation 2 desktop).
+4. **2.8-pae → 2.9-lm-kernel → 2.9-syscall64** (the 64-bit kernel; largest risk).
+5. **3.0** remainder (accounts, permissions, services, event log, task manager, themes).
+6. **P.3, P.4, P.7, P.11, P.12**, then 3.x and 4.x.
 
 ## Task cards
 
@@ -100,16 +99,10 @@ qemu-system-i386 -drive file=build/os.img,format=raw -drive file=build/data.img,
   the banner string. Run `Actions → Draft release`, then give Squirrel the
   draft link and a zip of `os.img`, `floppy.img`, `data.img`, `cd.iso`, `uefi.img`.
 
-### 2.7-diskutil — FAT and long names in `diskutil`  `cursor-codex`
-- **Head start:** branch `ws/os2-fs/diskutil` (3 commits, ~130 behind `main`):
-  "other disks and FAT12/16/32 volumes: map, chains, lost and shared
-  clusters, FAT copies, VFAT names". Rebase it on `main` (conflicts expected
-  in `tools/regress.sh` and `kernel/pm.asm` includes) instead of starting over.
-- **Files:** `programs/diskutil.asm`,
-  `kernel/fat.asm`, `documentation/apps/diskutil.md`, `tools/fatimg.py`.
-- **Acceptance:** `diskutil` lists partition types, formats a FAT12/16/32
-  volume, checks one (lost/shared clusters, mismatched FAT copies) and shows
-  VFAT names; `tools/fatimg.py check` agrees on images it made. New `du-fat-*` checks.
+### 2.7-diskutil — FAT and long names in `diskutil`  `done`
+- View/check landed in #171; this card adds `mkfat` (format FAT12/16/32),
+  partition-type listing in `diskutil`, and `du-fat-*` regress checks.
+  `tools/fatimg.py check` agrees on host-made and `mkfat`-made images.
 
 ### P.6-win32-windows — Win32 top-level windows as desktop windows  `cursor-codex`
 - **What:** `CreateWindowEx` top-level windows from `programs/wingui.inc`

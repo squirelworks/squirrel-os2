@@ -146,9 +146,9 @@ The GUI grows in generations, and each generation is a shippable milestone (epic
 
 - [ ] **2.5** — A WarpCenter-style bar (the default; a taskbar layout is a setting), a Squirrel menu, a tray clock.
 - [ ] **2.6** — Desktop objects with icons, drag and drop between folders and onto programs, context menus on the right button, Warp-style settings notebooks with tabs, shadows (shortcuts).
-- [ ] **2.7** — Long file names, FAT12/16/32 read and write for exchanging media, drive objects, a shredder object.
+- [x] **2.7** — Long file names, FAT12/16/32 read and write for exchanging media, drive objects, a shredder object.
   - [x] Long names, FAT12/16/32 read and write, drive and shredder objects (#162)
-  - [ ] `diskutil` on FAT volumes (2.7-diskutil; head start on branch `ws/os2-fs/diskutil`)
+  - [x] `diskutil` on FAT volumes and `mkfat` (2.7-diskutil)
 
 ### 2.8–2.9 — 64-bit bridge
 

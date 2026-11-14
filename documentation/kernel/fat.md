@@ -125,7 +125,8 @@ agreed with the desktop stream: it owns these classes, the desktop only sends th
   `fsck.fat -n` and `mtools` while this was written.
 
 `tools/fatimg.py` is the host side: `format SIZE_KB [12|16|32] [--part]`, `ls`, `put`, `get`,
-`mkdir`, `check`.
+`mkdir`, `check`. On the machine itself, `mkfat hd2 16 [--part]` formats a disk the same way
+(`fat_format` in `fat.asm`); see `../apps/diskutil.md`.
 
 ## Limitations
 

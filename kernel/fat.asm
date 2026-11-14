@@ -2526,6 +2526,415 @@ fat_list:
     popad
     ret
 
+; ---------- format a blank disk (2.7-diskutil) ----------
+; ebx = block device, cl = 12/16/32, ch = 1 to put the volume in
+; partition 1 at LBA 2048. Uses the device's size. Writes an MBR (when
+; asked), a boot sector, both FATs, a fixed root or a FAT32 root cluster,
+; and (on FAT32) FSInfo. Same geometry as tools/fatimg.py. CF on error.
+fat_format:
+    pushad
+    movzx eax, cl
+    mov [ff_bits], eax
+    movzx eax, ch
+    mov [ff_part], eax
+    mov [ff_dev], ebx
+    mov eax, [ebx+DEV_SIZE]
+    mov [ff_total], eax
+    xor edx, edx
+    test eax, eax
+    jz .bad
+    cmp dword [ff_part], 0
+    je .base0
+    cmp eax, 2048+16
+    jb .bad
+    mov edx, 2048
+.base0:
+    mov [ff_base], edx
+    sub eax, edx
+    mov [ff_sects], eax
+    mov dword [ff_nfats], 2
+    mov byte [ff_media], 0xF8
+    cmp dword [ff_bits], 32
+    je .b32
+    mov dword [ff_rsvd], 1
+    mov dword [ff_rootents], 512
+    cmp dword [ff_bits], 12
+    jne .spc1
+    mov dword [ff_rootents], 224
+    jmp .spc1
+.b32:
+    mov dword [ff_rsvd], 32
+    mov dword [ff_rootents], 0
+.spc1:
+    mov dword [ff_spc], 1
+.geom:
+    mov eax, [ff_rootents]
+    shl eax, 5
+    add eax, SECTOR_SIZE-1
+    shr eax, 9
+    mov [ff_rootsecs], eax
+    mov dword [ff_fatsz], 1
+    mov ecx, 20
+.fit:
+    mov eax, [ff_sects]
+    sub eax, [ff_rsvd]
+    mov edx, [ff_nfats]
+    imul edx, [ff_fatsz]
+    sub eax, edx
+    sub eax, [ff_rootsecs]
+    jb .bad
+    xor edx, edx
+    div dword [ff_spc]
+    mov [ff_clusters], eax
+    add eax, 2
+    mul dword [ff_bits]
+    add eax, 7
+    shr eax, 3
+    add eax, SECTOR_SIZE-1
+    shr eax, 9
+    mov [ff_fatsz], eax
+    loop .fit
+    mov eax, [ff_clusters]
+    cmp dword [ff_bits], 12
+    jne .c16
+    cmp eax, 4085
+    jb .range
+    jmp .grow
+.c16:
+    cmp dword [ff_bits], 16
+    jne .c32
+    cmp eax, 65525
+    jb .range
+    jmp .grow
+.c32:
+    cmp eax, 65525
+    jb .bad
+    cmp eax, 0x0FFFFFF5
+    ja .bad
+    jmp .range
+.grow:
+    shl dword [ff_spc], 1
+    cmp dword [ff_spc], 128
+    ja .bad
+    jmp .geom
+.range:
+    cmp dword [ff_bits], 12
+    jne .r16
+    test eax, eax
+    jz .bad
+    cmp eax, 4084
+    ja .bad
+    jmp .write
+.r16:
+    cmp dword [ff_bits], 16
+    jne .write
+    cmp eax, 4085
+    jb .bad
+    cmp eax, 65524
+    ja .bad
+.write:
+    cmp dword [ff_part], 0
+    je .bs
+    call ff_mbr
+    jc .wm
+.bs:
+    call ff_boot
+    jc .wb
+    call ff_fats
+    jc .wf
+    call ff_root
+    jc .wr
+    popad
+    clc
+    ret
+.wm:
+.wb:
+.wf:
+.wr:
+    popad
+    stc
+    ret
+.bad:
+    popad
+    stc
+    ret
+
+; MBR with one FAT partition covering [ff_base .. ff_base+ff_sects)
+ff_mbr:
+    pushad
+    mov edi, fe_zero
+    mov ecx, SECTOR_SIZE/4
+    xor eax, eax
+    rep stosd
+    mov edi, fe_zero
+    mov byte [edi+446], 0x80
+    mov dword [edi+447], 0x00FFFFFF
+    mov al, 0x01
+    cmp dword [ff_bits], 12
+    je .t
+    mov al, 0x04
+    cmp dword [ff_bits], 16
+    jne .t32
+    cmp dword [ff_sects], 65536
+    jb .t
+    mov al, 0x06
+    jmp .t
+.t32:
+    mov al, 0x0C
+.t:
+    mov [edi+450], al
+    mov dword [edi+451], 0x00FFFFFF
+    mov eax, [ff_base]
+    mov [edi+454], eax
+    mov eax, [ff_sects]
+    mov [edi+458], eax
+    mov word [edi+510], 0xAA55
+    mov ebx, [ff_dev]
+    xor ecx, ecx
+    mov esi, fe_zero
+    call dev_bwrite
+    popad
+    ret          ; CF from dev_bwrite
+
+; boot sector (and FAT32 backup + FSInfo) at ff_base
+ff_boot:
+    pushad
+    mov edi, fe_sec
+    mov ecx, SECTOR_SIZE/4
+    xor eax, eax
+    rep stosd
+    mov edi, fe_sec
+    mov word [edi], 0x3CEB
+    mov byte [edi+2], 0x90
+    cmp dword [ff_bits], 32
+    jne .jmp
+    mov word [edi], 0x58EB
+    mov byte [edi+2], 0x90
+.jmp:
+    mov dword [edi+3], 'SQUI'
+    mov dword [edi+7], 'RREL'
+    mov word [edi+11], SECTOR_SIZE
+    mov al, [ff_spc]
+    mov [edi+13], al
+    mov ax, [ff_rsvd]
+    mov [edi+14], ax
+    mov al, [ff_nfats]
+    mov [edi+16], al
+    mov ax, [ff_rootents]
+    mov [edi+17], ax
+    mov eax, [ff_sects]
+    cmp dword [ff_bits], 32
+    je .tot32
+    cmp eax, 0x10000
+    jae .tot32
+    mov [edi+19], ax
+    jmp .media
+.tot32:
+    mov [edi+32], eax
+.media:
+    mov al, [ff_media]
+    mov [edi+21], al
+    cmp dword [ff_bits], 32
+    je .fsz32
+    mov ax, [ff_fatsz]
+    mov [edi+22], ax
+    jmp .geom
+.fsz32:
+    mov eax, [ff_fatsz]
+    mov [edi+36], eax
+.geom:
+    mov word [edi+24], 63
+    mov word [edi+26], 255
+    mov eax, [ff_base]
+    mov [edi+28], eax
+    cmp dword [ff_bits], 32
+    je .e32
+    mov byte [edi+36], 0x80
+    mov byte [edi+38], 0x29
+    mov dword [edi+39], 0x5157524C
+    mov esi, ff_noname
+    lea edi, [fe_sec+43]
+    mov ecx, 11
+    rep movsb
+    mov edi, fe_sec
+    mov esi, ff_fat12
+    cmp dword [ff_bits], 16
+    jne .lab
+    mov esi, ff_fat16
+.lab:
+    lea edi, [fe_sec+54]
+    mov ecx, 8
+    rep movsb
+    mov edi, fe_sec
+    jmp .sig
+.e32:
+    mov dword [edi+40], 0
+    mov dword [edi+44], 2
+    mov word [edi+48], 1
+    mov word [edi+50], 6
+    mov byte [edi+64], 0x80
+    mov byte [edi+66], 0x29
+    mov dword [edi+67], 0x5157524C
+    mov esi, ff_noname
+    lea edi, [fe_sec+71]
+    mov ecx, 11
+    rep movsb
+    mov esi, ff_fat32
+    lea edi, [fe_sec+82]
+    mov ecx, 8
+    rep movsb
+    mov edi, fe_sec
+.sig:
+    mov word [edi+510], 0xAA55
+    mov ebx, [ff_dev]
+    mov ecx, [ff_base]
+    mov esi, fe_sec
+    call dev_bwrite
+    jc .bad
+    cmp dword [ff_bits], 32
+    jne .ok
+    ; backup boot at reserved sector 6, FSInfo at 1
+    lea ecx, [ecx+6]
+    call dev_bwrite
+    jc .bad
+    mov edi, fe_zero
+    mov ecx, SECTOR_SIZE/4
+    xor eax, eax
+    rep stosd
+    mov edi, fe_zero
+    mov dword [edi], 0x41615252
+    mov dword [edi+484], 0x61417272
+    mov dword [edi+488], 0xFFFFFFFF
+    mov dword [edi+492], 0xFFFFFFFF
+    mov word [edi+510], 0xAA55
+    mov ebx, [ff_dev]
+    mov ecx, [ff_base]
+    inc ecx
+    mov esi, fe_zero
+    call dev_bwrite
+    jc .bad
+.ok:
+    popad
+    clc
+    ret
+.bad:
+    popad
+    stc
+    ret
+
+; both FATs: zeros, then media / EOC entries
+ff_fats:
+    pushad
+    mov edi, fe_zero
+    mov ecx, SECTOR_SIZE/4
+    xor eax, eax
+    rep stosd
+    mov ebp, 0                  ; FAT copy index
+.fat:
+    cmp ebp, [ff_nfats]
+    jae .ok
+    mov eax, [ff_fatsz]
+    mul ebp
+    add eax, [ff_rsvd]
+    add eax, [ff_base]
+    mov edx, [ff_fatsz]
+.sec:
+    mov ebx, [ff_dev]
+    mov ecx, eax
+    mov esi, fe_zero
+    call dev_bwrite
+    jc .bad
+    inc eax
+    dec edx
+    jnz .sec
+    inc ebp
+    jmp .fat
+.ok:
+    ; entry 0 = media, 1 = EOC, (FAT32: 2 = EOC for the root)
+    mov edi, fe_sec
+    mov ecx, SECTOR_SIZE/4
+    xor eax, eax
+    rep stosd
+    cmp dword [ff_bits], 12
+    jne .w16
+    mov al, [ff_media]
+    mov [fe_sec], al
+    mov byte [fe_sec+1], 0xFF
+    mov byte [fe_sec+2], 0xFF
+    jmp .put
+.w16:
+    cmp dword [ff_bits], 16
+    jne .w32
+    mov al, [ff_media]
+    mov ah, 0xFF
+    mov [fe_sec], ax
+    mov word [fe_sec+2], 0xFFFF
+    jmp .put
+.w32:
+    mov eax, 0x0FFFFF00
+    mov al, [ff_media]
+    mov [fe_sec], eax
+    mov dword [fe_sec+4], FAT_EOC
+    mov dword [fe_sec+8], FAT_EOC
+.put:
+    mov ebp, 0
+.p:
+    cmp ebp, [ff_nfats]
+    jae .done
+    mov eax, [ff_fatsz]
+    mul ebp
+    add eax, [ff_rsvd]
+    add eax, [ff_base]
+    mov ebx, [ff_dev]
+    mov ecx, eax
+    mov esi, fe_sec
+    call dev_bwrite
+    jc .bad
+    inc ebp
+    jmp .p
+.done:
+    popad
+    clc
+    ret
+.bad:
+    popad
+    stc
+    ret
+
+; FAT12/16 fixed root (zeroed) or nothing for FAT32 (cluster 2 already EOC)
+ff_root:
+    pushad
+    cmp dword [ff_bits], 32
+    je .ok
+    mov edi, fe_zero
+    mov ecx, SECTOR_SIZE/4
+    xor eax, eax
+    rep stosd
+    mov eax, [ff_nfats]
+    mul dword [ff_fatsz]
+    add eax, [ff_rsvd]
+    add eax, [ff_base]
+    mov edx, [ff_rootsecs]
+.w:
+    test edx, edx
+    jz .ok
+    mov ebx, [ff_dev]
+    mov ecx, eax
+    mov esi, fe_zero
+    call dev_bwrite
+    jc .bad
+    inc eax
+    dec edx
+    jmp .w
+.ok:
+    popad
+    clc
+    ret
+.bad:
+    popad
+    stc
+    ret
+
 ; ---------- data ----------
 fat_badchars db '\/:*?"<>|'
 fat_badchars_len equ $-fat_badchars
@@ -2533,6 +2942,25 @@ fat_shortchars db "!#$%&'()-@^_`{}~"
 fat_shortchars_len equ $-fat_shortchars
 lf_offs db 1, 3, 5, 7, 9, 14, 16, 18, 20, 22, 24, 28, 30
 fat_dot db '.          '
+ff_noname db 'NO NAME    '
+ff_fat12 db 'FAT12   '
+ff_fat16 db 'FAT16   '
+ff_fat32 db 'FAT32   '
+ff_media db 0
+align 4
+ff_bits dd 0
+ff_part dd 0
+ff_dev dd 0
+ff_total dd 0
+ff_base dd 0
+ff_sects dd 0
+ff_nfats dd 0
+ff_rsvd dd 0
+ff_rootents dd 0
+ff_spc dd 0
+ff_rootsecs dd 0
+ff_fatsz dd 0
+ff_clusters dd 0
 fn_regs db 0, 2, 4, 7, 8, 9     ; seconds, minutes, hours, day, month, year
 fn_vals times 6 db 0
 fn_bin db 0

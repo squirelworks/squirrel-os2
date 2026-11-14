@@ -32,6 +32,32 @@ A_LFN       equ 0x0F            ; directory entry attributes
 A_LABEL     equ 0x08
 A_DIR       equ 0x10
 
+; sect = an MBR: copy each non-empty partition entry into parts[]
+; (type, LBA, size) and set nparts.
+fat_save_parts:
+    pushad
+    mov esi, sect + 446
+    mov edi, parts
+    xor edx, edx
+    mov ecx, 4
+.l:
+    mov al, [esi+4]
+    test al, al
+    jz .n
+    mov [edi], al
+    mov eax, [esi+8]
+    mov [edi+4], eax
+    mov eax, [esi+12]
+    mov [edi+8], eax
+    add edi, 12
+    inc edx
+.n:
+    add esi, 16
+    loop .l
+    mov [nparts], edx
+    popad
+    ret
+
 ; eax = sector of the volume, edi = 512-byte buffer -> CF if it failed
 fat_rd:
     push eax
@@ -83,15 +109,18 @@ bpb_ok:
     ret
 
 ; sect = the disk's sector 0 -> CF unless a FAT volume was found: the
-; volume's numbers (vbase, fspc, ..., total) set, fat_ok = 1
+; volume's numbers (vbase, fspc, ..., total) set, fat_ok = 1.
+; Also fills parts[] with the MBR's four type/LBA/size rows (nparts).
 fat_probe:
     pushad
     mov dword [vbase], 0
+    mov dword [nparts], 0
     mov esi, sect
     call bpb_ok
     jnc .got
     cmp word [sect+510], 0xAA55 ; a partition table
     jne .no
+    call fat_save_parts
     mov esi, sect + 446
     mov ecx, 4
 .pe:

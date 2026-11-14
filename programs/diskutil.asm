@@ -170,6 +170,7 @@ analyse:
     mov byte [sq_ok], 0
     mov byte [fat_ok], 0
     mov dword [vbase], 0
+    mov dword [nparts], 0
     mov dword [mshift], 0
     mov dword [total], 0
     mov eax, SYS_DEVFIND
@@ -972,7 +973,58 @@ draw_disks:
 .b:
     call scopy
     mov esi, ln
-    jmp say
+    call say
+    ; (2.7) partition table types, when the disk has an MBR
+    cmp dword [nparts], 0
+    je .r
+    mov ebx, parts
+    xor edx, edx
+.p:
+    cmp edx, [nparts]
+    jae .r
+    mov edi, ln
+    mov esi, s_part
+    call scopy
+    lea eax, [edx+1]
+    call gui_utoa
+    mov esi, s_ptype
+    call scopy
+    movzx eax, byte [ebx]
+    call gui_hex2
+    mov esi, s_plba
+    call scopy
+    mov eax, [ebx+4]
+    call gui_utoa
+    mov esi, s_psize
+    call scopy
+    mov eax, [ebx+8]
+    call gui_utoa
+    mov esi, s_psects
+    call scopy
+    mov esi, ln
+    call say
+    add ebx, 12
+    inc edx
+    jmp .p
+.r:
+    ret
+
+; eax = byte -> two hex digits at edi
+gui_hex2:
+    push eax
+    push ebx
+    mov ebx, eax
+    shr eax, 4
+    and eax, 15
+    mov al, [hexdig+eax]
+    stosb
+    mov eax, ebx
+    and eax, 15
+    mov al, [hexdig+eax]
+    stosb
+    pop ebx
+    pop eax
+    ret
 
 ; "Used 123 of 2048 sectors (6%)   Files 12   Directories 1"
 draw_usage:
@@ -1685,6 +1737,12 @@ s_colon db ': ', 0
 s_fat db 'FAT', 0
 s_comma db ', ', 0
 s_clus db ' clusters (', 0
+s_part db 'Partition ', 0
+s_ptype db ': type ', 0
+s_plba db '  LBA ', 0
+s_psize db '  ', 0
+s_psects db ' sectors', 0
+hexdig db '0123456789ABCDEF'
 fat_ptypes db 0x01, 0x04, 0x06, 0x0B, 0x0C, 0x0E
 lfn_offs db 1, 3, 5, 7, 9, 14, 16, 18, 20, 22, 24, 28, 30
 p_fout db ': its chain leaves the disk', 0
@@ -1750,6 +1808,8 @@ lf_exp resb 1
 lf_sum resb 1
 fq_full resb 1
 alignb 4
+nparts resd 1
+parts resb 4*12                 ; type, LBA, size per MBR entry
 vbase resd 1
 mshift resd 1
 fspc resd 1

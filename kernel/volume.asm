@@ -5,6 +5,7 @@
 ;   mount d: hd2          a disk (whole, or its first FAT partition)
 ;   mount e: floppy.img   an image file on the SQFS data disk
 ;   umount d:
+;   mkfat hd2 16 [--part] format a disk as FAT12/16/32 (2.7-diskutil)
 ;   cp <from> <to>        copies a file; either side may be on a drive
 ;   fattest d:            exercises FAT writing on a mounted drive
 ;   lfntest               exercises SQFS long names (fslfn.asm)
@@ -751,6 +752,9 @@ vol_command:
     mov edi, vc_drive_arg
     call streq_prefix
     je .drive
+    mov edi, vc_mkfat_arg
+    call streq_prefix
+    je .mkfat
     pop edi
     stc
     ret
@@ -790,9 +794,113 @@ vol_command:
     add esi, 8
     call next_word
     call cmd_fattest_run
+    jmp .done
+.mkfat:
+    add esi, 6
+    call cmd_mkfat_run
 .done:
     pop edi
     clc
+    ret
+
+; mkfat <disk> <12|16|32> [--part]: format a blank (or any) disk as FAT.
+; Registers hd2/hd3 when needed. Refuses a mounted disk and hd1 when it
+; holds SQFS. Prints "Formatted FAT16 on hd2" or an error.
+cmd_mkfat_run:
+    pushad
+    call next_word
+    cmp byte [esi], 0
+    je .usage
+    mov [mk_disk], esi
+    mov esi, edi
+    call next_word
+    cmp byte [esi], 0
+    je .usage
+    mov [mk_rest], edi          ; after the type word
+    mov edi, mk_12
+    call streq
+    jne .t16
+    mov dword [mk_bits], 12
+    jmp .bits
+.t16:
+    mov edi, mk_16
+    call streq
+    jne .t32
+    mov dword [mk_bits], 16
+    jmp .bits
+.t32:
+    mov edi, mk_32
+    call streq
+    jne .usage
+    mov dword [mk_bits], 32
+.bits:
+    mov esi, [mk_rest]
+    xor eax, eax
+    cmp byte [esi], 0
+    je .nop
+    call next_word
+    mov [mk_rest], edi          ; anything after --part is an error
+    mov edi, mk_part
+    call streq
+    jne .usage
+    mov edi, [mk_rest]
+    cmp byte [edi], 0
+    jne .usage
+    mov eax, 1
+.nop:
+    mov [mk_partf], eax
+    mov esi, [mk_disk]
+    call vol_disk
+    jc .why
+    ; refuse if already mounted
+    mov edi, vol_table
+    mov ecx, VOL_MAX
+.chk:
+    cmp byte [edi+V_LETTER], 0
+    je .n
+    cmp ebx, [edi+V_DEV]
+    je .busy
+.n:
+    add edi, V_LEN
+    loop .chk
+    mov cl, [mk_bits]
+    mov ch, [mk_partf]
+    call fat_format
+    jc .fail
+    mov esi, mk_ok
+    call puts
+    mov eax, [mk_bits]
+    call itoa
+    mov esi, num_buf
+    call puts
+    mov esi, mk_on
+    call puts
+    mov esi, [mk_disk]
+    call puts
+    mov al, 10
+    call putc
+    popad
+    ret
+.busy:
+    mov esi, mk_busy
+    jmp .say
+.fail:
+    mov esi, mk_fail
+    jmp .say
+.why:
+    movzx eax, byte [vm_why]
+    test eax, eax
+    jz .nodisk
+    mov esi, [vm_whys+eax*4-4]
+    jmp .say
+.nodisk:
+    mov esi, vm_nodisk
+    jmp .say
+.usage:
+    mov esi, mk_usage
+.say:
+    call puts
+    popad
     ret
 
 ; ---------- fattest ----------
@@ -1100,6 +1208,21 @@ vc_lfntest db 'lfntest', 0
 vc_fattest_arg db 'fattest ', 0
 vc_fsobjtest db 'fsobjtest', 0
 vc_drive_arg db 'drive ', 0
+vc_mkfat_arg db 'mkfat ', 0
+mk_12 db '12', 0
+mk_16 db '16', 0
+mk_32 db '32', 0
+mk_part db '--part', 0
+mk_usage db 'Usage: mkfat <disk> <12|16|32> [--part]', 10, 0
+mk_ok db 'Formatted FAT', 0
+mk_on db ' on ', 0
+mk_busy db 'Unmount that disk first', 10, 0
+mk_fail db 'Could not format that disk', 10, 0
+align 4
+mk_disk dd 0
+mk_bits dd 0
+mk_partf dd 0
+mk_rest dd 0
 cp_usage db 'Usage: cp <from> <to|dir>', 10, 0
 cp_samemsg db 'A file cannot be copied onto itself', 10, 0
 cp_copied db ' bytes copied', 10, 0
