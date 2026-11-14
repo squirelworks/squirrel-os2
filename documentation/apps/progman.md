@@ -20,7 +20,7 @@ Alt+Tab, Alt+Esc, Alt+Space (the system menu) and Alt+F4 work as everywhere (2.2
 
 ## Mouse
 
-A press on an icon chooses it. A second press on it within half a second (`PM_DBL`, 50 ticks) is a double-click and opens it. Dragging an icon at least 4 pixels moves it by as much, and saves.
+A press on an icon chooses it. A second press on it within the Control Panel's double-click time (`cp_dbl`, 50 ticks or half a second unless changed; `control.md`) is a double-click and opens it. Dragging an icon at least 4 pixels moves it by as much, and saves.
 
 ## Places
 

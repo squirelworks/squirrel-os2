@@ -164,6 +164,7 @@ mouse_byte:
     mov esi, mouse_pkt
     call mouse_decode           ; eax = dx, ebx = screen dy (2.0.1)
     jc .btns                    ; overflowed: buttons only
+    call cp_mspeed              ; the Control Panel's speed (2.3-control)
     add [mouse_x], eax
     add [mouse_y], ebx
     ; clamp
@@ -189,6 +190,7 @@ mouse_byte:
 .btns:
     mov al, [mouse_pkt]
     and al, 7
+    call cp_mswap               ; left and right swapped (2.3-control)
     mov bl, [mouse_btns]
     mov [mouse_btns], al
     ; left button make edge
