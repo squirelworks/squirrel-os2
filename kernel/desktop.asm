@@ -875,7 +875,8 @@ dk_mouse:
     jae .no
     mov eax, [mouse_y]
     sub eax, [edi+WIN_Y]
-    sub eax, 1 + WM_TITLE_H + 16
+    ; list at client y=16; content starts after the sunken chrome
+    sub eax, 1 + WM_TITLE_H + 16 + TH_BEVEL_W + WG_BTN_PAD
     js .no
     xor edx, edx
     mov ebx, GFX_CELL_H

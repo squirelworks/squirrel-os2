@@ -38,8 +38,12 @@ A button is its text on a Warp face (`TH_FACE`) with a raised `gfx_bevel` and `W
 | Routine | In | Out |
 |---------|----|-----|
 | `wg_button` | eax = window id, ebx = x, ecx = y, esi = text, edx = code | eax = widget id, or −1 |
-| `wg_press` | eax = button id, ebx = 0 raised / 1 pressed | sets the pressed look; the caller redraws |
-| `wg_key` | al = ASCII of a key | CF clear if a widget used the key, CF set if not |
+| `wg_press` | eax = button id, ebx = 0 raised / 1 pressed | sets the pressed look only; the caller must redraw |
+| `wg_pressdraw` | eax = button id, ebx = 0 raised / 1 pressed | like `wg_press`, then `wm_redraw` so the face cannot stick pressed or unpressed. Prefer this. |
+| `wg_setfocus` | eax = widget id | CF clear if the widget takes keys and now has the focus; groups, labels and consoles are refused |
+| `wg_tab` | — | moves the focus to the next widget of the focused window that takes keys (skips groups); CF clear if it moved |
+| `wg_hit` | eax = window id, ebx = x, ecx = y in the client area | eax = interactive widget under that point, or −1. Groups, labels and consoles are never hit. |
+| `wg_key` | al = ASCII of a key (9 = Tab) | CF clear if a widget used the key, CF set if not |
 
 `wg_button` records the calling process (`proc_cur`) as the button's owner. A button posts `MSG_BUTTON | code` to its owner's queue (`messages.md`). `MSG_BUTTON` is `0x42000000` (`'B'` in the top byte), and the code is the low 24 bits. The post is the same `msg_put` that `SYS_SEND` uses, with interrupts off; a full queue drops the event.
 
@@ -63,7 +67,7 @@ A list is a sunken well as wide as its longest item, with one row per item. The 
 
 ## Group box
 
-A group box (2.3-bevel-default) is an etched `gfx_bevel` frame (`TH_BEVEL_ETCHED`) of a given width and height. An optional caption sits on the top edge: a strip of the client colour covers the etched rings under the letters, then the caption is drawn there. It takes no keys.
+A group box (2.3-bevel-default) is an etched `gfx_bevel` frame (`TH_BEVEL_ETCHED`) of a given width and height. An optional caption sits on the top edge: a strip of the client colour covers the etched rings under the letters, then the caption is drawn there. It takes no keys, never receives the focus (`wg_setfocus` / Tab skip it), and `wg_hit` never returns it.
 
 | Routine | In | Out |
 |---------|----|-----|
@@ -79,17 +83,20 @@ A console shows part of an 80 × 25 text buffer laid out as at `0xB8000` (charac
 
 ## Keys
 
-`wg_key` (al = ASCII, 8 for Backspace, `WK_UP` 0x18 and `WK_DOWN` 0x19 for the arrows) gives a key to the first widget of the focused window (`wm_focus`) that takes keys: a button, a field or a list. It returns CF clear if the widget used the key, CF set if not, so the caller can use it.
+`wg_key` (al = ASCII, 8 for Backspace, 9 for Tab, `WK_UP` 0x18 and `WK_DOWN` 0x19 for the arrows) gives a key to the focused widget of the focused window (`wm_focus`) if that widget takes keys; otherwise the first that does: a button, a field or a list. Labels, consoles and groups never take keys. It returns CF clear if the widget used the key, CF set if not, so the caller can use it.
 
 - Button: Enter (10 or 13) or Space posts its event.
 - Field: a printable character (0x20 to 0x7E) is appended if there is room; when the field is full the key is used and dropped. Backspace deletes the last character. Enter and Esc are not used.
 - List: `WK_DOWN` and `WK_UP` move the selection and stop at the first and last item. Other keys are not used.
+- Tab (9): `wg_tab` moves the focus to the next button, field or list in the same window (wraps); groups are skipped.
 
-The caller turns keys into these codes; the scancodes for the arrows are 0x48 (Up) and 0x50 (Down). Moving between widgets in one window is not there yet: the first widget that takes keys gets them.
+The caller turns keys into these codes; the scancodes for the arrows are 0x48 (Up) and 0x50 (Down).
+
+A button, field or list's outer size includes `WG_CHROME` (`2 * WG_BTN_PAD + 2 * TH_BEVEL_W` = 8). Layouts that pack widgets against the client edge must leave that much room or the widget is not drawn. Control Panel and File Manager paint their own rows/panes (not kernel widgets); their window and pane sizes leave margin past the shared `TH_BEVEL_W` chrome.
 
 ## Tests
 
-The test windows put a label at (4, 5) and the box beside it (field, list) at (44, 2). The label's text is then level with the text inside the box (2 pixels down for the border and padding, plus one), and there are 10 pixels between a 5-character label and the box.
+The test windows put a label at (4, `2 + TH_BEVEL_W + WG_BTN_PAD`) and the box beside it (field, list) at (44, 2). The label's text is then level with the text inside the box, and there are 10 pixels between a 5-character label and the box.
 
 
 `labeltest` switches to graphics mode and opens a window. It reads the pixel where the label's first glyph will go, which must be the client colour. It then adds the label `Name: Squirrel` at (4, 5) and redraws. The top left pixel of `N` must now be ink, and the pixel next to it must be background. It closes the window and opens a new one in the same slot. That window must not show the old label. The test prints `label: PASS` or `label: FAIL`. Checks `labeltest` and `labeltest-text` (`systest` after it).
@@ -102,7 +109,7 @@ The test windows put a label at (4, 5) and the box beside it (field, list) at (4
 
 `scrolltest` (2.0.2) opens a window 60 pixels high with a list of ten items (`Item 0` to `Item 9`), so only a few rows fit. It moves the selection to item 8 with `wg_key` and redraws, then checks that the list scrolled with the selection still shown, that `wg_list_item` maps row 0 to `WG_TOP` and the selection's row to item 8 and refuses the row past the last, and that the black bar is in the selection's row and not in row 0. It prints `scroll: PASS` or `scroll: FAIL` (check `scrolltest`). With the scrolling taken out of the draw, it prints FAIL.
 
-`bevwidgets` (2.3-bevel-default) opens a window with a button, a field, a list and a group box, all drawn through `gfx_bevel` and `theme.inc`. It reads back the raised light / face / dark pixels of the button, the sunken shadow / dark / well of the same button after `wg_press`, the sunken field and list, and the etched groove of the group box, then prints `bevwidgets: PASS` or `bevwidgets: FAIL`. Checks `bevwidgets` and `bevwidgets-text`.
+`bevwidgets` (2.3-bevel-default, Sarah follow-up) opens a window with a group box first, then a button, a field and a list, all drawn through `gfx_bevel` and `theme.inc`. It reads back the raised light / face / dark pixels of the button, the sunken look after `wg_pressdraw`, the sunken field and list, and the etched groove of the group box. It then checks that `wg_hit` skips the group, `wg_setfocus` refuses it, Tab cycles button → field → list → button, and a button placed flush with the client bottom still shows its top and bottom bevel. Prints `bevwidgets: PASS` or `bevwidgets: FAIL`. Checks `bevwidgets` and `bevwidgets-text`.
 
 ## Next
 
