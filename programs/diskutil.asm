@@ -1,5 +1,8 @@
 ; Squirrel-OS/2 — Disk Utility (A.5, OS2-APPS). Original code.
-; run diskutil [hd2]  |  run diskutil test  |  run diskutil test hd2
+; run diskutil [hd2]
+; run diskutil test  |  run diskutil test hd2
+; run diskutil format hd2 12|16|32
+; run diskutil test format hd2 12|16|32
 ;
 ; Looks at the data disk (hd1) through the block device, without the
 ; file system: its SQFS superblock and directory, then shows
@@ -14,6 +17,7 @@
 ;      sectors; sectors past the end; files that share sectors; names
 ;      twice in one directory)
 ;   S: surface scan (read every sector, counting those that fail)
+;   F: format the current disk as FAT12/16/32 (hd2/hd3 only; Y to confirm)
 ;   Esc: quit
 ;
 ;   (2.7) Another disk ("run diskutil hd2"), and FAT12/16/32 volumes on
@@ -24,10 +28,12 @@
 ;   owner's index and a sequence number). They are counted as part of the
 ;   directory, the check matches them to their owners, and names are
 ;   shown and compared in full.
+;   (2.7) Format writes a new empty FAT12/16/32 volume (same layout as
+;   tools/fatimg.py). View and check stay read-only.
 ;
-; Nothing is written to the disk. "run diskutil test" makes a file of its
-; own, finds it, checks and scans the disk, checks a damaged copy of the
-; directory, and prints "diskutil: PASS". See documentation/apps/diskutil.md.
+; "run diskutil test" makes a file of its own, finds it, checks and scans
+; the disk, checks a damaged copy of the directory, and prints
+; "diskutil: PASS". See documentation/apps/diskutil.md.
 
 %include "sqx.inc"
 SQX_HEADER main
@@ -81,15 +87,56 @@ main:
     test esi, esi
     jz .gui
     cmp dword [esi], 'test'
-    jne .dev
+    jne .fmt
     cmp byte [esi+4], 0
     je selftest
-    cmp byte [esi+4], ' '       ; (2.7) "test hd2": a FAT disk
+    cmp byte [esi+4], ' '       ; (2.7) "test hd2" or "test format hd2 N"
     jne .gui
     add esi, 5
+    cmp dword [esi], 'form'     ; "test format hd2 12|16|32"
+    jne .testdev
+    cmp word [esi+4], 'at'
+    jne .testdev
+    cmp byte [esi+6], ' '
+    jne .testdev
+    add esi, 7
+    call parse_fmt_args
+    jc .usage
+    jmp fat_format_selftest
+.testdev:
     call set_dev
     jc .gui
     jmp fat_selftest
+.fmt:
+    cmp dword [esi], 'form'     ; (2.7) "format hd2 12|16|32"
+    jne .dev
+    cmp word [esi+4], 'at'
+    jne .dev
+    cmp byte [esi+6], ' '
+    jne .dev
+    add esi, 7
+    call parse_fmt_args
+    jc .usage
+    call fat_format
+    jc .fmtfail
+    mov esi, m_formatted
+    call gui_puts
+    mov eax, [ftype]
+    call put_fat_bits
+    mov esi, m_nl
+    call gui_puts
+    xor eax, eax
+    ret
+.fmtfail:
+    mov esi, m_fmtfail
+    call gui_puts
+    mov eax, 1
+    ret
+.usage:
+    mov esi, m_fmtusage
+    call gui_puts
+    mov eax, 1
+    ret
 .dev:
     call set_dev                ; (2.7) "hd2": another disk
 .gui:
@@ -114,6 +161,12 @@ main:
     je .check
     cmp al, 's'
     je .scan
+    cmp al, 'f'
+    je .format
+    cmp al, 'y'
+    je .fmt_yes
+    cmp al, 'n'
+    je .fmt_no
     jmp .draw
 .check:
     call analyse                ; (a FAT volume is checked as it is read)
@@ -128,6 +181,25 @@ main:
     call scan
     mov byte [scanning], 0
     mov byte [shown_rep], 2
+    jmp .draw
+.format:
+    call fmt_gui_ask            ; (2.7) F: format hd2/hd3 as FAT
+    jmp .draw
+.fmt_yes:
+    cmp byte [fmt_ask], 0
+    je .draw
+    mov byte [fmt_ask], 0
+    call fat_format
+    jc .fmt_bad
+    call analyse
+    mov byte [shown_rep], 3     ; "Formatted FAT…"
+    jmp .draw
+.fmt_bad:
+    mov byte [shown_rep], 4
+    jmp .draw
+.fmt_no:
+    mov byte [fmt_ask], 0
+    mov byte [shown_rep], 0
     jmp .draw
 .quit:
     call gui_close
@@ -1193,17 +1265,49 @@ draw_map:
 .r:
     ret
 
-; the last check's or scan's result
+; the last check's or scan's result (and format ask / result)
 draw_report:
     mov ebp, SCR_H - 4 * (CELL_H + 1) - CELL_H - 4
     mov byte [gui_ink], C_BLACK
     cmp byte [scanning], 0
     jne .progress
+    cmp byte [fmt_ask], 0
+    jne .ask
     cmp byte [shown_rep], 1
     je .check
     cmp byte [shown_rep], 2
     je .scan
+    cmp byte [shown_rep], 3
+    je .fmtdone
+    cmp byte [shown_rep], 4
+    je .fmtfail
+    cmp byte [shown_rep], 5
+    je .fmtrefuse
     ret
+.ask:
+    mov edi, ln
+    mov esi, s_fmtask
+    call scopy
+    mov eax, [fmt_bits]
+    call gui_utoa
+    mov esi, s_fmtask2
+    call scopy
+    mov esi, ln
+    jmp say
+.fmtdone:
+    mov edi, ln
+    mov esi, s_fmtdone
+    call scopy
+    mov eax, [ftype]
+    call gui_utoa
+    mov esi, ln
+    jmp say
+.fmtfail:
+    mov esi, s_fmtfail
+    jmp say
+.fmtrefuse:
+    mov esi, s_fmtrefuse
+    jmp say
 .progress:
     mov edi, ln
     mov esi, s_scanning
@@ -1612,7 +1716,7 @@ contains:
     stc
     ret
 
-; esi = "hdN" (N 0..3) -> dname; CF if it is not one
+; esi = "hdN" or "hdN …" (N 0..3) -> dname; CF if it is not one
 set_dev:
     cmp word [esi], 'hd'
     jne .no
@@ -1622,7 +1726,10 @@ set_dev:
     cmp al, '3'
     ja .no
     cmp byte [esi+3], 0
+    je .ok
+    cmp byte [esi+3], ' '       ; (2.7) "hd2 16" for format
     jne .no
+.ok:
     mov word [dname_buf], 'hd'
     mov [dname_buf+2], al
     mov byte [dname_buf+3], 0
@@ -1637,7 +1744,7 @@ set_dev:
 
 ; ---------- data ----------
 title db 'Disk Utility', 0
-s_keys db 'C: check   S: surface scan   Esc: quit', 0
+s_keys db 'C: check   S: scan   F: format   Esc: quit', 0
 s_hd0 db 'hd0', 0
 s_hd1 db 'hd1', 0
 s_hd0l db 'hd0 (boot disk): ', 0
@@ -1705,6 +1812,15 @@ t_flong db 'A Long Document Name.txt', 0
 t_long db 'a disk utility test file with a long name', 0
 m_nogfx db 'diskutil: no graphics', 10, 0
 m_nomem db 'diskutil: no memory', 10, 0
+m_formatted db 'diskutil: formatted FAT', 0
+m_fmtfail db 'diskutil: format failed', 10, 0
+m_fmtusage db 'diskutil: usage: format hd2|hd3 12|16|32', 10, 0
+m_nl db 10, 0
+s_fmtask db 'Format as FAT', 0
+s_fmtask2 db '? Y/N', 0
+s_fmtdone db 'Formatted FAT', 0
+s_fmtfail db 'Format failed', 0
+s_fmtrefuse db 'Format: only hd2 or hd3', 0
 pass db 'diskutil: PASS', 10, 0
 failm db 'diskutil: FAIL '
 bad db '?', 10, 0
@@ -1732,7 +1848,13 @@ hd1_ok resb 1
 sq_ok resb 1
 scanning resb 1
 shown_rep resb 1
+fmt_ask resb 1                  ; (2.7) waiting for Y/N after F
 alignb 4
+fmt_bits resd 1                 ; 12, 16 or 32
+fmt_disk resd 1                 ; whole-disk sector count
+fmt_part resd 1                 ; 1 = write/keep an MBR partition
+frootents resd 1                ; root directory entries (0 on FAT32)
+fmt_clusters resd 1             ; data clusters while sizing
 sect resb 2048
 dir resb DIR_SECTS * 512
 probs resb NPROB * PLEN

@@ -1,6 +1,6 @@
 # Disk Utility (A.5, 2.7)
 
-`run diskutil` looks at the data disk (`hd1`) through the block device, without going through the file system, and never writes to it. It is a program on the data disk (`programs/diskutil.asm`) built on `SYS_GUI` and `gui.inc` (`gui-programs.md`).
+`run diskutil` looks at the data disk (`hd1`) through the block device, without going through the file system. View and check are read-only; format writes a new FAT volume on `hd2` or `hd3`. It is a program on the data disk (`programs/diskutil.asm`) built on `SYS_GUI` and `gui.inc` (`gui-programs.md`).
 
 It shows:
 
@@ -21,16 +21,24 @@ It shows:
 
 The results agree with `fsck.fat -n` on images made with `mkfs.fat` and `mtools`, written by Squirrel-OS/2, and damaged on the host (a lost cluster, a FAT copy that differs).
 
+### Format FAT (2.7)
+
+`run diskutil format hd2 12` (or `16` or `32`) writes an empty FAT volume on that disk. `hd2`/`hd3` must already be block devices (`mount d: hd2` once first, even when the disk is not yet FAT). The layout matches `tools/fatimg.py`: OEM `SQUIRREL`, two FATs, media `0xF8`, serial `0x5157524C`, label `NO NAME`. FAT12 uses the whole disk; FAT16 and FAT32 on a disk larger than 2048 sectors get an MBR partition at LBA 2048 (types `01` / `04` or `06` / `0C`), or reuse an existing FAT partition's start and size. Umount the drive before formatting if it is mounted. Prints `diskutil: formatted FAT16`.
+
+`F` in the window asks `Format as FAT16? Y/N` (type chosen from the disk's size) for `hd2`/`hd3` only; it refuses `hd0` and `hd1`.
+
 ### Long names (2.7)
 
 SQFS keeps a name longer than its 15-character field in continuation entries (`../kernel/filesystem.md`): kind 2, directory `0xFF`, 23 characters each, with the checksum of the owner's name field, the owner's index and a sequence number; the owner's byte 30 counts them. The Disk Utility counts these entries as part of the directory, not as files, shows and compares the whole names (the largest files, the problems, the same name twice in a directory), and allows spaces in names. The check adds two problems: a part that no entry claims (its owner is gone, renamed by an older kernel, or its checksum or sequence number does not fit; the kernel frees such parts at the next mount), and an owner whose parts are not all there.
 
 ## Keys
 
-`C` checks the file system: the superblock's version, and for each directory entry that its name is printable and not too long, its kind is a file or a directory, its directory exists, no other entry in the same directory has its name, its size fits the sectors it keeps, its sectors are inside the data area, and no other file uses them. The first three problems are listed under the map, each with the entry's name; files that share sectors turn red on the map. `S` scans the surface: it reads every sector of the disk, with a progress count, and reports how many could not be read (red on the map). Esc quits.
+`C` checks the file system: the superblock's version, and for each directory entry that its name is printable and not too long, its kind is a file or a directory, its directory exists, no other entry in the same directory has its name, its size fits the sectors it keeps, its sectors are inside the data area, and no other file uses them. The first three problems are listed under the map, each with the entry's name; files that share sectors turn red on the map. `S` scans the surface: it reads every sector of the disk, with a progress count, and reports how many could not be read (red on the map). `F` formats `hd2`/`hd3` as FAT (Y to confirm). Esc quits.
 
 ## Checks
 
 `run diskutil test` writes a 1500-byte file, finds it in the directory with three sectors of data on the map, checks that the largest files are in order, that the disk passes the check and that the scan reads every sector. Then it damages its copy of the directory in memory: a second entry on the file's sectors with a size too large (three problems: two overlaps and the size), then a missing directory and a bad name (two problems). Then, in memory again, it gives the file a 41-character long name in two parts: the parts are not counted as files, the check finds no problems and the whole name reads back; a second entry with the same long name in the directory is one problem; and changing the file's name field so that the parts' checksum no longer fits gives three (two parts without their file, one incomplete long name). It deletes the file, checks that it has gone, and prints `diskutil: PASS`. The regress run also reads the window after `C` and after `S`.
 
 `run diskutil test hd2` checks a FAT disk that `tools/regress.sh` makes with `tools/fatimg.py`: a directory `docs`, `README.TXT` (24 bytes) and `docs/A Long Document Name.txt` (14 bytes). It finds the volume, two files and one directory, no problems, `README.TXT` first among the largest files and the long name read. Then, in the FAT in memory only: a free cluster marked in use is one lost cluster, and the FAT copy now differs; one file's chain running on into the other's gives shared clusters and a size that does not fit; after reading the FAT again, the first file's cluster is green on the map. It prints `diskutil: PASS`.
+
+`run diskutil test format hd2 16` (or `12` / `32`) formats the disk, then checks that the empty volume is the requested FAT type with no files and no problems, and prints `diskutil: PASS`. Regress also mounts the result, runs `fattest`, and runs `tools/fatimg.py check` on the image.

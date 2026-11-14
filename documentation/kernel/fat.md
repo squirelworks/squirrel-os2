@@ -125,7 +125,8 @@ agreed with the desktop stream: it owns these classes, the desktop only sends th
   `fsck.fat -n` and `mtools` while this was written.
 
 `tools/fatimg.py` is the host side: `format SIZE_KB [12|16|32] [--part]`, `ls`, `put`, `get`,
-`mkdir`, `check`.
+`mkdir`, `check`. The same empty-volume layout is written in the OS by
+`run diskutil format hd2 12|16|32` (`../apps/diskutil.md`).
 
 ## Limitations
 

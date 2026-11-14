@@ -47,8 +47,8 @@ item (files, acceptance, how to test) and the suggested order. In this file: `- 
 plan is `docs/CONTINUANCE.md` in squirrelsoft.
 
 **`main` has finished 2.2 and 2.3** (as of #172): Program Manager desktop, clipboard, Control Panel,
-bevelled widgets, plus 2.7 (long names, FAT, drive objects; diskutil view/check without in-OS FAT
-format), 2.8 long-mode entry and SMP, H.1–H.6, the 3.0 networking and sound half, A.1–A.7, every game,
+bevelled widgets, plus 2.7 (long names, FAT, drive objects; diskutil view/check/format), 2.8
+long-mode entry and SMP, H.1–H.6, the 3.0 networking and sound half, A.1–A.7, every game,
 the whole calculator suite, and foreign programs P.1, P.2, P.5, P.6 (all but windows), P.8 (all but
 windows), P.9 (32-bit LX) and P.10 (FreeBSD). **2.3.0** release notes are ready for Squirrel to publish.
 
@@ -146,9 +146,9 @@ The GUI grows in generations, and each generation is a shippable milestone (epic
 
 - [ ] **2.5** — A WarpCenter-style bar (the default; a taskbar layout is a setting), a Squirrel menu, a tray clock. PR-sized boxes: `TODO.md` **2.5-bar**, **2.5-menu**, **2.5-clock** (W.3 LaunchPad is **W.3-launchpad** with them).
 - [ ] **2.6** — Desktop objects with icons, drag and drop between folders and onto programs, context menus on the right button, Warp-style settings notebooks with tabs, shadows (shortcuts). PR-sized boxes: `TODO.md` **2.6-icons** … **2.6-shadows**, plus **W.2-templates**, **W.4-views**, **W.5-openas**.
-- [ ] **2.7** — Long file names, FAT12/16/32 read and write for exchanging media, drive objects, a shredder object.
+- [x] **2.7** — Long file names, FAT12/16/32 read and write for exchanging media, drive objects, a shredder object.
   - [x] Long names, FAT12/16/32 read and write, drive and shredder objects (#162)
-  - [ ] `diskutil` on FAT volumes (2.7-diskutil; head start on branch `ws/os2-fs/diskutil`)
+  - [x] `diskutil` on FAT volumes (2.7-diskutil; view/check #171, format FAT from the OS)
 
 ### 2.8–2.9 — 64-bit bridge
 
