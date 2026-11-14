@@ -362,7 +362,8 @@ From P.1–P.12 in `ROADMAP.md` and epic #118 (stream OS2-FOREIGN). Each box shi
 
 - [x] **P.6-dll-loader** — An original DLL loader in `winrun`: DLLs from the disk, export binding by name and ordinal, forwarders, DllMain, LoadLibrary/GetProcAddress (test `windll` with `acorn.dll`).
 
-- [ ] **P.6-win32-windows** — Win32 top-level windows as real desktop windows once 2.2 brings program windows.
+- [x] **P.6-win32-windows** — Win32 top-level windows as real desktop windows (`SYS_WIN*`); close box → `WM_CLOSE`.
+  **Acceptance:** `run winwnd` shows `Acorn window` in the window list; `q` then a click on the close box prints `winwnd: PASS` and ends; `progwin` still passes. Checks `win-gui`, `win-gui-close`, `win-gui-after`, `progwin`.
 
 ## Installer (unscheduled)
 

@@ -1209,8 +1209,10 @@ check os2-missing     'os2run: DOSCALLS.1 is not implemented'  'run os2hello stu
 check os2-notlx       'not an OS/2 32-bit LX program'  'run os2run doshello.com' '<ret>'
 check os2-after       'Hello from DOS land!'  'run os2hello' '<ret>' 'run doshello.com' '<ret>'
 # P.6: a Win32 GUI program: window, WM_PAINT with GDI, timer, keys, DestroyWindow
+# P.6-win32-windows: real 2.2 window (title on the bar); q paints PASS; close box → WM_CLOSE
 check_all win-gui     'gfx: Acorn window|gfx: Hello from Win32 GUI|gfx: winwnd: PASS'  'run winwnd' '<ret>' '<pause>' q '<pause>' '<gfx>'
-check win-gui-after   'systest: PASS'         'run winwnd' '<ret>' '<pause>' x '<pause>' systest '<ret>'
+check win-gui-close   'systest: PASS'         'run winwnd' '<ret>' '<pause>' q '<pause>' '<mouse-btn:1>' '<mouse-btn:0>' '<pause>' '<pause>' systest '<ret>'
+check win-gui-after   'systest: PASS'         'run winwnd' '<ret>' '<pause>' q '<pause>' '<mouse-btn:1>' '<mouse-btn:0>' '<pause>' '<pause>' systest '<ret>'
 check_all win-reg     'winreg: PASS|winreg: count 2'  'run winreg' '<ret>' 'run winreg again' '<ret>'
 check win-reg-file    'HKCU\Software\Acorn|count|4|02000000'  'run winreg' '<ret>' 'run winreg again' '<ret>' 'cat registry.dat' '<ret>'
 check_all win-dll     'windll: Hello from acorn.dll|windll: PASS'  'run windll' '<ret>'

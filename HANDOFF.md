@@ -75,7 +75,7 @@ qemu-system-i386 -drive file=build/os.img,format=raw -drive file=build/data.img,
    2.3 done. Then prepare the **2.3.0 release notes** (everything since 2.1.0)
    for Squirrel to publish.
 2. **2.7-diskutil** (a stale branch already has most of it).
-3. **P.6-win32-windows** and **P.8-dos-window** (both only need 2.2, which is done).
+3. **P.8-dos-window** (only needs 2.2, which is done).
 4. **W.2–W.6** together with **2.5** and **2.6** (Generation 2 desktop).
 5. **2.8-pae → 2.9-lm-kernel → 2.9-syscall64** (the 64-bit kernel; largest risk).
 6. **3.0** remainder (accounts, permissions, services, event log, task manager, themes).
@@ -111,7 +111,7 @@ qemu-system-i386 -drive file=build/os.img,format=raw -drive file=build/data.img,
   volume, checks one (lost/shared clusters, mismatched FAT copies) and shows
   VFAT names; `tools/fatimg.py check` agrees on images it made. New `du-fat-*` checks.
 
-### P.6-win32-windows — Win32 top-level windows as desktop windows  `cursor-codex`
+### P.6-win32-windows — Win32 top-level windows as desktop windows  `done (this branch)`
 - **What:** `CreateWindowEx` top-level windows from `programs/wingui.inc`
   become real 2.2 windows (title bar, move, z-order, close → `WM_CLOSE`),
   instead of drawing through the full-screen `SYS_GUI` surface.
