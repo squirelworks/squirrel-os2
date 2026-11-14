@@ -738,7 +738,7 @@ check ed-path-r     'deep'                  'cat e1/long-name.txt' '<ret>'
 check fb-dir        'in /e1'                'cd e1' '<ret>' 'run files' '<ret>'
 check fb-dir-up     '[app]'                 'cd e1' '<ret>' 'run files' '<ret>' '<ret>'
 # 0.9.3: release readiness
-check ver-banner    'Squirrel-OS/2 2.1.0'  systest '<ret>'
+check ver-banner    'Squirrel-OS/2 2.3.0'  systest '<ret>'
 check ver-planned   '(planned: topo)'  systest '<ret>'
 check calc-hist-root '1 + 1 = 2'            'mkdir c1' '<ret>' 'cd c1' '<ret>' 'run calc' '<ret>' '1 + 1' '<ret>' '<esc>' 'cat /calc.hist' '<ret>'
 boot="--floppy $out/floppy.img"
@@ -897,7 +897,7 @@ check l10n-hint-la  '(lineam tabulae addit)'  'lang la' '<ret>' put '<ret>'
 check l10n-fe-tlh   "tu'lu'pu'"             'lang tlh' '<ret>' 'mkdir t1' '<ret>' 'mkdir t1' '<ret>'
 check l10n-rm-tlh   "tu'lu'be'"             'lang tlh' '<ret>' 'rm nosuch' '<ret>'
 check lang-bad      'Unknown language (en la tlh)'  'lang fr' '<ret>'
-check lang-banner   'Sciurus-OS/2 2.1.0'   'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
+check lang-banner   'Sciurus-OS/2 2.3.0'   'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
 # 1.9.9: higher priority keeps a lower-priority child from running
 check prio          'prio: PASS'            'run priotest' '<ret>' '<pause>'
 # 2.0.2: aging lets a priority-0 child run beside a priority-3 spinner
@@ -1348,16 +1348,16 @@ disk=$out/hw.img; boot=$out/esp.img
 export QEMU_TEXT=0x1f8000 QEMU_BIN=qemu-system-x86_64
 if [ -f "$OVMF_FD" ] && command -v qemu-system-x86_64 >/dev/null; then
     export QEMU_EXTRA="-bios $OVMF_FD"
-    check_all uefi-x64      'Squirrel-OS/2 2.1|systest: PASS|blkdev  '  $uefi_keys systest '<ret>' ls '<ret>'
+    check_all uefi-x64      'Squirrel-OS/2 2.3.0|systest: PASS|blkdev  '  $uefi_keys systest '<ret>' ls '<ret>'
     check_all uefi-x64-mem  'BIOS memory map:|usable|KB free'  $uefi_keys mem '<ret>'
-    check_all uefi-x64-gop  'gop: Squirrel-OS/2 2.1|gop: > echo UEFI GOP x|gop: UEFI GOP x'  $uefi_keys 'echo UEFI GOP x' '<ret>' '<pause>' '<gop>'
+    check_all uefi-x64-gop  'gop: Squirrel-OS/2 2.3.0|gop: > echo UEFI GOP x|gop: UEFI GOP x'  $uefi_keys 'echo UEFI GOP x' '<ret>' '<pause>' '<gop>'
 else
     skip uefi-x64 "no OVMF at $OVMF_FD"
 fi
 if [ -f "$OVMF32_CODE" ] && [ -f "$OVMF32_VARS" ] && command -v qemu-system-x86_64 >/dev/null; then
     cp "$OVMF32_VARS" "$out/ovmf32-vars.fd"
     export QEMU_EXTRA="-drive if=pflash,format=raw,readonly=on,file=$OVMF32_CODE -drive if=pflash,format=raw,file=$out/ovmf32-vars.fd"
-    check_all uefi-ia32     'Squirrel-OS/2 2.1|systest: PASS|gop: > systest'  $uefi_keys systest '<ret>' '<pause>' '<gop>'
+    check_all uefi-ia32     'Squirrel-OS/2 2.3.0|systest: PASS|gop: > systest'  $uefi_keys systest '<ret>' '<pause>' '<gop>'
 else
     skip uefi-ia32 "no 32-bit OVMF at $OVMF32_CODE"
 fi
