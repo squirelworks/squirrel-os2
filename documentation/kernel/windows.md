@@ -174,7 +174,7 @@ This section is the window, event and drawing interface that the 2.2 boxes in `T
 | `gfx_setclip` | eax, ebx = top left, ecx = width, edx = height | every later draw and blit is cut to that rectangle (and to the screen) (**2.1-blit-clip**) |
 | `gfx_noclip` | — | the clip is the whole screen again |
 | `gfx_copyrect` | eax, ebx = source top left, ecx = width, edx = height, esi, edi = destination top left | copies within the draw target, overlapping rectangles allowed; the destination is clipped (**2.1-blit-clip**) |
-| `gfx_bevel` | eax, ebx = top left, ecx = width, edx = height, esi = 0 raised / 1 sunken | a `TH_BEVEL_W` bevel around the rectangle's edge, face not filled (**W.1-theme**) |
+| `gfx_bevel` | eax, ebx = top left, ecx = width, edx = height, esi = 0 raised / 1 sunken / 2 etched | a `TH_BEVEL_W` bevel around the rectangle's edge, face not filled (**W.1-theme**, etched in **2.3-bevel-default**) |
 | `gfx_drawstr_p` | esi = string, eax, ebx = top left, ecx = face (`FONT_9` / `FONT_12`), colours in `gfx_colour` / `gfx_bg` (`0xFF` bg = transparent) | eax = x after the last character's spacing column (**2.2-propfont**) |
 | `gfx_strwidth_p` | esi = string, ecx = face | eax = width in pixels, spacing columns included (what `gfx_drawstr_p` advances) |
 
