@@ -457,6 +457,9 @@ run_simple:
     mov edi, cmd_cliptest       ; 2.1-blit-clip
     call streq
     je .cliptest
+    mov edi, cmd_bevwidgets     ; 2.3-bevel-default
+    call streq
+    je .bevwidgets
     mov edi, cmd_bevtest        ; W.1-theme
     call streq
     je .bevtest
@@ -758,6 +761,9 @@ run_simple:
     jmp .empty
 .bevtest:
     call cmd_bevtest_run
+    jmp .empty
+.bevwidgets:
+    call cmd_bevwidgets_run
     jmp .empty
 .winvbe:
     call cmd_winvbe_run
@@ -1338,6 +1344,7 @@ cmd_gfxtext db 'gfxtext', 0
 cmd_vbetest db 'vbetest', 0
 cmd_cliptest db 'cliptest', 0
 cmd_bevtest db 'bevtest', 0
+cmd_bevwidgets db 'bevwidgets', 0
 cmd_winvbe db 'winvbe', 0
 cmd_winclip db 'winclip', 0
 cmd_winhit db 'winhit', 0
