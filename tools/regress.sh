@@ -1200,8 +1200,11 @@ check_all lx-sig      'lxsig: PASS|Program ended by signal 15'  'run lxsig' '<re
 check_none lx-sig-term 'lxsig: still here' 'Program ended by signal 15'  'run lxsig' '<ret>' '<pause>'
 check lx-sig-after    'systest: PASS'         'run lxsig' '<ret>' '<pause>' systest '<ret>'
 # P.8: VGA mode 13h: A000, INT 10h pixels, the DAC ports, retrace, teletype text in graphics, back to text
-check_all dos-gfx     'gfx: dosgfx: drawn|dosgfx: PASS'  'run dosgfx.com' '<ret>' '<pause>' '<gfx>' x '<pause>'
-check dos-gfx-after   'systest: PASS'         'run dosgfx.com' '<ret>' '<pause>' x '<pause>' systest '<ret>'
+check_all dos-gfx     'gfx: dosgfx: drawn|dosgfx: PASS'  'run dosgfx.com' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<gfx>' x '<pause>' '<pause>' '<pause>'
+check dos-gfx-after   'systest: PASS'         'run dosgfx.com' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' x '<pause>' '<pause>' '<pause>' systest '<ret>'
+# P.8-dos-window: mode 13h in a 2.2 window (scaled); client matches A000; desktop around untouched
+check_all dos-win     'gfx: dosgfx: drawn|gfx: DOS 320x200|doswin: PASS|dosgfx: PASS'  'run dosgfx.com' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<gfx>' x '<pause>' '<pause>' '<pause>'
+check dos-win-after   'systest: PASS'         'run dosgfx.com' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' x '<pause>' '<pause>' '<pause>' systest '<ret>'
 # P.10: a FreeBSD i386 ELF: arguments on the stack, errors as CF + errno
 check_all bsd-hello   'Hello from FreeBSD land!|bsdhello: PASS'  'run bsdhello' '<ret>'
 check bsd-after       'Hello from DOS land!'  'run bsdhello' '<ret>' 'run doshello.com' '<ret>'
