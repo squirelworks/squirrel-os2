@@ -13,11 +13,17 @@ and come back:
   directories of 2 MB pages that identity-map the first 4 GB (`LM_MAP_GB`), so every kernel
   address means the same in both modes.
 - `lm_call(eax = 64-bit routine)`: with interrupts off, turns paging off (the kernel runs
-  identity-mapped), sets CR4.PAE, loads CR3 with the PML4, sets EFER.LME, turns paging on (the CPU is
-  now in IA-32e compatibility mode) and far-jumps to the 64-bit kernel code segment `0x40`
-  (`gdt_cs64`: L = 1, D = 0). The routine is called on the same stack, aligned to 16 bytes. On its
-  `ret` a `retfq` goes back to the 32-bit segment `0x08`, and the way out mirrors the way in: paging
-  off, EFER.LME off, CR4 and CR3 restored, paging on. Registers and flags are kept.
+  identity-mapped), keeps CR4.PAE (on since 2.8-pae), loads CR3 with the PML4, sets EFER.LME, turns
+  paging on (the CPU is now in IA-32e compatibility mode) and far-jumps to the 64-bit kernel code
+  segment `0x40` (`gdt_cs64`: L = 1, D = 0). The routine is called on the same stack, aligned to 16
+  bytes. On its `ret` a `retfq` goes back to the 32-bit segment `0x08`, and the way out mirrors the
+  way in: paging off, EFER.LME off, CR4 and CR3 restored (PAE stays on; EFER.NXE is left alone),
+  paging on. Registers and flags are kept.
+
+## 2.8-pae: PAE paging and NX
+
+The 32-bit kernel's everyday paging is PAE (64-bit entries, a PDPT), the same entry format long mode
+will keep. See `memory.md`. Checks: `nx-heap`, `nx-stack`, `cpu-pentium3`.
 - Interrupts stay off for the whole round trip: the IDT is still the 32-bit one. A 64-bit IDT
   comes with 2.9-lm-kernel.
 

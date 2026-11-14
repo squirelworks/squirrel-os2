@@ -158,7 +158,7 @@ The old 2.1–2.9 bridge plan in `documentation/plannedmilestones.md`, renumbere
 
 - [ ] x86-64 long-mode kernel and 64-bit paging (long-mode entry is on `main`, #154; the kernel staying in long mode is 2.9-lm-kernel)
 - [x] SMP scheduler (2.8-smp-ap, 2.8-smp-sched, #154)
-- [ ] PAE and NX (2.8-pae)
+- [x] PAE and NX (2.8-pae)
 - [x] H.1 UEFI loader
 - [x] H.2 GOP text console
 - [x] H.3 AHCI

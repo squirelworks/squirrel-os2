@@ -16,7 +16,7 @@ Program ended: pid 1
 | Line | Content |
 |------|---------|
 | 1 | Vector, its name (divide error, invalid opcode, general protection, page fault, …), and the process that was running with its name |
-| 2 | Faulting EIP; the error code for the vectors that push one; for a page fault, CR2 and whether it was a read or a write of a missing page or a protection fault |
+| 2 | Faulting EIP; the error code for the vectors that push one; for a page fault, CR2 and whether it was a read, a write or an instruction fetch of a missing page or a protection fault (fetch + protection is NX, 2.8-pae) |
 | 3–4 | The general registers as they were at the fault (saved with `pushad` before anything else runs); ESP is the value before the CPU pushed its frame |
 | 5 | The top four dwords of the faulting stack (skipped if ESP is outside the mapped 256 MB) |
 

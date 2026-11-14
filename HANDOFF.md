@@ -143,13 +143,8 @@ host `fatimg.py check`, and `fattest` on the formatted images.
   System Setup opens setup entry points and Drive/Shredder behave as desktop
   objects `syssetup: PASS`.
 
-### 2.8-pae — PAE paging and NX  `cursor-codex`
-- **Files:** `kernel/vm.asm`, `kernel/mm.asm`, `kernel/lm.asm`,
-  `documentation/kernel/memory.md`, `documentation/kernel/long-mode.md`.
-- **Acceptance:** the 32-bit kernel runs on PAE (64-bit entries, PDPT);
-  a ring-3 program that jumps into its heap or stack is ended with a
-  page-fault report (`nx-heap`, `nx-stack` checks); the whole suite passes
-  with PAE on; CPUs without NX keep working (`-cpu pentium3` check).
+### 2.8-pae — PAE paging and NX  `status: done`
+PAE + NX on `main` (this branch). Checks `nx-heap`, `nx-stack`, `cpu-pentium3`.
 
 ### 2.9-lm-kernel — stay in long mode  `cursor-codex`
 - **Depends on:** 2.8-pae.

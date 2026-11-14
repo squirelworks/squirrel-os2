@@ -19,7 +19,7 @@
   and halts.
 - The kernel's real-mode entry clears DS/ES first (the floppy path leaves ES past the image,
   which broke the E820 memory map), then checks the CPU: without CPUID, an FPU or 4 MB pages
-  (PSE) it prints `Squirrel-OS/2 needs a Pentium-class CPU (CPUID, FPU, 4 MB pages).` and halts.
+  (PAE) it prints `Squirrel-OS/2 needs a Pentium Pro-class CPU (CPUID, FPU, PAE).` and halts.
 - The kernel's last dword is the signature `S2OK`; at boot the kernel checks it and prints
   `Warning: kernel image only partly loaded` if it is missing.
 - The GDT sits right after the real-mode entry code, inside the first 32 KB, because `lgdt` in

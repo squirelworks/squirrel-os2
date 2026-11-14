@@ -3,7 +3,7 @@
 ## Building and running
 
 Requirements: NASM and Python 3 to build; QEMU (or another PC emulator) to run.
-The machine needs a Pentium-class CPU (CPUID, FPU, 4 MB pages) and at least 4 MB of memory.
+The machine needs a Pentium Pro-class CPU (CPUID, FPU, PAE) and at least 4 MB of memory.
 
 The quick way (0.9.3):
 

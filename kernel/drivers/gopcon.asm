@@ -41,12 +41,15 @@ gopcon_init:
     call hw_map_mmio
     jc .out
     ; the text pages become RAM: 0xB8000 + i * 4 KB -> GOP_SHADOW + i * 4 KB
+    ; (PAE: 64-bit PTEs in the 0-2 MB table)
     mov edi, [kernel_pt]
-    add edi, (0xB8000 >> 12) * 4
+    add edi, (0xB8000 >> 12) * 8
     mov eax, GOP_SHADOW|PG_P|PG_W
     mov ecx, 8
 .pte:
-    stosd
+    mov [edi], eax
+    mov dword [edi+4], 0
+    add edi, 8
     add eax, 0x1000
     loop .pte
     mov eax, [kernel_pd]
