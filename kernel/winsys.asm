@@ -26,6 +26,7 @@ WD_TEXT     equ 2
 WD_PTEXT    equ 3
 WD_BLIT     equ 4
 WD_BEVEL    equ 5
+WD_SBLIT    equ 6               ; scaled blit (P.8-dos-window): colour = 1 or 2
 WD_PIXEL    equ 7
 
 WS_RING     equ 16              ; events per process
@@ -574,6 +575,8 @@ sys_windraw:
     je .bevel
     cmp esi, WD_BLIT
     je .blit
+    cmp esi, WD_SBLIT
+    je .sblit
     call gfx_noclip
     jmp sys_winopen.bad
 .fill:
@@ -659,6 +662,71 @@ sys_windraw:
     inc ebx
     inc edi
     jmp .brow
+; a x b source at ptr, colour = scale (1 or 2): each source pixel is a
+; scale x scale block. Used by dosrun for mode 13h at 1x or 2x (P.8-dos-window).
+.sblit:
+    mov esi, [ebp+20]           ; scale
+    cmp esi, 1
+    je .sok
+    cmp esi, 2
+    jne .badc
+.sok:
+    mov [ws_scale], esi
+    push ecx
+    imul ecx, edx               ; source bytes
+    mov esi, [ebp+24]
+    call ws_uchk
+    pop ecx
+    jc .badc
+    mov [ws_bx], eax            ; left of the blit on the screen
+    mov [ws_by], ebx
+    xor edi, edi                ; source row
+.srow:
+    cmp edi, edx
+    jge .done
+    push edx
+    xor ebp, ebp                ; source column
+.scol:
+    cmp ebp, ecx
+    jge .snext
+    mov al, [esi]
+    inc esi
+    mov [ws_pix], al
+    push ecx
+    push esi
+    push edi
+    mov ecx, [ws_scale]         ; replicate vertically
+.sy:
+    push ecx
+    mov eax, [ws_bx]
+    mov ebx, ebp
+    imul ebx, [ws_scale]
+    add eax, ebx                ; dest x
+    mov ebx, [ws_by]
+    mov ecx, edi
+    imul ecx, [ws_scale]
+    add ebx, ecx                ; dest y of this replica row
+    pop ecx
+    push ecx
+    mov ecx, [ws_scale]         ; replicate horizontally
+.sx:
+    push ecx
+    mov cl, [ws_pix]
+    call gfx_putpixel
+    inc eax
+    pop ecx
+    loop .sx
+    pop ecx
+    loop .sy
+    pop edi
+    pop esi
+    pop ecx
+    inc ebp
+    jmp .scol
+.snext:
+    pop edx
+    inc edi
+    jmp .srow
 .pixel:                         ; read back from the visible page
     mov eax, [ebp+4]
     add eax, [ws_cx]
@@ -841,6 +909,8 @@ align 4
 ws_cx dd 0
 ws_cy dd 0
 ws_bx dd 0
+ws_by dd 0                      ; WD_SBLIT: top of the blit on the screen
+ws_scale dd 1                   ; WD_SBLIT: 1 or 2
 ws_lmx dd -1
 ws_lmy dd -1
 ws_head times PROC_MAX dd 0
@@ -848,5 +918,6 @@ ws_cnt times PROC_MAX dd 0
 ws_ring times PROC_MAX * WS_RING * WS_EVSIZE db 0
 ws_lmb db 0
 ws_key db 0
+ws_pix db 0                     ; WD_SBLIT: source pixel while replicating
 ws_own db 0                     ; 1: winsys entered the graphics screen
 ws_ton db 0                     ; WD_BLIT: a transparent colour is set

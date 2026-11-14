@@ -68,6 +68,7 @@ WD_TEXT     equ 2
 WD_PTEXT    equ 3
 WD_BLIT     equ 4
 WD_BEVEL    equ 5
+WD_SBLIT    equ 6               ; scaled blit (P.8-dos-window)
 WD_PIXEL    equ 7
 SYS_DEBUG   equ 47
 SYS_TTY     equ 48
