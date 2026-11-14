@@ -43,7 +43,7 @@ add its `SYS_*` constant, bump `SYS_COUNT`.
 | 8–9 | `bread`, `bwrite` | | | Added in 0.2.0, see `block-device.md` |
 | 10–16 | `open`, `read`, `write`, `close`, `create`, `delete`, `rename` | | | Added in 0.2.1, see `filesystem.md` |
 | 17 | `SYS_EXEC` | `ebx` = file name, `ecx` = argument or 0 | pid, or < 0 | Added in 0.4.0, see `loader.md` |
-| 18 | `SYS_READDIR` | `ebx` = cursor (0 to start), `ecx` = 20-byte buffer | next cursor; 0 at the end; −1 without a disk | Added in 0.4.2: fills the 16-byte name and the size (dword at +16) of the next file |
+| 18 | `SYS_READDIR` | `ebx` = cursor (0 to start), `ecx` = 20-byte buffer | next cursor; 0 at the end; −1 without a disk | Added in 0.4.2: fills the 16-byte name and the size (dword at +16) of the next file. Since 2.7, with bit 31 of `ebx` set: `ecx` = 72-byte buffer (whole name, size, flags), `edx` = directory path or 0, any SQFS directory or drive (`fat.md`) |
 | 19–20 | `SYS_PALLOC`, `SYS_PFREE` | | | Added in 0.6.0, see `memory.md`. Kernel-only since 2.4: from ring 3 they return −1 |
 | 21 | `SYS_SBRK` | `ebx` = bytes to grow (negative shrinks, 0 asks) | the old break, or −1 | Added in 0.6.2: moves the end of the program's heap at `0x40000000` (up to 4 MB), see `memory.md` |
 | 22–24 | `SYS_DEVFIND`, `SYS_DEVREAD`, `SYS_DEVWRITE` | | | Added in 0.7.0, see `drivers.md` |
@@ -59,6 +59,12 @@ add its `SYS_*` constant, bump `SYS_COUNT`.
 | 35 | `SYS_GUI` | `ebx` = operation, `ecx` = its argument | depends on the operation | Graphics for programs (OS2-APPS): see [SYS_GUI](#sys_gui) below |
 | 36 | `SYS_SETTLS` | `ebx` = base address | the selector (`0x3B`) | Added for P.5: the caller's FS/GS segment base, kept per process and reloaded on every switch; FS and GS are loaded at once. Used for the Win32 TEB, see `../architecture/foreign-compatibility.md` |
 | 37–44 | `SYS_WINOPEN`, `SYS_WINCLOSE`, `SYS_WINMOVE`, `SYS_WINTITLE`, `SYS_WINDRAW`, `SYS_WINFLUSH`, `SYS_WINEVENT`, `SYS_WININFO` | see `windows.md` | see `windows.md` | Added in 2.2 (**2.2-progwin**): windows for programs |
+| 45 | `SYS_NET` | `ebx` = operation, `ecx`/`edx` = its arguments | depends on the operation | Added in 3.0: names, the TCP connection and the interface settings for programs, see [SYS_NET in `network.md`](network.md#sys_net) |
+| 46 | `SYS_AUDIO` | `ebx` = operation, `ecx`/`edx` = its arguments | depends on the operation | Added in 3.0: sound for programs, see [SYS_AUDIO in `audio.md`](audio.md#sys_audio) |
+| 47 | `SYS_DEBUG` | `ebx` = operation, `ecx` = pid, `edx` = argument | depends on the operation | Added for A.4: trace another program (start it stopped, breakpoints, single step, registers, memory), see `debug.md` |
+| 48 | `SYS_TTY` | `ebx` = operation \| tty << 8, `ecx`, `edx` = arguments | depends on the operation | Added for A.3: terminals; a program's output and keys through a terminal's window, see `tty.md` |
+| 49 | `SYS_CLIPPUT` | `ebx` = text, `ecx` = length | the length kept | Added in 2.3 (**2.3-clipboard**): see `clipboard.md` |
+| 50 | `SYS_CLIPGET` | `ebx` = buffer, `ecx` = its size | the clipboard's length | Added in 2.3: as much as fits is copied |
 
 Example:
 

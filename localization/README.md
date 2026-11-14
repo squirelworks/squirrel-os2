@@ -45,7 +45,7 @@ localization/
 | usage_run | (apps: see the list above, or ls) | (programmata: vide indicem supra, vel ls) | (ghunmey: tetlh Dung yIlegh, pagh ls) | shell usage lines (1.0.5) |
 | fe_error | error | error | Qagh | file-system errors (shell, editors, `draw`, `SYS_FSERROR`) (1.0.5) |
 | fe_nofs | No file system mounted (attach a data disk). | Nullum systema tabularum (disci datorum adiunge). | teywI' pat tu'lu'be' (De' Hew yIrar). | file-system errors (shell, editors, `draw`, `SYS_FSERROR`) (1.0.5) |
-| fe_name | Bad name: 1 to 15 characters, not . or .. | Nomen malum: I ad XV litterae, non . vel .. | pong QIH: 1 vo' 15 ngutlh, . pagh .. ghobe' | file-system errors (shell, editors, `draw`, `SYS_FSERROR`) (1.0.5) |
+| fe_name | Bad name: 1 to 63 characters, not . or .. | Nomen malum: I ad LXIII litterae, non . vel .. | pong QIH: 1 vo' 63 ngutlh, . pagh .. ghobe' | file-system errors (shell, editors, `draw`, `SYS_FSERROR`) (1.0.5) |
 | fe_exists | Already exists | Iam exstat | tu'lu'pu' | file-system errors (shell, editors, `draw`, `SYS_FSERROR`) (1.0.5) |
 | fe_nodir | No such directory | Nullum tale directorium | ghItlh pa' tu'lu'be' | file-system errors (shell, editors, `draw`, `SYS_FSERROR`) (1.0.5) |
 | fe_table | Directory table full (64 entries) | Tabula directorii plena (LXIV) | ghItlh pa' tetlh teb (64) | file-system errors (shell, editors, `draw`, `SYS_FSERROR`) (1.0.5) |
@@ -57,6 +57,8 @@ localization/
 | fe_full | Disk full | Discus plenus | Hew teb | file-system errors (shell, editors, `draw`, `SYS_FSERROR`) (1.0.5) |
 | fe_isdir | Is a directory | Directorium est | ghItlh pa' 'oH | file-system errors (shell, editors, `draw`, `SYS_FSERROR`) (1.0.5) |
 | fe_nofd | Too many open files | Nimis multae tabulae apertae | teywI'mey poSmoHlu'bogh law'qu' | file-system errors (shell, editors, `draw`, `SYS_FSERROR`) (1.0.5) |
+| fe_nodrive | No such drive (see mount) | Nullus talis discus (vide mount) | Hew tu'lu'be' (mount yIlegh) | file-system errors: a path `d:/...` on a drive letter with nothing mounted (2.7) |
+| fe_xdev | Cannot move between drives | Inter discos moveri non potest | Hew latlh Daq vIHlaHbe' | file-system errors: `mv` from one drive to another (2.7) |
 | net_noreply | No reply | Nullum responsum | jang tu'lu'be' | `arp` when nobody answers (1.9.5) |
 | net_badaddr | Bad address | Inscriptio mala | ngoq QIH | `arp` when the text is not an address (1.9.5) |
 | net_of4 |  of 4 |  ex 4 |  vo' 4 | `ping` reply count (1.9.6) |

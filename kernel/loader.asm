@@ -114,9 +114,14 @@ prog_exec:
     lea ecx, [eax+4]
     cmp ecx, edx
     ja .dos
+    cmp word [LD_STAGE+eax], 'LX'   ; an OS/2 32-bit program (P.9)
+    je .os2
     cmp dword [LD_STAGE+eax], 'PE'
     jne .dos
     mov ebx, ld_winrun
+    jmp .hand
+.os2:
+    mov ebx, ld_os2run
     jmp .hand
 .dos:
     mov ebx, ld_dosrun
@@ -396,6 +401,7 @@ ld_linux dd 0
 ld_bsd dd 0
 ld_winrun db 'winrun', 0
 ld_dosrun db 'dosrun', 0
+ld_os2run db 'os2run', 0
 prog_arg times LD_ARGMAX db 0
 prog_args times PROC_MAX*LD_ARGMAX db 0
 ld_probe db 0

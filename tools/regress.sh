@@ -7,20 +7,21 @@ out=${TMPDIR:-/tmp}/squirrel-os2-build
 mkdir -p "$out"
 python3 "$root/tools/mkstrings.py" --check || exit 1
 python3 "$root/tools/mkfont.py" --check || exit 1
+python3 "$root/tools/mkicon.py" --check || exit 1   # 2.3-icons
 (cd "$root/kernel" && nasm -f bin boot.asm -o "$out/boot.bin" \
     && nasm -f bin pm.asm -o "$out/pm.bin" 2>/dev/null)
 cat "$out/boot.bin" "$out/pm.bin" > "$out/os.img"
 dd if=/dev/zero of="$out/floppy.img" bs=1024 count=1440 2>/dev/null
 dd if="$out/os.img" of="$out/floppy.img" conv=notrunc 2>/dev/null
 python3 "$root/tools/mkiso.py" "$out/floppy.img" "$out/cd.iso"    # installer I.6
-for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3 lxhello lxfile lxcat lxsys winrun winhello wincrt winprog; do
+for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3 smpspin lxhello lxfile lxcat lxsys winrun winhello wincrt winprog clipbrd; do
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
 done
 python3 "$root/tools/sqfs.py" "$out/progs.img" format 1024
-for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3 lxhello lxfile lxcat lxsys winrun winhello wincrt winprog; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
+for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3 smpspin lxhello lxfile lxcat lxsys winrun winhello wincrt winprog; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
 # OS2-GAMES (G.x): the games get a disk of their own, so the file counts above stay put
 python3 "$root/tools/sqfs.py" "$out/games.img" format 1024
-for prog in mines reversi klondike freecell hearts chess mahjongg; do
+for prog in mines reversi klondike freecell hearts chess mahjongg bridge checkers go; do
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
     python3 "$root/tools/sqfs.py" "$out/games.img" put "$out/$prog"
 done
@@ -50,6 +51,7 @@ for prog in sheet geometry cas sysmon logview diskutil notebook; do  # C.4, C.6,
     python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/$prog"
 done
 python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/crash"   # A.5: logview shows its crash
+python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/clipbrd"   # 2.3-clipboard: progs.img has no free entry
 python3 - "$out/grad.bmp" <<'PYEOF'    # A.2: a 24-bit test picture, 64 x 48
 import struct, sys
 w, h = 64, 48
@@ -64,7 +66,41 @@ for prog in doshello doscpu dosfile dosgfx; do nasm -f bin "$root/programs/$prog
 nasm -f bin "$root/programs/dosexe.asm" -o "$out/dosexe.exe"
 nasm -f bin -i "$root/programs/" "$root/programs/lxsig.asm" -o "$out/lxsig"    # P.2 signals ride along on this disk
 nasm -f bin -i "$root/programs/" "$root/programs/bsdhello.asm" -o "$out/bsdhello"    # P.10 FreeBSD rides along on this disk
-for f in dosrun winrun doshello.com doscpu.com dosfile.com dosgfx.com dosexe.exe lxsig bsdhello; do python3 "$root/tools/sqfs.py" "$out/dos.img" put "$out/$f"; done
+for prog in os2run os2hello; do nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"; done    # P.9 OS/2 rides along on this disk
+nasm -f bin "$root/programs/winwnd.asm" -o "$out/winwnd"    # P.6 Win32 GUI rides along on this disk
+nasm -f bin "$root/programs/winreg.asm" -o "$out/winreg"    # P.6 registry emulation
+nasm -f bin "$root/programs/windll.asm" -o "$out/windll"    # P.6 DLL loader: a program ...
+nasm -f bin "$root/programs/winlib.asm" -o "$out/acorn.dll" # ... and its DLL
+# A.4: the debugger, its tests and the programs it traces (with a symbol file) on a disk of their own
+python3 "$root/tools/sqfs.py" "$out/dev.img" format 1024
+for prog in debugger dbgtest dbgtgt distest terminal hello wc; do    # A.3 terminal too
+    nasm -f bin -i "$root/programs/" --before "[map symbols $out/$prog.map]" "$root/programs/$prog.asm" -o "$out/$prog"
+    python3 "$root/tools/sqfs.py" "$out/dev.img" put "$out/$prog"
+done
+python3 "$root/tools/mksym.py" "$out/dbgtgt.map" "$out/dbgtgt.sym"
+nasm -f bin "$root/programs/dbgelf.asm" -o "$out/dbgelf"    # ELF .symtab instead of a .sym file
+for f in dbgtgt.sym dbgelf; do python3 "$root/tools/sqfs.py" "$out/dev.img" put "$out/$f"; done
+# OS2-HW H.1: the UEFI loaders carry this os.img; an EFI system partition image holds both
+(cd "$root/boot/uefi" && nasm -f bin -DOS_IMG="\"$out/os.img\"" bootx64.asm -o "$out/BOOTX64.EFI" \
+    && nasm -f bin -DOS_IMG="\"$out/os.img\"" bootia32.asm -o "$out/BOOTIA32.EFI")
+python3 "$root/tools/mkesp.py" "$out/esp.img" "$out/BOOTX64.EFI" "$out/BOOTIA32.EFI"
+# OS2-HW (H.3-H.6): blkdev on a disk of its own; marked scratch disks for the AHCI/NVMe/USB drivers
+python3 "$root/tools/sqfs.py" "$out/hw.img" format 1024
+nasm -f bin -i "$root/programs/" "$root/programs/blkdev.asm" -o "$out/blkdev"
+python3 "$root/tools/sqfs.py" "$out/hw.img" put "$out/blkdev"
+python3 "$root/tools/sqfs.py" "$out/hw.img" put "$out/keyev"
+hwdisk() {  # hwdisk FILE: a 4 MB disk with 'SQHW' in sector 0 and 'S100' in sector 100
+    python3 - "$1" <<'PYEOF'
+import sys
+d = bytearray(4 << 20); d[0:4] = b'SQHW'; d[51200:51204] = b'S100'
+open(sys.argv[1], 'wb').write(d)
+PYEOF
+}
+sector5() {  # sector5 NAME FILE: the pattern blkdev wrote must be in the image itself
+    if python3 -c "import sys; d = open(sys.argv[1], 'rb').read()[2560:2568]; sys.exit(d != bytes.fromhex('05005a5a06015b5b'))" "$2"
+    then echo "ok   $1"; else echo "FAIL $1 (sector 5 of $2 not written)"; fail=1; fi
+}
+for f in dosrun winrun doshello.com doscpu.com dosfile.com dosgfx.com dosexe.exe lxsig bsdhello os2run os2hello winwnd winreg windll acorn.dll; do python3 "$root/tools/sqfs.py" "$out/dos.img" put "$out/$f"; done
 rm -f "$out/data.img"
 dd if=/dev/zero of="$out/data.img" bs=1024 count=1024 2>/dev/null
 
@@ -226,6 +262,11 @@ check ed-vstatus    'L1 C4 off 3'           'run vedit' '<ret>' abc
 check ed-vaction    "Deleted 'c'"           'run vedit' '<ret>' abc '<backspace>'
 check ed-unsaved    'Unsaved changes'       'run edit' '<ret>' x '<esc>'
 check ed-saveas     'memo2'                 'run edit' '<ret>' hi '<f2>' memo2 '<ret>' '<esc>' ls '<ret>'
+# 2.3-clipboard: Ctrl+Ins copies the line, Shift+Ins pastes; Ctrl+X cuts the line, Ctrl+V pastes
+check ed-clip-copy  'abc and abc'           'run edit memoc1' '<ret>' abc '<ctrl-insert>' ' and ' '<shift-insert>' '<ctrl-s>' '<esc>' 'cat memoc1' '<ret>' 'rm memoc1' '<ret>'
+check ed-clip-cut   'two one'               'run edit memoc2' '<ret>' one '<ret>' two '<up>' '<ctrl-x>' '<end>' ' ' '<ctrl-v>' '<ctrl-s>' '<esc>' 'cat memoc2' '<ret>' 'rm memoc2' '<ret>'
+check cbtest        'clip: PASS'            cbtest '<ret>'
+check cbtest-text   'systest: PASS'         cbtest '<ret>' systest '<ret>'
 # 1.0.9: Ctrl+F finds text, F3 finds it again (wrapping to the start)
 check ed-find       'Found zebra at line 1, column 9'  'put zfind one two zebra' '<ret>' 'run edit zfind' '<ret>' '<ctrl-f>' zebra '<ret>'
 check ed-find-at    'one two Xzebra'        'run edit zfind' '<ret>' '<ctrl-f>' zebra '<ret>' X
@@ -380,6 +421,11 @@ check cliptest      'clip: PASS'            cliptest '<ret>'                  # 
 check cliptest-text 'systest: PASS'         cliptest '<ret>' systest '<ret>'
 check bevtest       'bevel: PASS'           bevtest '<ret>'                   # W.1-theme
 check bevtest-text  'systest: PASS'         bevtest '<ret>' systest '<ret>'
+check pfont         'pfont: PASS'           pfont '<ret>' '<pause>' '<spc>'   # 2.2-propfont
+check_all pfont-read 'gfx: Wg Squirrel window face|gfx: Wg Display face, bold' pfont '<ret>' '<pause>' '<gfx>' '<spc>'
+check pfont-text    'systest: PASS'         pfont '<ret>' '<pause>' '<spc>' systest '<ret>'
+check icontest      'icon: PASS'            icontest '<ret>'                  # 2.3-icons
+check icontest-text 'systest: PASS'         icontest '<ret>' systest '<ret>'
 check winvbe        'winvbe: PASS'          winvbe '<ret>'                    # 2.2-vbe-wm
 check winvbe-text   'systest: PASS'         winvbe '<ret>' systest '<ret>'
 check winclip       'winclip: PASS'         winclip '<ret>'                   # 2.2-clip-z
@@ -499,12 +545,52 @@ check arp-none      'No reply'              'arp 10.0.2.99' '<ret>' '<pause>' '<
 check arp-bad       'Bad address'           'arp nope' '<ret>'
 check ping-gw       '4 of 4'                'ping 10.0.2.2' '<ret>' '<pause>'
 # 1.9.8: the host answers one HTTP/1.0 GET; slirp delivers 10.0.2.2 to it
-python3 -u "$root/tools/fileserve.py" 18080 'hello from squirrel' >"$out/fileserve.log" 2>&1 &
+# FETCH_PORT picks the host port; by default a free one, so two runs at once do not clash
+fetch_port=${FETCH_PORT:-$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')}
+python3 -u "$root/tools/fileserve.py" $fetch_port 'hello from squirrel' >"$out/fileserve.log" 2>&1 &
 fetch_pid=$!
-check fetch-hello   'hello from squirrel'   'fetch 10.0.2.2 18080 /hello.txt' '<ret>' '<pause>' '<pause>' '<pause>'
+check fetch-hello   'hello from squirrel'   "fetch 10.0.2.2 $fetch_port /hello.txt" '<ret>' '<pause>' '<pause>' '<pause>'
 kill $fetch_pid 2>/dev/null || true
 wait $fetch_pid 2>/dev/null || true
+# 3.0 (OS2-NET-AUDIO): DHCP from slirp; DNS and HTTP/1.1 from tools/netserve.py on the host
+# (slirp delivers 10.0.2.2:<port> to 127.0.0.1:<port>); wget and netcfg on a disk of their own
+python3 "$root/tools/sqfs.py" "$out/net.img" format 1024
+for prog in wget netcfg; do
+    nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
+    python3 "$root/tools/sqfs.py" "$out/net.img" put "$out/$prog"
+done
+python3 -u "$root/tools/netserve.py" 18081 18053 >"$out/netserve.log" 2>&1 &
+net_pid=$!
+net_disk=$disk; disk=$out/net.img
+ns='dns 10.0.2.2 18053'
+check_all dhcp      'dhcp: bound|inet 10.0.2.15|mask 255.255.255.0|gw 10.0.2.2' 'ifconfig 10.0.2.99 255.255.0.0 10.0.2.9' '<ret>' dhcp '<ret>' '<pause>' '<pause>'
+check dhcp-dns      'dns 10.0.2.3'          "$ns" '<ret>' dhcp '<ret>' '<pause>' '<pause>' dns '<ret>'
+check host-name     'squirrel.test is 10.0.2.2'      "$ns" '<ret>' 'host squirrel.test' '<ret>' '<pause>'
+check host-cname    'www.squirrel.test is 10.0.2.2'  "$ns" '<ret>' 'host www.squirrel.test' '<ret>' '<pause>'
+check host-nx       'Host not found'        "$ns" '<ret>' 'host nothere.test' '<ret>' '<pause>'
+check host-quad     '10.1.2.3 is 10.1.2.3'  'host 10.1.2.3' '<ret>'
+check host-local    'localhost is 127.0.0.1' 'host localhost' '<ret>'
+check ping-name     '4 of 4'                "$ns" '<ret>' 'ping squirrel.test' '<ret>' '<pause>' '<pause>'
+check fetch-name    'hello from squirrel over HTTP/1.1' "$ns" '<ret>' 'fetch squirrel.test 18081 /hello.txt' '<ret>' '<pause>' '<pause>' '<pause>'
+check wget-len      'wget: 200, 34 bytes, sum 2948 -> hello.txt' "$ns" '<ret>' 'run wget http://squirrel.test:18081/hello.txt' '<ret>' '<pause>' '<pause>'
+check wget-saved    'hello from squirrel over HTTP/1.1' "$ns" '<ret>' 'run wget squirrel.test:18081/hello.txt' '<ret>' '<pause>' '<pause>' 'cat hello.txt' '<ret>'
+check_all wget-chunked 'chunked transfer works|wget: 200, 23 bytes, sum 2247' "$ns" '<ret>' 'run wget squirrel.test:18081/chunked.txt -' '<ret>' '<pause>' '<pause>'
+check wget-redirect 'wget: 200, 34 bytes, sum 2948 -> moved' "$ns" '<ret>' 'run wget http://www.squirrel.test:18081/moved' '<ret>' '<pause>' '<pause>'
+check_none wget-404 'nope    ' 'wget: 404'  "$ns" '<ret>' 'run wget http://squirrel.test:18081/nope' '<ret>' '<pause>' '<pause>' ls '<ret>'
+check wget-big      'wget: 200, 20000 bytes, sum 59120 -> big.bin' "$ns" '<ret>' 'run wget http://squirrel.test:18081/big.bin' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
+check_all wget-headers 'Host: squirrel.test:18081|User-Agent: SquirrelOS2-wget/3.0' "$ns" '<ret>' 'run wget squirrel.test:18081/echo -' '<ret>' '<pause>' '<pause>'
+check wget-nohost   'wget: host not found'  "$ns" '<ret>' 'run wget http://nothere.test/' '<ret>' '<pause>' '<pause>'
+check wget-https    'wget: not an http:// URL' 'run wget https://squirrel.test/' '<ret>'
+check_all netcfg-set 'method  manual|address 10.0.2.20|dns     10.0.2.2' 'run netcfg set 10.0.2.20 255.255.255.0 10.0.2.2 10.0.2.2' '<ret>'
+check netcfg-offnet 'not on that subnet'    'run netcfg set 1.2.3.4 255.255.255.0 10.0.2.2 1.1.1.1' '<ret>'
+check_all netcfg-load 'netcfg: saved network.cfg|address 10.0.2.21' 'run netcfg set 10.0.2.21 255.255.255.0 10.0.2.2 10.0.2.3' '<ret>' 'run netcfg save' '<ret>' 'run netcfg dhcp' '<ret>' '<pause>' 'run netcfg load' '<ret>'
+check_all netcfg-gui-dhcp 'gfx: Network Settings|gfx: DHCP: bound|gfx: dhcp, lease 1440 min' 'ifconfig 10.0.2.99 255.255.255.0 10.0.2.2' '<ret>' 'run netcfg' '<ret>' '<pause>' '<f2>' '<pause>' '<pause>' '<gfx>'
+check_all netcfg-gui-apply 'gfx: Applied|inet 10.0.2.77' 'run netcfg' '<ret>' '<pause>' '<backspace>' '<backspace>' '77' '<ret>' '<pause>' '<gfx>' '<esc>' '<pause>' ifconfig '<ret>'
+disk=$net_disk
+kill $net_pid 2>/dev/null || true
+wait $net_pid 2>/dev/null || true
 nic=
+check dhcp-nonic    'No DHCP server answered' dhcp '<ret>'
 check arp-nonic     'No reply'              'arp 10.0.2.2' '<ret>'
 # 1.9.6: ICMP echo. Loopback does not need the card.
 check ping-lo       '4 of 4'                'ping 127.0.0.1' '<ret>'
@@ -524,6 +610,48 @@ check_all desktop-objs 'Program < DesktopObject|0 live' desktop '<ret>' '<pause>
 # "Program < DesktopObject" (one space after "<").
 check_once desktop-objs-2 'Program < DesktopObject|  DesktopObject|0 live' \
                    desktop '<ret>' '<pause>' '<esc>' desktop '<ret>' '<pause>' '<esc>' objs '<ret>'
+# 2.3-groups: the Program Manager on a disk of its own (its places file in /desktop)
+pm_disk=$disk
+python3 "$root/tools/sqfs.py" "$out/pm.img" format 1024 >/dev/null
+disk=$out/pm.img
+check pmtest        'pm: PASS'              pmtest '<ret>' '<pause>'
+check_all pm-groups 'gfx: Main|gfx: Tools|gfx: calc|gfx: draw' progman '<ret>' '<pause>' '<gfx>'
+check_all pm-launch 'gfx: calc> 2 + 2|gfx: = 4' \
+                   progman '<ret>' '<pause>' '<right>' '<ret>' '<pause>' '2 + 2' '<ret>' '<pause>' '<gfx>'
+check pm-move       'calc 88 12'            progman '<ret>' '<pause>' '<right>' m '<right>' '<right>' '<down>' '<ret>' '<esc>' 'cat /desktop/progman.pos' '<ret>'
+check pm-move-reboot 'calc 96 12'           progman '<ret>' '<pause>' '<right>' m '<right>' '<ret>' '<esc>' 'cat /desktop/progman.pos' '<ret>'
+check pm-arrange    'calc 72 4'             progman '<ret>' '<pause>' a '<esc>' 'cat /desktop/progman.pos' '<ret>'
+check pm-text       'systest: PASS'         progman '<ret>' '<pause>' '<esc>' systest '<ret>'
+# 2.3-filemgr: the File Manager on a disk of its own: /w holds a.txt and sub
+python3 "$root/tools/sqfs.py" "$out/fm.img" format 1024 >/dev/null
+disk=$out/fm.img
+check fmtest        'fm: PASS'              fmtest '<ret>'
+check fm-setup      'sub/'                  'mkdir w' '<ret>' 'put w/a.txt hello' '<ret>' 'mkdir w/sub' '<ret>' 'ls w' '<ret>'
+check_all fm-panes  'gfx: File Manager|gfx: sub|gfx: <dir>|gfx: a.txt' 'cd w' '<ret>' filemgr '<ret>' '<pause>' '<gfx>'
+check fm-copy       'hello'                 'cd w' '<ret>' filemgr '<ret>' '<pause>' '<down>' c sub '<ret>' '<esc>' 'cat sub/a.txt' '<ret>'
+check fm-rename     'hello'                 'cd w' '<ret>' filemgr '<ret>' '<pause>' '<down>' r b.txt '<ret>' '<esc>' 'cat b.txt' '<ret>'
+check fm-move       'hello'                 'cd w' '<ret>' filemgr '<ret>' '<pause>' '<down>' m / '<ret>' '<esc>' 'cat /b.txt' '<ret>'
+check fm-mkdir      '/w/new'                'cd w' '<ret>' filemgr '<ret>' '<pause>' n new '<ret>' '<esc>' 'cd new' '<ret>' pwd '<ret>'
+check fm-delete     'Not found'             'cd w' '<ret>' filemgr '<ret>' '<pause>' '<ret>' '<delete>' y '<esc>' 'cat sub/a.txt' '<ret>'
+check fm-menu       'Not found'             'put w/m.txt x' '<ret>' 'cd w' '<ret>' filemgr '<ret>' '<pause>' '<down>' '<down>' f '<pause>' '<down>' '<down>' '<down>' '<down>' '<ret>' y '<esc>' 'cat m.txt' '<ret>'
+check fm-text       'systest: PASS'         filemgr '<ret>' '<pause>' '<esc>' systest '<ret>'
+# 2.3-control: the Control Panel; its settings in /desktop/control.cfg, applied at boot (each check is a new boot)
+python3 "$root/tools/sqfs.py" "$out/cp.img" format 1024 >/dev/null
+disk=$out/cp.img
+check_all cp-panel  'gfx: Control Panel|gfx: Colours|gfx: Warp|gfx: Double-click|gfx: 50 ticks|gfx: Key delay|gfx: 500 ms' control '<ret>' '<pause>' '<gfx>'
+check cp-change     'settings saved'        control '<ret>' '<pause>' '<right>' '<down>' '<right>' '<right>' '<esc>'
+check cp-reboot     'scheme 1 Forest, dblclick 70,' 'control show' '<ret>'
+check cp-cfg        'dblclick 70'           'cat /desktop/control.cfg' '<ret>'
+check cp-mouse      'gfx: Plum'             control '<ret>' '<pause>' '<mouse-move:100,20>' '<pause>' '<mouse-btn:1>' '<mouse-btn:0>' '<pause>' '<mouse-move:0,80>' '<pause>' '<gfx>' '<esc>' '<pause>'
+check cp-rate       'rate 4, delay 1'       'control rate 4' '<ret>'
+check cp-rate-boot  'scheme 2 Plum, dblclick 70, swap 0, speed 2, rate 4, delay 1, kbd ok' 'control show' '<ret>'
+check_all cp-time   'gfx: The clock is set.|gfx: 12:34:5' control '<ret>' '<pause>' '<down>' '<down>' '<down>' '<down>' '<down>' '<down>' '<down>' '<ret>' '12:34:56' '<ret>' '<pause>' '<gfx>'
+check cp-date-bad   'gfx: That is not a date or time.' control '<ret>' '<pause>' '<down>' '<down>' '<down>' '<down>' '<down>' '<down>' '<ret>' '2029-13-01' '<ret>' '<pause>' '<gfx>'
+check cp-cmd-date   'date 2030-07-04 time 08:00:0' 'control date 2030-07-04' '<ret>' 'control time 08:00:00' '<ret>'
+check cp-bad        'control: show | scheme 0-3' 'control speed 9' '<ret>'
+check cptest        'cp: PASS'              cptest '<ret>' '<pause>'
+check cp-text       'systest: PASS'         cptest '<ret>' '<pause>' systest '<ret>'
+disk=$pm_disk
 # 1.8.3: the desktop's entries are object files in /desktop, written the
 # first time; a removed file's entry is gone. A disk of their own, so the
 # other desktop checks keep all five entries.
@@ -595,7 +723,8 @@ check topo-stub     'Scaffolded. Simplicial homology'  'run topo' '<ret>'
 check sh-usage      'Usage: mkdir <dir>'    mkdir '<ret>'
 check sh-unknown    'Unknown command'       bogus '<ret>'
 check fs-e-exists   'Already exists'        'mkdir e1' '<ret>' 'mkdir e1' '<ret>'
-check fs-e-name     'Bad name'              'mk abcdefghijklmnopq' '<ret>'
+# (2.7: names may be 63 characters long, so 64 is the shortest bad one)
+check fs-e-name     'Bad name'              'mk nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn' '<ret>'
 check fs-e-nodir    'No such directory'     'mk nod/x' '<ret>'
 check fs-e-isdir    'Is a directory'        'cat e1' '<ret>'
 check fs-e-notempty 'Directory not empty'   'mkdir e1/sub' '<ret>' 'put e1/sub/f x' '<ret>' 'rm e1' '<ret>'
@@ -626,6 +755,18 @@ boot="$out/lowonly.img"
 check khigh-missing 'cannot read the high kernel image'
 boot=
 check khigh-mem     'Pages above 2 MB:'     mem '<ret>'
+# 2.8-smp-ap: the APs from the ACPI MADT start and park; one CPU is still fine
+check cpus-one      '1 CPU(s) online'       cpus '<ret>'
+export QEMU_EXTRA='-smp 4'
+check_all smp-4     'CPU 0: APIC id 0, boot processor|CPU 3: APIC id 3, online|4 CPU(s) online' cpus '<ret>'
+check smp-4-systest 'systest: PASS'         cpus '<ret>' systest '<ret>'
+unset QEMU_EXTRA
+# 2.8-lm-entry: a round trip through long mode (qemu-system-x86_64), and a clean refusal without it
+export QEMU_BIN=qemu-system-x86_64
+check lm-test       'lm: PASS'              lmtest '<ret>'
+check_all lm-again  'lm: PASS|systest: PASS' lmtest '<ret>' lmtest '<ret>' systest '<ret>'
+unset QEMU_BIN
+check lm-nolm       'lm: no long mode'      lmtest '<ret>'
 export QEMU_EXTRA='-cpu 486,-pse'
 check cpu-nopse     'needs a Pentium-class CPU'
 export QEMU_EXTRA='-cpu pentium,-fpu'
@@ -678,7 +819,7 @@ check seek          'seek: PASS'            'run seek' '<ret>' '<pause>'
 check devices       'hd1     block   ready 2048 sectors'  devices '<ret>'
 check devices-ro    '(read-only for programs)'  devices '<ret>'
 check devtest       'devtest: PASS'         'run devtest' '<ret>'
-check up-ls         '41 file(s)'             'run ls' '<ret>'   # 30 + the 7 P.1-P.5 programs + lxfile.txt, win.txt, crt.txt + winprog
+check up-ls         '42 file(s)'             'run ls' '<ret>'   # 30 + smpspin (2.8) + winprog + the 7 P.1-P.5 programs + lxfile.txt, win.txt, crt.txt
 # 1.2.1: a key arrives as a queue event as well as through SYS_GETC
 check_all keyev     'keyev: queue q getc q|keyev: PASS'  'run keyev' '<ret>' '<pause>' q '<pause>'
 check_all keyev-shift 'keyev: queue Q getc Q|keyev: PASS'  'run keyev' '<ret>' '<pause>' Q '<pause>'
@@ -694,6 +835,19 @@ check_all stackover '*** stack overflow in pid|Program ended|stackover: PASS'  '
 # 2.4: programs run in ring 3; bad pointers, kernel memory and privileged instructions are refused
 check_all ring3     '*** CPU exception 13 (general protection) in pid|Program ended|ring3: PASS'  'run ring3' '<ret>' '<pause>'
 check ring3-after   'systest: PASS'         'run ring3' '<ret>' '<pause>' systest '<ret>'
+# 2.8-smp-sched: ring-3 threads on the application processors; kernel entries go to the BSP
+check_all smpspin-1 'smpspin: 1 CPU(s)|smpspin: threads ok'  'run smpspin' '<ret>' '<pause>' '<pause>' '<pause>'
+export QEMU_EXTRA='-smp 4'
+check_all smpspin-4 'smpspin: 4 CPU(s)|smpspin: threads ok'  'run smpspin 4' '<ret>' '<pause>' '<pause>' '<pause>'
+check smp-ring3     'ring3: PASS'           'run ring3' '<ret>' '<pause>' '<pause>'
+check smp-stackover 'stackover: PASS'       'run stackover' '<ret>' '<pause>'
+check smp-thread    'thread: PASS'          'run thread' '<ret>' '<pause>'
+check smp-msg       'msg: PASS'             'run msg' '<ret>' '<pause>'
+check smp-fpu       'fpu: PASS'             'run fpu' '<ret>' '<pause>'
+check smp-preempt   'preempt: PASS'         'run spin' '<ret>' '<pause>'
+check smp-heap      'heap: PASS'            'run heap' '<ret>' '<pause>'
+check smp-after     'systest: PASS'         'run smpspin 4' '<ret>' '<pause>' '<pause>' '<pause>' systest '<ret>'
+unset QEMU_EXTRA
 # 1.1.0: the timer preempts a program that spins without a system call
 check_all sched-preempt 'spin: second process ran|preempt: PASS' 'run spin' '<ret>' '<pause>'
 check up-ls-filter  '6 file(s)'             'run ls he' '<ret>'
@@ -776,7 +930,7 @@ check_none drv-again 'drv: FAIL' 'drv: PASS' 'run drvtest' '<ret>' 'run drvtest'
 disk=$out/games.img
 check mines-test    'mines: PASS'           'run mines test' '<ret>'
 check_all mines-play '  1 F |Mines left: 9' 'run mines 5' '<ret>' e5 '<ret>' 'f a1' '<ret>'
-check reversi-test  'reversi: PASS'         'run reversi test' '<ret>' '<pause>'
+check reversi-test  'reversi: PASS'         'run reversi test' '<ret>' '<pause>' '<pause>'
 check_all reversi-play 'Computer plays c3|You (X): 3   Computer (O): 3' 'run reversi 1' '<ret>' d3 '<ret>'
 check klondike-test 'klondike: PASS'        'run klondike test' '<ret>'
 check_all klondike-play 'Stock 23|That move is not allowed' 'run klondike 3' '<ret>' d '<ret>' 12 '<ret>'
@@ -788,6 +942,23 @@ check chess-test    'chess: PASS'           'run chess test' '<ret>' '<pause>' '
 check_all chess-pgn '[Black "Squirrel Chess"]|1. e4 d5 *' 'run chess 1' '<ret>' e2e4 '<ret>' '<pause>' 'save g.pgn' '<ret>' q '<ret>' 'cat g.pgn' '<ret>'
 check mahjongg-test 'mahjongg: PASS'        'run mahjongg test' '<ret>' '<pause>'
 check_all mahjongg-play 'Try j1 a3|Tiles left: 106' 'run mahjongg 2' '<ret>' h '<ret>' 'j1 a3' '<ret>'
+check bridge-test   'bridge: PASS'          'run bridge test' '<ret>' '<pause>'
+check_all bridge-play 'S pass  W pass  N 1H  E pass  S 3H|Contract: 3H by North|Trick: East AS|Play from South' 'run bridge 1' '<ret>' p '<ret>' 3h '<ret>'
+# OS2-GAMES: the graphical front ends (run <game> gui [seed]), read off the screen
+check klondike-gui  'gfx: That move is not allowed' 'run klondike gui 3' '<ret>' '<pause>' '<ret>' '<right>' '<ret>' '<pause>' '<gfx>'
+check freecell-gui  'gfx: That move is not allowed' 'run freecell gui 2' '<ret>' '<pause>' '<ret>' '<right>' '<ret>' '<pause>' '<gfx>'
+check hearts-gui    'gfx: You got JH 6H 4H - click to go on' 'run hearts gui 3' '<ret>' '<pause>' ' ' '<right>' ' ' '<right>' ' ' '<ret>' '<pause>' '<gfx>'
+check_all mines-gui 'gfx: Mines left: 9|gfx: Click or Enter: open' 'run mines gui 5' '<ret>' '<pause>' '<ret>' '<up>' '<up>' '<up>' '<up>' '<left>' '<left>' '<left>' '<left>' f '<pause>' '<gfx>'
+check mines-gui-big 'gfx: Boom! You hit a mine.' 'run mines gui 5 big' '<ret>' '<pause>' '<ret>' '<down>' '<down>' '<down>' '<ret>' '<pause>' '<gfx>'
+check_all reversi-gui 'gfx: You 3|gfx: Computer 3' 'run reversi gui 1' '<ret>' '<pause>' '<ret>' '<pause>' '<pause>' '<gfx>'
+check_all chess-gui 'gfx: You: e4|gfx: d5' 'run chess gui 1' '<ret>' '<pause>' '<ret>' '<up>' '<up>' '<ret>' '<pause>' '<pause>' '<pause>' '<gfx>'
+check mahjongg-gui  'gfx: Tiles left: 106' 'run mahjongg gui 2' '<ret>' '<pause>' '<right>' '<right>' '<right>' '<right>' '<right>' '<right>' '<right>' '<right>' '<right>' '<ret>' '<down>' '<down>' '<left>' '<left>' '<left>' '<left>' '<left>' '<left>' '<left>' '<left>' '<left>' '<ret>' '<pause>' '<gfx>'
+check checkers-test 'checkers: PASS'        'run checkers test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
+check_all checkers-play 'Computer plays f6-g5|You (b): 12   Computer (w): 12' 'run checkers 1' '<ret>' c3d4 '<ret>' '<pause>' '<pause>'
+check go-test       'go: PASS'              'run go test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>'
+check_all go-play   'Computer plays f3|You cannot play there' 'run go 1' '<ret>' e5 '<ret>' e5 '<ret>'
+# the directory checks' scratch entries go: progs.img's 64-entry directory is full by now
+for f in d2/n d2/s d2 d3 d5/e d5/g d5 la1 t1 edir; do python3 "$root/tools/sqfs.py" "$out/progs.img" rm "$f" >/dev/null 2>&1 || true; done
 disk=$out/progs.img
 # 1.0.6: calc, edit and draw titles follow lang
 check l10n-calc-tlh "mI' De'wI' (Esc to exit)" 'lang tlh' '<ret>' 'run calc' '<ret>'
@@ -797,6 +968,10 @@ check l10n-calc-en  'Basic Calculator (Esc to exit)' 'run calc' '<ret>'
 check lang-systest  'systest: PROBATUM'     'lang la' '<ret>' systest '<ret>'
 # OS2-APPS: graphics for programs (SYS_GUI, programs/gui.inc) and the A.1 apps
 disk=$out/apps.img
+# 2.3-clipboard: cbtest leaves "clip me" on the clipboard; the viewer shows it
+check_all clip-viewer 'gfx: Clipboard|gfx: clip me' cbtest '<ret>' 'run clipbrd' '<ret>' '<pause>' '<pause>' '<gfx>' q '<pause>'
+check clip-viewer-n 'clipbrd: 7 bytes'      cbtest '<ret>' 'run clipbrd' '<ret>' '<pause>' '<pause>' q '<pause>'
+check_all clip-empty 'gfx: (empty)|clipbrd: 0 bytes' 'run clipbrd' '<ret>' '<pause>' '<pause>' '<gfx>' q '<pause>'
 check guitest       'guitest: PASS'         'run guitest' '<ret>' '<pause>'
 check_all guitest-gfx 'gfx: Gui test|gfx: Hello from a program' 'run guitest hold' '<ret>' '<pause>' '<gfx>'
 check_all calculator 'gfx: Calculator|gfx: 2+3*4|gfx: = 14' 'run calculator' '<ret>' '<pause>' '2+3*4' '<ret>' '<pause>' '<gfx>'
@@ -825,7 +1000,7 @@ check_all grapher-trace 'gfx: 2: x = 4*cos(t), y = 2*sin(t)|gfx: t=0.0262|gfx: x
 check grapher-zoom  'gfx: roots: -3.1416'   'run grapher sin(x)' '<ret>' '<pause>' '+' 'z' '<pause>' '<gfx>'
 check grapher-syn   'gfx: Error: syntax at column 4' 'run grapher' '<ret>' '<pause>' 'y = 2*(' '<ret>' '<pause>' '<gfx>'
 check grapher-quit  'systest: PASS'         'run grapher sin(x)' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
-check_all grapher-impl 'gfx: 1: x^2+y^2=25|gfx: only for y = f(x)' 'run grapher x^2+y^2=25' '<ret>' '<pause>' 'z' '<pause>' '<gfx>'
+check_all grapher-impl 'gfx: 1: x^2+y^2=25|gfx: only for y = f(x)' 'run grapher x^2+y^2=25' '<ret>' '<pause>' '<pause>' 'z' '<pause>' '<gfx>'
 check_all grapher-ineq 'gfx: 1: y >= x^2|gfx: Trace is for y =, r = and x =, y =' 'run grapher' '<ret>' '<pause>' 'y >= x^2' '<ret>' '<pause>' 't' '<pause>' '<gfx>'
 check grapher-slider 'gfx: a = 2.2'         'run grapher y=a*sin(x)' '<ret>' '<pause>' 'a' '<pause>' '<right>' '<pause>' '<right>' '<pause>' '<up>' '<pause>' '<pause>' '<gfx>'
 check grapher-form  'gfx: Use y = f(x), r = f(t), x = f(t), y = g(t), = < >' 'run grapher' '<ret>' '<pause>' 'y < x < 2' '<ret>' '<pause>' '<gfx>'
@@ -881,6 +1056,74 @@ check_all write-count 'gfx: Write - wdoc.swp|gfx: words 5|gfx: chars 22 *' 'run 
 check_all write-styles 'gfx: Opened|gfx: Centred line' 'run write wdoc.swp' '<ret>' '<pause>' 'Plain ' '<ctrl-i>' 'italic ' '<ctrl-i>' '<ctrl-u>' 'under' '<ctrl-u>' '<ret>' 'Centred line' '<ctrl-e>' '<ctrl-s>' '<pause>' '<esc>' '<pause>' 'run write wdoc.swp' '<ret>' '<pause>' '<pause>' '<gfx>'
 check write-ask     'gfx: Save changes? y/n' 'run write' '<ret>' '<pause>' 'x' '<esc>' '<pause>' '<gfx>'
 check write-quit    'systest: PASS'         'run write' '<ret>' '<pause>' 'x' '<esc>' '<pause>' 'n' '<pause>' systest '<ret>'
+# 2.7 (OS2-FS): long names in SQFS, FAT12/16/32 drives. tools/fatimg.py makes
+# the FAT images and checks them afterwards (chains, sizes, long names), so
+# no dosfstools or mtools are needed; each check gets its own disks.
+saved_disk=$disk; saved_target=$target
+sq=$out/fs27.img; disk=$sq; target=
+python3 "$root/tools/sqfs.py" "$sq" format 1024
+python3 "$root/tools/sqfs.py" "$sq" mkdir 'My Documents'
+printf 'one two\nthree\n' > "$out/notes27"
+python3 "$root/tools/sqfs.py" "$sq" put "$out/notes27" 'My Documents/notes about the winter stores.txt'
+check lfntest        'lfntest: PASS'        lfntest '<ret>'
+check_all lfn-host   'notes about the winter stores.txt 14|one two' 'cd "My Documents"' '<ret>' ls '<ret>' 'cat "notes about the winter stores.txt"' '<ret>'
+check_all lfn-kernel 'a folder with a long name/|ok' 'mkdir "a folder with a long name"' '<ret>' 'put "a folder with a long name/and a file in it too" acorns' '<ret>' ls '<ret>'
+lfnout=$(python3 "$root/tools/sqfs.py" "$sq" get 'a folder with a long name/and a file in it too' 2>&1)
+if [ "$lfnout" = acorns ]; then echo "ok   lfn-sqfs-py"; else echo "FAIL lfn-sqfs-py ($lfnout)"; fail=1; fi
+python3 - "$sq" <<'PYEOF'    # an orphaned long-name part (its owner, entry 60, is free)
+import sys
+f = open(sys.argv[1], 'r+b'); f.seek(512 + 63 * 32)
+f.write(b'left behind by an old kernel'[:23] + bytes([0x5A]) + bytes(4) + bytes([0xFF, 2, 60, 1])); f.close()
+PYEOF
+check lfn-sweep      'Files:'               ls '<ret>'
+sweep=$(python3 -c "import sys; f=open(sys.argv[1],'rb'); f.seek(512+63*32); print(f.read(1)[0])" "$sq")
+if [ "$sweep" = 0 ]; then echo "ok   lfn-sweep-freed"; else echo "FAIL lfn-sweep-freed"; fail=1; fi
+fat() { python3 "$root/tools/fatimg.py" "$@"; }
+fatok() {   # fatok NAME IMAGE: the image passes fatimg.py check
+    if r=$(fat "$2" check 2>&1); then echo "ok   $1"; else echo "FAIL $1 ($r)"; fail=1; fi
+}
+printf 'Hello from a FAT floppy\n' > "$out/fatreadme"
+for spec in "12 1440" "16 16384 --part" "32 40960 --part"; do
+    set -- $spec
+    fat "$out/fat$1.img" format $2 $1 $3
+    fat "$out/fat$1.img" mkdir docs
+    fat "$out/fat$1.img" put "$out/fatreadme" README.TXT
+    fat "$out/fat$1.img" put "$out/notes27" 'docs/A Long Document Name.txt'
+done
+target=$out/fat12.img
+check_all fat12-read 'D: FAT12, 1440 KB, hd2|README.TXT|docs/|Hello from a FAT floppy|one two' 'mount d: hd2' '<ret>' 'ls d:/' '<ret>' 'cat d:/readme.txt' '<ret>' 'cat "d:/DOCS/a long document name.txt"' '<ret>'
+check fat12-write    'fattest: PASS'        'mount d: hd2' '<ret>' 'fattest d:' '<ret>' '<pause>' '<pause>'
+check_all fat12-cp   '24 bytes copied|14 bytes copied|Hello from a FAT floppy' 'mount d: hd2' '<ret>' 'cp d:/readme.txt "fat copy with a long name"' '<ret>' 'cp "My Documents/notes about the winter stores.txt" "d:/docs/Copied From SQFS.txt"' '<ret>' 'cat "fat copy with a long name"' '<ret>'
+fatout=$(fat "$out/fat12.img" get 'docs/copied from sqfs.txt' 2>&1)
+if [ "$fatout" = "$(cat "$out/notes27")" ]; then echo "ok   fat12-host-read"; else echo "FAIL fat12-host-read ($fatout)"; fail=1; fi
+check_all fat12-mv   'ok|Read Me First.txt|New Folder/' 'mount d: hd2' '<ret>' 'mv d:/readme.txt "Read Me First.txt"' '<ret>' 'mkdir "d:/New Folder"' '<ret>' 'ls d:' '<ret>'
+check fat-xdev       'Cannot move between drives' 'mount d: hd2' '<ret>' 'mv "fat copy with a long name" d:/x' '<ret>'
+check fat-nodrive    'No such drive'        'cat e:/nothing' '<ret>'
+check_all fat-letter 'That drive letter is in use|Already mounted on another drive letter' 'mount d: hd2' '<ret>' 'mount d: hd2' '<ret>' 'mount f: hd2' '<ret>'
+fatok fat12-fsck "$out/fat12.img"
+target=$out/fat16.img
+check_all fat16-part 'D: FAT16, 15 MB, hd2|fattest: PASS' 'mount d: hd2' '<ret>' 'fattest d:' '<ret>' '<pause>' '<pause>'
+fatok fat16-fsck "$out/fat16.img"
+# drive and shredder objects (fsobj.asm)
+check fsobjtest      'fsobjtest: PASS'      fsobjtest '<ret>'
+check_all drive-obj  'class Drive|name: Drive D|path: D:/|shredder.obj' 'mount d: hd2' '<ret>' 'objcat /desktop/drive-d.obj' '<ret>' 'ls /desktop' '<ret>'
+check_none drive-obj-boot 'drive-d.obj' 'shredder.obj' 'ls /desktop' '<ret>'
+check_all drive-browse 'd:/docs|> A Long Document Name.txt 14|Esc: close' 'mount d: hd2' '<ret>' 'drive d:' '<ret>' '<ret>'
+check_all drive-show 'one two|(press a key)' 'mount d: hd2' '<ret>' 'drive d:' '<ret>' '<ret>' '<ret>'
+check_all drive-up   '> docs/|  README.TXT 24' 'mount d: hd2' '<ret>' 'drive d:' '<ret>' '<ret>' '<backspace>'
+target=$out/fat32.img
+check_all fat32-part 'D: FAT32, 39 MB, hd2|A Long Document Name.txt|fattest: PASS' 'mount d: hd2' '<ret>' 'ls d:/docs' '<ret>' 'fattest d:' '<ret>' '<pause>' '<pause>'
+check_all fat32-cp   '14 bytes copied|notes about the winter stores.txt 14' 'mount d: hd2' '<ret>' 'cp "My Documents/notes about the winter stores.txt" d:/docs' '<ret>' 'ls d:/docs' '<ret>'
+fatok fat32-fsck "$out/fat32.img"
+# a FAT image file on the SQFS disk, mounted as a drive
+fat "$out/floppy27.img" format 160 12
+fat "$out/floppy27.img" put "$out/fatreadme" inside.txt
+python3 "$root/tools/sqfs.py" "$sq" put "$out/floppy27.img" 'disk image.img'
+target=
+check_all fat-loop   'E: FAT12, 160 KB, disk image.img|inside.txt|fattest: PASS|File is open|ok' 'mount e: "disk image.img"' '<ret>' 'ls e:' '<ret>' 'fattest e:' '<ret>' '<pause>' 'rm "disk image.img"' '<ret>' 'umount e:' '<ret>'
+python3 "$root/tools/sqfs.py" "$sq" get 'disk image.img' "$out/floppy27b.img"
+fatok fat-loop-fsck "$out/floppy27b.img"
+disk=$saved_disk; target=$saved_target
 # C.4: spreadsheet with charts
 check sheet         'sheet: PASS'           'run sheet test' '<ret>' '<pause>' '<pause>' '<pause>'
 check_all sheet-calc 'gfx: A3: =A1*A2+1|gfx: = 7' 'run sheet' '<ret>' '<pause>' '2' '<ret>' '3' '<ret>' '=A1*A2+1' '<ret>' '<up>' '<pause>' '<gfx>'
@@ -946,6 +1189,181 @@ check dos-gfx-after   'systest: PASS'         'run dosgfx.com' '<ret>' '<pause>'
 # P.10: a FreeBSD i386 ELF: arguments on the stack, errors as CF + errno
 check_all bsd-hello   'Hello from FreeBSD land!|bsdhello: PASS'  'run bsdhello' '<ret>'
 check bsd-after       'Hello from DOS land!'  'run bsdhello' '<ret>' 'run doshello.com' '<ret>'
+# P.9: an OS/2 32-bit LX program: objects, fixups, DOSCALLS by ordinal, TIB/PIB
+check_all os2-hello   'Hello from OS/2 land!|arguments: acorns|os2hello: PASS'  'run os2hello acorns' '<ret>'
+check os2-missing     'os2run: DOSCALLS.1 is not implemented'  'run os2hello stub' '<ret>'
+check os2-notlx       'not an OS/2 32-bit LX program'  'run os2run doshello.com' '<ret>'
+check os2-after       'Hello from DOS land!'  'run os2hello' '<ret>' 'run doshello.com' '<ret>'
+# P.6: a Win32 GUI program: window, WM_PAINT with GDI, timer, keys, DestroyWindow
+check_all win-gui     'gfx: Acorn window|gfx: Hello from Win32 GUI|gfx: winwnd: PASS'  'run winwnd' '<ret>' '<pause>' q '<pause>' '<gfx>'
+check win-gui-after   'systest: PASS'         'run winwnd' '<ret>' '<pause>' x '<pause>' systest '<ret>'
+check_all win-reg     'winreg: PASS|winreg: count 2'  'run winreg' '<ret>' 'run winreg again' '<ret>'
+check win-reg-file    'HKCU\Software\Acorn|count|4|02000000'  'run winreg' '<ret>' 'run winreg again' '<ret>' 'cat registry.dat' '<ret>'
+check_all win-dll     'windll: Hello from acorn.dll|windll: PASS'  'run windll' '<ret>'
+check win-dll-gone    'not implemented: Gone' 'run windll gone' '<ret>'
+# A.4: SYS_DEBUG, the disassembler and the debugger
+disk=$out/dev.img
+check dbg-api       'dbgtest: PASS'         'run dbgtest' '<ret>' '<pause>'
+check dbg-api-after 'systest: PASS'         'run dbgtest' '<ret>' '<pause>' systest '<ret>'
+check dbg-disasm    'distest: PASS'         'run distest' '<ret>'
+check_all dbg-entry '10 symbols loaded|pid 2 stopped at its entry|main:|00030010  B801000000        mov eax,0x1'  'run debugger dbgtgt' '<ret>' '<pause>'
+check_all dbg-break 'breakpoint 1 at 0003001C <here>|pid 2 hit breakpoint 1|0003001C  89C1              mov ecx,eax'  'run debugger dbgtgt' '<ret>' '<pause>' 'b here' '<ret>' c '<ret>' '<pause>'
+check_all dbg-step  '0003001A  01D8              add eax,ebx|eax=00000003 ebx=00000002|eip=0003001C <here>'  'run debugger dbgtgt' '<ret>' '<pause>' 's 2' '<ret>' s '<ret>' r '<ret>'
+check_all dbg-set   'eax=00000007|dbgtgt result 7|pid 2 ended (exit code 7)'  'run debugger dbgtgt' '<ret>' '<pause>' 'b here' '<ret>' c '<ret>' '<pause>' 'set eax 7' '<ret>' 'bd 1' '<ret>' c '<ret>' '<pause>'
+check_all dbg-next  'call 0x3007b <level1>|00030029  8B742404          mov esi,[esp+0x4]'  'run debugger dbgtgt' '<ret>' '<pause>' 'b here' '<ret>' c '<ret>' '<pause>' n '<ret>' n '<ret>' n '<ret>'
+check_all dbg-bt    'at 00030085 <level2>|at 00030083 <level1+8>|at 00030029 <here+d>'  'run debugger dbgtgt' '<ret>' '<pause>' 'b level2' '<ret>' c '<ret>' '<pause>' bt '<ret>'
+check_all dbg-mem   '0003009F  03 00 00 00|00030090  64 62 67 74 67 74 20 72 65 73 75 6C 74 20 00 03  dbgtgt result ..'  'run debugger dbgtgt' '<ret>' '<pause>' 'b level1' '<ret>' c '<ret>' '<pause>' 'x result 4' '<ret>' 'x msg 16' '<ret>'
+check_all dbg-fault 'stopped by CPU exception 14 at address 00000010|pid 2 ended (exit code -1)'  'run debugger dbgtgt f' '<ret>' '<pause>' c '<ret>' '<pause>' kill '<ret>'
+check_all dbg-esc   'pid 2 stopped|<here.spin>'  'run debugger dbgtgt s' '<ret>' '<pause>' c '<ret>' '<pause>' '<esc>' '<pause>'
+check dbg-quit      'systest: PASS'         'run debugger dbgtgt s' '<ret>' '<pause>' c '<ret>' '<pause>' '<esc>' '<pause>' q '<ret>' '<pause>' systest '<ret>'
+check_all dbg-elf   '3 symbols loaded|start:|00030059 loop_top|00030073 value'  'run debugger dbgelf' '<ret>' '<pause>' sym '<ret>'
+check_all dbg-elf-run 'loop 0x30059 <loop_top>|dbgelf done|pid 2 ended (exit code 6)'  'run debugger dbgelf' '<ret>' '<pause>' 'u start 4' '<ret>' g '<ret>' '<pause>'
+# A.3: the terminal (SYS_TTY): programs in windows, their output and input
+check_all term-run  'gfx: Terminal 1|gfx: 1> hello world|gfx: Hello from a loaded program!|gfx: Argument: world'  'run terminal' '<ret>' '<pause>' '<pause>' 'hello world' '<ret>' '<pause>' '<gfx>'
+check_all term-builtin 'gfx: hi there|gfx: Unknown command or program|gfx: F1-F4 sessions, F5 one/all windows, F10 quit'  'run terminal' '<ret>' '<pause>' '<pause>' 'echo hi there' '<ret>' nothing '<ret>' help '<ret>' '<pause>' '<gfx>'
+check_all term-input 'gfx: 1> wc|gfx: 2 3 14'  'run terminal' '<ret>' '<pause>' '<pause>' wc '<ret>' '<pause>' 'one two' '<ret>' three '<ret>' '<ctrl-d>' '<pause>' '<gfx>'
+check_all term-sessions 'gfx: Terminal 1 - dbgtgt|gfx: 1> dbgtgt s|gfx: Terminal 2|gfx: 2> hello two|gfx: Argument: two'  'run terminal' '<ret>' '<pause>' '<pause>' 'dbgtgt s' '<ret>' '<pause>' '<f2>' '<pause>' 'hello two' '<ret>' '<pause>' '<f5>' '<pause>' '<gfx>'
+check_all term-ctrlc 'gfx: ^C|gfx: *** CPU exception 14 (page fault) in pid 3 (dbgtgt)|gfx: [exit code -1]'  'run terminal' '<ret>' '<pause>' '<pause>' 'dbgtgt s' '<ret>' '<pause>' '<ctrl-c>' '<pause>' 'dbgtgt f' '<ret>' '<pause>' '<pause>' '<gfx>'
+check_all term-debugger 'gfx: pid 3 hit breakpoint 1|gfx: pid 3 stopped|gfx: jmp 0x30073 <here.spin>|gfx: pid 3 ended (exit code -1)'  'run terminal' '<ret>' '<pause>' '<pause>' 'debugger dbgtgt s' '<ret>' '<pause>' 'b level1' '<ret>' c '<ret>' '<pause>' 'bd 1' '<ret>' c '<ret>' '<pause>' '<esc>' '<pause>' q '<ret>' '<pause>' '<gfx>'
+check_all term-quit 'systest: PASS|0        running  shell'  'run terminal' '<ret>' '<pause>' '<pause>' 'dbgtgt s' '<ret>' '<f2>' '<pause>' exit '<ret>' '<pause>' '<f10>' '<pause>' '<pause>' systest '<ret>' ps '<ret>'
+# 3.0 (OS2-NET-AUDIO): sound. AC'97 and Intel HDA under QEMU (-audiodev none paces the DMA in
+# real time; -audiodev wav writes what was played, which tools/wavcheck.py listens to)
+python3 "$root/tools/sqfs.py" "$out/snd.img" format 1024
+for prog in wavplay sndrec mixer spectrum; do
+    nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
+    python3 "$root/tools/sqfs.py" "$out/snd.img" put "$out/$prog"
+done
+python3 - "$out" <<'PYEOF'    # test tones: 1 kHz 16-bit mono 22050 Hz, 440 Hz 8-bit stereo 11025 Hz
+import math, struct, sys
+def wav(name, rate, ch, bits, freq, secs, amp):
+    data = bytearray()
+    for i in range(int(rate * secs)):
+        v = math.sin(2 * math.pi * freq * i / rate)
+        for _ in range(ch):
+            data += struct.pack('<h', int(v * amp)) if bits == 16 else bytes([128 + int(v * amp / 256)])
+    fmt = struct.pack('<HHIIHH', 1, ch, rate, rate * ch * bits // 8, ch * bits // 8, bits)
+    open(sys.argv[1] + '/' + name, 'wb').write(b'RIFF' + struct.pack('<I', 36 + len(data)) + b'WAVEfmt '
+        + struct.pack('<I', 16) + fmt + b'data' + struct.pack('<I', len(data)) + data)
+wav('tone1k.wav', 22050, 1, 16, 1000, 0.5, 12000)
+wav('tone8.wav', 11025, 2, 8, 440, 0.5, 20000)
+PYEOF
+for f in tone1k.wav tone8.wav; do python3 "$root/tools/sqfs.py" "$out/snd.img" put "$out/$f"; done
+snd_disk=$disk; disk=$out/snd.img
+check audio-none    'audio: no device'      audio '<ret>'
+check spectrum-test 'spectrum: peak 1000 Hz, 80 dB' 'run spectrum tone1k.wav test' '<ret>' '<pause>'
+check spectrum-8bit 'spectrum: peak 440 Hz' 'run spectrum tone8.wav test' '<ret>' '<pause>'
+check wavplay-nodev 'wavplay: no sound device' 'run wavplay tone1k.wav' '<ret>'
+export QEMU_EXTRA='-audiodev none,id=snd0 -device AC97,audiodev=snd0'
+check audio-ac97    'audio: ac97'           audio '<ret>'
+check audiotest-ac97 'audio: PASS ac97'     audiotest '<ret>' '<pause>'
+check_all wavplay-ac97 'wavplay: 22050 Hz, 16-bit, mono, 0.50 s|wavplay: played 11025 frames' 'run wavplay tone1k.wav' '<ret>' '<pause>' '<pause>'
+check_all wavplay-ac97-8 'wavplay: 11025 Hz, 8-bit, stereo, 0.49 s|wavplay: played 5512 frames' 'run wavplay tone8.wav' '<ret>' '<pause>' '<pause>'
+check_all sndrec-ac97 'sndrec: 1.00 s, 88200 bytes, peak 0 -> rec.wav|wavplay: 22050 Hz, 16-bit, stereo, 1.00 s' 'run sndrec rec.wav 1' '<ret>' '<pause>' '<pause>' 'run wavplay rec.wav' '<ret>' '<pause>' '<pause>'
+check_all mixer-ac97 'master  39%  39%  on|pcm     74%  74%  muted|record  100%  100%  on' 'run mixer master 40' '<ret>' 'run mixer pcm mute' '<ret>' 'run mixer record 100' '<ret>'
+check_all mixer-gui-ac97 'gfx: Mixer|gfx: Device: ac97|gfx: 65%|gfx: muted' 'run mixer' '<ret>' '<pause>' '<down>' '<down>' '<pgdn>' '<right>' m '<pause>' '<gfx>'
+check mixer-quit    'systest: PASS'         'run mixer' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
+check_all spectrum-gui 'gfx: Spectrum Analyser|gfx: Peak 1000 Hz|gfx: 11025 Hz' 'run spectrum tone1k.wav' '<ret>' '<pause>' '<gfx>'
+export QEMU_EXTRA='-audiodev none,id=snd0 -device intel-hda -device hda-duplex,audiodev=snd0'
+check audio-hda     'audio: hda codec 0, dac 2, pin 3, adc 4' audio '<ret>'
+check audiotest-hda 'audio: PASS hda'       audiotest '<ret>' '<pause>'
+check_all wavplay-hda 'wavplay: 11025 Hz, 8-bit, stereo, 0.49 s|wavplay: played 5512 frames' 'run wavplay tone8.wav' '<ret>' '<pause>' '<pause>'
+check sndrec-hda    'sndrec: 1.00 s, 88200 bytes, peak 0 -> rec.wav' 'run sndrec rec.wav 1' '<ret>' '<pause>' '<pause>'
+check_all mixer-hda 'master  41%  41%  on|record  30%  30%  on' 'run mixer master 40' '<ret>' 'run mixer record 30' '<ret>'
+check_all mixer-hda-mute 'master  100%  100%  muted|pcm     100%  100%  muted' 'run mixer master mute' '<ret>'
+# what reached QEMU's audio backend: the 1 kHz tone, from both drivers
+for snd in "AC97,audiodev=snd0" "intel-hda -device hda-output,audiodev=snd0"; do
+    rm -f "$out/played.wav"
+    export QEMU_EXTRA="-audiodev wav,id=snd0,path=$out/played.wav -device $snd"
+    python3 "$root/tools/qemu_screen.py" --disk "$disk" "$out/os.img" 'run wavplay tone1k.wav' '<ret>' '<pause>' '<pause>' >/dev/null 2>&1 || true
+    name=wavout-${snd%%,*}; name=${name%% *}
+    if result=$(python3 "$root/tools/wavcheck.py" "$out/played.wav" 1000 0.25); then echo "ok   $name"; else echo "FAIL $name ($result)"; fail=1; fi
+done
+unset QEMU_EXTRA
+disk=$snd_disk
+# OS2-HW H.3/H.4: AHCI and NVMe disks as sd0 and nv0 (drivers/ahci.asm, drivers/nvme.asm)
+disk=$out/hw.img
+hwdisk "$out/sata.img"; hwdisk "$out/nvme.img"
+export QEMU_EXTRA="-device ahci,id=ahci -drive if=none,id=sd,file=$out/sata.img,format=raw -device ide-hd,drive=sd,bus=ahci.0 -drive if=none,id=nv,file=$out/nvme.img,format=raw -device nvme,serial=sqhw,drive=nv"
+check_all hw-devices 'sd0     block   ready 8192 sectors|nv0     block   ready 8192 sectors'  devices '<ret>'
+check hw-ahci       'blkdev: sd0 PASS'      'run blkdev sd0' '<ret>'
+sector5 hw-ahci-disk "$out/sata.img"
+check hw-nvme       'blkdev: nv0 PASS'      'run blkdev nv0' '<ret>'
+sector5 hw-nvme-disk "$out/nvme.img"
+check hw-after      'systest: PASS'         'run blkdev sd0' '<ret>' 'run blkdev nv0' '<ret>' systest '<ret>'
+unset QEMU_EXTRA
+check_none hw-absent 'sd0     block' 'ne0     net' devices '<ret>'
+check hw-missing    'blkdev: FAIL'          'run blkdev nv0' '<ret>'
+# q35: no IDE at all; the boot disk and the data disk are both on AHCI, the data disk becomes the file system
+cp "$out/os.img" "$out/os-q35.img"; truncate -s 2M "$out/os-q35.img"
+cp "$out/hw.img" "$out/hw-q35.img"
+export QEMU_EXTRA="-M q35"; boot=$out/os-q35.img; disk=$out/hw-q35.img
+check_all hw-q35    'hd1     block   absent|sd1     block   ready 2048 sectors|blkdev  '  devices '<ret>' ls '<ret>'
+unset QEMU_EXTRA boot
+# OS2-HW H.5/H.6: xHCI. QEMU sends typed keys to the USB keyboard once it is there (not to the
+# 8042), so these checks only pass if usbkbd.asm turns its reports into scan codes.
+disk=$out/hw.img
+hwdisk "$out/usb.img"
+export QEMU_EXTRA="-device qemu-xhci,id=xhci -device usb-kbd,bus=xhci.0"
+check_all hw-usb-kbd "echo Hello, USB World! (a+b)|${nl}Hello, USB World! (a+b)"  'echo Hello, USB World! (a+b)' '<ret>'
+check hw-usb-kbd-edit "${nl}Hello, USB World! (a+bX"  'echo Hello, USB World! (a+b)' '<ret>' '<up>' '<backspace>' X '<ret>'
+check_all hw-usb-keyev 'keyev: queue Q getc Q|keyev: PASS'  'run keyev' '<ret>' '<pause>' Q '<pause>'
+export QEMU_EXTRA="-device qemu-xhci,id=xhci -device usb-kbd,bus=xhci.0 -drive if=none,id=us,file=$out/usb.img,format=raw -device usb-storage,bus=xhci.0,drive=us"
+check hw-usb-devices 'ud0     block   ready 8192 sectors'  devices '<ret>'
+check hw-usb-msd    'blkdev: ud0 PASS'      'run blkdev ud0' '<ret>'
+sector5 hw-usb-msd-disk "$out/usb.img"
+check hw-usb-after  'systest: PASS'         'run blkdev ud0' '<ret>' systest '<ret>'
+# boot from a USB stick on a machine without IDE (the BIOS reads it; the kernel then finds it as ud0)
+cp "$out/os.img" "$out/stick.img"; truncate -s 4M "$out/stick.img"
+truncate -s 1M "$out/blank.img"; cp "$out/hw.img" "$out/hw-q35.img"
+export QEMU_EXTRA="-M q35 -device qemu-xhci,id=xhci -drive if=none,id=st,file=$out/stick.img,format=raw -device usb-storage,bus=xhci.0,drive=st,bootindex=0"
+boot=$out/blank.img; disk=$out/hw-q35.img
+check_all hw-usb-boot 'hd0     block   absent|ud0     block   ready 8192 sectors|blkdev  '  devices '<ret>' ls '<ret>'
+unset QEMU_EXTRA boot
+# OS2-HW H.1/H.2: boot through UEFI firmware from the EFI system partition. The kernel's text
+# screen is then in RAM at 0x1f8000 and drawn into the GOP framebuffer, which <gop> reads back.
+# Needs OVMF (OVMF_FD, OVMF32_CODE/OVMF32_VARS) and, optionally, SquirrelBIOS (SQUIRRELBIOS_FD);
+# without them these checks print "skip".
+skip() { echo "skip $1 ($2)"; }
+uefi_keys="<pause> <pause> <pause> <pause> <pause> <pause> <pause> <pause>"
+OVMF_FD=${OVMF_FD:-/usr/share/ovmf/OVMF.fd}
+OVMF32_CODE=${OVMF32_CODE:-/usr/share/OVMF/OVMF32_CODE_4M.fd}
+OVMF32_VARS=${OVMF32_VARS:-/usr/share/OVMF/OVMF32_VARS_4M.fd}
+disk=$out/hw.img; boot=$out/esp.img
+export QEMU_TEXT=0x1f8000 QEMU_BIN=qemu-system-x86_64
+if [ -f "$OVMF_FD" ] && command -v qemu-system-x86_64 >/dev/null; then
+    export QEMU_EXTRA="-bios $OVMF_FD"
+    check_all uefi-x64      'Squirrel-OS/2 2.1|systest: PASS|blkdev  '  $uefi_keys systest '<ret>' ls '<ret>'
+    check_all uefi-x64-mem  'BIOS memory map:|usable|KB free'  $uefi_keys mem '<ret>'
+    check_all uefi-x64-gop  'gop: Squirrel-OS/2 2.1|gop: > echo UEFI GOP x|gop: UEFI GOP x'  $uefi_keys 'echo UEFI GOP x' '<ret>' '<pause>' '<gop>'
+else
+    skip uefi-x64 "no OVMF at $OVMF_FD"
+fi
+if [ -f "$OVMF32_CODE" ] && [ -f "$OVMF32_VARS" ] && command -v qemu-system-x86_64 >/dev/null; then
+    cp "$OVMF32_VARS" "$out/ovmf32-vars.fd"
+    export QEMU_EXTRA="-drive if=pflash,format=raw,readonly=on,file=$OVMF32_CODE -drive if=pflash,format=raw,file=$out/ovmf32-vars.fd"
+    check_all uefi-ia32     'Squirrel-OS/2 2.1|systest: PASS|gop: > systest'  $uefi_keys systest '<ret>' '<pause>' '<gop>'
+else
+    skip uefi-ia32 "no 32-bit OVMF at $OVMF32_CODE"
+fi
+if [ -n "$SQUIRRELBIOS_FD" ] && [ -f "$SQUIRRELBIOS_FD" ]; then
+    # SquirrelBIOS 2.1.0 x86_64-uefi reads its ESP from virtio-blk only. It sometimes misses
+    # BOOTX64.EFI and falls back to its CSM, so this check gets three tries.
+    # hd0 is an empty disk with only a boot signature (systest reads it); nothing on it boots
+    python3 -c "import sys; open(sys.argv[1], 'wb').write(bytes(510) + b'\x55\xaa' + bytes(1 << 20))" "$out/sig.img"
+    boot=$out/sig.img
+    export QEMU_EXTRA="-bios $SQUIRRELBIOS_FD -drive if=none,id=esp,format=raw,file=$out/esp.img -device virtio-blk-pci,drive=esp"
+    for try in 1 2 3; do
+        screen=$(python3 "$root/tools/qemu_screen.py" --disk "$disk" "$boot" '<pause>' '<pause>' '<pause>' systest '<ret>' '<pause>' '<gop>')
+        case $screen in *"systest: PASS"*"gop: > systest"*) break ;; esac
+    done
+    case $screen in
+        *"systest: PASS"*"gop: > systest"*) echo "ok   uefi-squirrelbios" ;;
+        *) echo "FAIL uefi-squirrelbios (no shell after 3 boots)"; fail=1 ;;
+    esac
+else
+    skip uefi-squirrelbios "set SQUIRRELBIOS_FD to SquirrelBIOS-2.1.0-x86_64-uefi.fd"
+fi
+unset QEMU_EXTRA QEMU_TEXT QEMU_BIN boot
 disk=$out/auto.img
 check bat-autoexec  'autoexec ran'
 check lang-autoexec 'Tabulae:'              ls '<ret>'

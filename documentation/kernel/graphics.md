@@ -70,6 +70,8 @@ The graphics font is an original 5 × 7 design for the printable ASCII codes 0x2
 
 Each character fills a 6 × 8 cell: the glyph, then one column and one row of background, so a string reads as words on a solid band.
 
+Since 2.2 there are also two proportional faces (`FONT_9`, `FONT_12`, `tools/fontp*.txt`, `gfx_drawstr_p`); window text uses them. See `windows.md`, *Proportional fonts*.
+
 ## Test
 
 `gfxtest` (a shell command) enters mode 13h, writes colour `0x2A` to pixel (160, 100) and reads it back, does the same with `0x15`, returns to text mode and prints `gfxtest: PASS` if both reads matched (check `gfxtest`). In text mode the window at `0xA0000` is not mapped, so a read there returns `0xFF` and the test fails: with the call to `gfx_mode13` taken out, it prints `gfxtest: FAIL`. Check `gfx-text` runs `systest` after `gfxtest` to show the text screen works again.
@@ -80,7 +82,7 @@ Each character fills a 6 × 8 cell: the glyph, then one column and one row of ba
 
 ## Theme and bevels (W.1-theme)
 
-Every colour and size the window manager, widgets, desktop and mouse pointer draw with is named once in `kernel/theme.inc` (`TH_DESKTOP`, `TH_FACE`, `TH_LIGHT`, `TH_SHADOW`, `TH_DARK`, `TH_FRAME`, `TH_TITLE`, `TH_TITLE_IDLE`, `TH_TITLE_TEXT`, `TH_CLIENT`, `TH_TEXT`, `TH_BTN_FACE`, `TH_POINTER`, `TH_BEVEL_W`). The older names (`WM_DESKTOP`, `WM_FRAME`, `WM_BAR`, `WG_BTN_FILL`, `PTR_COLOUR` and so on) are aliases of them, so the look is unchanged; a later theme (Control Panel, 2.3) changes only `theme.inc`.
+Every colour and size the window manager, widgets, desktop and mouse pointer draw with is named once in `kernel/theme.inc` (`TH_DESKTOP`, `TH_FACE`, `TH_LIGHT`, `TH_SHADOW`, `TH_DARK`, `TH_FRAME`, `TH_TITLE`, `TH_TITLE_IDLE`, `TH_TITLE_TEXT`, `TH_CLIENT`, `TH_TEXT`, `TH_BTN_FACE`, `TH_POINTER`, `TH_BEVEL_W`). The older names (`WM_DESKTOP`, `WM_FRAME`, `WM_BAR`, `WG_BTN_FILL`, `PTR_COLOUR` and so on) are aliases of them, so the look is unchanged; the Control Panel (2.3-control) chooses a scheme at run time: `wm_paint` takes the desktop and title bar colours from `th_desk`, `th_bar` and `th_bar_idle`, which start as the `theme.inc` values (`documentation/apps/control.md`).
 
 `gfx_bevel` (eax, ebx = top left, ecx = width, edx = height, esi = 0 raised / 1 sunken) draws `TH_BEVEL_W` (2) rings just inside the rectangle. In each ring the top row and left column are drawn first and the bottom row and right column after them, so the top-right and bottom-left corners take the second colour. Raised: light / dark outside, light / shadow inside. Sunken: shadow / light outside, dark / face inside. The face is not filled and `gfx_colour` is kept.
 

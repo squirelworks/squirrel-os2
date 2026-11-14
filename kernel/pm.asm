@@ -34,6 +34,7 @@ stage2:
     mov ds, ax
     mov es, ax
     mov [ld_drive], dl          ; the boot drive, from the boot sector
+    mov dword [UEFI_INFO], 0    ; a BIOS boot: no UEFI hand-off (H.1, drivers/gopcon.asm)
     ; the CPU must have CPUID, an FPU and 4 MB pages (PSE): a Pentium or
     ; later (0.9.3). Say so instead of crashing later.
     pushfd
@@ -113,10 +114,18 @@ gdt_tss_df:                     ; 0x20: the double-fault task
     dw 0xFFFF,0,0xF200,0x00CF   ; 0x30: ring-3 data, flat; the kernel's DS/ES too
 gdt_tls:                        ; 0x38: per-process TLS segment, FS/GS (P.5, tls.asm)
     dw 0xFFFF,0,0xF200,0x00CF
+gdt_cs64:                       ; 0x40: 64-bit kernel code, long mode (2.8, lm.asm)
+    dw 0xFFFF,0,0x9A00,0x00AF
+gdt_tss_cpu:                    ; 0x48 on: one TSS per CPU record (2.8, smp.asm)
+    times 16 dq 0               ; SMP_MAX
 gdt_desc:
     dw $-gdt-1
     dd gdt
 e820_count dw 0                 ; written in real mode, so also below 32 KB
+; UEFI hand-off header (H.1): boot/uefi/ finds it by its signature, then
+; fills E820_BUF, e820_count, ld_drive and UEFI_INFO, copies the two
+; images and enters pm through this GDT. See documentation/kernel/hardware.md.
+uefi_hdr dd 'S2UE', pm, gdt_desc, ld_drive, e820_count, KERNEL_SIZE, KHIGH_BASE
 msg_oldcpu db 'Squirrel-OS/2 needs a Pentium-class CPU (CPUID, FPU, 4 MB pages).', 13, 10, 0
 %include "khigh.asm"
 
@@ -162,6 +171,7 @@ pm:
     mov eax, mouse_isr          ; IRQ 12 (2.0.1)
     call set_gate
     call syscall_init
+    call dbg_init               ; INT3 from ring 3 (A.4)
     lidt [idt_desc]
     call fpu_init
     call proc_init
@@ -171,6 +181,7 @@ pm:
     call ata_init
     call mouse_init             ; PS/2 mouse (1.9.10; IRQ 12 since 2.0.1)
     call dev_init
+    call hw_init                ; PCI disks, USB (OS2-HW, drivers/hw.asm)
 
     ; PIC + PIT
     mov al, 0x11
@@ -217,8 +228,10 @@ pm:
     call fs_mount_boot
     call ins_mount_system       ; no data disk: an installed system's partition (I.4)
     call hist_load
+    call cp_boot                ; the Control Panel's settings (2.3-control)
     mov byte [shell_up], 1      ; from here a crash can restart the shell
     sti                         ; autoexec.bat may run apps that need keys
+    call smp_init               ; start the other CPUs and park them (2.8)
     call bat_autoexec
     call sh_prompt
     sti
@@ -436,6 +449,12 @@ run_simple:
     mov edi, cmd_vbetest        ; 2.1
     call streq
     je .vbetest
+    mov edi, cmd_cpus           ; 2.8-smp-ap
+    call streq
+    je .cpus
+    mov edi, cmd_lmtest         ; 2.8-lm-entry
+    call streq
+    je .lmtest
     mov edi, cmd_cliptest       ; 2.1-blit-clip
     call streq
     je .cliptest
@@ -460,6 +479,33 @@ run_simple:
     mov edi, cmd_winmenu        ; 2.2-sysmenu
     call streq
     je .winmenu
+    mov edi, cmd_pfont          ; 2.2-propfont
+    call streq
+    je .pfont
+    mov edi, cmd_icontest       ; 2.3-icons
+    call streq
+    je .icontest
+    mov edi, cmd_cbtest         ; 2.3-clipboard
+    call streq
+    je .cbtest
+    mov edi, cmd_filemgr        ; 2.3-filemgr
+    call streq
+    je .filemgr
+    mov edi, cmd_control        ; 2.3-control
+    call streq
+    je .control
+    mov edi, cmd_cptest
+    call streq
+    je .cptest
+    mov edi, cmd_fmtest
+    call streq
+    je .fmtest
+    mov edi, cmd_progman        ; 2.3-groups
+    call streq
+    je .progman
+    mov edi, cmd_pmtest
+    call streq
+    je .pmtest
     mov edi, cmd_winalttab      ; 2.2-alttab
     call streq
     je .winalttab
@@ -490,6 +536,18 @@ run_simple:
     mov edi, cmd_ifconfig       ; 1.9.11 bare
     call streq
     je .ifconfig
+    mov edi, cmd_dhcp           ; 3.0
+    call streq
+    je .dhcp
+    mov edi, cmd_dnsbare        ; 3.0
+    call streq
+    je .dnsbare
+    mov edi, cmd_audio          ; 3.0
+    call streq
+    je .audio
+    mov edi, cmd_audiotest      ; 3.0
+    call streq
+    je .audiotest
     mov edi, cmd_objs           ; 1.7.2
     call streq
     je .objs
@@ -563,6 +621,8 @@ run_simple:
     call [ebx+4]
     jmp .empty
 .unknown:
+    call vol_command            ; mount, umount, cp, lfntest, fattest (2.7)
+    jnc .empty
     call sh_usage               ; a command word without its arguments?
     jnc .empty
     mov esi, [lstr+LS_UNKNOWN*4]
@@ -724,11 +784,44 @@ run_simple:
 .winmenu:
     call cmd_winmenu_run
     jmp .empty
+.pfont:
+    call cmd_pfont_run
+    jmp .empty
+.icontest:
+    call cmd_icontest_run
+    jmp .empty
+.cbtest:
+    call cmd_cbtest_run
+    jmp .empty
+.filemgr:
+    call cmd_filemgr_run
+    jmp .empty
+.control:
+    call cmd_control_run
+    jmp .empty
+.cptest:
+    call cmd_cptest_run
+    jmp .empty
+.fmtest:
+    call cmd_fmtest_run
+    jmp .empty
+.progman:
+    call cmd_progman_run
+    jmp .empty
+.pmtest:
+    call cmd_pmtest_run
+    jmp .empty
 .winalttab:
     call cmd_winalttab_run
     jmp .empty
 .vbetest:
     call cmd_vbetest_run
+    jmp .empty
+.cpus:
+    call cmd_cpus_run
+    jmp .empty
+.lmtest:
+    call cmd_lmtest_run
     jmp .empty
 .desktop:
     call cmd_desktop_run
@@ -750,6 +843,18 @@ run_simple:
     jmp .empty
 .ifconfig:
     call cmd_ifconfig_show
+    jmp .empty
+.dhcp:
+    call cmd_dhcp_run
+    jmp .empty
+.dnsbare:
+    call cmd_dns_show
+    jmp .empty
+.audio:
+    call cmd_audio_run
+    jmp .empty
+.audiotest:
+    call cmd_audiotest_run
     jmp .empty
 .objs:
     call cmd_objs_run
@@ -861,6 +966,9 @@ puts:
     ret
 
 putc:                         ; al = char; preserves all registers
+    cmp byte [tty_count], 0
+    jne tty_putc                ; a program on a terminal (tty.asm, A.3)
+.con:
     cmp byte [cap_on], 0
     jne cap_putc                ; output redirected (shell.asm)
     push eax
@@ -953,6 +1061,9 @@ timer_isr:
     call sysinfo_tick           ; CPU time (A.5)
     mov al, 0x20
     out 0x20, al
+    pushad
+    call hw_tick                ; polled drivers (OS2-HW)
+    popad
     ; preemption (1.1): once the slice is used up, the first tick that
     ; lands in a loaded program (ring 3 since 2.4) switches to the next
     ; READY process. Kernel code is never interrupted this way (it is not
@@ -974,6 +1085,8 @@ kbd_isr:
     push ebx
     push ecx
     in al, 0x64
+    test al, 1                  ; nothing there: read already (cp_kbd, 2.3-control)
+    jz .eoi
     test al, 0x20               ; an auxiliary byte: it is the mouse's (2.0.1)
     jnz .aux
     in al, 0x60
@@ -1095,7 +1208,7 @@ banner_rest db ' 2.1.0', 10  ; OS version: here only (see releases/PROCESS.md)
        db 'Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>', 10
        db '          mv <f> <new> | mkdir <d> | cd <d> | pwd | echo | batch <f> | format', 10
        db '          ps | disk | mem | devices | lang <en|la|tlh> | desktop | install', 10
-       db '          objcat', 10
+       db '          objcat | mount [x: <disk|file>] | umount x: | cp <from> <to>', 10
        db 'Tests: systest | proctest | blktest | fstest | memtest | keys', 10
        db '       gfxtest | gfxprim | gfxtext | vbetest | wintest | winmove | winfocus | nettest', 10
        db '       labeltest | buttontest | fieldtest | listtest | drawpx | objtest | objs', 10
@@ -1110,7 +1223,7 @@ cmd_trap db 'trap', 0
 cmd_overflow db 'overflow', 0
 
 ; argument for the next app started with run (e.g. run edit notes)
-run_arg times 64 db 0           ; FS_PATHMAX
+run_arg times 96 db 0           ; FS_PATHMAX (fs.asm)
 run_rest dd 0                   ; whole argument text, for loaded programs
 cmd_ps db 'ps', 0
 cmd_mem db 'mem', 0
@@ -1181,6 +1294,7 @@ usage_cmds:                     ; command, syntax, hint key or -1
     dd u_arp, u_arp_t, -1
     dd u_ping, u_ping_t, -1
     dd u_fetch, u_fetch_t, -1
+    dd u_host, u_host_t, -1
     dd u_run, u_run_t, LS_USAGE_RUN, u_batch, u_batch_t, -1, u_echo, u_echo_t, -1, 0
 u_put db 'put', 0
 u_mk db 'mk', 0
@@ -1194,6 +1308,7 @@ u_batch db 'batch', 0
 u_arp db 'arp', 0
 u_ping db 'ping', 0
 u_fetch db 'fetch', 0
+u_host db 'host', 0
 u_echo db 'echo', 0
 u_put_t db 'put <file> <text>', 0
 u_mk_t db 'mk <file>', 0
@@ -1206,7 +1321,8 @@ u_run_t db 'run <app|file> [text]', 0
 u_batch_t db 'batch <file>', 0
 u_arp_t db 'arp <ip>', 0
 u_ping_t db 'ping <ip>', 0
-u_fetch_t db 'fetch <ip> <port> <path>', 0
+u_fetch_t db 'fetch <host> <port> <path>', 0
+u_host_t db 'host <name>', 0
 u_echo_t db 0
 u_gap db '   ', 0
 
@@ -1226,6 +1342,9 @@ arg_cmds:
     dd cmd_ping, cmd_ping_run
     dd cmd_fetch, cmd_fetch_run
     dd cmd_ifconfig_arg, cmd_ifconfig_run
+    dd cmd_host, cmd_host_run
+    dd cmd_dns_arg, cmd_dns_run
+    dd cmd_control_a, cmd_control_arg   ; 2.3-control
     dd 0, 0
 cmd_disk db 'disk', 0
 cmd_blktest db 'blktest', 0
@@ -1242,6 +1361,16 @@ cmd_windrag db 'windrag', 0
 cmd_winmin db 'winmin', 0
 cmd_winmenu db 'winmenu', 0
 cmd_winalttab db 'winalttab', 0
+cmd_progman db 'progman', 0
+cmd_filemgr db 'filemgr', 0
+cmd_control db 'control', 0
+cmd_control_a db 'control ', 0
+cmd_cptest db 'cptest', 0
+cmd_cbtest db 'cbtest', 0
+cmd_fmtest db 'fmtest', 0
+cmd_pmtest db 'pmtest', 0
+cmd_pfont db 'pfont', 0
+cmd_icontest db 'icontest', 0
 cmd_wintest db 'wintest', 0
 cmd_winmove db 'winmove', 0
 cmd_winfocus db 'winfocus', 0
@@ -1262,6 +1391,12 @@ cmd_arp db 'arp ', 0
 cmd_ping db 'ping ', 0
 cmd_fetch db 'fetch ', 0
 cmd_ifconfig_arg db 'ifconfig ', 0
+cmd_host db 'host ', 0
+cmd_dns_arg db 'dns ', 0
+cmd_dhcp db 'dhcp', 0
+cmd_dnsbare db 'dns', 0
+cmd_audio db 'audio', 0
+cmd_audiotest db 'audiotest', 0
 cmd_desktop db 'desktop', 0
 cmd_proctest db 'proctest', 0
 proc_full db 'Too many processes', 10, 0
@@ -1437,6 +1572,8 @@ puthex:
 ; part at KHIGH_LIMIT. See documentation/kernel/kernel-image.md.
 section .high vstart=KHIGH_BASE follows=.text align=16
 khigh_start:
+%include "smp.asm"
+%include "lm.asm"
 %include "browser.asm"
 %include "calc.asm"
 %include "editor.asm"
@@ -1450,10 +1587,16 @@ khigh_start:
 %include "matrix.asm"
 %include "diff.asm"
 %include "graph.asm"
+%include "pfont.asm"
+%include "icon.asm"
 %include "wm.asm"
 %include "winsys.asm"
+%include "clip.asm"
 %include "widget.asm"
 %include "desktop.asm"
+%include "progman.asm"
+%include "filemgr.asm"
+%include "control.asm"         ; 2.3-control
 %include "object.asm"
 %include "net.asm"
 %include "ne2k.asm"
@@ -1461,7 +1604,28 @@ khigh_start:
 %include "ip.asm"
 %include "udp.asm"
 %include "tcp.asm"
+%include "dhcp.asm"                 ; 3.0 (OS2-NET-AUDIO)
+%include "dns.asm"
+%include "netsys.asm"
+%include "audio/pci.asm"           ; 3.0 (OS2-NET-AUDIO)
+%include "audio/ac97.asm"
+%include "audio/hda.asm"
+%include "audio/audio.asm"
 %include "appsys.asm"
+%include "fslfn.asm"
+%include "volume.asm"
+%include "fat.asm"
+%include "fsobj.asm"
+%include "debug.asm"
+%include "tty.asm"
+%include "drivers/hw.asm"
+%include "drivers/pci.asm"
+%include "drivers/ahci.asm"
+%include "drivers/nvme.asm"
+%include "drivers/xhci.asm"
+%include "drivers/usbkbd.asm"
+%include "drivers/usbmsd.asm"
+%include "drivers/gopcon.asm"
 %include "sysinfo.asm"
 
 
@@ -1469,6 +1633,9 @@ khigh_start:
 KHIGH_LIMIT equ (INS_PART_LBA-KHIGH_LBA)*512 ; to the installer's partition
 %if $-$$ > KHIGH_MAX-4 || $-$$ > KHIGH_LIMIT-4
 %error the high kernel image is larger than KHIGH_MAX or KHIGH_LIMIT
+%endif
+%if $-$$ > GOP_SHADOW-KHIGH_BASE-4
+%error the high kernel image runs into the GOP console's text shadow (drivers/gopcon.asm)
 %endif
 times (512-(($-$$+4) % 512)) % 512 db 0
 dd KHIGH_SIG

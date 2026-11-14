@@ -37,7 +37,22 @@ Every change follows these:
 
 Also already true of this project: document hardware assumptions, keep accepted limits in `documentation/specifications.md`, and follow `documentation/releases/PROCESS.md`.
 
-## Where things are (2.1.0)
+## Hand-off status (2026-11-14)
+
+The remaining work is left for Cursor / Codex. **[HANDOFF.md](HANDOFF.md)** has a card for every open
+item (files, acceptance, how to test) and the suggested order. In this file: `- [x]` is done on `main`;
+`- [ ]` is **open for Cursor/Codex**; *(in progress)* means a branch exists, finish it rather than redo it;
+*(Squirrel)* means only the owner can do it. The same states are labels on the GitHub issues
+(`status: done`, `status: in progress`, `cursor-codex`, `needs: squirrel`). The suite-wide continuation
+plan is `docs/CONTINUANCE.md` in squirrelsoft.
+
+**`main` is ahead of the 2.1.0 release** (as of `7844b67`): 2.2 (real windows), most of 2.3, 2.7 (long
+names, FAT, drive and shredder objects), 2.8 long-mode entry and SMP, H.1–H.6, the 3.0 networking and
+sound half, A.1–A.7 except A.3's Control Panel, every game, the whole calculator suite, and foreign
+programs P.1, P.2, P.5, P.6 (all but windows), P.8 (all but windows), P.9 (32-bit LX) and P.10 (FreeBSD). The next
+release (2.3.0) needs only 2.3-control and 2.3-bevel-default, then release notes for Squirrel to publish.
+
+## Where things were at the 2.1.0 release
 
 Done and covered by `tools/regress.sh`: everything through 2.0.2 (32-bit x86, preemptive priority scheduling, the 13h window manager, widgets and object desktop, SQFS, the installer, networking, en / la / tlh), plus 2.1 (VBE framebuffers with double buffering, dirty rectangles, blitter and clipping), 2.4 (kernel high image above 1 MB, programs in ring 3 with checked syscall pointers and growing stacks), the A.1/A.2/C.9 graphical apps and the C.2 grapher, games G.1–G.5, G.7 and G.8, and foreign programs P.1/P.5 with first parts of P.2 and P.8.
 
@@ -120,8 +135,8 @@ The GUI grows in generations, and each generation is a shippable milestone (epic
 ### 2.1–2.3 — Generation 1: "Windows 3.1 / OS/2 Warp 3 class"
 
 - [x] **2.1 Framebuffer graphics** — A VBE linear framebuffer at 640×480, 800×600 and 1024×768 in 8, 16 and 32 bpp (from SquirrelBIOS or a real VGA BIOS). Mode 13h stays as the fallback. Double buffering, dirty rectangles, a blitter and clip regions. Test: set a mode, draw, read pixels back; regress in both 13h and VBE. PR-sized boxes: `TODO.md` **2.1-vbe-mode** … **2.1-blit-clip**.
-- [ ] **2.2 Real windows** — Overlapping windows that move and resize, with title bar, minimise / maximise / close, a system menu, z-order by mouse, focus, and Alt+Tab. Original proportional bitmap fonts. Test: scripted window-manager operations produce the expected window list and pixel probes.
-- [ ] **2.3 Program Manager / Warp 3 desktop** — Icon groups, double-click to launch, a two-pane File Manager, a clipboard, Control Panel v1 (colours, mouse, date and time, keyboard). Warp-style bevelled 3D controls are the default theme.
+- [x] **2.2 Real windows** — Overlapping windows that move and resize, with title bar, minimise / maximise / close, a system menu, z-order by mouse, focus, and Alt+Tab. Original proportional bitmap fonts. Test: scripted window-manager operations produce the expected window list and pixel probes.
+- [ ] **2.3 Program Manager / Warp 3 desktop** *(in progress: icons, groups, File Manager and clipboard are on `main`; Control Panel on branch `int/os2-control`; 2.3-bevel-default open)* — Icon groups, double-click to launch, a two-pane File Manager, a clipboard, Control Panel v1 (colours, mouse, date and time, keyboard). Warp-style bevelled 3D controls are the default theme.
 
 ### 2.4 — Ring 3 and protection
 
@@ -132,24 +147,29 @@ The GUI grows in generations, and each generation is a shippable milestone (epic
 - [ ] **2.5** — A WarpCenter-style bar (the default; a taskbar layout is a setting), a Squirrel menu, a tray clock.
 - [ ] **2.6** — Desktop objects with icons, drag and drop between folders and onto programs, context menus on the right button, Warp-style settings notebooks with tabs, shadows (shortcuts).
 - [ ] **2.7** — Long file names, FAT12/16/32 read and write for exchanging media, drive objects, a shredder object.
+  - [x] Long names, FAT12/16/32 read and write, drive and shredder objects (#162)
+  - [ ] `diskutil` on FAT volumes (2.7-diskutil; head start on branch `ws/os2-fs/diskutil`)
 
 ### 2.8–2.9 — 64-bit bridge
 
 The old 2.1–2.9 bridge plan in `documentation/plannedmilestones.md`, renumbered here. 32-bit programs keep running in compatibility mode. The H boxes (with acceptance) are in `TODO.md`. The BIOS boot path keeps working throughout.
 
-- [ ] x86-64 long-mode kernel and 64-bit paging
-- [ ] SMP scheduler
-- [ ] H.1 UEFI loader
-- [ ] H.2 GOP text console
-- [ ] H.3 AHCI
-- [ ] H.4 NVMe
-- [ ] H.5 USB keyboard (xHCI)
-- [ ] H.6 USB storage
+- [ ] x86-64 long-mode kernel and 64-bit paging (long-mode entry is on `main`, #154; the kernel staying in long mode is 2.9-lm-kernel)
+- [x] SMP scheduler (2.8-smp-ap, 2.8-smp-sched, #154)
+- [ ] PAE and NX (2.8-pae)
+- [x] H.1 UEFI loader
+- [x] H.2 GOP text console
+- [x] H.3 AHCI
+- [x] H.4 NVMe
+- [x] H.5 USB keyboard (xHCI)
+- [x] H.6 USB storage
 - [ ] 64-bit syscall ABI
 
 ### 3.0 — Generation 3: "NT / XP class" (3.0.0 is the 64-bit Warp)
 
 - [ ] **3.0** — User accounts and a login screen, file permissions, services, an event log, a task manager, a theme engine (Warp 4 by default, plus original "Classic" and "Luna-like" themes), audio (HDA / AC97 and a mixer), a network settings GUI, DHCP, DNS and an HTTP client.
+  - [x] DHCP, DNS, HTTP client and `wget`, network settings program, AC'97, HDA, mixer (#160)
+  - [ ] User accounts and login, file permissions, services, event log, task manager, theme engine
 
 ### 3.x — Generation 4: "Windows 7 / modern Unix desktops"
 
@@ -165,10 +185,10 @@ Each app is first built in squirrelsoft as a desktop program, then ported.
 
 - [x] **A.1** (2.1+) — Calculator with standard and scientific modes in a window (the existing `calc` / `sci` engines), Clock, Notepad (GUI `edit`)
 - [x] **A.2** (2.2+) — Paint (bitmap tools, palette, save as BMP or an own format), image viewer, character map
-- [ ] **A.3** (2.3+) — Settings / Control Panel, File Manager, Terminal (several shells in windows)
-- [ ] **A.4** (2.4+) — Debugger: process list, INT3 breakpoints, single step, registers, memory view, an original disassembler, symbols from SQX / ELF
+- [x] **A.3** (2.3+) — Settings / Control Panel, File Manager, Terminal (several shells in windows)
+- [x] **A.4** (2.4+) — Debugger: process list, INT3 breakpoints, single step, registers, memory view, an original disassembler, symbols from SQX / ELF
 - [x] **A.5** (2.5+) — Task / system monitor (CPU, memory, processes, priorities), disk utility, log viewer
-- [ ] **A.6** (3.0+) — Media player (WAV first), sound recorder, spectrum analyser (port of SquirrelSound)
+- [x] **A.6** (3.0+) — Media player (WAV first), sound recorder, spectrum analyser (port of SquirrelSound)
 - [x] **A.7** (3.0+) — Text editor with syntax highlighting, hex editor, a simple word processor
 
 ### Games (G.1–G.9, epic #116)
@@ -180,10 +200,10 @@ Each has its rules core with unit tests in squirrelsoft first; card and board gr
 - [x] **G.3** A Minesweeper-class game
 - [x] **G.4** Hearts (three AI players)
 - [x] **G.5** Chess (own alpha-beta engine, PGN)
-- [ ] **G.6** Contract Bridge (bidding and play AI)
+- [x] **G.6** Contract Bridge (bidding and play AI)
 - [x] **G.7** Mahjongg solitaire
 - [x] **G.8** Reversi
-- [ ] **G.9** Checkers or Go (stretch)
+- [x] **G.9** Checkers or Go (stretch)
 
 ### Calculator suite — Desmos and TI-Nspire class (C.1–C.9, epic #119)
 
@@ -200,7 +220,7 @@ Each has its rules core with unit tests in squirrelsoft first; card and board gr
 
 ### Warp styling (W.1–W.6, every generation, epic #117)
 
-- [ ] **W.1** — Warp 4 colour scheme, bevels and fonts (original bitmaps that give the feel, not copies).
+- [ ] **W.1** *(in progress: `theme.inc`, `gfx_bevel` and the proportional fonts are on `main`; finishes with 2.3-bevel-default)* — Warp 4 colour scheme, bevels and fonts (original bitmaps that give the feel, not copies).
 - [ ] **W.2** — The Workplace Shell object model in the GUI: everything is an object with a settings notebook; a templates folder; drag a template to create an object.
 - [ ] **W.3** — WarpCenter / LaunchPad bar.
 - [ ] **W.4** — Folder views: icon, tree, details.
@@ -219,10 +239,18 @@ Each P step ships a tiny original test binary in the tree and a regression `PASS
 - [ ] **P.4** — An X11-protocol (or Wayland) server that maps foreign windows onto Squirrel windows.
 - [x] **P.5** (= F.5 / F.9) — Win32 PE console subset.
 - [ ] **P.6** — Win32 GUI subset (USER / GDI onto the Squirrel window manager and graphics), registry emulation, an original DLL loader (a Wine-like design, no Wine code).
+  - [x] USER32/GDI32 subset, registry over `registry.dat`, DLL loader (#163)
+  - [ ] Win32 top-level windows as real desktop windows (P.6-win32-windows)
 - [ ] **P.7** — PE64.
 - [ ] **P.8** — A DOS personality (V86 mode or an emulator) for DOS programs in a window.
+  - [x] `dosrun` (8086/186 interpreter, `INT 21h`), `.com`/`.exe` launch, mode 13h graphics (#146, #149, #153)
+  - [ ] The DOS screen in a window of its own (P.8-dos-window)
 - [ ] **P.9** — OS/2 16/32-bit text-mode API (`DosWrite` and the like), optional and late.
+  - [x] 32-bit LX text-mode programs: `os2run`, DOSCALLS by ordinal (#163)
+  - [ ] 16-bit NE text-mode programs (DOSCALLS 16-bit entry points, thunks)
 - [ ] **P.10** — POSIX / Unix (Solaris, BSD) through the Linux layer plus syscall tables.
+  - [x] FreeBSD i386 static ELF32 (#153)
+  - [ ] Solaris and other BSD call tables
 - [ ] **P.11** — Darwin Mach-O command-line programs (research).
 - [ ] **P.12** (= F.10) — Sandbox and capability flags, plus seamless-window integration (taskbar, clipboard, drag and drop shared with native programs).
 

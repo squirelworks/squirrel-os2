@@ -22,12 +22,26 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `stackover.asm` | SQX | Starts a thread that overflows its stack; the kernel must end only that thread, and the program's own memory and stack must be intact (`run stackover`, KB-17) |
 | `devtest.asm` | SQX | Uses devices by name: writes through `con`, reads `hd1`, checks `hd0` refuses writes (0.7.x) |
 | `udptest.asm` | SQX | Sends a UDP datagram to 127.0.0.1 and reads it back; a second process is refused that port (`run udptest`, 1.9.7) |
+| `wget.asm` | SQX | HTTP/1.1 download: Content-Length, chunked, redirects; saves the body or prints it (`run wget <url> [file\|-]`, 3.0) |
+| `netcfg.asm` | SQX | Network settings: a window with the address, mask, gateway and DNS server, DHCP, and `network.cfg` (`run netcfg [show\|dhcp\|set\|save\|load]`, 3.0) |
+| `wavplay.asm` | SQX | Plays an 8- or 16-bit PCM WAV file on the sound device (`run wavplay <file.wav>`, 3.0 A.6) |
+| `sndrec.asm` | SQX | Records 1–10 s from the sound input and saves a WAV file (`run sndrec <file.wav> [s]`, 3.0 A.6) |
+| `mixer.asm` | SQX | Master, PCM and record volume and mute, in a window or from the shell (`run mixer [show\|<control> <0-100>\|mute\|unmute]`, 3.0) |
+| `spectrum.asm` | SQX | Spectrum analyser: FFT bars and the peak frequency while a WAV file plays, or of the input (`run spectrum <file.wav> [test]`, `run spectrum live`, 3.0 A.6) |
 | `priotest.asm` | SQX | High-priority spin must keep a low-priority child from running until the priority drops (`run priotest`, 1.9.9) |
 | `drvtest.asm` | SQX | Registers a null char device with `SYS_DEVREG`, writes and reads it (`run drvtest`, 1.9.12) |
 | `guitest.asm` | SQX | Self-check of `SYS_GUI` and `gui.inc`: draws a window, reads pixels back from the screen, the clock and `GUI_EVAL` (`run guitest`, `run guitest hold`) |
 | `calculator.asm` | SQX | Calculator in a window, standard and scientific keypads on the `sci` engine (`run calculator`, A.1) |
 | `clock.asm` | SQX | Analogue clock with the time and date (`run clock`, `run clock test`, A.1) |
 | `notepad.asm` | SQX | Text editor in a window, with syntax highlighting for .asm/.inc, .c/.h and .bas (`run notepad [file]`, `run notepad -test`, A.1, A.7) |
+| `debugger.asm` | SQX | Debugger: breakpoints, single step, registers, memory, disassembly, backtrace, symbols (`run debugger dbgtgt`, A.4, `documentation/apps/debugger.md`) |
+| `terminal.asm` | SQX | Terminal: up to four shell sessions in windows, programs' output and input through `SYS_TTY` (`run terminal`, A.3, `documentation/apps/terminal.md`) |
+| `disasm.inc` | include | The debugger's x86 disassembler (A.4) |
+| `debug.inc` | include | `SYS_DEBUG` operations and the register block (A.4) |
+| `dbgtest.asm` | SQX | Checks `SYS_DEBUG` on `dbgtgt` (`run dbgtest`, A.4) |
+| `dbgtgt.asm` | SQX | A program to trace: `run dbgtgt [f\|s\|b]` faults, spins or runs an `INT3` (A.4) |
+| `dbgelf.asm` | ELF32 | Hand-made ELF with a `.symtab`, for the debugger's ELF symbols (A.4) |
+| `distest.asm` | SQX | Checks the disassembler against 70 expected lines (`run distest`, A.4) |
 | `grapher.asm` | SQX | 2D graphing calculator: explicit, polar, parametric and implicit functions, inequalities, sliders, zoom, pan, trace, roots, extrema, intersections (`run grapher [f]`, `run grapher test`, C.2) |
 | `charmap.asm` | SQX | Character map of the system font; collects characters, F2 saves them (`run charmap`, A.2) |
 | `paint.asm` | SQX | Bitmap painter: pen, line, box, solid box, fill, eraser, undo; 16 colours; saves and opens BMP (`run paint [f]`, `run paint test`, A.2) |
@@ -60,9 +74,14 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `dosfile.asm` | DOS .COM | DOS files, memory blocks and buffered input (`run dosfile.com`, P.8) |
 | `dosgfx.asm` | DOS .COM | VGA mode 13h: A000, INT 10h pixels and DAC, ports, teletype text in graphics (`run dosgfx.com`, then a key; P.8) |
 | `dosexe.asm` | DOS .EXE | Hand-written MZ with relocations, three segments and a far call (`run dosexe.exe`, P.8) |
+| `os2run.asm` | SQX | OS/2 32-bit LX loader with DOSCALLS shims; the kernel runs it for `MZ` files with an `LX` header (`run os2run prog.exe`, P.9) |
+| `os2hello.asm` | LX | Hand-written OS/2 text-mode program: objects, fixups, DOSCALLS by ordinal, TIB/PIB, files, memory (`run os2hello`, P.9) |
 | `winhello.asm` | PE32 | Hand-written Win32 console program: console, files, heap, relocations, imports (`run winhello`, P.5) |
 | `wincrt.asm` | PE32 | Hand-written Win32 program on msvcrt: TEB via `fs:`, `__getmainargs`, printf/sprintf, malloc, FILE I/O, atexit/exit (`run wincrt acorn`, P.5) |
 | `winshim.inc` | — | The KERNEL32 start-up calls and the msvcrt subset that `winrun` binds imports to |
+| `net.inc` | — | `SYS_NET` numbers and address helpers (3.0) |
+| `http.inc` | — | HTTP/1.1 client library on `SYS_NET` (3.0, `../documentation/apps/network.md`) |
+| `audio.inc` | — | `SYS_AUDIO` numbers and WAV file helpers (3.0) |
 | `bsdhello.asm` | ELF32 (FreeBSD) | FreeBSD i386 calls with stack arguments and CF + errno: files, lseek, break, mmap, isatty, errors (`run bsdhello`, P.10) |
 | `lxelf.inc` | — | ELF header macro (Linux, or FreeBSD with `EI_OSABI` 9) and Linux call numbers for the test programs |
 | `mines.asm` | SQX | Minesweeper-class game, G.3 (`run mines [seed] [big]`, `run mines test`); see `documentation/apps/games.md` |
@@ -72,11 +91,15 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `hearts.asm` | SQX | Hearts against three computer players, G.4 (`run hearts [seed]`, `run hearts test`) |
 | `chess.asm` | SQX | Chess against an alpha-beta engine, with SAN and PGN save, G.5 (`run chess [seed]`, `run chess test`) |
 | `mahjongg.asm` | SQX | Mahjongg-style tile solitaire, always solvable deals, G.7 (`run mahjongg [seed]`, `run mahjongg test`) |
+| `bridge.asm` | SQX | Contract Bridge with computer bidding (natural, Stayman, Blackwood) and card play, G.6 (`run bridge [seed]`, `run bridge test`) |
+| `checkers.asm` | SQX | Checkers (English draughts) against an alpha-beta engine, G.9 (`run checkers [seed]`, `run checkers test`) |
+| `go.asm` | SQX | Go on a 9 x 9 board against the computer, area scoring, G.9 (`run go [seed]`, `run go test`) |
 | `sqx.inc` | — | SQX header macro and syscall numbers |
 | `bmp.inc` | — | BMP reader (8- and 24-bit) and 16-colour writer for programs |
 | `gui.inc` | — | Graphics toolkit for programs over `SYS_GUI`: back buffer, pixels, lines, text, windows, buttons, keys, mouse (`../documentation/apps/gui-programs.md`) |
 | `games.inc` | — | Shared runtime for the games: output, line input, seeded random numbers, self-test helpers |
 | `cards.inc` | — | Playing cards for the card games: deck, printing, parsing |
+| `gamegui.inc` | — | Drawing for the games' graphical front ends (`run <game> gui`): table, status bar, cards, suit signs, columns, discs, frames |
 
 Build and install:
 

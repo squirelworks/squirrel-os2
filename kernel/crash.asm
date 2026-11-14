@@ -25,6 +25,11 @@ SHELL_STACK equ 0x9F000             ; the boot stack, which the shell runs on
 exc_report:
     cli
     KSEGS
+    call smp_on_ap              ; on an application processor: the BSP
+    jc .bsp                     ; reports it (2.8, smp.asm)
+    push dword ap_exc_resume
+    jmp ap_divert
+.bsp:
     pushad
     mov ebp, esp
     ; a page fault in the current thread's ring-3 stack grows it (2.4)
@@ -39,6 +44,8 @@ exc_report:
     add esp, 8                  ; the vector and the error code
     iretd
 .report:
+    call dbg_trap               ; a traced program stops for its debugger (A.4)
+    jc .resume
     mov [exc_ovf], al
     call vm_reload_kernel       ; the report's own pages must be there
     mov ebx, [ebp+EXC_VEC]
@@ -163,6 +170,17 @@ exc_report:
     call putc
     mov ebx, -1
     jmp proc_exit
+.resume:                        ; its debugger let it go on (A.4)
+    mov eax, 1
+    mov ecx, [ebp+EXC_VEC]
+    shl eax, cl
+    test eax, EXC_ERRCODE_MASK
+    popad                       ; (keeps the flags)
+    jz .noerr2
+    add esp, 4
+.noerr2:
+    add esp, 4
+    iretd
 .halt:
     mov esi, exc_m_halt
     call puts

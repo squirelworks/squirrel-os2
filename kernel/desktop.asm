@@ -947,10 +947,12 @@ dk_trykey:
 .wmk:
     mov al, ah
     call wm_menukey
-    jc dk_trykey                ; (a side arrow nobody wants)
+    jc .side                    ; a side arrow nobody wants: the caller's
     call dk_wmreply
     jmp dk_trykey
 .map:
+    call clip_key               ; the clipboard keys (2.3-clipboard)
+    jnc .clipk
     mov ah, 27
     cmp al, 0x01
     je .got
@@ -974,17 +976,28 @@ dk_trykey:
     ret
 .got:
     mov al, ah
+.clipk:
     clc
     ret
 .none:
     call proc_idle
     stc
     ret
+.side:                          ; (the desktop ignores it; progman moves)
+    mov al, ah
+    clc
+    ret
 
 ; eax, ebx = a window manager reply (wm_altkey, wm_menukey): the desktop's
 ; own close (Alt+F4, the system menu's Close) asks the loop to quit; then
 ; repaints what changed.
 dk_wmreply:
+    cmp eax, WME_MENU           ; a pop-up's choice: for the caller's loop
+    jne .notmenu                ; (2.3-filemgr), item + 1 in dk_menu
+    inc ecx
+    mov [dk_menu], ecx
+    jmp dk_wmdone
+.notmenu:
     cmp eax, WME_CLOSE
     jne dk_wmdone
     cmp ebx, [dk_win]
@@ -998,6 +1011,8 @@ dk_wmdone:
     ret
 
 dk_quit db 0
+align 4
+dk_menu dd 0                    ; a chosen pop-up item + 1, or 0
 
 ; Waits for a key -> al = what wg_key takes: ASCII, 8 for Backspace,
 ; 27 for Esc, WK_UP and WK_DOWN for the arrows.
@@ -1019,6 +1034,8 @@ wg_getkey:
     mov ah, WK_DOWN
     cmp al, 0x50
     je .r
+    call clip_key               ; the clipboard keys (2.3-clipboard)
+    jnc .clip
     mov ah, WK_DEL              ; Delete (1.9.2)
     cmp al, 0x53
     je .r
@@ -1028,6 +1045,7 @@ wg_getkey:
     jz wg_getkey
 .r:
     mov al, ah
+.clip:
     ret
 
 DK_NAPPS equ 5                  ; programs
