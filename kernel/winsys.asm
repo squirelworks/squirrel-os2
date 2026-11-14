@@ -10,6 +10,10 @@
 ; client area and kept off every window above (gfx_occ). If the screen was
 ; in text mode, the first window enters the window manager's screen and the
 ; last one to close goes back to text. See documentation/kernel/windows.md.
+;
+; P.6-win32-windows: winrun's USER32 (programs/wingui.inc) opens top-level
+; Win32 windows with these calls, so CreateWindowEx windows share the same
+; title bar, move, z-order and close box as native program windows.
 
 WE_KEY      equ 1
 WE_DOWN     equ 2
