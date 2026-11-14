@@ -681,6 +681,16 @@ check wclp-cfg      '0 calc'                'cat /desktop/launchpad.cfg' '<ret>'
 check_all wclp-gfx  'gfx: calc|gfx: files'  launchpad '<ret>' '<pause>' '<gfx>' '<esc>' '<pause>'
 check wclp-digit    '1 calc'                launchpad '<ret>' '<pause>' '<right>' '2' '<esc>' '<pause>' 'cat /desktop/launchpad.cfg' '<ret>'
 check wclp-text     'systest: PASS'         wclp '<ret>' '<pause>' systest '<ret>'
+# 2.6-icons / 2.6-drag: desktop surface icons + File-on-Program drop (own disk)
+python3 "$root/tools/sqfs.py" "$out/di.img" format 1024 >/dev/null
+disk=$out/di.img
+check dk-icons      'dk-icons: PASS'        dkicons '<ret>' '<pause>'
+check dk-drag       'dk-drag: PASS'         dkdrag '<ret>' '<pause>'
+# after reboot classes are not recorded yet: field 1 is `in` (Tools)
+check_all dk-drag-cat 'class File|1: Tools|2: /hello.txt' \
+                   'objcat /desktop/notes.obj' '<ret>'
+check dk-icons-text 'systest: PASS'        dkicons '<ret>' '<pause>' systest '<ret>'
+disk=$pm_disk
 
 # W.4-views: Icon / Tree / Details switchable on the File Manager window
 check fold-views    'foldview: PASS'        foldview '<ret>'

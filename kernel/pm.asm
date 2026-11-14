@@ -561,9 +561,16 @@ run_simple:
     mov edi, cmd_wclp
     call streq
     je .wclp
+    mov edi, cmd_dkicons        ; 2.6-icons
+    call streq
+    je .dkicons
+    mov edi, cmd_dkdrag         ; 2.6-drag
+    call streq
+    je .dkdrag
     mov edi, cmd_dkshadow       ; 2.6-shadows
     call streq
     je .dkshadow
+
     mov edi, cmd_winalttab      ; 2.2-alttab
     call streq
     je .winalttab
@@ -905,9 +912,16 @@ run_simple:
 .wclp:
     call cmd_wclp_run
     jmp .empty
+.dkicons:
+    call cmd_dkicons_run
+    jmp .empty
+.dkdrag:
+    call cmd_dkdrag_run
+    jmp .empty
 .dkshadow:
     call cmd_dkshadow_run
     jmp .empty
+
 .winalttab:
     call cmd_winalttab_run
     jmp .empty
@@ -1505,7 +1519,10 @@ cmd_wcmenu db 'wcmenu', 0
 cmd_wcclock db 'wcclock', 0
 cmd_launchpad db 'launchpad', 0
 cmd_wclp db 'wclp', 0
+cmd_dkicons db 'dkicons', 0
+cmd_dkdrag db 'dkdrag', 0
 cmd_dkshadow db 'dkshadow', 0
+
 cmd_pfont db 'pfont', 0
 cmd_icontest db 'icontest', 0
 cmd_wintest db 'wintest', 0
@@ -1734,6 +1751,7 @@ khigh_start:
 %include "progman.asm"
 %include "warpcenter.asm"      ; 2.5-bar / menu / clock
 %include "launchpad.asm"       ; W.3-launchpad
+%include "deskicons.asm"       ; 2.6-icons / 2.6-drag
 %include "filemgr.asm"
 %include "control.asm"         ; 2.3-control
 %include "object.asm"

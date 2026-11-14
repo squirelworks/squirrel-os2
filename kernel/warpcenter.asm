@@ -39,6 +39,7 @@ cmd_warpcenter_run:
     call wc_on
     call lp_on                  ; pads on the shared strip (W.3)
     call dk_mkobjs
+    call dki_on                  ; desktop icons below the bar (2.6-icons)
     call pm_build
     call pm_load
     call lp_load
@@ -150,6 +151,7 @@ cmd_warpcenter_run:
     inc ebp
     cmp ebp, PM_GMAX
     jb .close
+    call dki_off
     call dk_freeobjs
     call lp_off
     call wc_off

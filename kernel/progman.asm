@@ -612,13 +612,16 @@ pm_caption:
     popad
     ret
 
-; eax = object -> esi = its icon: a Folder's, the program's own (named as
-; its entry), a Template's (by of), or the generic program icon
+; eax = object -> esi = its icon: a Folder's, a File's, the program's own
+; (named as its entry), a Template's (by of), or the generic program icon
 pm_icon:
     push eax
     push ebx
     mov esi, icon_folder
     cmp dword [eax+OBJ_CLASS], dk_c_fold
+    je .r
+    mov esi, icon_file
+    cmp dword [eax+OBJ_CLASS], dk_c_file
     je .r
     cmp dword [eax+OBJ_CLASS], wps_c_tmpl
     je .tmpl

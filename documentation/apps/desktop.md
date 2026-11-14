@@ -151,6 +151,25 @@ Self-checks: `wcbar` → `wc-bar: PASS`; `wcmenu` → `wc-menu: PASS`;
 `wcclock` → `wc-clock: PASS`; `wclp` assigns `calc` to pad 0, save/clear/load,
 launch-check and pad pixels → `wclp: PASS`.
 
+## Desktop icons and drag (2.6-icons / 2.6-drag)
+
+`deskicons.asm` draws top-level desktop objects as 32×32 icons with
+captions on the desktop surface itself (not only inside Program Manager
+group windows). Icons sit below the WarpCenter strip (`wc_top`) and are
+painted from `wm_paint` after the desktop fill, under windows. While
+`warpcenter` is running, `dki_on` keeps them live.
+
+| Part | What it does |
+|------|----------------|
+| Icons | One cell per top-level object (`in` empty): `gfx_drawicon` plus a caption. Programs use their named `mkicon` art; folders use `folder`; File objects use `file`. |
+| File class | `File` under `DesktopObject` with a text `path` field. Dropping a File onto a Program sends `drop`, which copies the path into `dk_arg` / `run_arg` and opens the program. |
+| Folder drop | Dropping any object onto a Folder sets its `in` to that folder's name and saves `/desktop/<name>.obj`, so the move survives a reboot. |
+
+Self-checks: `dkicons` enables the surface, finds `calc` and probes glyph
+pixels → `dk-icons: PASS`; `dkdrag` creates a File, drops it on `edit`
+(path in `dk_arg`), moves it into `Tools` and checks the saved object →
+`dk-drag: PASS`.
+
 ## Context menu and settings notebook (2.6-context / 2.6-notebook)
 
 Right-button on a Program Manager icon opens a context menu (Open, Open as...,
@@ -161,7 +180,7 @@ Manager loop handles tab clicks and the close box. A right-click selects
 without arming the double-click timer. The notebook widget itself lives in
 `widget.asm`: tab strip, sunken page body, click or Left/Right to switch
 pages. Self-checks: `dkctx` → `dk-ctx: PASS`; `nbtest` → `nbtest: PASS`.
-Desktop-surface icons and drag (`2.6-icons` / `2.6-drag`) are separate boxes.
+Desktop-surface icons and drag (`2.6-icons` / `2.6-drag`) are covered above.
 
 ## Folder views (W.4-views)
 

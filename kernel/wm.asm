@@ -338,6 +338,7 @@ wm_paint:
     mov al, [th_desk]           ; the live scheme (2.3-control)
     mov [gfx_colour], al
     call gfx_fillrect
+    call dki_paint              ; desktop icons on the surface (2.6-icons)
     call wm_icons               ; minimised windows (2.2-minmax)
     xor ebp, ebp
 .w:
