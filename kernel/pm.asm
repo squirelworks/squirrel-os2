@@ -484,6 +484,9 @@ run_simple:
     mov edi, cmd_icontest       ; 2.3-icons
     call streq
     je .icontest
+    mov edi, cmd_cbtest         ; 2.3-clipboard
+    call streq
+    je .cbtest
     mov edi, cmd_filemgr        ; 2.3-filemgr
     call streq
     je .filemgr
@@ -779,6 +782,9 @@ run_simple:
     jmp .empty
 .icontest:
     call cmd_icontest_run
+    jmp .empty
+.cbtest:
+    call cmd_cbtest_run
     jmp .empty
 .filemgr:
     call cmd_filemgr_run
@@ -1341,6 +1347,7 @@ cmd_winmenu db 'winmenu', 0
 cmd_winalttab db 'winalttab', 0
 cmd_progman db 'progman', 0
 cmd_filemgr db 'filemgr', 0
+cmd_cbtest db 'cbtest', 0
 cmd_fmtest db 'fmtest', 0
 cmd_pmtest db 'pmtest', 0
 cmd_pfont db 'pfont', 0
@@ -1565,6 +1572,7 @@ khigh_start:
 %include "icon.asm"
 %include "wm.asm"
 %include "winsys.asm"
+%include "clip.asm"
 %include "widget.asm"
 %include "desktop.asm"
 %include "progman.asm"

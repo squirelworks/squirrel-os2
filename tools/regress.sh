@@ -14,7 +14,7 @@ cat "$out/boot.bin" "$out/pm.bin" > "$out/os.img"
 dd if=/dev/zero of="$out/floppy.img" bs=1024 count=1440 2>/dev/null
 dd if="$out/os.img" of="$out/floppy.img" conv=notrunc 2>/dev/null
 python3 "$root/tools/mkiso.py" "$out/floppy.img" "$out/cd.iso"    # installer I.6
-for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3 smpspin lxhello lxfile lxcat lxsys winrun winhello wincrt winprog; do
+for prog in hello wc elfhello ls cat nest crash heap devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3 smpspin lxhello lxfile lxcat lxsys winrun winhello wincrt winprog clipbrd; do
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
 done
 python3 "$root/tools/sqfs.py" "$out/progs.img" format 1024
@@ -51,6 +51,7 @@ for prog in sheet geometry cas sysmon logview diskutil notebook; do  # C.4, C.6,
     python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/$prog"
 done
 python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/crash"   # A.5: logview shows its crash
+python3 "$root/tools/sqfs.py" "$out/apps.img" put "$out/clipbrd"   # 2.3-clipboard: progs.img has no free entry
 python3 - "$out/grad.bmp" <<'PYEOF'    # A.2: a 24-bit test picture, 64 x 48
 import struct, sys
 w, h = 64, 48
@@ -261,6 +262,11 @@ check ed-vstatus    'L1 C4 off 3'           'run vedit' '<ret>' abc
 check ed-vaction    "Deleted 'c'"           'run vedit' '<ret>' abc '<backspace>'
 check ed-unsaved    'Unsaved changes'       'run edit' '<ret>' x '<esc>'
 check ed-saveas     'memo2'                 'run edit' '<ret>' hi '<f2>' memo2 '<ret>' '<esc>' ls '<ret>'
+# 2.3-clipboard: Ctrl+Ins copies the line, Shift+Ins pastes; Ctrl+X cuts the line, Ctrl+V pastes
+check ed-clip-copy  'abc and abc'           'run edit memoc1' '<ret>' abc '<ctrl-insert>' ' and ' '<shift-insert>' '<ctrl-s>' '<esc>' 'cat memoc1' '<ret>' 'rm memoc1' '<ret>'
+check ed-clip-cut   'two one'               'run edit memoc2' '<ret>' one '<ret>' two '<up>' '<ctrl-x>' '<end>' ' ' '<ctrl-v>' '<ctrl-s>' '<esc>' 'cat memoc2' '<ret>' 'rm memoc2' '<ret>'
+check cbtest        'clip: PASS'            cbtest '<ret>'
+check cbtest-text   'systest: PASS'         cbtest '<ret>' systest '<ret>'
 # 1.0.9: Ctrl+F finds text, F3 finds it again (wrapping to the start)
 check ed-find       'Found zebra at line 1, column 9'  'put zfind one two zebra' '<ret>' 'run edit zfind' '<ret>' '<ctrl-f>' zebra '<ret>'
 check ed-find-at    'one two Xzebra'        'run edit zfind' '<ret>' '<ctrl-f>' zebra '<ret>' X
@@ -946,6 +952,10 @@ check l10n-calc-en  'Basic Calculator (Esc to exit)' 'run calc' '<ret>'
 check lang-systest  'systest: PROBATUM'     'lang la' '<ret>' systest '<ret>'
 # OS2-APPS: graphics for programs (SYS_GUI, programs/gui.inc) and the A.1 apps
 disk=$out/apps.img
+# 2.3-clipboard: cbtest leaves "clip me" on the clipboard; the viewer shows it
+check_all clip-viewer 'gfx: Clipboard|gfx: clip me' cbtest '<ret>' 'run clipbrd' '<ret>' '<pause>' '<pause>' '<gfx>' q '<pause>'
+check clip-viewer-n 'clipbrd: 7 bytes'      cbtest '<ret>' 'run clipbrd' '<ret>' '<pause>' '<pause>' q '<pause>'
+check_all clip-empty 'gfx: (empty)|clipbrd: 0 bytes' 'run clipbrd' '<ret>' '<pause>' '<pause>' '<gfx>' q '<pause>'
 check guitest       'guitest: PASS'         'run guitest' '<ret>' '<pause>'
 check_all guitest-gfx 'gfx: Gui test|gfx: Hello from a program' 'run guitest hold' '<ret>' '<pause>' '<gfx>'
 check_all calculator 'gfx: Calculator|gfx: 2+3*4|gfx: = 14' 'run calculator' '<ret>' '<pause>' '2+3*4' '<ret>' '<pause>' '<gfx>'

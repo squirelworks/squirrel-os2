@@ -56,7 +56,9 @@ SYS_NET     equ 45          ; ebx = NET_* op: names, TCP, settings (3.0, netsys.
 SYS_AUDIO   equ 46          ; ebx = AU_* op: sound for programs (3.0, kernel/audio/audio.asm)
 SYS_DEBUG   equ 47          ; ebx = DBG_* op, ecx/edx = args: tracing for debuggers (debug.asm, A.4)
 SYS_TTY     equ 48          ; ebx = TTY_* op | tty << 8: terminals for programs (tty.asm, A.3)
-SYS_COUNT   equ 49
+SYS_CLIPPUT  equ 49         ; ebx = text, ecx = length -> the length kept (2.3-clipboard)
+SYS_CLIPGET  equ 50         ; ebx = buffer, ecx = its size -> the clipboard's length
+SYS_COUNT   equ 51
 
 SYS_ENOSYS  equ -1
 SYSCALL_VEC equ 0x80
@@ -148,6 +150,7 @@ sys_uarg_kind:
     db UA_NET, UA_AUDIO                         ; net audio
     db UA_DEBUG                                 ; debug
     db UA_TTY                                   ; tty
+    db UA_B_C, UA_B_C                           ; clipput clipget
 %if $-sys_uarg_kind != SYS_COUNT
 %error sys_uarg_kind needs one byte per system call
 %endif
@@ -438,6 +441,7 @@ syscall_table:
     dd sys_audio
     dd sys_debug
     dd sys_tty
+    dd sys_clipput, sys_clipget                 ; 2.3-clipboard
 %if $-syscall_table != SYS_COUNT*4
 %error syscall_table and SYS_COUNT disagree
 %endif

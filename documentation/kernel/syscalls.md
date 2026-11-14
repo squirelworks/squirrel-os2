@@ -63,6 +63,8 @@ add its `SYS_*` constant, bump `SYS_COUNT`.
 | 46 | `SYS_AUDIO` | `ebx` = operation, `ecx`/`edx` = its arguments | depends on the operation | Added in 3.0: sound for programs, see [SYS_AUDIO in `audio.md`](audio.md#sys_audio) |
 | 47 | `SYS_DEBUG` | `ebx` = operation, `ecx` = pid, `edx` = argument | depends on the operation | Added for A.4: trace another program (start it stopped, breakpoints, single step, registers, memory), see `debug.md` |
 | 48 | `SYS_TTY` | `ebx` = operation \| tty << 8, `ecx`, `edx` = arguments | depends on the operation | Added for A.3: terminals; a program's output and keys through a terminal's window, see `tty.md` |
+| 49 | `SYS_CLIPPUT` | `ebx` = text, `ecx` = length | the length kept | Added in 2.3 (**2.3-clipboard**): see `clipboard.md` |
+| 50 | `SYS_CLIPGET` | `ebx` = buffer, `ecx` = its size | the clipboard's length | Added in 2.3: as much as fits is copied |
 
 Example:
 

@@ -67,6 +67,13 @@ ed_main:
     je .pgup
     cmp al, 0x51
     je .pgdn
+    cmp byte [kbd_shift], 0     ; Shift+Ins pastes, Shift+Del cuts the
+    je .noshift                 ; line (2.3-clipboard)
+    cmp al, 0x52
+    je .paste
+    cmp al, 0x53
+    je .cut
+.noshift:
     cmp al, 0x52                ; Insert
     je .insmode
     cmp al, 0x53                ; Delete
@@ -92,6 +99,26 @@ ed_main:
     je .undo
     cmp al, 0x14                ; Ctrl+T: control characters (vedit)
     je .ctl
+    cmp al, 0x2E                ; Ctrl+C, Ctrl+Ins: copy the line
+    je .copy
+    cmp al, 0x52
+    je .copy
+    cmp al, 0x2F                ; Ctrl+V: paste
+    je .paste
+    cmp al, 0x2D                ; Ctrl+X: cut the line
+    je .cut
+    jmp .loop
+.copy:
+    call ed_clipline
+    jmp .loop
+.cut:
+    call ed_snap
+    call ed_clipline
+    call ed_cutline
+    jmp .loop
+.paste:
+    call ed_snap                ; one undo takes the whole paste back
+    call ed_paste
     jmp .loop
 .ctl:
     cmp byte [ed_verbose], 0
@@ -224,6 +251,67 @@ ed_main:
     call ed_undo_free
     call app_home
     xor eax, eax
+    ret
+
+; ---------- clipboard (2.3-clipboard) ----------
+
+; The cursor's line, without its newline, to the clipboard.
+ed_clipline:
+    pushad
+    mov eax, [ed_pos]
+    call ed_line_start
+    mov esi, eax
+    call ed_line_end
+    mov ecx, eax
+    sub ecx, esi
+    add esi, ED_BUF
+    call clip_put
+    mov esi, ed_m_copied
+    call ed_msg
+    popad
+    ret
+
+; The cursor's line and its newline are removed; the cursor goes to where
+; it was.
+ed_cutline:
+    pushad
+    mov eax, [ed_pos]
+    call ed_line_start
+    mov ebx, eax
+    call ed_line_end
+    mov ecx, eax
+    sub ecx, ebx
+    cmp eax, [ed_len]
+    jae .n
+    inc ecx                     ; and the newline
+.n:
+    jecxz .done
+    mov eax, ebx
+.d:
+    call ed_delete_at
+    loop .d
+.done:
+    mov [ed_pos], ebx
+    mov esi, ed_m_cut
+    call ed_msg
+    popad
+    ret
+
+; The clipboard is typed at the cursor.
+ed_paste:
+    pushad
+    xor ebx, ebx
+.c:
+    cmp ebx, [clip_len]
+    jae .done
+    mov al, [clip_buf+ebx]
+    call ed_type
+    inc ebx
+    jmp .c
+.done:
+    mov esi, ed_m_pasted
+    call ed_msg
+    popad
     ret
 
 ; ---------- buffer primitives ----------
@@ -1291,4 +1379,7 @@ ed_m_moved db 'Moved.', 0
 ed_m_ins db 'Insert mode.', 0
 ed_m_ovr db 'Overwrite mode.', 0
 ed_m_typed db 'Typed ', 0
+ed_m_copied db 'Line copied.', 0
+ed_m_cut db 'Line cut.', 0
+ed_m_pasted db 'Pasted.', 0
 ed_m_deleted db 'Deleted ', 0

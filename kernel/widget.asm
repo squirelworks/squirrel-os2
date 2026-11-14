@@ -237,6 +237,12 @@ wg_key:
     clc
     ret
 .field:
+    cmp dl, WK_COPY             ; the clipboard keys (2.3-clipboard)
+    je .clip
+    cmp dl, WK_PASTE
+    je .clip
+    cmp dl, WK_CUT
+    je .clip
     mov esi, [edi+WG_TEXT]
     call strlen                 ; eax = characters now
     cmp dl, 8
@@ -254,6 +260,9 @@ wg_key:
     test eax, eax
     jz .used
     mov byte [esi+eax-1], 0
+    jmp .used
+.clip:
+    call clip_field
     jmp .used
 .list:
     mov eax, [edi+WG_SEL]
@@ -845,6 +854,8 @@ cmd_fieldtest_run:
     jae .key
     cmp al, 0x01
     je .end
+    call clip_key               ; Ctrl+Ins, Shift+Ins, ... (2.3-clipboard)
+    jnc .send2
     mov ah, 8
     cmp al, 0x0E                ; Backspace
     je .send
@@ -854,6 +865,7 @@ cmd_fieldtest_run:
     jz .key
 .send:
     mov al, ah
+.send2:
     call wg_key
     jnc .draw
     cmp al, 10                  ; Enter: not the field's
