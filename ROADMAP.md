@@ -136,7 +136,7 @@ The GUI grows in generations, and each generation is a shippable milestone (epic
 
 - [x] **2.1 Framebuffer graphics** — A VBE linear framebuffer at 640×480, 800×600 and 1024×768 in 8, 16 and 32 bpp (from SquirrelBIOS or a real VGA BIOS). Mode 13h stays as the fallback. Double buffering, dirty rectangles, a blitter and clip regions. Test: set a mode, draw, read pixels back; regress in both 13h and VBE. PR-sized boxes: `TODO.md` **2.1-vbe-mode** … **2.1-blit-clip**.
 - [x] **2.2 Real windows** — Overlapping windows that move and resize, with title bar, minimise / maximise / close, a system menu, z-order by mouse, focus, and Alt+Tab. Original proportional bitmap fonts. Test: scripted window-manager operations produce the expected window list and pixel probes.
-- [ ] **2.3 Program Manager / Warp 3 desktop** *(in progress: icons, groups, File Manager and clipboard are on `main`; Control Panel on branch `int/os2-control`; 2.3-bevel-default open)* — Icon groups, double-click to launch, a two-pane File Manager, a clipboard, Control Panel v1 (colours, mouse, date and time, keyboard). Warp-style bevelled 3D controls are the default theme.
+- [x] **2.3 Program Manager / Warp 3 desktop** — Icon groups, double-click to launch, a two-pane File Manager, a clipboard, Control Panel v1 (colours, mouse, date and time, keyboard). Warp-style bevelled 3D controls are the default theme.
 
 ### 2.4 — Ring 3 and protection
 
@@ -220,7 +220,7 @@ Each has its rules core with unit tests in squirrelsoft first; card and board gr
 
 ### Warp styling (W.1–W.6, every generation, epic #117)
 
-- [ ] **W.1** *(in progress: `theme.inc`, `gfx_bevel` and the proportional fonts are on `main`; finishes with 2.3-bevel-default)* — Warp 4 colour scheme, bevels and fonts (original bitmaps that give the feel, not copies).
+- [x] **W.1** — Warp 4 colour scheme, bevels and fonts (original bitmaps that give the feel, not copies).
 - [ ] **W.2** — The Workplace Shell object model in the GUI: everything is an object with a settings notebook; a templates folder; drag a template to create an object.
 - [ ] **W.3** — WarpCenter / LaunchPad bar.
 - [ ] **W.4** — Folder views: icon, tree, details.

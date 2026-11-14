@@ -14,8 +14,11 @@ TH_TITLE_IDLE       equ 0x38    ; title bar of the others, dark grey
 TH_TITLE_TEXT       equ 0x3F    ; title text, white
 TH_CLIENT           equ 0x07    ; client area, light grey
 TH_TEXT             equ 0x00    ; text on the client area, black
-TH_BTN_FACE         equ 0x3F    ; button face
+TH_BTN_FACE         equ 0x3F    ; sunken well (fields, lists); buttons use TH_FACE
 TH_POINTER          equ 0x0F    ; the mouse pointer (mouse.asm)
 TH_SELECT           equ 0x01    ; a chosen menu row (2.2-sysmenu)
 TH_SELECT_TEXT      equ 0x3F
 TH_BEVEL_W          equ 2       ; rings in a bevel (gfx_bevel)
+TH_BEVEL_RAISED     equ 0       ; gfx_bevel esi: raised
+TH_BEVEL_SUNKEN     equ 1       ; sunken
+TH_BEVEL_ETCHED     equ 2       ; etched (group boxes)

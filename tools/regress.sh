@@ -421,6 +421,8 @@ check cliptest      'clip: PASS'            cliptest '<ret>'                  # 
 check cliptest-text 'systest: PASS'         cliptest '<ret>' systest '<ret>'
 check bevtest       'bevel: PASS'           bevtest '<ret>'                   # W.1-theme
 check bevtest-text  'systest: PASS'         bevtest '<ret>' systest '<ret>'
+check bevwidgets    'bevwidgets: PASS'      bevwidgets '<ret>'                # 2.3-bevel-default
+check bevwidgets-text 'systest: PASS'       bevwidgets '<ret>' systest '<ret>'
 check pfont         'pfont: PASS'           pfont '<ret>' '<pause>' '<spc>'   # 2.2-propfont
 check_all pfont-read 'gfx: Wg Squirrel window face|gfx: Wg Display face, bold' pfont '<ret>' '<pause>' '<gfx>' '<spc>'
 check pfont-text    'systest: PASS'         pfont '<ret>' '<pause>' '<spc>' systest '<ret>'
