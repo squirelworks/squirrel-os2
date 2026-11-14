@@ -41,10 +41,9 @@ See `documentation/README.md` for the living documentation set.
 
 ## Current release
 
-**2.1.0** — framebuffer graphics (VBE 640×480 to 1024×768, double buffering, dirty rectangles, clipping), the kernel above 1 MB, programs in ring 3, graphical apps (calculator, clock, notepad, paint, viewer, grapher, topology, matrix), seven games, and Linux ELF, Win32 console and DOS programs. Before it: 2.0.2 (the 2.0.x clean-up) and 2.0.0 (Warp-style system).  
+**2.3.0** — real windows on the VBE framebuffer, Program Manager desktop (icons, File Manager, clipboard, Control Panel, Warp bevels), the rest of the apps and games, long names and FAT, long-mode entry and SMP, UEFI/AHCI/NVMe/USB, DHCP/DNS/HTTP and sound, and more foreign personalities. Before it: 2.1.0 (framebuffer, ring 3, first apps/games/foreign programs), 2.0.2 and 2.0.0.  
 Build and run with `tools/build.sh` and `tools/run.sh` (`documentation/guides/getting-started.md`).  
-Notes: `documentation/releases/2.1.0.md`, `2.0.2.md`, `2.0.1.md`, `2.0.0.md` (1.0: `1.0.0.md` … `1.0.12.md`; 1.1–1.9 through `1.9.12.md`). Limits: `documentation/specifications.md`. What to do next: [TODO.md](TODO.md).  
-Font: lowercase `q` now has a straight stem with a right-hand tail on its descender, so it no longer reads as `9`.
+Notes: `documentation/releases/2.3.0.md`, `2.1.0.md`, `2.0.2.md`, `2.0.1.md`, `2.0.0.md` (1.0: `1.0.0.md` … `1.0.12.md`; 1.1–1.9 through `1.9.12.md`). Limits: `documentation/specifications.md`. What to do next: [HANDOFF.md](HANDOFF.md), [TODO.md](TODO.md).
 
 ## License
 

@@ -20,8 +20,8 @@ The code in this tree is project-native. Early releases are not described as OS/
 | **4.x** | The "Windows 10/11 class" generation: HiDPI, touch, accessibility, a package manager. |
 
 1.0.0 is released (2026-10-31, `documentation/releases/1.0.0.md`).
-**2.0.0** is released (2026-11-01, `documentation/releases/2.0.0.md`), and so are **2.0.1** and **2.0.2** (2026-11-04), which finish the 2.0.x clean-up. **2.1.0** (2.1 framebuffer graphics and 2.4 ring 3, plus apps, games and foreign programs) is prepared in `documentation/releases/2.1.0.md`.
-**Resumed 2026-11-07:** work continues at **2.1** (framebuffer graphics), then the GUI generations below. Modern hardware H.1–H.6 is scheduled in the 64-bit bridge (2.8–2.9). The PR-sized boxes for 2.1 are in `TODO.md`.
+**2.0.0** is released (2026-11-01, `documentation/releases/2.0.0.md`), and so are **2.0.1** and **2.0.2** (2026-11-04), which finish the 2.0.x clean-up. **2.1.0** (2.1 framebuffer graphics and 2.4 ring 3, plus apps, games and foreign programs) is published (`v2.1.0`). **2.3.0** (2.2 real windows, 2.3 Program Manager desktop, and everything else on `main` since 2.1.0) is prepared in `documentation/releases/2.3.0.md`; tagging is for the owner.
+**Hand-off 2026-11-14:** open work is in [HANDOFF.md](HANDOFF.md). Next shippable GUI work is **2.5** / **2.6**; modern hardware H.1–H.6 is already on `main`.
 
 SquirrelBIOS (github.com/squirelworks/squirrelbios) is the firmware this system is meant to sit on; booting Squirrel-OS/2 is its main acceptance test. Squirrel-OS/2 keeps booting under SeaBIOS in QEMU as well. Many built-in applications are first built as desktop programs in squirrelsoft and then ported here.
 
@@ -46,11 +46,11 @@ item (files, acceptance, how to test) and the suggested order. In this file: `- 
 (`status: done`, `status: in progress`, `cursor-codex`, `needs: squirrel`). The suite-wide continuation
 plan is `docs/CONTINUANCE.md` in squirrelsoft.
 
-**`main` is ahead of the 2.1.0 release** (as of `7844b67`): 2.2 (real windows), most of 2.3, 2.7 (long
-names, FAT, drive and shredder objects), 2.8 long-mode entry and SMP, H.1–H.6, the 3.0 networking and
-sound half, A.1–A.7 except A.3's Control Panel, every game, the whole calculator suite, and foreign
-programs P.1, P.2, P.5, P.6 (all but windows), P.8 (all but windows), P.9 (32-bit LX) and P.10 (FreeBSD). The next
-release (2.3.0) needs only 2.3-control and 2.3-bevel-default, then release notes for Squirrel to publish.
+**2.3.0 release content is ready** (as of `1b15e2d` plus the release-prep PR): 2.2, 2.3 and W.1 are
+closed; 2.7 (long names, FAT, drive/shredder objects, diskutil view/check), 2.8 long-mode entry and SMP,
+H.1–H.6, the 3.0 networking and sound half, A.1–A.7, C.1–C.9, G.1–G.9, and foreign programs P.1, P.2,
+P.5, P.6 (all but windows), P.8 (all but windows), P.9 (32-bit LX) and P.10 (FreeBSD) are on `main`.
+Squirrel tags and publishes `v2.3.0` (`needs: squirrel`).
 
 ## Where things were at the 2.1.0 release
 

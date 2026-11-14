@@ -109,4 +109,5 @@ Documentation is active.
 - 2.0.1 mouse on IRQ 12, drained everywhere; KB-18 resolved (`releases/2.0.1.md`, `kernel/mouse.md`)
 - 2.0.2 `ifconfig` refuses an off-subnet gateway (`releases/2.0.2.md`, `kernel/network.md`)
 - 2.1.0 VBE framebuffer graphics, ring 3, graphical apps, games, Linux/Win32/DOS programs (`releases/2.1.0.md`, `kernel/kernel-image.md`, `kernel/ring3.md`)
-- Next: modern hardware H.1–H.6 (`../TODO.md`, `../ROADMAP.md`).
+- 2.3.0 real windows, Program Manager desktop, apps, FAT/LFN, SMP, modern hardware, net/sound (`releases/2.3.0.md`, `../HANDOFF.md`)
+- Next: Generation 2 desktop 2.5/2.6, then 2.7 FAT format, P.6/P.8 windows, 2.8–2.9 64-bit kernel (`../HANDOFF.md`, `../TODO.md`, `../ROADMAP.md`).
