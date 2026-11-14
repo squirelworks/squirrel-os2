@@ -84,7 +84,8 @@ wg_button:
     pop edi
     ret
 
-; eax = a button's widget id, ebx = 0 raised / 1 pressed. The caller redraws.
+; eax = a button's widget id, ebx = 0 raised / 1 pressed. Sets the pressed
+; look only; the caller must redraw (or use wg_pressdraw).
 wg_press:
     push edi
     imul edi, eax, WG_SIZE
@@ -95,6 +96,12 @@ wg_press:
 .r:
     pop edi
     ret
+
+; eax = a button's widget id, ebx = 0 raised / 1 pressed: sets the pressed
+; look and redraws, so the face cannot stick. Prefer this over wg_press.
+wg_pressdraw:
+    call wg_press
+    jmp wm_redraw
 
 ; eax = window id, ebx = x, ecx = y, esi = buffer (zero-terminated, room
 ; for edx characters and the zero), edx = most characters
@@ -227,9 +234,212 @@ wg_setsel:
     pop edi
     ret
 
-; al = ASCII of a key (8 for Backspace, WK_UP and WK_DOWN for the arrows) -> CF clear if a widget used it,
-; CF set if not (the caller can use it itself). The key goes to the first
-; widget of the focused window that takes keys:
+; al = kind -> ZF set if the kind takes keys and hits (button, field, list).
+; Labels, consoles and groups never do.
+wg_takes:
+    cmp al, WGK_BUTTON
+    je .yes
+    cmp al, WGK_FIELD
+    je .yes
+    cmp al, WGK_LIST
+    je .yes
+    mov al, 1
+    test al, al                 ; ZF clear
+    ret
+.yes:
+    xor al, al                  ; ZF set
+    ret
+
+; edi = widget record -> eax = its id (index in wg_table)
+wg_idof:
+    push edx
+    push ecx
+    mov eax, edi
+    sub eax, wg_table
+    xor edx, edx
+    mov ecx, WG_SIZE
+    div ecx
+    pop ecx
+    pop edx
+    ret
+
+; eax = widget id: gives it the focus if it takes keys. Groups, labels and
+; consoles are refused (CF set). CF clear on success.
+wg_setfocus:
+    pushad
+    cmp eax, WG_MAX
+    jae .bad
+    imul edi, eax, WG_SIZE
+    add edi, wg_table
+    cmp byte [edi+WG_USED], 0
+    je .bad
+    mov al, [edi+WG_KIND]
+    call wg_takes
+    jnz .bad
+    call wg_idof
+    mov [wg_cur], eax
+    popad
+    clc
+    ret
+.bad:
+    popad
+    stc
+    ret
+
+; Tab among the focused window's widgets that take keys. Groups, labels
+; and consoles are skipped. -> CF clear if focus moved.
+wg_tab:
+    pushad
+    call wm_focus
+    cmp eax, -1
+    je .no
+    mov ebp, eax                ; window id
+    mov ebx, [wg_cur]           ; start after the current focus
+    cmp ebx, WG_MAX
+    jae .wrap
+    imul edi, ebx, WG_SIZE
+    add edi, wg_table
+    cmp byte [edi+WG_USED], 0
+    je .wrap
+    movzx eax, byte [edi+WG_WIN]
+    cmp eax, ebp
+    jne .wrap
+    inc ebx
+    jmp .go
+.wrap:
+    xor ebx, ebx
+.go:
+    mov ecx, WG_MAX
+.w:
+    cmp ebx, WG_MAX
+    jb .ok
+    xor ebx, ebx
+.ok:
+    imul edi, ebx, WG_SIZE
+    add edi, wg_table
+    cmp byte [edi+WG_USED], 0
+    je .n
+    movzx eax, byte [edi+WG_WIN]
+    cmp eax, ebp
+    jne .n
+    mov al, [edi+WG_KIND]
+    call wg_takes
+    jnz .n
+    mov [wg_cur], ebx
+    popad
+    clc
+    ret
+.n:
+    inc ebx
+    loop .w
+.no:
+    popad
+    stc
+    ret
+
+; eax = window id, ebx = x, ecx = y in the client area -> eax = the
+; interactive widget under that point, or -1. Groups, labels and consoles
+; are never hit (a group is a frame only).
+wg_hit:
+    pushad
+    mov ebp, eax                ; window
+    mov dword [wg_hitid], -1
+    mov edi, wg_table
+    xor esi, esi                ; index
+.w:
+    cmp byte [edi+WG_USED], 0
+    je .n
+    movzx eax, byte [edi+WG_WIN]
+    cmp eax, ebp
+    jne .n
+    mov al, [edi+WG_KIND]
+    call wg_takes
+    jnz .n
+    cmp ebx, [edi+WG_X]
+    jl .n
+    cmp ecx, [edi+WG_Y]
+    jl .n
+    call wg_box                 ; -> [wg_boxw], [wg_boxh]
+    mov eax, [edi+WG_X]
+    add eax, [wg_boxw]
+    cmp ebx, eax
+    jge .n
+    mov eax, [edi+WG_Y]
+    add eax, [wg_boxh]
+    cmp ecx, eax
+    jge .n
+    mov [wg_hitid], esi         ; last match wins (later in draw order)
+.n:
+    add edi, WG_SIZE
+    inc esi
+    cmp esi, WG_MAX
+    jb .w
+    popad
+    mov eax, [wg_hitid]
+    ret
+
+; edi = widget record -> [wg_boxw] / [wg_boxh] = its box size (chrome in).
+; Groups are not queried.
+wg_box:
+    pushad
+    cmp byte [edi+WG_KIND], WGK_LIST
+    je .list
+    cmp byte [edi+WG_KIND], WGK_FIELD
+    je .field
+    mov esi, [edi+WG_TEXT]
+    mov ecx, FONT_9
+    call gfx_strwidth_p
+    add eax, WG_CHROME
+    mov [wg_boxw], eax
+    mov dword [wg_boxh], GFX_CELL_H + WG_CHROME
+    jmp .out
+.field:
+    mov eax, [edi+WG_CODE]
+    imul eax, GFX_CELL_W
+    add eax, WG_CHROME
+    mov [wg_boxw], eax
+    mov dword [wg_boxh], GFX_CELL_H + WG_CHROME
+    jmp .out
+.list:
+    xor edx, edx
+    mov ebp, [edi+WG_CODE]
+    mov esi, [edi+WG_TEXT]
+.lw:
+    test ebp, ebp
+    jz .lwd
+    push esi
+    mov esi, [esi]
+    call strlen
+    pop esi
+    cmp eax, edx
+    jbe .lws
+    mov edx, eax
+.lws:
+    add esi, 4
+    dec ebp
+    jmp .lw
+.lwd:
+    imul edx, GFX_CELL_W
+    add edx, WG_CHROME
+    mov [wg_boxw], edx
+    mov eax, [edi+WG_ROWS]
+    test eax, eax
+    jnz .lrows
+    mov eax, [edi+WG_CODE]
+.lrows:
+    imul eax, GFX_CELL_H
+    add eax, WG_CHROME
+    mov [wg_boxh], eax
+.out:
+    popad
+    ret
+
+; al = ASCII of a key (8 for Backspace, WK_UP and WK_DOWN for the arrows,
+; 9 for Tab) -> CF clear if a widget used it, CF set if not (the caller
+; can use it itself). The key goes to the focused widget of the focused
+; window if that widget takes keys; else the first that does. Groups,
+; labels and consoles never take keys or the focus. Tab cycles among the
+; widgets that take keys.
 ;   button: Enter (10 or 13) or Space posts its event;
 ;   field:  a printable character is appended if there is room (a key
 ;           that does not fit is still used), Backspace deletes the last;
@@ -237,22 +447,41 @@ wg_setsel:
 wg_key:
     pushad
     mov dl, al
+    cmp dl, 9                   ; Tab: cycle focus, skip groups
+    je .tab
     call wm_focus
     cmp eax, -1
     je .no
+    mov ebp, eax                ; window id
+    mov eax, [wg_cur]
+    cmp eax, WG_MAX
+    jae .first
+    imul edi, eax, WG_SIZE
+    add edi, wg_table
+    cmp byte [edi+WG_USED], 0
+    je .first
+    movzx eax, byte [edi+WG_WIN]
+    cmp eax, ebp
+    jne .first
+    mov al, [edi+WG_KIND]
+    call wg_takes
+    jnz .first
+    jmp .have
+.first:
     mov edi, wg_table
     mov ecx, WG_MAX
 .w:
     cmp byte [edi+WG_USED], 0
     je .n
-    cmp [edi+WG_WIN], al
+    movzx eax, byte [edi+WG_WIN]
+    cmp eax, ebp
     jne .n
-    cmp byte [edi+WG_KIND], WGK_BUTTON
-    je .button
-    cmp byte [edi+WG_KIND], WGK_FIELD
-    je .field
-    cmp byte [edi+WG_KIND], WGK_LIST
-    je .list
+    mov al, [edi+WG_KIND]
+    call wg_takes
+    jnz .n
+    call wg_idof
+    mov [wg_cur], eax
+    jmp .have
 .n:
     add edi, WG_SIZE
     loop .w
@@ -260,6 +489,20 @@ wg_key:
     popad
     stc
     ret
+.tab:
+    call wg_tab
+    jc .no
+    popad
+    clc
+    ret
+.have:
+    cmp byte [edi+WG_KIND], WGK_BUTTON
+    je .button
+    cmp byte [edi+WG_KIND], WGK_FIELD
+    je .field
+    cmp byte [edi+WG_KIND], WGK_LIST
+    je .list
+    jmp .no
 .button:
     cmp dl, 10
     je .post
@@ -361,14 +604,19 @@ wg_drop:
     pushad
     mov edi, wg_table
     mov ecx, WG_MAX
+    xor ebp, ebp
 .w:
     cmp byte [edi+WG_USED], 0
     je .n
     cmp [edi+WG_WIN], al
     jne .n
     mov byte [edi+WG_USED], 0
+    cmp [wg_cur], ebp           ; dropped the focused widget
+    jne .n
+    mov dword [wg_cur], -1
 .n:
     add edi, WG_SIZE
+    inc ebp
     loop .w
     popad
     ret
@@ -738,7 +986,7 @@ wg_draw:
 LT_X equ 60
 LT_Y equ 40
 LT_LX equ 4                     ; the label, in the client area
-LT_LY equ 5                     ; level with the text inside a box at y = 2
+LT_LY equ (2 + TH_BEVEL_W + WG_BTN_PAD) ; level with text in a box at y = 2
 LT_PX equ LT_X + 1 + LT_LX      ; its first glyph's top left on the screen
 LT_PY equ LT_Y + 1 + WM_TITLE_H + LT_LY
 
@@ -1265,6 +1513,15 @@ cmd_bevwidgets_run:
     mov [lt_win], eax
     cmp eax, -1
     je .fail
+    ; group first in the table: must not steal keys, focus or hits
+    mov ebx, BW_GX
+    mov ecx, BW_GY
+    mov esi, bw_grp
+    mov edx, BW_GW
+    mov edi, BW_GH
+    call wg_group
+    mov [bw_gid], eax
+    mov eax, [lt_win]
     mov ebx, BW_BX
     mov ecx, BW_BY
     mov esi, bw_btn
@@ -1277,19 +1534,14 @@ cmd_bevwidgets_run:
     mov esi, fd_buf
     mov edx, 8
     call wg_field
+    mov [bw_fid], eax
     mov eax, [lt_win]
     mov ebx, BW_LX
     mov ecx, BW_LY
     mov esi, ls_items
     mov edx, 2
     call wg_list
-    mov eax, [lt_win]
-    mov ebx, BW_GX
-    mov ecx, BW_GY
-    mov esi, bw_grp
-    mov edx, BW_GW
-    mov edi, BW_GH
-    call wg_group
+    mov [bw_lid], eax
     call wm_redraw
     ; button up: raised light / face / dark
     mov eax, BW_X + 1 + BW_BX
@@ -1304,11 +1556,10 @@ cmd_bevwidgets_run:
     mov ebx, BW_Y + 1 + WM_TITLE_H + BW_BY + GFX_CELL_H + WG_CHROME - 1
     mov dl, TH_DARK            ; outer bottom row (raised)
     call .probe
-    ; button pressed: sunken
+    ; button pressed via wg_pressdraw (sets state and redraws)
     mov eax, [bw_bid]
     mov ebx, 1
-    call wg_press
-    call wm_redraw
+    call wg_pressdraw
     mov eax, BW_X + 1 + BW_BX
     mov ebx, BW_Y + 1 + WM_TITLE_H + BW_BY
     mov dl, TH_SHADOW
@@ -1360,6 +1611,69 @@ cmd_bevwidgets_run:
     mov ebx, BW_Y + 1 + WM_TITLE_H + BW_GY + 20
     mov dl, TH_SHADOW           ; outer left column, below the caption
     call .probe
+    ; group takes no keys / no hits / no focus (Sarah follow-up)
+    mov eax, [lt_win]
+    mov ebx, BW_GX + 4
+    mov ecx, BW_GY + 20
+    call wg_hit                 ; on the group frame: not a hit
+    cmp eax, -1
+    jne .fail
+    mov eax, [lt_win]
+    mov ebx, BW_BX + 2
+    mov ecx, BW_BY + 2
+    call wg_hit                 ; on the button
+    cmp eax, [bw_bid]
+    jne .fail
+    mov eax, [bw_gid]
+    call wg_setfocus            ; group refuses the focus
+    jnc .fail
+    mov eax, [bw_bid]
+    call wg_setfocus
+    jc .fail
+    mov al, 9                   ; Tab cycles past the group to the field
+    call wg_key
+    jc .fail
+    mov eax, [wg_cur]
+    cmp eax, [bw_fid]
+    jne .fail
+    mov al, 9
+    call wg_key
+    mov eax, [wg_cur]
+    cmp eax, [bw_lid]
+    jne .fail
+    mov al, 9
+    call wg_key
+    mov eax, [wg_cur]
+    cmp eax, [bw_bid]           ; wraps; never lands on the group
+    jne .fail
+    ; edge chrome: a button flush with the client bottom still draws
+    mov eax, [lt_win]
+    call wm_close
+    mov eax, BW_X
+    mov ebx, BW_Y
+    mov ecx, 120
+    mov edx, 80
+    mov esi, bw_title
+    call wm_create
+    mov [lt_win], eax
+    cmp eax, -1
+    je .fail
+    ; client height = 80 - WM_TITLE_H - 2; place button so its bottom
+    ; sits on the client edge (WG_CHROME-aware)
+    mov ebx, 4
+    mov ecx, 80 - WM_TITLE_H - 2 - (GFX_CELL_H + WG_CHROME)
+    mov esi, bw_btn
+    mov edx, 1
+    call wg_button
+    call wm_redraw
+    mov eax, BW_X + 1 + 4
+    mov ebx, BW_Y + 1 + WM_TITLE_H + (80 - WM_TITLE_H - 2 - (GFX_CELL_H + WG_CHROME))
+    mov dl, TH_LIGHT            ; raised top edge still on-screen
+    call .probe
+    mov eax, BW_X + 1 + 4
+    mov ebx, BW_Y + 1 + WM_TITLE_H + (80 - WM_TITLE_H - 2) - 1
+    mov dl, TH_DARK             ; raised bottom edge at the client edge
+    call .probe
     mov eax, [lt_win]
     call wm_close
     jmp .end
@@ -1392,6 +1706,9 @@ bw_pass db 'bevwidgets: PASS', 10, 0
 bw_fail db 'bevwidgets: FAIL', 10, 0
 align 4
 bw_bid dd 0
+bw_fid dd 0
+bw_lid dd 0
+bw_gid dd 0
 
 lt_title db 'Labels', 0
 lt_text db 'Name: Squirrel', 0
@@ -1404,4 +1721,8 @@ wg_cy dd 0
 wg_cw dd 0
 wg_ch dd 0
 wg_curp dd 0                    ; console: address of the cursor's cell
+wg_cur dd -1                    ; focused widget id, or -1
+wg_hitid dd -1
+wg_boxw dd 0
+wg_boxh dd 0
 wg_table times WG_MAX * WG_SIZE db 0
