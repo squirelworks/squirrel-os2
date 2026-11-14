@@ -1158,6 +1158,20 @@ check diskutil      'diskutil: PASS'        'run diskutil test' '<ret>' '<pause>
 check_all diskutil-check 'gfx: hd1 (data disk): SQFS, 2048 sectors, 1024 KB|gfx: Check: no problems found' 'run diskutil' '<ret>' '<pause>' 'c' '<pause>' '<gfx>'
 check diskutil-scan 'gfx: Surface scan: 2048 sectors read, 0 failed' 'run diskutil' '<ret>' '<pause>' 's' '<pause>' '<pause>' '<gfx>'
 check diskutil-quit 'systest: PASS'         'run diskutil' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
+# 2.7 (OS2-FS): diskutil on a FAT disk (hd2, mounted first so that it is a
+# block device), and on the FAT images the 2.7 checks above wrote to
+fat "$out/du16.img" format 16384 16 --part
+fat "$out/du16.img" mkdir docs
+fat "$out/du16.img" put "$out/fatreadme" README.TXT
+fat "$out/du16.img" put "$out/notes27" 'docs/A Long Document Name.txt'
+saved_target=$target; target=$out/du16.img
+check diskutil-fat   'diskutil: PASS'        'mount d: hd2' '<ret>' 'run diskutil test hd2' '<ret>' '<pause>' '<pause>'
+check_all diskutil-fat-gui 'gfx: hd2: FAT16, 30720 sectors, 15360 KB|gfx: Used 3 of 30449 clusters|gfx: A Long Document Name|gfx: Check: no problems found' 'mount d: hd2' '<ret>' 'run diskutil hd2' '<ret>' '<pause>' 'c' '<pause>' '<gfx>'
+for t in 12 16 32; do
+    target=$out/fat$t.img
+    check_all diskutil-fat$t "gfx: hd2: FAT$t|gfx: Check: no problems found" 'mount d: hd2' '<ret>' 'run diskutil hd2' '<ret>' '<pause>' 'c' '<pause>' '<gfx>'
+done
+target=$saved_target
 # C.8: notebooks (notes, Nut code, graphs, tables, geometry; C.1: math cells by sqmath)
 check notebook      'notebook: PASS'        'run notebook test' '<ret>' '<pause>' '<pause>' '<pause>'
 check_all notebook-code 'gfx: 42|gfx: 7 12' 'run notebook' '<ret>' '<pause>' 'c' 'x = 6' '<ret>' 'print x*7' '<ret>' 'print x+1, x*2' '<esc>' '<pause>' '<gfx>'
