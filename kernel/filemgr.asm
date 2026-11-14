@@ -1085,7 +1085,7 @@ fm_wm:
     cmp edx, [fm_last]
     jne .one
     sub eax, [fm_lastt]
-    cmp eax, PM_DBL
+    cmp eax, [cp_dbl]           ; (2.3-control)
     ja .one
     mov dword [fm_last], -1     ; double-click: a directory opens
     mov eax, [fm_lent+edx*4]

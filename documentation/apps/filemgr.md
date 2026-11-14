@@ -28,7 +28,7 @@ A target is a name in the shown directory, or a path starting with `/`. When it 
 
 ## Mouse
 
-The right button opens the File menu at the pointer. A press on a row chooses it and gives its pane the focus; a tree row shows that directory. A second press on the same list row within half a second (`PM_DBL`) opens a directory. Drag a list row onto a tree row to move the entry into that directory; hold Ctrl to copy it instead. Dropping on its own directory does nothing.
+The right button opens the File menu at the pointer. A press on a row chooses it and gives its pane the focus; a tree row shows that directory. A second press on the same list row within the Control Panel's double-click time (`cp_dbl`, half a second unless changed) opens a directory. Drag a list row onto a tree row to move the entry into that directory; hold Ctrl to copy it instead. Dropping on its own directory does nothing.
 
 ## Code
 

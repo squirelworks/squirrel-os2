@@ -635,6 +635,22 @@ check fm-mkdir      '/w/new'                'cd w' '<ret>' filemgr '<ret>' '<pau
 check fm-delete     'Not found'             'cd w' '<ret>' filemgr '<ret>' '<pause>' '<ret>' '<delete>' y '<esc>' 'cat sub/a.txt' '<ret>'
 check fm-menu       'Not found'             'put w/m.txt x' '<ret>' 'cd w' '<ret>' filemgr '<ret>' '<pause>' '<down>' '<down>' f '<pause>' '<down>' '<down>' '<down>' '<down>' '<ret>' y '<esc>' 'cat m.txt' '<ret>'
 check fm-text       'systest: PASS'         filemgr '<ret>' '<pause>' '<esc>' systest '<ret>'
+# 2.3-control: the Control Panel; its settings in /desktop/control.cfg, applied at boot (each check is a new boot)
+python3 "$root/tools/sqfs.py" "$out/cp.img" format 1024 >/dev/null
+disk=$out/cp.img
+check_all cp-panel  'gfx: Control Panel|gfx: Colours|gfx: Warp|gfx: Double-click|gfx: 50 ticks|gfx: Key delay|gfx: 500 ms' control '<ret>' '<pause>' '<gfx>'
+check cp-change     'settings saved'        control '<ret>' '<pause>' '<right>' '<down>' '<right>' '<right>' '<esc>'
+check cp-reboot     'scheme 1 Forest, dblclick 70,' 'control show' '<ret>'
+check cp-cfg        'dblclick 70'           'cat /desktop/control.cfg' '<ret>'
+check cp-mouse      'gfx: Plum'             control '<ret>' '<pause>' '<mouse-move:100,20>' '<pause>' '<mouse-btn:1>' '<mouse-btn:0>' '<pause>' '<mouse-move:0,80>' '<pause>' '<gfx>' '<esc>' '<pause>'
+check cp-rate       'rate 4, delay 1'       'control rate 4' '<ret>'
+check cp-rate-boot  'scheme 2 Plum, dblclick 70, swap 0, speed 2, rate 4, delay 1, kbd ok' 'control show' '<ret>'
+check_all cp-time   'gfx: The clock is set.|gfx: 12:34:5' control '<ret>' '<pause>' '<down>' '<down>' '<down>' '<down>' '<down>' '<down>' '<down>' '<ret>' '12:34:56' '<ret>' '<pause>' '<gfx>'
+check cp-date-bad   'gfx: That is not a date or time.' control '<ret>' '<pause>' '<down>' '<down>' '<down>' '<down>' '<down>' '<down>' '<ret>' '2029-13-01' '<ret>' '<pause>' '<gfx>'
+check cp-cmd-date   'date 2030-07-04 time 08:00:0' 'control date 2030-07-04' '<ret>' 'control time 08:00:00' '<ret>'
+check cp-bad        'control: show | scheme 0-3' 'control speed 9' '<ret>'
+check cptest        'cp: PASS'              cptest '<ret>' '<pause>'
+check cp-text       'systest: PASS'         cptest '<ret>' '<pause>' systest '<ret>'
 disk=$pm_disk
 # 1.8.3: the desktop's entries are object files in /desktop, written the
 # first time; a removed file's entry is gone. A disk of their own, so the

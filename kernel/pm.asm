@@ -228,6 +228,7 @@ pm:
     call fs_mount_boot
     call ins_mount_system       ; no data disk: an installed system's partition (I.4)
     call hist_load
+    call cp_boot                ; the Control Panel's settings (2.3-control)
     mov byte [shell_up], 1      ; from here a crash can restart the shell
     sti                         ; autoexec.bat may run apps that need keys
     call smp_init               ; start the other CPUs and park them (2.8)
@@ -490,6 +491,12 @@ run_simple:
     mov edi, cmd_filemgr        ; 2.3-filemgr
     call streq
     je .filemgr
+    mov edi, cmd_control        ; 2.3-control
+    call streq
+    je .control
+    mov edi, cmd_cptest
+    call streq
+    je .cptest
     mov edi, cmd_fmtest
     call streq
     je .fmtest
@@ -789,6 +796,12 @@ run_simple:
 .filemgr:
     call cmd_filemgr_run
     jmp .empty
+.control:
+    call cmd_control_run
+    jmp .empty
+.cptest:
+    call cmd_cptest_run
+    jmp .empty
 .fmtest:
     call cmd_fmtest_run
     jmp .empty
@@ -1072,6 +1085,8 @@ kbd_isr:
     push ebx
     push ecx
     in al, 0x64
+    test al, 1                  ; nothing there: read already (cp_kbd, 2.3-control)
+    jz .eoi
     test al, 0x20               ; an auxiliary byte: it is the mouse's (2.0.1)
     jnz .aux
     in al, 0x60
@@ -1329,6 +1344,7 @@ arg_cmds:
     dd cmd_ifconfig_arg, cmd_ifconfig_run
     dd cmd_host, cmd_host_run
     dd cmd_dns_arg, cmd_dns_run
+    dd cmd_control_a, cmd_control_arg   ; 2.3-control
     dd 0, 0
 cmd_disk db 'disk', 0
 cmd_blktest db 'blktest', 0
@@ -1347,6 +1363,9 @@ cmd_winmenu db 'winmenu', 0
 cmd_winalttab db 'winalttab', 0
 cmd_progman db 'progman', 0
 cmd_filemgr db 'filemgr', 0
+cmd_control db 'control', 0
+cmd_control_a db 'control ', 0
+cmd_cptest db 'cptest', 0
 cmd_cbtest db 'cbtest', 0
 cmd_fmtest db 'fmtest', 0
 cmd_pmtest db 'pmtest', 0
@@ -1577,6 +1596,7 @@ khigh_start:
 %include "desktop.asm"
 %include "progman.asm"
 %include "filemgr.asm"
+%include "control.asm"         ; 2.3-control
 %include "object.asm"
 %include "net.asm"
 %include "ne2k.asm"

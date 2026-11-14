@@ -782,7 +782,7 @@ pm_press:
     jne .new
     mov edx, ecx
     sub edx, [pm_lastt]
-    cmp edx, PM_DBL
+    cmp edx, [cp_dbl]           ; the Control Panel's time (2.3-control)
     ja .new
     mov dword [pm_last], -1     ; double-click: no drag
     mov dword [pm_drag], -1

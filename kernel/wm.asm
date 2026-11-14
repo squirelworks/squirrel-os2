@@ -322,7 +322,8 @@ wm_paint:
     xor ebx, ebx
     mov ecx, [gfx_width]
     mov edx, [gfx_height]
-    mov byte [gfx_colour], WM_DESKTOP
+    mov al, [th_desk]           ; the live scheme (2.3-control)
+    mov [gfx_colour], al
     call gfx_fillrect
     call wm_icons               ; minimised windows (2.2-minmax)
     xor ebp, ebp
@@ -333,10 +334,12 @@ wm_paint:
     imul edi, eax, WIN_SIZE
     add edi, wm_table
     inc ebp
-    mov byte [wm_drawbar], WM_BAR_IDLE
+    mov al, [th_bar_idle]
     cmp ebp, [wm_zn]
-    jne .draw
-    mov byte [wm_drawbar], WM_BAR   ; the top window has the focus
+    jne .bar
+    mov al, [th_bar]            ; the top window has the focus
+.bar:
+    mov [wm_drawbar], al
 .draw:
     call wm_draw
     jmp .w
