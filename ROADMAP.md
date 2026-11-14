@@ -21,7 +21,7 @@ The code in this tree is project-native. Early releases are not described as OS/
 
 1.0.0 is released (2026-10-31, `documentation/releases/1.0.0.md`).
 **2.0.0** is released (2026-11-01, `documentation/releases/2.0.0.md`), and so are **2.0.1** and **2.0.2** (2026-11-04), which finish the 2.0.x clean-up. **2.1.0** (2.1 framebuffer graphics and 2.4 ring 3, plus apps, games and foreign programs) was released 2026-11-13 (`documentation/releases/2.1.0.md`). **2.3.0** (2.2 real windows, 2.3 Program Manager desktop, and the parallel tracks that landed with them) is prepared in `documentation/releases/2.3.0.md` for the owner to publish.
-**After 2.3.0:** P.6-win32-windows and P.8-dos-window, then Generation 2 desktop (2.5 / 2.6 / W.2–W.6) and the 2.8-pae → 2.9 long-mode path. Boxes are in `TODO.md` and `HANDOFF.md`.
+**After 2.3.0:** Generation 2 desktop (2.5 / 2.6 / W.2–W.6) and the 2.8-pae → 2.9 long-mode path (P.6-win32-windows and P.8-dos-window are done). Boxes are in `TODO.md` and `HANDOFF.md`.
 
 SquirrelBIOS (github.com/squirelworks/squirrelbios) is the firmware this system is meant to sit on; booting Squirrel-OS/2 is its main acceptance test. Squirrel-OS/2 keeps booting under SeaBIOS in QEMU as well. Many built-in applications are first built as desktop programs in squirrelsoft and then ported here.
 
@@ -242,9 +242,9 @@ Each P step ships a tiny original test binary in the tree and a regression `PASS
   - [x] USER32/GDI32 subset, registry over `registry.dat`, DLL loader (#163)
   - [x] Win32 top-level windows as real desktop windows (P.6-win32-windows)
 - [ ] **P.7** — PE64.
-- [ ] **P.8** — A DOS personality (V86 mode or an emulator) for DOS programs in a window.
+- [x] **P.8** — A DOS personality (V86 mode or an emulator) for DOS programs in a window.
   - [x] `dosrun` (8086/186 interpreter, `INT 21h`), `.com`/`.exe` launch, mode 13h graphics (#146, #149, #153)
-  - [ ] The DOS screen in a window of its own (P.8-dos-window)
+  - [x] The DOS screen in a window of its own (P.8-dos-window)
 - [ ] **P.9** — OS/2 16/32-bit text-mode API (`DosWrite` and the like), optional and late.
   - [x] 32-bit LX text-mode programs: `os2run`, DOSCALLS by ordinal (#163)
   - [ ] 16-bit NE text-mode programs (DOSCALLS 16-bit entry points, thunks)

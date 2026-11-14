@@ -29,7 +29,7 @@ Used here, in `ROADMAP.md`, `TODO.md` and on the issues (as labels).
   Control Panel / bevels, 2.4 ring 3, 2.7 long names + FAT + drive objects
   (diskutil view/check), 2.8 long-mode entry and SMP, H.1–H.6, 3.0 networking
   and sound, A.1–A.7, C.1–C.9, G.1–G.9, P.1, P.2, P.5, P.6 (GUI, registry,
-  DLLs, desktop windows), P.8 (dosrun, launch, mode 13h), P.9 (32-bit LX),
+  DLLs, desktop windows), P.8 (dosrun, launch, mode 13h, DOS window), P.9 (32-bit LX),
   P.10 (FreeBSD).
 - **Test gate:** `tools/regress.sh` and GitHub CI (`.github/workflows/ci.yml`:
   `build` and `regress`, on every PR). Wait for a green `regress` before
@@ -114,13 +114,15 @@ Merged as #172.
   click on its close box delivers `WM_CLOSE` and the program prints
   `winwnd: PASS`. Native windows keep working (`progwin`).
 
-### P.8-dos-window — DOS screen in its own window  `cursor-codex`
+### P.8-dos-window — DOS screen in its own window  `status: done` *(this branch)*
 - **What:** `dosrun`'s text screen and mode 13h output go to a 2.2 window
   (scaled 1x/2x) instead of the whole screen; keys go to it while focused.
-- **Files:** `programs/dosrun.asm`, `kernel/winsys.asm`, `documentation/architecture/dosrun.md`.
-- **Acceptance:** `run dosgfx.com` inside the desktop draws in a window whose
-  client pixels match the 13h buffer; the desktop around it is untouched;
-  `dos-*` checks still pass.
+- **Files:** `programs/dosrun.asm`, `programs/dosvga.inc`, `kernel/winsys.asm`,
+  `documentation/architecture/dosrun.md`.
+- **Acceptance:** `run dosgfx.com` draws in a window whose client pixels match
+  the 13h buffer; the desktop around it is untouched (`doswin: desk` /
+  `doswin: pixels`); `dos-win`, `dos-win-2x`, `dos-win-text`; existing `dos-*`
+  still pass.
 
 ### 2.5 / W.3 — WarpCenter, Squirrel menu, tray clock, LaunchPad  `cursor-codex`
 - **Split done:** `TODO.md` boxes **2.5-bar**, **2.5-menu**, **2.5-clock**,
