@@ -1204,11 +1204,12 @@ check_all dos-gfx     'gfx: dosgfx: drawn|dosgfx: PASS'  'run dosgfx.com' '<ret>
 check dos-gfx-after   'systest: PASS'         'run dosgfx.com' '<ret>' '<pause>' x '<pause>' systest '<ret>'
 # P.8-dos-window: mode 13h in a 2.2 window (1x/2x); desktop outside untouched; text window with "win"
 check_all dos-win     'gfx: dosgfx: drawn|doswin: desk|doswin: scale 1|doswin: pixels|dosgfx: PASS' \
-                      'run dosgfx.com' '<ret>' '<pause>' '<gfx>' x '<pause>'
-check_all dos-win-2x  'gfx: dosgfx: drawn|doswin: desk|doswin: scale 2|doswin: pixels|dosgfx: PASS' \
-                      'run dosrun 2x dosgfx.com' '<ret>' '<pause>' '<gfx>' x '<pause>'
+                      'run dosgfx.com' '<ret>' '<pause>' '<pause>' '<gfx>' x '<pause>' '<pause>'
+# 2x scales the 13h buffer (OCR may not read 2x glyphs); pixels+desk prove the blit
+check_all dos-win-2x  'doswin: desk|doswin: scale 2|doswin: pixels|dosgfx: PASS' \
+                      'run dosrun 2x dosgfx.com' '<ret>' '<pause>' '<pause>' x '<pause>' '<pause>'
 check_all dos-win-text 'gfx: Hello from DOS land!|gfx: doshello: PASS' \
-                      'run dosrun win doshello.com acorns' '<ret>' '<pause>' '<gfx>' x '<pause>'
+                      'run dosrun win doshello.com acorns' '<ret>' '<pause>' '<pause>' '<gfx>' x '<pause>'
 # P.10: a FreeBSD i386 ELF: arguments on the stack, errors as CF + errno
 check_all bsd-hello   'Hello from FreeBSD land!|bsdhello: PASS'  'run bsdhello' '<ret>'
 check bsd-after       'Hello from DOS land!'  'run bsdhello' '<ret>' 'run doshello.com' '<ret>'

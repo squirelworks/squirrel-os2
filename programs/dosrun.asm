@@ -86,6 +86,15 @@ setup:
     cld
     mov byte [vscale], 1
     mov byte [vwantwin], 0
+    mov byte [vmode], 3
+    mov byte [vink], 15
+    mov dword [vslice], VGA_SLICE
+    mov dword [vwin], -1        ; BSS starts at 0; no window yet
+    mov dword [vrect], 0
+    mov dword [vrect+4], 0
+    mov dword [vrect+8], 320
+    mov dword [vrect+12], 200
+    mov dword [vrect+20], 320
 .flags:
     call skip_sp
     cmp byte [esi], 0
@@ -2914,6 +2923,30 @@ vfont resd 1
 vticks resd 1
 vdac resb 768
 vlut resb 256
+alignb 4
+vwin resd 1
+vdraw_rc resd 1
+vopen resd 6
+vcmd resd 7
+vev resd 4
+vinfo resd 4
+vrect resd 6
+vslice resd 1
+tcur resd 1
+trow resd 1
+tbuf resb 80*25
+tline resb 80+1
+vmode resb 1
+vink resb 1
+vscale resb 1
+vwantwin resb 1
+vtextwin resb 1
+vhold resb 1
+vdesk_have resb 1
+vdesk_ok resb 1
+vpix_ok resb 1
+vdesk resb 1
+vdeskpx resb 1
 alignb 4
 relent resb 4
 hdr resb 32

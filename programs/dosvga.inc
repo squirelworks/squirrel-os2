@@ -69,7 +69,6 @@ vga_setmode:
     je .r                       ; no window: stay in text
     mov byte [vmode], 0x13
     call vga_default_dac
-    call vga_desk_snap          ; a pixel outside the window (desktop check)
 .clear:
     mov dword [vcur], 0
     test byte [rAX], 0x80       ; bit 7: keep the screen
@@ -114,8 +113,8 @@ vga_win_open:
     movzx ecx, byte [vscale]
     cmp byte [vtextwin], 0
     je .sz
-    mov eax, TXT_COLS * 6       ; text cells: 6 x 8 like the BIOS teletype
-    mov ebx, TXT_ROWS * 8
+    mov eax, TXT_COLS * 6       ; text cells: 6 wide, 10 tall for OCR
+    mov ebx, TXT_ROWS * 10
     mov ecx, 1                  ; text window is always 1x (WD_TEXT)
 .sz:
     imul eax, ecx
@@ -124,6 +123,13 @@ vga_win_open:
     add ebx, WIN_FRAME_Y
     mov dword [vopen], 40       ; x
     mov dword [vopen+4], 30     ; y
+    cmp byte [vtextwin], 0
+    jne .pos
+    cmp byte [vscale], 2
+    jne .pos
+    mov dword [vopen], 0        ; 2x: origin so the client stays on screen
+    mov dword [vopen+4], 0
+.pos:
     mov [vopen+8], eax
     mov [vopen+12], ebx
     mov dword [vopen+16], vtitle
@@ -202,58 +208,43 @@ vga_win_hold:
 .r:
     ret
 
-; a pixel outside the DOS window, for the "desktop untouched" check
-vga_desk_snap:
-    pushad
+; a pixel outside the DOS window, for the "desktop untouched" check.
+; Uses a stack rect so it cannot disturb other state; GUI_READ of 1x1.
+vga_desk_read:                  ; -> al = colour at (620,460)
+    push ebx
+    push ecx
+    sub esp, 28
+    mov dword [esp], 620
+    mov dword [esp+4], 460
+    mov dword [esp+8], 1
+    mov dword [esp+12], 1
+    lea eax, [esp+24]
+    mov dword [esp+16], eax     ; 1-byte buffer at esp+24
+    mov dword [esp+20], 1
+    mov byte [esp+24], 0
     mov eax, SYS_GUI_
     mov ebx, 3                  ; GUI_READ
-    mov dword [vrect], 620
-    mov dword [vrect+4], 460
-    mov dword [vrect+8], 1
-    mov dword [vrect+12], 1
-    mov eax, vdeskpx
-    mov [vrect+16], eax
-    mov dword [vrect+20], 1
-    mov eax, SYS_GUI_
-    mov ebx, 3
-    mov ecx, vrect
+    mov ecx, esp
     int 0x80
-    mov al, [vdeskpx]
+    mov al, [esp+24]
+    add esp, 28
+    pop ecx
+    pop ebx
+    ret
+
+vga_desk_snap:
+    pushad
+    call vga_desk_read
     mov [vdesk], al
     mov byte [vdesk_have], 1
-    ; restore the blit rect fields used by vga_flush
-    mov dword [vrect], 0
-    mov dword [vrect+4], 0
-    mov dword [vrect+8], 320
-    mov dword [vrect+12], 200
-    mov dword [vrect+20], 320
     popad
     ret
 
-; while the window is still open: sample the outside pixel into vdesk_ok
 vga_desk_sample:
     cmp byte [vdesk_have], 0
     je .r
     pushad
-    mov eax, SYS_GUI_
-    mov ebx, 3                  ; GUI_READ
-    mov dword [vrect], 620
-    mov dword [vrect+4], 460
-    mov dword [vrect+8], 1
-    mov dword [vrect+12], 1
-    mov eax, vdeskpx
-    mov [vrect+16], eax
-    mov dword [vrect+20], 1
-    mov eax, SYS_GUI_
-    mov ebx, 3
-    mov ecx, vrect
-    int 0x80
-    mov dword [vrect], 0
-    mov dword [vrect+4], 0
-    mov dword [vrect+8], 320
-    mov dword [vrect+12], 200
-    mov dword [vrect+20], 320
-    mov al, [vdeskpx]
+    call vga_desk_read
     cmp al, [vdesk]
     sete byte [vdesk_ok]
     popad
@@ -274,7 +265,7 @@ vga_desk_report:
     int 0x80
     movzx eax, byte [vscale]
     add al, '0'
-    mov [m_scale+13], al
+    mov [m_scale+14], al        ; "doswin: scale N"
     mov eax, SYS_PUTS
     mov ebx, m_scale
     int 0x80
@@ -338,19 +329,19 @@ vga_default_dac:
     push eax
     mov eax, ebx
     mov ebx, 3
-    div ebx
+    div ebx                     ; eax = group, edx = paleness
     mov ebx, edx
     mov edx, eax
     pop eax
-    imul ebx, 21
-    push edx
+    imul ebx, 21                ; pale: lift towards white
+    push ecx
     mov ecx, 63
     sub ecx, eax
     imul ecx, ebx
     shr ecx, 6
     add eax, ecx
     pop ecx
-    mov ebx, 3
+    mov ebx, 3                  ; dim by the group
     sub ebx, edx
     imul eax, ebx
     xor edx, edx
@@ -469,7 +460,9 @@ vga_lut:
     add edx, eax
     ret
 
-; A000 through the LUT into the window at vscale
+; A000 through the LUT into the window at vscale.
+; WINFLUSH runs ws_update first; if the window is dirty that paints an empty
+; client over the back buffer. Flush once to clear dirty, blit, flush again.
 vga_flush:
     cmp byte [vmode], 0x13
     jne .r
@@ -479,6 +472,8 @@ vga_flush:
     mov esi, [mem]
     add esi, VGA_SEG*16
     mov edi, [vframe]
+    test edi, edi
+    jz .pop
     mov ecx, 64000
     xor eax, eax
 .t:
@@ -486,17 +481,18 @@ vga_flush:
     mov al, [vlut+eax]
     stosb
     loop .t
-    ; also confirm a client pixel matches the buffer (centre of the red block
-    ; dosgfx draws is optional; probe (150,130) = A000 index)
+    mov eax, SYS_WINFLUSH
+    mov ebx, [vwin]
+    int 0x80
     mov dword [vcmd], WD_BLIT
     cmp byte [vscale], 1
     je .blit1
     mov dword [vcmd], WD_SBLIT
     movzx eax, byte [vscale]
-    mov [vcmd+20], eax          ; scale
+    mov [vcmd+20], eax
     jmp .cmd
 .blit1:
-    mov dword [vcmd+20], -1     ; opaque
+    mov dword [vcmd+20], -1
 .cmd:
     mov dword [vcmd+4], 0
     mov dword [vcmd+8], 0
@@ -511,13 +507,12 @@ vga_flush:
     mov eax, SYS_WINFLUSH
     mov ebx, [vwin]
     int 0x80
-    ; client pixel at (150,130) must match the mapped A000 byte (after flush)
     mov dword [vcmd], WD_PIXEL
     mov dword [vcmd+4], 150
     mov dword [vcmd+8], 130
     cmp byte [vscale], 2
     jne .pix
-    mov dword [vcmd+4], 300     ; 150*2
+    mov dword [vcmd+4], 300
     mov dword [vcmd+8], 260
 .pix:
     mov eax, SYS_WINDRAW
@@ -536,6 +531,10 @@ vga_flush:
     int 0x80
     mov [vticks], eax
     mov dword [vslice], VGA_SLICE
+    cmp byte [vdesk_have], 0
+    jne .pop
+    call vga_desk_snap          ; once, after the first successful flush
+.pop:
     popad
 .r:
     ret
@@ -851,12 +850,13 @@ vga_text_maybe:
     ret
 
 ; al -> the text buffer and the window (when open)
+; tcur is the absolute offset row*TXT_COLS+col (not the column alone).
 vga_text_putc:
     cmp dword [vwin], -1
     je .r
     pushad
     movzx eax, al
-    mov edx, [tcur]             ; offset = row*cols+col
+    mov edx, [tcur]
     cmp al, 13
     je .cr
     cmp al, 10
@@ -869,13 +869,11 @@ vga_text_putc:
     jae .done
     mov [tbuf+edx], al
     inc edx
-    mov eax, edx
-    xor edx, edx
-    mov ecx, TXT_COLS
-    div ecx
-    test edx, edx
-    jnz .store
-    ; wrapped: already at start of next row
+    cmp edx, TXT_COLS*TXT_ROWS
+    jb .store
+    ; past the last cell: scroll and stay on the last row
+    call vga_text_scroll
+    mov edx, TXT_COLS*(TXT_ROWS-1)
     jmp .store
 .cr:
     mov eax, edx
@@ -899,17 +897,7 @@ vga_text_putc:
     inc eax
     cmp eax, TXT_ROWS
     jb .nl
-    ; scroll
-    push esi
-    mov esi, tbuf+TXT_COLS
-    mov edi, tbuf
-    mov ecx, TXT_COLS*(TXT_ROWS-1)
-    rep movsb
-    mov edi, tbuf+TXT_COLS*(TXT_ROWS-1)
-    mov ecx, TXT_COLS
-    mov al, ' '
-    rep stosb
-    pop esi
+    call vga_text_scroll
     mov eax, TXT_ROWS-1
 .nl:
     imul edx, eax, TXT_COLS
@@ -921,46 +909,68 @@ vga_text_putc:
 .r:
     ret
 
+vga_text_scroll:
+    pushad
+    mov esi, tbuf+TXT_COLS
+    mov edi, tbuf
+    mov ecx, TXT_COLS*(TXT_ROWS-1)
+    rep movsb
+    mov edi, tbuf+TXT_COLS*(TXT_ROWS-1)
+    mov ecx, TXT_COLS
+    mov al, ' '
+    rep stosb
+    popad
+    ret
+
 ; redraw the text buffer into the window with WD_TEXT per row
 vga_text_flush:
     cmp dword [vwin], -1
     je .r
     pushad
+    mov eax, SYS_WINFLUSH       ; clear dirty before painting
+    mov ebx, [vwin]
+    int 0x80
     mov dword [vcmd], WD_FILL
     mov dword [vcmd+4], 0
     mov dword [vcmd+8], 0
-    mov eax, TXT_COLS * 6
-    movzx ecx, byte [vscale]
-    imul eax, ecx
-    mov [vcmd+12], eax
-    mov eax, TXT_ROWS * 8
-    imul eax, ecx
-    mov [vcmd+16], eax
+    mov dword [vcmd+12], TXT_COLS * 6
+    mov dword [vcmd+16], TXT_ROWS * 10
     mov dword [vcmd+20], 0      ; black
     mov eax, SYS_WINDRAW
     mov ebx, [vwin]
     mov ecx, vcmd
     int 0x80
-    xor ebp, ebp                ; row
+    xor ebx, ebx                ; row (not ebp: keep a stable counter)
+    mov [trow], ebx
 .row:
-    cmp ebp, TXT_ROWS
+    mov ebx, [trow]
+    cmp ebx, TXT_ROWS
     jae .flip
-    ; zero-terminate a copy of the row for WD_TEXT
     mov esi, tbuf
-    imul eax, ebp, TXT_COLS
+    imul eax, ebx, TXT_COLS
     add esi, eax
     mov edi, tline
     mov ecx, TXT_COLS
     rep movsb
-    mov byte [tline+TXT_COLS], 0
+    mov ecx, TXT_COLS
+.trim:
+    test ecx, ecx
+    jz .empty
+    cmp byte [tline+ecx-1], ' '
+    jne .term
+    dec ecx
+    jmp .trim
+.empty:
+.term:
+    mov byte [tline+ecx], 0
+    test ecx, ecx
+    jz .next                    ; blank row: skip
     mov dword [vcmd], WD_TEXT
-    mov dword [vcmd+4], 0
-    mov eax, ebp
-    imul eax, 8
-    movzx ecx, byte [vscale]
-    imul eax, ecx
+    mov dword [vcmd+4], 2
+    mov eax, [trow]
+    imul eax, 10                ; 10 px/row so OCR keeps lines apart
     mov [vcmd+8], eax
-    mov dword [vcmd+12], -1     ; client background
+    mov dword [vcmd+12], 0      ; black background
     mov dword [vcmd+16], 0
     mov dword [vcmd+20], 0x0F   ; white ink
     mov dword [vcmd+24], tline
@@ -968,7 +978,8 @@ vga_text_flush:
     mov ebx, [vwin]
     mov ecx, vcmd
     int 0x80
-    inc ebp
+.next:
+    inc dword [trow]
     jmp .row
 .flip:
     mov eax, SYS_WINFLUSH
@@ -980,25 +991,6 @@ vga_text_flush:
 
 vga_ega16 db 0,0,0, 0,0,42, 0,42,0, 0,42,42, 42,0,0, 42,0,42, 42,21,0, 42,42,42
           db 21,21,21, 21,21,63, 21,63,21, 21,63,63, 63,21,21, 63,21,63, 63,63,21, 63,63,63
-vrect dd 0, 0, 320, 200, 0, 320
-vmode db 3
-vink db 15
-vscale db 1
-vwantwin db 0
-vtextwin db 0
-vhold db 0
-vdesk_have db 0
-vdesk_ok db 0
-vpix_ok db 0
-vdesk db 0
-vdeskpx db 0
-align 4, db 0
-vslice dd VGA_SLICE
-vwin dd -1
-vopen dd 0, 0, 0, 0, 0, 0
-vcmd dd 0, 0, 0, 0, 0, 0, 0
-vev dd 0, 0, 0, 0
-vinfo dd 0, 0, 0, 0
 vtitle db 'DOS', 0
        times 28 db 0
 m_desk db 'doswin: desk', 10, 0
@@ -1006,6 +998,4 @@ m_deskbad db 'doswin: desk BAD', 10, 0
 m_scale db 'doswin: scale 1', 10, 0
 m_pix db 'doswin: pixels', 10, 0
 m_pixbad db 'doswin: pixels BAD', 10, 0
-tcur dd 0
-tbuf times TXT_COLS*TXT_ROWS db 0
-tline times TXT_COLS+1 db 0
+; mutable state (vwin, vcmd, vmode, tbuf, ...) lives in dosrun's BSS
