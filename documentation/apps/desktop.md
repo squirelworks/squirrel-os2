@@ -94,6 +94,26 @@ Delete asks on the help row (`Delete notes? y: yes`). `y` deletes the object's f
 
 Checks (on a data disk of their own): `dk-rename-win`, `dk-rename` (`edit` becomes `notes` on the desktop and in `objcat`), `dk-rename-esc`, `dk-delete-ask`, `dk-delete-no`, `dk-delete` (`ls /desktop` no longer lists `edit.obj`), `dk-delete-full`.
 
+## WarpCenter (2.5-bar / 2.5-menu / 2.5-clock)
+
+`warpcenter` (in `kernel/warpcenter.asm`) shows a raised WarpCenter strip along
+the top of the window manager's screen, with the Program Manager's group
+windows laid out below it (`wc_top` shifts `pm_place`).
+
+| Part | What it does |
+|------|----------------|
+| Bar | Full-width face (`TH_FACE`) with a raised `gfx_bevel`. Drawn by `wc_paint` from `wm_paint`, above the windows and under pop-up menus. |
+| Squirrel menu | Button on the left (label from `wc_btn`). Click it, or press `s`, to open a pop-up of top-level desktop Programs and Folders; choosing a Program sends it `open` (same path as the desktop / Program Manager). |
+| Tray clock | `HH:MM:SS` from the CMOS clock on the right; redraws when the second changes. |
+
+Esc quits (group windows close; `WarpCenter closed.`). LaunchPad pads
+(**W.3-launchpad**) are not in yet.
+
+Self-checks: `wcbar` reads back bar face and bevel pixels → `wc-bar: PASS`;
+`wcmenu` builds the menu, finds `calc` and confirms launching it →
+`wc-menu: PASS`; `wcclock` sets the RTC, checks the face, steps one second
+and checks the face changed → `wc-clock: PASS`.
+
 ## Booting into the desktop
 
 The system still boots to the shell prompt. To boot into the desktop, put a line `desktop` in `autoexec.bat` on the data disk (`../kernel/shell.md`); Esc then reaches the shell as usual.

@@ -62,6 +62,8 @@ localization/
 | net_noreply | No reply | Nullum responsum | jang tu'lu'be' | `arp` when nobody answers (1.9.5) |
 | net_badaddr | Bad address | Inscriptio mala | ngoq QIH | `arp` when the text is not an address (1.9.5) |
 | net_of4 |  of 4 |  ex 4 |  vo' 4 | `ping` reply count (1.9.6) |
+| wc_btn | Squirrel | Sciurus | Squirrel | WarpCenter menu button (2.5) |
+| wc_bye | WarpCenter closed. | Centrum Sciuri clausum. | WarpCenter SoQlu'pu'. | WarpCenter quit line (2.5) |
 
 ## Runtime (0.8.1)
 

@@ -335,9 +335,9 @@ From the 2.3 milestone in `ROADMAP.md`. Start after **2.2-progwin** is on `main`
 
 From the 2.5 milestone in `ROADMAP.md` and W.3 in epic #117. Start after **2.3-bevel-default** is on `main`. W.3 belongs with these boxes (one sizeable PR may group neighbouring ones). Design notes in `documentation/apps/desktop.md`. Every box keeps the 2.2–2.3 checks (`wintest`, `pm-*`, `fm-*`, `cp-*`, `bevwidgets`) passing.
 
-- [ ] **2.5-bar** — A WarpCenter-style bar along the top of the screen (the default; a taskbar layout is a Control Panel / settings choice), with the desktop and program windows laid out below it. Pixel probe of the bar face and bevel → `wc-bar: PASS`.
-- [ ] **2.5-menu** — A Squirrel menu from the bar that lists programs (and folders) and launches the chosen one into a real window. Scripted open of `calc` (or another built-in) → `wc-menu: PASS`.
-- [ ] **2.5-clock** — A tray clock on the bar that shows the RTC time and ticks (a pixel or glyph probe sees the display change across a second, or after a scripted RTC step). Check `wc-clock` → `wc-clock: PASS`.
+- [x] **2.5-bar** — A WarpCenter-style bar along the top of the screen (the default; a taskbar layout is a Control Panel / settings choice), with the desktop and program windows laid out below it. Pixel probe of the bar face and bevel → `wc-bar: PASS`.
+- [x] **2.5-menu** — A Squirrel menu from the bar that lists programs (and folders) and launches the chosen one into a real window. Scripted open of `calc` (or another built-in) → `wc-menu: PASS`.
+- [x] **2.5-clock** — A tray clock on the bar that shows the RTC time and ticks (a pixel or glyph probe sees the display change across a second, or after a scripted RTC step). Check `wc-clock` → `wc-clock: PASS`.
 - [ ] **W.3-launchpad** — LaunchPad pads on the WarpCenter: drop a program onto a pad, click the pad to launch; pads persist across reboot. Check `wclp` → `wclp: PASS`.
 
 ## 2.6 — Workplace Shell desktop (includes W.2, W.4, W.5)

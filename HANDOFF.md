@@ -123,13 +123,13 @@ Merged as #172.
   `dos-*` checks still pass.
 
 ### 2.5 / W.3 — WarpCenter, Squirrel menu, tray clock, LaunchPad  `cursor-codex`
-- **Split done:** `TODO.md` boxes **2.5-bar**, **2.5-menu**, **2.5-clock**,
-  **W.3-launchpad**. Take them top to bottom (or group neighbours in one PR).
-- **Files:** `kernel/desktop.asm`, `kernel/progman.asm`, `kernel/wm.asm`,
-  `kernel/widget.asm`, `documentation/apps/desktop.md`.
-- **Acceptance:** bar pixel probe `wc-bar: PASS`; menu launches a program
-  `wc-menu: PASS`; tray clock ticks `wc-clock: PASS`; LaunchPad pads persist
-  and launch `wclp: PASS`.
+- **Done on this work:** **2.5-bar**, **2.5-menu**, **2.5-clock**
+  (`kernel/warpcenter.asm`, `wcbar` / `wcmenu` / `wcclock` / `warpcenter`).
+- **Still open:** **W.3-launchpad** (pads that persist and launch → `wclp: PASS`).
+- **Files:** `kernel/warpcenter.asm`, `kernel/progman.asm`, `kernel/wm.asm`,
+  `documentation/apps/desktop.md`.
+- **Acceptance (done):** bar pixel probe `wc-bar: PASS`; menu maps to `calc`
+  `wc-menu: PASS`; tray clock ticks after an RTC step `wc-clock: PASS`.
 
 ### 2.6 / W.2 / W.4 / W.5 — Icons, drag/drop, menus, notebooks, shadows, views  `cursor-codex`
 - **Split done:** `TODO.md` boxes **2.6-icons**, **2.6-drag**, **2.6-context**,
