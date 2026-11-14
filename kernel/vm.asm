@@ -684,12 +684,12 @@ vm_map_range:
     test ecx, ecx
     jz .fail
     mov edx, eax                ; start
-    lea ebx, [eax+ecx-1]        ; last byte
+    lea ebp, [eax+ecx-1]        ; last byte (ebp: end; ebx is the PDE pointer)
     and edx, -PAE_2MB           ; 2 MB align down
-    or ebx, PAE_2MB-1           ; align up to end of its 2 MB page
-    inc ebx                     ; first byte past the range
+    or ebp, PAE_2MB-1           ; align up to end of its 2 MB page
+    inc ebp                     ; first byte past the range
 .map:
-    cmp edx, ebx
+    cmp edx, ebp
     jae .ok
     cmp edx, MM_LIMIT           ; already identity-mapped
     jb .next
@@ -704,13 +704,9 @@ vm_map_range:
     and ecx, -4096              ; program asked (2.2-progwin)
     cmp ecx, [kernel_pd]
     je .next
-    push edx
     mov esi, edx
-    mov ebp, ecx                ; temp: walk this PDPT as if it were an AS
-    ; build a fake walk: reuse vm_map_pde_in with root in ecx
     mov eax, ecx
     call vm_pde_in_root         ; ebx = &PDE in the current root
-    pop edx
     jc .next
     mov eax, edx
     or eax, PG_P|PG_W|PG_PS
@@ -720,8 +716,8 @@ vm_map_range:
     add edx, PAE_2MB
     jmp .map
 .ok:
-    mov eax, cr3                ; flush TLB for the new entries, staying in
-    mov cr3, eax                ; the address space in use (2.2-progwin)
+    mov eax, cr3                ; flush TLB / reload PAE PDPTRs
+    mov cr3, eax
     popad
     clc
     ret
@@ -737,9 +733,9 @@ vm_kernel_pde:
     jmp vm_pde_in_root
 
 ; eax = PDPT, esi = address -> ebx = &PDE (allocates a PD when the PDPTE
-; is empty, into the kernel's page count only when eax is kernel_pd).
-; CF if out of memory.
+; is empty). CF if out of memory. Keeps edx (vm_map_range walks with it).
 vm_pde_in_root:
+    push edx
     push edi
     mov edi, eax
     mov eax, esi
@@ -761,10 +757,12 @@ vm_pde_in_root:
     and edx, PAE_IDX_MASK
     lea ebx, [eax+edx*8]
     pop edi
+    pop edx
     clc
     ret
 .no:
     pop edi
+    pop edx
     stc
     ret
 
