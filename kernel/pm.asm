@@ -509,6 +509,18 @@ run_simple:
     mov edi, cmd_pmtest
     call streq
     je .pmtest
+    mov edi, cmd_warpcenter     ; 2.5-bar / menu / clock
+    call streq
+    je .warpcenter
+    mov edi, cmd_wcbar
+    call streq
+    je .wcbar
+    mov edi, cmd_wcmenu
+    call streq
+    je .wcmenu
+    mov edi, cmd_wcclock
+    call streq
+    je .wcclock
     mov edi, cmd_winalttab      ; 2.2-alttab
     call streq
     je .winalttab
@@ -816,6 +828,18 @@ run_simple:
     jmp .empty
 .pmtest:
     call cmd_pmtest_run
+    jmp .empty
+.warpcenter:
+    call cmd_warpcenter_run
+    jmp .empty
+.wcbar:
+    call cmd_wcbar_run
+    jmp .empty
+.wcmenu:
+    call cmd_wcmenu_run
+    jmp .empty
+.wcclock:
+    call cmd_wcclock_run
     jmp .empty
 .winalttab:
     call cmd_winalttab_run
@@ -1376,6 +1400,10 @@ cmd_cptest db 'cptest', 0
 cmd_cbtest db 'cbtest', 0
 cmd_fmtest db 'fmtest', 0
 cmd_pmtest db 'pmtest', 0
+cmd_warpcenter db 'warpcenter', 0
+cmd_wcbar db 'wcbar', 0
+cmd_wcmenu db 'wcmenu', 0
+cmd_wcclock db 'wcclock', 0
 cmd_pfont db 'pfont', 0
 cmd_icontest db 'icontest', 0
 cmd_wintest db 'wintest', 0
@@ -1602,6 +1630,7 @@ khigh_start:
 %include "widget.asm"
 %include "desktop.asm"
 %include "progman.asm"
+%include "warpcenter.asm"      ; 2.5-bar / menu / clock
 %include "filemgr.asm"
 %include "control.asm"         ; 2.3-control
 %include "object.asm"

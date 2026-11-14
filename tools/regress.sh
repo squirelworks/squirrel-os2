@@ -624,6 +624,12 @@ check pm-move       'calc 88 12'            progman '<ret>' '<pause>' '<right>' 
 check pm-move-reboot 'calc 96 12'           progman '<ret>' '<pause>' '<right>' m '<right>' '<ret>' '<esc>' 'cat /desktop/progman.pos' '<ret>'
 check pm-arrange    'calc 72 4'             progman '<ret>' '<pause>' a '<esc>' 'cat /desktop/progman.pos' '<ret>'
 check pm-text       'systest: PASS'         progman '<ret>' '<pause>' '<esc>' systest '<ret>'
+# 2.5-bar / 2.5-menu / 2.5-clock: WarpCenter self-checks (bar pixels, menu→calc, clock tick)
+check wc-bar        'wc-bar: PASS'          wcbar '<ret>'
+check wc-menu       'wc-menu: PASS'         wcmenu '<ret>' '<pause>'
+check wc-clock      'wc-clock: PASS'        wcclock '<ret>' '<pause>'
+check_all wc-bar-gfx 'gfx: Squirrel|gfx: calc' warpcenter '<ret>' '<pause>' '<gfx>' '<esc>' '<pause>'
+check wc-text       'systest: PASS'         wcbar '<ret>' systest '<ret>'
 # 2.3-filemgr: the File Manager on a disk of its own: /w holds a.txt and sub
 python3 "$root/tools/sqfs.py" "$out/fm.img" format 1024 >/dev/null
 disk=$out/fm.img
