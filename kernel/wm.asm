@@ -346,6 +346,7 @@ wm_paint:
     jmp .w
 .done:
     call wc_paint               ; WarpCenter bar above windows (2.5-bar)
+    call lp_paint               ; LaunchPad pads on/above the strip (W.3)
     call wm_menudraw            ; a pop-up menu and the Alt+Tab box are on
     call wm_tabdraw             ; top of everything (2.2-sysmenu, 2.2-alttab)
     popad

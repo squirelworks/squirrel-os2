@@ -1,11 +1,12 @@
 ; Squirrel-OS/2 — WarpCenter bar (2.5-bar / 2.5-menu / 2.5-clock). Original code.
 ;
 ; A raised strip along the top of the window manager's screen: a Squirrel
-; menu on the left that lists top-level desktop programs (and folders) and
-; launches the chosen Program; a tray clock on the right that shows the
-; CMOS time and redraws when the second changes. While the bar is live,
-; Program Manager group windows sit below it (wc_top). Drawn by wc_paint
-; from wm_paint, above the windows and under pop-up menus.
+; menu on the left, LaunchPad pads in the middle (W.3, when live), and a
+; tray clock on the right. While the bar is live, Program Manager group
+; windows sit below it (wc_top). LaunchPad pads share this strip: lp_paint
+; draws only the pads after wc_paint, and lp_top stays 0 so the height is
+; reserved once. Drawn by wc_paint from wm_paint, above the windows and
+; under pop-up menus.
 ;
 ; Commands: warpcenter (interactive), wcbar / wcmenu / wcclock (self-checks
 ; that print wc-bar / wc-menu / wc-clock: PASS). See documentation/apps/desktop.md.
@@ -36,9 +37,11 @@ cmd_warpcenter_run:
     shr eax, 1
     mov [dk_oy], eax
     call wc_on
+    call lp_on                  ; pads on the shared strip (W.3)
     call dk_mkobjs
     call pm_build
     call pm_load
+    call lp_load
     mov byte [dk_quit], 0
     mov byte [pm_kmove], 0
     mov dword [pm_drag], -1
@@ -52,6 +55,7 @@ cmd_warpcenter_run:
 .key:
     call mouse_poll
     call wc_barhit              ; Squirrel button press
+    call lp_barhit              ; pad click / drop
     call pm_wm
     jc .quit
     call ptr_show
@@ -85,6 +89,15 @@ cmd_warpcenter_run:
     je .menu
     cmp al, 'S'
     je .menu
+    cmp al, '1'
+    jb .pm
+    cmp al, '6'                 ; LP_N pads (launchpad.asm)
+    ja .pm
+    sub al, '1'
+    movzx eax, al
+    call lp_digit
+    jmp .draw
+.pm:
     call pm_focus
     jnc .focused
     jmp .key
@@ -126,6 +139,7 @@ cmd_warpcenter_run:
     call wc_openmenu
     jmp .draw
 .quit:
+    call lp_save
     xor ebp, ebp
 .close:
     mov eax, [pm_gwin+ebp*4]
@@ -137,6 +151,7 @@ cmd_warpcenter_run:
     cmp ebp, PM_GMAX
     jb .close
     call dk_freeobjs
+    call lp_off
     call wc_off
     call gfx_text
     mov esi, [lstr+LS_WC_BYE*4]
@@ -146,12 +161,17 @@ cmd_warpcenter_run:
 
 ; ---------- enable / disable ----------
 
-; Marks the bar live and reserves its strip for pm_place.
+; Marks the bar live and reserves its strip for pm_place. If LaunchPad
+; was already live with its own strip, fold the pads onto this bar.
 wc_on:
     mov byte [wc_live], 1
     mov dword [wc_top], WPC_H
     mov dword [wc_last], -1
     mov dword [wc_mbtn], 0
+    cmp byte [lp_live], 0
+    je .r
+    mov dword [lp_top], 0       ; shared chrome: one reserved band
+.r:
     ret
 
 wc_off:
@@ -159,6 +179,11 @@ wc_off:
     mov byte [wc_live], 0
     mov dword [wc_top], 0
     mov dword [wc_last], -1
+    ; LaunchPad alone again: it owns the strip height
+    cmp byte [lp_live], 0
+    je .r
+    mov dword [lp_top], WPC_H
+.r:
     ret
 
 ; ---------- painting (called from wm_paint) ----------

@@ -56,3 +56,4 @@ fe_nodrive=Nullus talis discus (vide mount)
 fe_xdev=Inter discos moveri non potest
 wc_btn=Sciurus
 wc_bye=Centrum Sciuri clausum.
+lp_bye=LaunchPad clausum.

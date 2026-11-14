@@ -547,6 +547,12 @@ run_simple:
     mov edi, cmd_wcclock
     call streq
     je .wcclock
+    mov edi, cmd_launchpad      ; W.3-launchpad
+    call streq
+    je .launchpad
+    mov edi, cmd_wclp
+    call streq
+    je .wclp
     mov edi, cmd_winalttab      ; 2.2-alttab
     call streq
     je .winalttab
@@ -881,6 +887,12 @@ run_simple:
     jmp .empty
 .wcclock:
     call cmd_wcclock_run
+    jmp .empty
+.launchpad:
+    call cmd_launchpad_run
+    jmp .empty
+.wclp:
+    call cmd_wclp_run
     jmp .empty
 .winalttab:
     call cmd_winalttab_run
@@ -1459,6 +1471,8 @@ cmd_warpcenter db 'warpcenter', 0
 cmd_wcbar db 'wcbar', 0
 cmd_wcmenu db 'wcmenu', 0
 cmd_wcclock db 'wcclock', 0
+cmd_launchpad db 'launchpad', 0
+cmd_wclp db 'wclp', 0
 cmd_pfont db 'pfont', 0
 cmd_icontest db 'icontest', 0
 cmd_wintest db 'wintest', 0
@@ -1686,6 +1700,7 @@ khigh_start:
 %include "desktop.asm"
 %include "progman.asm"
 %include "warpcenter.asm"      ; 2.5-bar / menu / clock
+%include "launchpad.asm"       ; W.3-launchpad
 %include "filemgr.asm"
 %include "control.asm"         ; 2.3-control
 %include "object.asm"

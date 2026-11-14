@@ -94,25 +94,44 @@ Delete asks on the help row (`Delete notes? y: yes`). `y` deletes the object's f
 
 Checks (on a data disk of their own): `dk-rename-win`, `dk-rename` (`edit` becomes `notes` on the desktop and in `objcat`), `dk-rename-esc`, `dk-delete-ask`, `dk-delete-no`, `dk-delete` (`ls /desktop` no longer lists `edit.obj`), `dk-delete-full`.
 
-## WarpCenter (2.5-bar / 2.5-menu / 2.5-clock)
+## WarpCenter and LaunchPad (2.5 / W.3)
 
-`warpcenter` (in `kernel/warpcenter.asm`) shows a raised WarpCenter strip along
-the top of the window manager's screen, with the Program Manager's group
-windows laid out below it (`wc_top` shifts `pm_place`).
+One raised strip along the top of the window manager's screen holds the
+WarpCenter chrome and the LaunchPad pads. Height is 28 pixels (`WPC_H` /
+`LP_H`). Program Manager group windows sit below it: `pm_place` adds
+`wc_top` and `lp_top`. When both are live they share that strip, so only
+WarpCenter reserves the height (`wc_top = 28`, `lp_top = 0`) and pads are
+drawn on the bar instead of a second band.
 
-| Part | What it does |
-|------|----------------|
-| Bar | Full-width face (`TH_FACE`) with a raised `gfx_bevel`. Drawn by `wc_paint` from `wm_paint`, above the windows and under pop-up menus. |
-| Squirrel menu | Button on the left (label from `wc_btn`). Click it, or press `s`, to open a pop-up of top-level desktop Programs and Folders; choosing a Program sends it `open` (same path as the desktop / Program Manager). |
-| Tray clock | `HH:MM:SS` from the CMOS clock on the right; redraws when the second changes. |
+```
++------------------------------------------------------------------+
+| [Squirrel]  [pad0] [pad1] [pad2] [pad3] [pad4] [pad5]   HH:MM:SS |
++------------------------------------------------------------------+
+|  Program Manager groups …                                        |
+```
 
-Esc quits (group windows close; `WarpCenter closed.`). LaunchPad pads
-(**W.3-launchpad**) are not in yet.
+| Part | Module | What it does |
+|------|--------|----------------|
+| Bar | `wc_paint` | Full-width face (`TH_FACE`) with a raised `gfx_bevel`. From `wm_paint`, above windows and under pop-up menus. |
+| Squirrel menu | `warpcenter.asm` | Button on the left (label from `wc_btn`). Click it, or press `s`, to open a pop-up of top-level desktop Programs and Folders; choosing a Program sends it `open`. |
+| LaunchPad pads | `launchpad.asm` / `lp_paint` | Six faces between the Squirrel button and the clock when WarpCenter is live; otherwise the pads own the whole strip. Empty pads are sunken wells; a named pad is a raised face. Drop (drag-release or digit `1`…`6`) assigns a Program; click launches; `/desktop/launchpad.cfg` persists. |
+| Tray clock | `warpcenter.asm` | `HH:MM:SS` from the CMOS clock on the right; redraws when the second changes. |
 
-Self-checks: `wcbar` reads back bar face and bevel pixels → `wc-bar: PASS`;
-`wcmenu` builds the menu, finds `calc` and confirms launching it →
-`wc-menu: PASS`; `wcclock` sets the RTC, checks the face, steps one second
-and checks the face changed → `wc-clock: PASS`.
+Paint order in `wm_paint`: `wc_paint` then `lp_paint`. When WarpCenter is
+live, `lp_paint` draws only the pads (it does not refill the strip, so it
+does not erase the button or clock). When only LaunchPad is live, `lp_paint`
+draws the strip and the pads as before.
+
+Commands: `warpcenter` (bar + menu + clock; also enables pads), `launchpad`
+(pads; also enables the WarpCenter chrome so both share the strip), and the
+self-checks `wcbar` / `wcmenu` / `wcclock` / `wclp` (each enables only what
+it probes).
+
+Esc quits the interactive command (`WarpCenter closed.` / `LaunchPad closed.`).
+
+Self-checks: `wcbar` → `wc-bar: PASS`; `wcmenu` → `wc-menu: PASS`;
+`wcclock` → `wc-clock: PASS`; `wclp` assigns `calc` to pad 0, save/clear/load,
+launch-check and pad pixels → `wclp: PASS`.
 
 ## Context menu and settings notebook (2.6-context / 2.6-notebook)
 

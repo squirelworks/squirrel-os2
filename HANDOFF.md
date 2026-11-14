@@ -31,11 +31,10 @@ files need coordinated rebases; do not race edits. Suite-wide checklist:
 
 ### Progress notes `-2eaf`
 
-- **Landed:** `W.2-templates-2eaf` (#191). **This PR:** `W.5-openas-2eaf` (#192).
+- **Landed:** `W.2-templates-2eaf` (#191); `W.5-openas-2eaf` (#192). **This PR:** `W.3-launchpad-2eaf` (#183).
 
 ### Tasks `-2eaf` (other lane)
 
-- [ ] `W.3-launchpad-2eaf` — PR #183
 - [ ] `2.6-icons-2eaf` / `2.6-drag-2eaf` — PR #184
 - [ ] `2.6-shadows-2eaf` — PR #188
 - [x] `W.5-openas-2eaf` — PR #192
@@ -70,15 +69,15 @@ Used here, in `ROADMAP.md`, `TODO.md` and on the issues (as labels).
   (diskutil view/check/format), 2.8 long-mode entry, SMP and PAE/NX, H.1–H.6,
   3.0 networking and sound, A.1–A.7, C.1–C.9, G.1–G.9, P.1, P.2, P.5, P.6
   (including Win32 windows), P.8 (including DOS window), P.9 (32-bit LX),
-  P.10 (FreeBSD), 2.5 WarpCenter, 2.6-context/notebook, W.2-templates, W.4-views,
-  and the 2.9 IDT/TSS stay + paging slices (`lmstay` #189, `lmpage` #193).
+  P.10 (FreeBSD), 2.5 WarpCenter, 2.6-context/notebook, W.2-templates,
+  W.3-launchpad, W.4-views, W.5-openas, and the 2.9 IDT/TSS stay + paging slices
+  (`lmstay` #189, `lmpage` #193). Dual-agent ownership docs are on `main` (#195).
 - **Test gate:** `tools/regress.sh` and GitHub CI (`.github/workflows/ci.yml`:
   `build` and `regress`, on every PR). Wait for a green `regress` before
   calling a PR ready.
-- **Open PRs (2026-11-15):** #196 (`2.9-lm-stay-thunks-b55f`); #183 #184 #188
-  #192 (`*-2eaf` desktop/Warp); #194 (`-2eaf` lane tags). Ownership docs #195
-  are on `main`. Finish or rebase open feature PRs; do not redo them.
-  (#191, #193, and #195 are on `main`.)
+- **Open PRs (2026-11-15):** #184 #188 (`*-2eaf` desktop/Warp). This PR
+  is #183 (`W.3-launchpad-2eaf`). Finish or rebase open feature PRs; do not
+  redo them. (#191, #192, #193, #195, and #196 are on `main`.)
 
 ## Rules (Squirrel's; do not break)
 
@@ -119,8 +118,8 @@ Lanes run in parallel (see **Agent ownership**). Within a lane, keep the order.
 1. ~~Merge `int/os2-control`, **2.3-bevel-default**, then **2.3.0 release notes**.~~ Done (#168, #172, #173). Owner publishes `v2.3.0`.
 2. ~~**2.7-diskutil** remainder~~ Done (#179). ~~**P.6 / P.8 windows**~~ Done (#177, #182).
 3. **Generation 2 desktop `-2eaf`:** ~~**2.5-bar → 2.5-menu → 2.5-clock**~~ done
-   (#181); `W.3-launchpad-2eaf` *(#183)*; `2.6-icons-2eaf` → `2.6-drag-2eaf`
-   *(#184)*; ~~**2.6-context → 2.6-notebook**~~ done (#186);
+   (#181); ~~`W.3-launchpad-2eaf`~~ done (#183); `2.6-icons-2eaf` →
+   `2.6-drag-2eaf` *(#184)*; ~~**2.6-context → 2.6-notebook**~~ done (#186);
    ~~`W.2-templates-2eaf`~~ done (#191); ~~**W.4-views**~~ done (#190);
    `2.6-shadows-2eaf` *(#188)* → ~~`W.5-openas-2eaf`~~ done (#192); then
    `W.6-startup-2eaf` → `W.6-syssetup-2eaf`.
@@ -161,15 +160,16 @@ host `fatimg.py check`, and `fattest` on the formatted images.
 - Follow-up after #177: 1x/2x `WD_SBLIT`, text window (`win`), cursor/flush
   fix; checks `dos-win`, `dos-win-2x`, `dos-win-text`.
 
-### 2.5 / W.3 — WarpCenter, Squirrel menu, tray clock, LaunchPad  `-2eaf`
+### 2.5 / W.3 — WarpCenter, Squirrel menu, tray clock, LaunchPad  `status: done` (`-2eaf`)
 - **Done on `main`:** **2.5-bar**, **2.5-menu**, **2.5-clock**
   (`kernel/warpcenter.asm`, `wcbar` / `wcmenu` / `wcclock` / `warpcenter`).
-- **Still open / in progress:** `W.3-launchpad-2eaf` *(PR #183)* — pads that
-  persist and launch → `wclp: PASS`.
+- **Done on this PR (`W.3-launchpad-2eaf`, #183):** LaunchPad pads on the
+  shared WarpCenter top chrome; pads persist and launch → `wclp: PASS`.
 - **Files:** `kernel/warpcenter.asm`, `kernel/launchpad.asm`, `kernel/progman.asm`,
   `kernel/wm.asm`, `documentation/apps/desktop.md`.
-- **Acceptance (done):** bar pixel probe `wc-bar: PASS`; menu maps to `calc`
-  `wc-menu: PASS`; tray clock ticks after an RTC step `wc-clock: PASS`.
+- **Acceptance:** bar pixel probe `wc-bar: PASS`; menu maps to `calc`
+  `wc-menu: PASS`; tray clock ticks after an RTC step `wc-clock: PASS`;
+  LaunchPad pads persist and launch `wclp: PASS`.
 
 ### 2.6 / W.2 / W.4 / W.5 — Icons, drag/drop, menus, notebooks, shadows, views  `-2eaf`
 - **Done on `main`:** **2.6-context**, **2.6-notebook** (`dkctx` / `nbtest`);
