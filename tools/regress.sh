@@ -493,7 +493,7 @@ check_all desktop-calc 'gfx: calc> 2 + 2|gfx: = 4' \
                    desktop '<ret>' '<pause>' '<down>' '<ret>' '<pause>' '2 + 2' '<ret>' '<pause>' '<gfx>'
 check desktop-calc-back 'gfx: Squirrel-OS/2 Desktop' \
                    desktop '<ret>' '<pause>' '<down>' '<ret>' '<pause>' '2 + 2' '<ret>' '<esc>' '<pause>' '<gfx>'
-check desktop-calc-mem '128880 KB free'    desktop '<ret>' '<pause>' '<down>' '<ret>' '<pause>' '2 + 2' '<ret>' '<esc>' '<pause>' '<esc>' mem '<ret>'
+check desktop-calc-mem '128876 KB free'    desktop '<ret>' '<pause>' '<down>' '<ret>' '<pause>' '2 + 2' '<ret>' '<esc>' '<pause>' '<esc>' mem '<ret>'   # PAE: one PD page for the VBE LFB
 check desktop-calc-text 'systest: PASS'    desktop '<ret>' '<pause>' '<down>' '<ret>' '<pause>' '<esc>' '<pause>' '<esc>' systest '<ret>'
 # 1.6.3: draw in a window on the desktop: plot two cells, save, Esc back
 check desktop-draw  'gfx: |**' \
@@ -502,7 +502,7 @@ check desktop-draw-save "> cat dkdraw${nl}**" \
                    desktop '<ret>' '<pause>' '<down>' '<down>' '<down>' '<down>' '<ret>' '<pause>' ' ' '<right>' ' ' '<f2>' '<pause>' dkdraw '<ret>' '<esc>' '<pause>' '<esc>' 'cat dkdraw' '<ret>'
 check desktop-draw-back 'gfx: Squirrel-OS/2 Desktop' \
                    desktop '<ret>' '<pause>' '<down>' '<down>' '<down>' '<down>' '<ret>' '<pause>' '<esc>' '<pause>' '<gfx>'
-check desktop-draw-mem '128880 KB free'    desktop '<ret>' '<pause>' '<down>' '<down>' '<down>' '<down>' '<ret>' '<pause>' ' ' '<esc>' d '<pause>' '<esc>' mem '<ret>'
+check desktop-draw-mem '128876 KB free'    desktop '<ret>' '<pause>' '<down>' '<down>' '<down>' '<down>' '<ret>' '<pause>' ' ' '<esc>' d '<pause>' '<esc>' mem '<ret>'
 check desktop-draw-text 'systest: PASS'    desktop '<ret>' '<pause>' '<down>' '<down>' '<down>' '<down>' '<ret>' '<pause>' '<esc>' '<pause>' '<esc>' systest '<ret>'
 # 1.6.4: edit and vedit in a window: type, save, close; cat sees the text
 check_all desktop-edit 'gfx: Text Editor: (untitled) [modified]|gfx: Typed in a window' \
@@ -511,7 +511,7 @@ check desktop-edit-save 'Saved from edit'  desktop '<ret>' '<pause>' '<down>' '<
                    '<ctrl-s>' dkedit '<ret>' '<pause>' '<esc>' '<pause>' '<esc>' 'cat dkedit' '<ret>'
 check desktop-vedit-save 'Saved from vedit' desktop '<ret>' '<pause>' '<down>' '<down>' '<down>' '<ret>' '<pause>' 'Saved from vedit' \
                    '<f2>' dkvedit '<ret>' '<pause>' '<esc>' '<pause>' '<esc>' 'cat dkvedit' '<ret>'
-check desktop-edit-mem '128880 KB free'    desktop '<ret>' '<pause>' '<down>' '<down>' '<ret>' '<pause>' x '<esc>' d '<pause>' '<esc>' mem '<ret>'
+check desktop-edit-mem '128876 KB free'    desktop '<ret>' '<pause>' '<down>' '<down>' '<ret>' '<pause>' x '<esc>' d '<pause>' '<esc>' mem '<ret>'
 # 1.6.5: pixel drawing in draw: the self-check, the canvas from draw (g), and over the desktop
 check drawpx        'drawpx: PASS'          drawpx '<ret>'
 check drawpx-text   'systest: PASS'         drawpx '<ret>' systest '<ret>'
