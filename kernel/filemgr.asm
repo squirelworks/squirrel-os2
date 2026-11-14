@@ -737,7 +737,7 @@ fm_layout:
     pushad
     mov [fm_cx], eax
     mov [fm_cy], ebx
-    lea esi, [edx-FM_ROW-8]     ; the panes' height
+    lea esi, [edx-FM_ROW-10]    ; panes' height (margin for status + bevel)
     mov [fm_ph], esi
     lea esi, [ebx+edx-FM_ROW-2]
     mov [fm_sy], esi

@@ -11,7 +11,7 @@
 DK_X equ 40                     ; the desktop's window
 DK_Y equ 24
 DK_W equ 240
-DK_H equ 150
+DK_H equ 160                    ; room for list chrome + help row (2.3-bevel)
 
 cmd_desktop_run:
     call wm_screen              ; 640 x 480 x 8 VBE, or mode 13h (2.2-vbe-wm)
@@ -323,7 +323,7 @@ dk_rename:
     mov ebx, DK_Y + 50
     call dk_org
     mov ecx, DK_W - 40
-    mov edx, 34
+    mov edx, 40                 ; room for the field's WG_CHROME (2.3-bevel)
     mov esi, dk_rtitle
     call wm_create
     cmp eax, -1
