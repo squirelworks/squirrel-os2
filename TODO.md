@@ -392,7 +392,8 @@ From P.1–P.12 in `ROADMAP.md` and epic #118 (stream OS2-FOREIGN). Each box shi
 
 - [x] **P.6-dll-loader** — An original DLL loader in `winrun`: DLLs from the disk, export binding by name and ordinal, forwarders, DllMain, LoadLibrary/GetProcAddress (test `windll` with `acorn.dll`).
 
-- [ ] **P.6-win32-windows** — Win32 top-level windows as real desktop windows once 2.2 brings program windows.
+- [x] **P.6-win32-windows** — Win32 top-level windows as real desktop windows (`SYS_WIN*`); close box → `WM_CLOSE`.
+  **Acceptance:** `run winwnd` shows `Acorn window` in the window list; `q` then a click on the close box prints `winwnd: PASS` and ends; `progwin` still passes. Checks `win-gui`, `win-gui-close`, `win-gui-after`, `progwin`.
 
 ## Installer (unscheduled)
 
@@ -430,7 +431,8 @@ From P.8 in `ROADMAP.md` and epic #118 (stream OS2-FOREIGN). Notes: `documentati
 - [x] **P.8-dos-launch** — `run prog.com` and `run prog.exe` (MZ without PE) go to dosrun without naming it.
 - [x] **P.8-dos-gfx** — VGA mode 13h for DOS programs: `A000` shown through `SYS_GUI`, INT 10h pixels and DAC calls, ports 3C8h/3C9h/3DAh, BIOS teletype in graphics, non-blocking keyboard polls, the BIOS tick count from the real timer.
   **Acceptance:** `run dosgfx.com` draws and writes `dosgfx: drawn` in graphics (read by `<gfx>`), and after a key prints `dosgfx: PASS` in text. Checks `dos-gfx`, `dos-gfx-after`.
-- [ ] **P.8-dos-window** — the DOS screen (text or mode 13h) inside a window of its own, once programs own windows (2.2).
+- [x] **P.8-dos-window** — the DOS screen (text or mode 13h) inside a window of its own, once programs own windows (2.2).
+  **Acceptance:** `run dosgfx.com` draws in a window (scaled 1x/2x); client pixels match the 13h buffer; the desktop around it is untouched; `doswin: PASS`. Checks `dos-win`, `dos-win-after`; existing `dos-*` still pass.
 
 ## 2.7 — Long names, FAT, drive objects (OS2-FS)
 

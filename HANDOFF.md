@@ -72,14 +72,13 @@ qemu-system-i386 -drive file=build/os.img,format=raw -drive file=build/data.img,
 
 1. ~~Merge `int/os2-control`, **2.3-bevel-default**, then **2.3.0 release notes**.~~ Done (#168, #172, and the 2.3.0 prep PR). Owner publishes `v2.3.0`.
 2. **2.7-diskutil** remainder (in-OS FAT format; #171 shipped view/check without ticking the box).
-3. **P.6-win32-windows** and **P.8-dos-window** (both only need 2.2, which is done).
-4. **Generation 2 desktop** from the split boxes in `TODO.md`: **2.5-bar →
+3. **Generation 2 desktop** from the split boxes in `TODO.md`: **2.5-bar →
    2.5-menu → 2.5-clock → W.3-launchpad**, then **2.6-icons → 2.6-drag →
    2.6-context → 2.6-notebook → 2.6-shadows → W.2-templates → W.4-views →
    W.5-openas**, then **W.6-startup → W.6-syssetup** (W.6 needs 2.6 + 2.7-objects).
-5. **2.8-pae → 2.9-lm-kernel → 2.9-syscall64** (the 64-bit kernel; largest risk).
-6. **3.0** remainder (accounts, permissions, services, event log, task manager, themes).
-7. **P.3, P.4, P.7, P.11, P.12**, then 3.x and 4.x.
+4. **2.8-pae → 2.9-lm-kernel → 2.9-syscall64** (the 64-bit kernel; largest risk).
+5. **3.0** remainder (accounts, permissions, services, event log, task manager, themes).
+6. **P.3, P.4, P.7, P.11, P.12**, then 3.x and 4.x.
 
 ## Task cards
 
@@ -104,7 +103,7 @@ Merged as #172.
   VFAT names; `tools/fatimg.py check` agrees on images it made. New checks
   already include `diskutil-fat*`.
 
-### P.6-win32-windows — Win32 top-level windows as desktop windows  `cursor-codex`
+### P.6-win32-windows — Win32 top-level windows as desktop windows  `done (this branch)`
 - **What:** `CreateWindowEx` top-level windows from `programs/wingui.inc`
   become real 2.2 windows (title bar, move, z-order, close → `WM_CLOSE`),
   instead of drawing through the full-screen `SYS_GUI` surface.
@@ -114,12 +113,13 @@ Merged as #172.
   click on its close box delivers `WM_CLOSE` and the program prints
   `winwnd: PASS`. Native windows keep working (`progwin`).
 
-### P.8-dos-window — DOS screen in its own window  `cursor-codex`
+### P.8-dos-window — DOS screen in its own window  `status: done`
 - **What:** `dosrun`'s text screen and mode 13h output go to a 2.2 window
   (scaled 1x/2x) instead of the whole screen; keys go to it while focused.
-- **Files:** `programs/dosrun.asm`, `kernel/winsys.asm`, `documentation/architecture/dosrun.md`.
-- **Acceptance:** `run dosgfx.com` inside the desktop draws in a window whose
-  client pixels match the 13h buffer; the desktop around it is untouched;
+- **Files:** `programs/dosrun.asm`, `programs/dosvga.inc`, `kernel/winsys.asm`,
+  `documentation/architecture/dosrun.md`.
+- **Acceptance:** `run dosgfx.com` draws in a window whose client pixels match
+  the 13h buffer; the desktop around it is untouched; `doswin: PASS`;
   `dos-*` checks still pass.
 
 ### 2.5 / W.3 — WarpCenter, Squirrel menu, tray clock, LaunchPad  `cursor-codex`

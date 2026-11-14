@@ -25,7 +25,8 @@ WIN_STATE       equ 60          ; WS_* (2.2-mouse)
 WIN_REST        equ 64          ; x, y, w, h to restore from maximised
 WIN_ICONIC      equ 80          ; 1 while minimised to an icon (2.2-minmax)
 WIN_OWNER       equ 84          ; pid whose program opened it, -1 = kernel
-WIN_TBUF        equ 88          ; a program window's title, copied (2.2-progwin)
+WIN_TBUF        equ 88          ; a program window's title, copied (2.2-progwin);
+                                ; Win32 top-level windows (P.6-win32-windows) use this too
 WM_TBUF         equ 32
 WIN_PAINT       equ WIN_TBUF + WM_TBUF  ; 0, or code that paints the client (2.3-groups)
 WIN_SIZE        equ WIN_PAINT + 4

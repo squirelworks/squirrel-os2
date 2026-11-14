@@ -1200,8 +1200,11 @@ check_all lx-sig      'lxsig: PASS|Program ended by signal 15'  'run lxsig' '<re
 check_none lx-sig-term 'lxsig: still here' 'Program ended by signal 15'  'run lxsig' '<ret>' '<pause>'
 check lx-sig-after    'systest: PASS'         'run lxsig' '<ret>' '<pause>' systest '<ret>'
 # P.8: VGA mode 13h: A000, INT 10h pixels, the DAC ports, retrace, teletype text in graphics, back to text
-check_all dos-gfx     'gfx: dosgfx: drawn|dosgfx: PASS'  'run dosgfx.com' '<ret>' '<pause>' '<gfx>' x '<pause>'
-check dos-gfx-after   'systest: PASS'         'run dosgfx.com' '<ret>' '<pause>' x '<pause>' systest '<ret>'
+check_all dos-gfx     'gfx: dosgfx: drawn|dosgfx: PASS'  'run dosgfx.com' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<gfx>' x '<pause>' '<pause>' '<pause>'
+check dos-gfx-after   'systest: PASS'         'run dosgfx.com' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' x '<pause>' '<pause>' '<pause>' systest '<ret>'
+# P.8-dos-window: mode 13h in a 2.2 window (scaled); client matches A000; desktop around untouched
+check_all dos-win     'gfx: dosgfx: drawn|gfx: DOS 320x200|doswin: PASS|dosgfx: PASS'  'run dosgfx.com' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<gfx>' x '<pause>' '<pause>' '<pause>'
+check dos-win-after   'systest: PASS'         'run dosgfx.com' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' x '<pause>' '<pause>' '<pause>' systest '<ret>'
 # P.10: a FreeBSD i386 ELF: arguments on the stack, errors as CF + errno
 check_all bsd-hello   'Hello from FreeBSD land!|bsdhello: PASS'  'run bsdhello' '<ret>'
 check bsd-after       'Hello from DOS land!'  'run bsdhello' '<ret>' 'run doshello.com' '<ret>'
@@ -1211,8 +1214,10 @@ check os2-missing     'os2run: DOSCALLS.1 is not implemented'  'run os2hello stu
 check os2-notlx       'not an OS/2 32-bit LX program'  'run os2run doshello.com' '<ret>'
 check os2-after       'Hello from DOS land!'  'run os2hello' '<ret>' 'run doshello.com' '<ret>'
 # P.6: a Win32 GUI program: window, WM_PAINT with GDI, timer, keys, DestroyWindow
+# P.6-win32-windows: real 2.2 window (title on the bar); q paints PASS; close box → WM_CLOSE
 check_all win-gui     'gfx: Acorn window|gfx: Hello from Win32 GUI|gfx: winwnd: PASS'  'run winwnd' '<ret>' '<pause>' q '<pause>' '<gfx>'
-check win-gui-after   'systest: PASS'         'run winwnd' '<ret>' '<pause>' x '<pause>' systest '<ret>'
+check win-gui-close   'systest: PASS'         'run winwnd' '<ret>' '<pause>' q '<pause>' '<mouse-btn:1>' '<mouse-btn:0>' '<pause>' '<pause>' systest '<ret>'
+check win-gui-after   'systest: PASS'         'run winwnd' '<ret>' '<pause>' q '<pause>' '<mouse-btn:1>' '<mouse-btn:0>' '<pause>' '<pause>' systest '<ret>'
 check_all win-reg     'winreg: PASS|winreg: count 2'  'run winreg' '<ret>' 'run winreg again' '<ret>'
 check win-reg-file    'HKCU\Software\Acorn|count|4|02000000'  'run winreg' '<ret>' 'run winreg again' '<ret>' 'cat registry.dat' '<ret>'
 check_all win-dll     'windll: Hello from acorn.dll|windll: PASS'  'run windll' '<ret>'

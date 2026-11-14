@@ -1,6 +1,8 @@
 ; winrun — Win32 PE32 console and GUI programs on Squirrel-OS/2 (P.5, P.6). Original
 ; code, written from the public PE/COFF format description; no Wine or
-; ReactOS code. See documentation/architecture/foreign-compatibility.md.
+; ReactOS code. GUI-subsystem programs open real 2.2 desktop windows through
+; wingui.inc (SYS_WINOPEN..SYS_WININFO). See documentation/architecture/
+; foreign-compatibility.md.
 ;
 ;   run winrun prog.exe [arguments]
 ;   run prog.exe [arguments]          (the kernel loader hands MZ files here)

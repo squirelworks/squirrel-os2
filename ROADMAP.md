@@ -238,13 +238,13 @@ Each P step ships a tiny original test binary in the tree and a regression `PASS
 - [ ] **P.3** — Dynamic ELF with a glibc / musl loader, ELF64.
 - [ ] **P.4** — An X11-protocol (or Wayland) server that maps foreign windows onto Squirrel windows.
 - [x] **P.5** (= F.5 / F.9) — Win32 PE console subset.
-- [ ] **P.6** — Win32 GUI subset (USER / GDI onto the Squirrel window manager and graphics), registry emulation, an original DLL loader (a Wine-like design, no Wine code).
+- [x] **P.6** — Win32 GUI subset (USER / GDI onto the Squirrel window manager and graphics), registry emulation, an original DLL loader (a Wine-like design, no Wine code).
   - [x] USER32/GDI32 subset, registry over `registry.dat`, DLL loader (#163)
-  - [ ] Win32 top-level windows as real desktop windows (P.6-win32-windows)
+  - [x] Win32 top-level windows as real desktop windows (P.6-win32-windows)
 - [ ] **P.7** — PE64.
 - [ ] **P.8** — A DOS personality (V86 mode or an emulator) for DOS programs in a window.
   - [x] `dosrun` (8086/186 interpreter, `INT 21h`), `.com`/`.exe` launch, mode 13h graphics (#146, #149, #153)
-  - [ ] The DOS screen in a window of its own (P.8-dos-window)
+  - [x] The DOS screen in a window of its own (P.8-dos-window)
 - [ ] **P.9** — OS/2 16/32-bit text-mode API (`DosWrite` and the like), optional and late.
   - [x] 32-bit LX text-mode programs: `os2run`, DOSCALLS by ordinal (#163)
   - [ ] 16-bit NE text-mode programs (DOSCALLS 16-bit entry points, thunks)
