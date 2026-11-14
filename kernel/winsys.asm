@@ -14,6 +14,9 @@
 ; P.6-win32-windows: winrun's USER32 (programs/wingui.inc) opens top-level
 ; Win32 windows with these calls, so CreateWindowEx windows share the same
 ; title bar, move, z-order and close box as native program windows.
+; P.8-dos-window: dosrun blits its text screen and mode 13h buffer into a
+; program window with WD_BLIT (1x) or WD_SBLIT (2x); keys while focused
+; arrive as WE_KEY.
 
 WE_KEY      equ 1
 WE_DOWN     equ 2
@@ -662,69 +665,69 @@ sys_windraw:
     inc ebx
     inc edi
     jmp .brow
-; a x b source at ptr, colour = scale (1 or 2): each source pixel is a
-; scale x scale block. Used by dosrun for mode 13h at 1x or 2x (P.8-dos-window).
-.sblit:
-    mov esi, [ebp+20]           ; scale
+.sblit:                         ; a x b at ptr, colour = scale 1 or 2 (P.8)
+    mov esi, [ebp+20]
     cmp esi, 1
     je .sok
     cmp esi, 2
     jne .badc
 .sok:
     mov [ws_scale], esi
-    push ecx
-    imul ecx, edx               ; source bytes
+    push ecx                    ; source width
+    push edx                    ; source height
+    imul ecx, edx
     mov esi, [ebp+24]
     call ws_uchk
+    pop edx
     pop ecx
     jc .badc
-    mov [ws_bx], eax            ; left of the blit on the screen
-    mov [ws_by], ebx
+    mov [ws_bx], eax            ; destination left
+    mov [ws_by], ebx            ; destination top of the current source row
+    mov [ws_sw], ecx
+    mov [ws_sh], edx
     xor edi, edi                ; source row
 .srow:
-    cmp edi, edx
+    cmp edi, [ws_sh]
     jge .done
-    push edx
     xor ebp, ebp                ; source column
 .scol:
-    cmp ebp, ecx
+    cmp ebp, [ws_sw]
     jge .snext
-    mov al, [esi]
+    movzx ecx, byte [esi]       ; pixel colour (kept in ecx through the copies)
     inc esi
-    mov [ws_pix], al
-    push ecx
     push esi
     push edi
-    mov ecx, [ws_scale]         ; replicate vertically
+    push ebp
+    mov eax, ebp
+    imul eax, [ws_scale]
+    add eax, [ws_bx]            ; destination x of this pixel's block
+    mov ebx, [ws_by]            ; destination y of this pixel's block
+    mov edx, [ws_scale]
 .sy:
-    push ecx
-    mov eax, [ws_bx]
-    mov ebx, ebp
-    imul ebx, [ws_scale]
-    add eax, ebx                ; dest x
-    mov ebx, [ws_by]
-    mov ecx, edi
-    imul ecx, [ws_scale]
-    add ebx, ecx                ; dest y of this replica row
-    pop ecx
-    push ecx
-    mov ecx, [ws_scale]         ; replicate horizontally
+    push eax
+    push edx
+    mov edx, [ws_scale]
 .sx:
     push ecx
-    mov cl, [ws_pix]
+    mov cl, cl                  ; colour already in cl / ecx low
     call gfx_putpixel
+    pop ecx
     inc eax
-    pop ecx
-    loop .sx
-    pop ecx
-    loop .sy
+    dec edx
+    jnz .sx
+    pop edx
+    pop eax
+    inc ebx
+    dec edx
+    jnz .sy
+    pop ebp
     pop edi
     pop esi
-    pop ecx
     inc ebp
     jmp .scol
 .snext:
-    pop edx
+    mov eax, [ws_scale]
+    add [ws_by], eax
     inc edi
     jmp .srow
 .pixel:                         ; read back from the visible page
@@ -909,8 +912,10 @@ align 4
 ws_cx dd 0
 ws_cy dd 0
 ws_bx dd 0
-ws_by dd 0                      ; WD_SBLIT: top of the blit on the screen
-ws_scale dd 1                   ; WD_SBLIT: 1 or 2
+ws_by dd 0                      ; WD_SBLIT destination row top
+ws_sw dd 0                      ; WD_SBLIT source width
+ws_sh dd 0                      ; WD_SBLIT source height
+ws_scale dd 1                   ; WD_SBLIT scale (1 or 2)
 ws_lmx dd -1
 ws_lmy dd -1
 ws_head times PROC_MAX dd 0
@@ -918,6 +923,5 @@ ws_cnt times PROC_MAX dd 0
 ws_ring times PROC_MAX * WS_RING * WS_EVSIZE db 0
 ws_lmb db 0
 ws_key db 0
-ws_pix db 0                     ; WD_SBLIT: source pixel while replicating
 ws_own db 0                     ; 1: winsys entered the graphics screen
 ws_ton db 0                     ; WD_BLIT: a transparent colour is set

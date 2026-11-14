@@ -220,7 +220,7 @@ The calls are in `kernel/winsys.asm`, numbers 37–44 (`SYS_COUNT` is 45; 35 is 
 | `WD_PTEXT` (3) | the proportional string at `ptr`, background `a` (−1: none, only the ink), face `b` (0 `FONT_9`, 1 `FONT_12`); returns its width in pixels (**2.2-propfont**) |
 | `WD_BLIT` (4) | a × b bytes of 8-bit pixels at `ptr` (rows packed) to x, y; `colour` = an index left transparent, or −1 |
 | `WD_BEVEL` (5) | bevel around x, y, a × b; `colour` 0 raised / 1 sunken |
-| `WD_SBLIT` (6) | a × b source at `ptr`, each pixel drawn as a `colour` × `colour` block (`colour` is 1 or 2); used by dosrun for mode 13h at 1x/2x (**P.8-dos-window**) |
+| `WD_SBLIT` (6) | a × b source pixels at `ptr` drawn at `colour`× scale (1 or 2) with no transparency (**P.8-dos-window**) |
 | `WD_PIXEL` (7) | returns the colour at x, y on the visible page (for checks) |
 
 There is no backing store. When the window manager repaints part of a program's window (uncovered, moved, focus changed), it paints the frame and a plain client area and posts `WE_PAINT`; the program draws again.
