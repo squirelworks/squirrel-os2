@@ -330,9 +330,38 @@ From the 2.3 milestone in `ROADMAP.md`. Start after **2.2-progwin** is on `main`
 - [x] **2.3-control** — Control Panel v1: colours (theme scheme from **W.1-theme**), mouse (double-click time, button swap, speed), date and time (reads and sets the RTC), keyboard (repeat rate and delay). Settings saved in `/desktop/control.cfg` and applied at boot. Checks that a change survives a reboot (`cp-*`).
 - [x] **2.3-bevel-default** — Warp-style bevelled 3D controls are the default for every widget (buttons press in, fields and lists are sunken, group boxes etched), all through `gfx_bevel` and `theme.inc`. Pixel-probe check `bevwidgets` → `bevwidgets: PASS`.
 
+## 2.5 — WarpCenter / LaunchPad (includes W.3)
+
+From the 2.5 milestone in `ROADMAP.md` and W.3 in epic #117. Start after **2.3-bevel-default** is on `main`. W.3 belongs with these boxes (one sizeable PR may group neighbouring ones). Design notes in `documentation/apps/desktop.md`. Every box keeps the 2.2–2.3 checks (`wintest`, `pm-*`, `fm-*`, `cp-*`, `bevwidgets`) passing.
+
+- [ ] **2.5-bar** — A WarpCenter-style bar along the top of the screen (the default; a taskbar layout is a Control Panel / settings choice), with the desktop and program windows laid out below it. Pixel probe of the bar face and bevel → `wc-bar: PASS`.
+- [ ] **2.5-menu** — A Squirrel menu from the bar that lists programs (and folders) and launches the chosen one into a real window. Scripted open of `calc` (or another built-in) → `wc-menu: PASS`.
+- [ ] **2.5-clock** — A tray clock on the bar that shows the RTC time and ticks (a pixel or glyph probe sees the display change across a second, or after a scripted RTC step). Check `wc-clock` → `wc-clock: PASS`.
+- [ ] **W.3-launchpad** — LaunchPad pads on the WarpCenter: drop a program onto a pad, click the pad to launch; pads persist across reboot. Check `wclp` → `wclp: PASS`.
+
+## 2.6 — Workplace Shell desktop (includes W.2, W.4, W.5)
+
+From the 2.6 milestone in `ROADMAP.md` and W.2 / W.4 / W.5 in epic #117. Start after **2.5-bar** is on `main` (the bar reserves the top strip). W.2, W.4 and W.5 belong with these boxes. Design notes in `documentation/apps/desktop.md` and `documentation/kernel/widgets.md` (notebook tabs). Drive and shredder object classes already exist (**2.7-objects**); this section is the Generation-2 GUI over the object desktop.
+
+- [ ] **2.6-icons** — Desktop objects drawn with 32×32 icons and captions on the desktop surface (not only as Program Manager list rows); existing `mkicon` icons for programs, folders and files. Pixel probe of an icon glyph → `dk-icons: PASS`.
+- [ ] **2.6-drag** — Mouse drag and drop between folders and onto programs: dropping a file on a program opens that program with the file; moves persist across reboot (object files under `/desktop`). Check `dk-drag` → `dk-drag: PASS`.
+- [ ] **2.6-context** — Right-button context menu on a desktop object (Open, Settings, Delete, and the usual arrange items), built on `wg_menu`. Check `dk-ctx` → `dk-ctx: PASS`.
+- [ ] **2.6-notebook** — A Warp-style settings notebook widget with tabs (`wg_notebook` in `widget.asm`): tab strip, page body, switching pages by click. Self-check reads tab and page pixels → `nbtest: PASS`.
+- [ ] **2.6-shadows** — Shadow (shortcut) objects that point at an original; renaming or moving the original updates the shadow's target, and the link survives a reboot. Check `dk-shadow` → `dk-shadow: PASS`.
+- [ ] **W.2-templates** — Workplace Shell object model in the GUI: every desktop object opens a settings notebook (**2.6-notebook**); a Templates folder; dragging a template onto the desktop (or into a folder) creates a new object of that class. Check `wps-tmpl` → `wps: PASS`.
+- [ ] **W.4-views** — Folder views: Icon, Tree and Details (switchable per folder window). Check `fold-views` → `foldview: PASS`.
+- [ ] **W.5-openas** — Context menu "Open as → Icon / Tree / Details / Settings" on a folder (and Settings on any object), using **2.6-context**, **W.4-views** and **2.6-notebook**. Check `openas` → `openas: PASS`.
+
+## W.6 — System objects (needs 2.6 + 2.7-objects)
+
+From W.6 in `ROADMAP.md` / epic #117. Start after **2.6-icons** and **2.6-context** are on `main`. Drive and Shredder object classes are already on `main` (**2.7-objects** in `kernel/fsobj.asm`); these boxes put Startup and System Setup beside them on the Generation-2 desktop and wire all four through icons, context menus and notebooks.
+
+- [ ] **W.6-startup** — A Startup folder: objects (or shadows) placed in it are opened when the desktop starts; removing one stops that. Check `w6-startup` → `startup: PASS`.
+- [ ] **W.6-syssetup** — A System Setup object that opens the system setup folder / Control Panel entry points; together with Drive and Shredder icons on the desktop, right-click and Settings notebook work like any other object. Check `w6-setup` → `syssetup: PASS`.
+
 ## Later milestones
 
-The milestones after 2.1 (GUI generations 2.2–4.x, ring 3 in 2.4, the 64-bit bridge 2.8–2.9, built-in apps A.1–A.7, games G.1–G.9, calculator suite C.1–C.9, Warp styling W.1–W.6, foreign programs P.1–P.12) are in `ROADMAP.md` and the epics #114–#119. Each one is split into boxes here, in a docs-only PR, when it comes up.
+The milestones after Generation 2 (3.0 remainder, 3.x / 4.x GUI, remaining foreign programs P.3 / P.4 / P.7 / P.11 / P.12, and any further Warp polish) are in `ROADMAP.md` and the epics #114–#119. Each one is split into boxes here, in a docs-only PR, when it comes up. **2.5**, **2.6** and **W.2–W.6** are split in the sections above.
 
 ## P — Foreign programs, first steps
 

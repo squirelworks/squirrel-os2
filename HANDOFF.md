@@ -76,7 +76,10 @@ qemu-system-i386 -drive file=build/os.img,format=raw -drive file=build/data.img,
    for Squirrel to publish.
 2. **2.7-diskutil** (a stale branch already has most of it).
 3. **P.6-win32-windows** and **P.8-dos-window** (both only need 2.2, which is done).
-4. **W.2–W.6** together with **2.5** and **2.6** (Generation 2 desktop).
+4. **Generation 2 desktop** from the split boxes in `TODO.md`: **2.5-bar →
+   2.5-menu → 2.5-clock → W.3-launchpad**, then **2.6-icons → 2.6-drag →
+   2.6-context → 2.6-notebook → 2.6-shadows → W.2-templates → W.4-views →
+   W.5-openas**, then **W.6-startup → W.6-syssetup** (W.6 needs 2.6 + 2.7-objects).
 5. **2.8-pae → 2.9-lm-kernel → 2.9-syscall64** (the 64-bit kernel; largest risk).
 6. **3.0** remainder (accounts, permissions, services, event log, task manager, themes).
 7. **P.3, P.4, P.7, P.11, P.12**, then 3.x and 4.x.
@@ -129,20 +132,37 @@ qemu-system-i386 -drive file=build/os.img,format=raw -drive file=build/data.img,
   client pixels match the 13h buffer; the desktop around it is untouched;
   `dos-*` checks still pass.
 
-### 2.5 — WarpCenter bar, Squirrel menu, tray clock  `cursor-codex`
-### 2.6 — Icons, drag and drop, context menus, settings notebooks, shadows  `cursor-codex`
-### W.2–W.6 — Workplace Shell objects, LaunchPad, folder views, Open as, system objects  `cursor-codex`
-- **Before code:** split 2.5, 2.6 and W.2–W.6 into PR-sized `TODO.md` boxes
-  in a docs-only commit (follow the 2.2 section's style: each box names its
-  check). W.3 belongs with 2.5, W.2/W.4/W.5 with 2.6, W.6 with 2.6 + 2.7 objects.
+### 2.5 / W.3 — WarpCenter, Squirrel menu, tray clock, LaunchPad  `cursor-codex`
+- **Split done:** `TODO.md` boxes **2.5-bar**, **2.5-menu**, **2.5-clock**,
+  **W.3-launchpad**. Take them top to bottom (or group neighbours in one PR).
+- **Files:** `kernel/desktop.asm`, `kernel/progman.asm`, `kernel/wm.asm`,
+  `kernel/widget.asm`, `documentation/apps/desktop.md`.
+- **Acceptance:** bar pixel probe `wc-bar: PASS`; menu launches a program
+  `wc-menu: PASS`; tray clock ticks `wc-clock: PASS`; LaunchPad pads persist
+  and launch `wclp: PASS`.
+
+### 2.6 / W.2 / W.4 / W.5 — Icons, drag/drop, menus, notebooks, shadows, views  `cursor-codex`
+- **Split done:** `TODO.md` boxes **2.6-icons**, **2.6-drag**, **2.6-context**,
+  **2.6-notebook**, **2.6-shadows**, **W.2-templates**, **W.4-views**,
+  **W.5-openas**. Start after **2.5-bar**.
 - **Files:** `kernel/desktop.asm`, `kernel/progman.asm`, `kernel/object.asm`,
-  `kernel/fsobj.asm`, `kernel/wm.asm`, `kernel/widget.asm` (notebook tabs
-  are a new widget), `documentation/apps/desktop.md`.
-- **Acceptance (milestone):** a WarpCenter bar at the top with a clock that
-  ticks (pixel probe), a Squirrel menu that launches a program, drag of a
-  file onto a program opens it, right-click shows a context menu,
-  "Open as → Settings" opens a notebook, a shadow follows its original after
-  a rename, all surviving a reboot.
+  `kernel/wm.asm`, `kernel/widget.asm` (notebook tabs are a new widget),
+  `documentation/apps/desktop.md`, `documentation/kernel/widgets.md`.
+- **Acceptance:** icon pixel probe `dk-icons: PASS`; file-on-program drag
+  `dk-drag: PASS`; right-click menu `dk-ctx: PASS`; notebook tabs `nbtest: PASS`;
+  shadow follows rename across reboot `dk-shadow: PASS`; templates create
+  objects `wps: PASS`; folder Icon/Tree/Details `foldview: PASS`;
+  "Open as → …" `openas: PASS`.
+
+### W.6 — Startup and System Setup (with 2.6 + 2.7-objects)  `cursor-codex`
+- **Split done:** `TODO.md` boxes **W.6-startup**, **W.6-syssetup**. Drive and
+  Shredder classes are already on `main` (**2.7-objects**); this card wires
+  Startup and System Setup (and those two) into the Generation-2 desktop.
+- **Files:** `kernel/desktop.asm`, `kernel/fsobj.asm`, `kernel/object.asm`,
+  `documentation/apps/desktop.md`, `documentation/kernel/fat.md`.
+- **Acceptance:** Startup opens its contents at desktop start `startup: PASS`;
+  System Setup opens setup entry points and Drive/Shredder behave as desktop
+  objects `syssetup: PASS`.
 
 ### 2.8-pae — PAE paging and NX  `cursor-codex`
 - **Files:** `kernel/vm.asm`, `kernel/mm.asm`, `kernel/lm.asm`,
