@@ -39,7 +39,7 @@ A button is its text on a Warp face (`TH_FACE`) with a raised `gfx_bevel` and `W
 |---------|----|-----|
 | `wg_button` | eax = window id, ebx = x, ecx = y, esi = text, edx = code | eax = widget id, or −1 |
 | `wg_press` | eax = button id, ebx = 0 raised / 1 pressed | sets the pressed look only; the caller must redraw |
-| `wg_pressdraw` | eax = button id, ebx = 0 raised / 1 pressed | like `wg_press`, then `wm_redraw` so the face cannot stick pressed or unpressed. Prefer this. |
+| `wg_pressdraw` | eax = button id, ebx = 0 raised / 1 pressed | like `wg_press`, then invalidates and updates the button's window only (not a full `wm_redraw`) so the face cannot stick and other windows do not flicker. Prefer this. |
 | `wg_setfocus` | eax = widget id | CF clear if the widget takes keys and now has the focus; groups, labels and consoles are refused |
 | `wg_tab` | — | moves the focus to the next widget of the focused window that takes keys (skips groups); CF clear if it moved |
 | `wg_hit` | eax = window id, ebx = x, ecx = y in the client area | eax = interactive widget under that point, or −1. Groups, labels and consoles are never hit. |

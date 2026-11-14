@@ -98,10 +98,22 @@ wg_press:
     ret
 
 ; eax = a button's widget id, ebx = 0 raised / 1 pressed: sets the pressed
-; look and redraws, so the face cannot stick. Prefer this over wg_press.
+; look and redraws that button's window only (wm_invalidate + wm_update),
+; so the face cannot stick and the rest of the screen does not flicker.
+; Prefer this over wg_press.
 wg_pressdraw:
     call wg_press
-    jmp wm_redraw
+    pushad
+    imul edi, eax, WG_SIZE
+    add edi, wg_table
+    cmp byte [edi+WG_KIND], WGK_BUTTON
+    jne .r
+    movzx eax, byte [edi+WG_WIN]
+    call wm_invalidate
+    call wm_update
+.r:
+    popad
+    ret
 
 ; eax = window id, ebx = x, ecx = y, esi = buffer (zero-terminated, room
 ; for edx characters and the zero), edx = most characters
