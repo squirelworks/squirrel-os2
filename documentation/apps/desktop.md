@@ -114,6 +114,15 @@ Self-checks: `wcbar` reads back bar face and bevel pixels → `wc-bar: PASS`;
 `wc-menu: PASS`; `wcclock` sets the RTC, checks the face, steps one second
 and checks the face changed → `wc-clock: PASS`.
 
+## Context menu and settings notebook (2.6-context / 2.6-notebook)
+
+Right-button on a Program Manager icon opens a context menu (Open, Settings,
+Delete, Arrange) through `wg_menu` (`wm_popup`). Settings opens a
+`wg_notebook` window with General / View tabs. The notebook widget itself
+lives in `widget.asm`: tab strip, sunken page body, click or Left/Right to
+switch pages. Self-checks: `dkctx` → `dk-ctx: PASS`; `nbtest` → `nbtest: PASS`.
+Desktop-surface icons and drag (`2.6-icons` / `2.6-drag`) are separate boxes.
+
 ## Booting into the desktop
 
 The system still boots to the shell prompt. To boot into the desktop, put a line `desktop` in `autoexec.bat` on the data disk (`../kernel/shell.md`); Esc then reaches the shell as usual.

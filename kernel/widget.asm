@@ -19,13 +19,16 @@ WG_PID          equ 16          ; button: the process its events go to
 WG_CODE         equ 20          ; button: the low 24 bits of its event;
                                 ; field: the most characters it holds;
                                 ; list: how many items;
-                                ; group: width in pixels
+                                ; group: width in pixels;
+                                ; notebook: how many tabs
 WG_SEL          equ 24          ; list: the selected item, from 0;
-                                ; button: 1 while drawn pressed (2.3-bevel)
+                                ; button: 1 while drawn pressed (2.3-bevel);
+                                ; notebook: the current tab, from 0
 WG_TOP          equ 28          ; list: the first item shown (2.0.2);
-                                ; group: height in pixels
+                                ; group / notebook: height in pixels
 WG_ROWS         equ 32          ; list: how many rows fit, from the last draw
 WG_SIZE         equ 36
+; notebook also uses WG_PID as its width in pixels (tabs in WG_TEXT).
 
 WGK_LABEL       equ 1           ; a line of text
 WGK_BUTTON      equ 2           ; text in a box; Enter or Space posts an event
@@ -33,6 +36,10 @@ WGK_FIELD       equ 3           ; a one-line edit field over a caller's buffer
 WGK_LIST        equ 4           ; items in a column, one selected
 WGK_CONSOLE     equ 5           ; an 80 x 25 text screen buffer, shown in part
 WGK_GROUP       equ 6           ; etched group box with an optional caption
+WGK_NOTEBOOK    equ 7           ; Warp-style tab strip + page body (2.6-notebook)
+
+NB_TAB_H        equ (GFX_CELL_H + 2 * TH_BEVEL_W + 4)
+NB_TAB_PAD      equ 8           ; pixels beside a tab's label
 
 WK_UP           equ 0x18        ; wg_key codes for the arrow keys (the
 WK_DOWN         equ 0x19        ; ASCII control codes CAN and EM)
@@ -228,6 +235,106 @@ wg_group:
     pop ebp
     ret
 
+; eax = window id, ebx = x, ecx = y, esi = tab label pointers (edx of
+; them), edx = how many tabs (at least 1), edi = width, ebp = height
+; -> eax = widget id, or -1. A Warp-style notebook: tab strip on top,
+; page body below showing the selected tab's label. Left/Right or a
+; click on a tab (wg_nbclick) switches pages. The caller redraws.
+wg_notebook:
+    push ebx
+    push ecx
+    push esi
+    push edx                    ; n
+    push edi                    ; width
+    push ebp                    ; height
+    mov dl, WGK_NOTEBOOK
+    call wg_new
+    pop ebp                     ; height
+    pop edi                     ; width
+    pop edx                     ; n
+    cmp eax, -1
+    je .out
+    push eax
+    imul eax, WG_SIZE
+    add eax, wg_table
+    mov [eax+WG_CODE], edx
+    mov dword [eax+WG_SEL], 0
+    mov [eax+WG_PID], edi
+    mov [eax+WG_TOP], ebp
+    pop eax
+.out:
+    pop esi
+    pop ecx
+    pop ebx
+    ret
+
+; Reusable pop-up menu (roadmap name wg_menu; same as wm_popup).
+wg_menu:
+    jmp wm_popup
+
+; eax = notebook id, ebx = tab index: selects that tab if in range.
+wg_nbsel:
+    push edi
+    imul edi, eax, WG_SIZE
+    add edi, wg_table
+    cmp byte [edi+WG_KIND], WGK_NOTEBOOK
+    jne .r
+    cmp ebx, [edi+WG_CODE]
+    jae .r
+    mov [edi+WG_SEL], ebx
+.r:
+    pop edi
+    ret
+
+; eax = notebook id, ebx = x, ecx = y relative to the widget's top left
+; -> CF clear if a tab was hit and selected; CF set otherwise.
+wg_nbclick:
+    pushad
+    imul edi, eax, WG_SIZE
+    add edi, wg_table
+    cmp byte [edi+WG_KIND], WGK_NOTEBOOK
+    jne .miss
+    test ecx, ecx
+    js .miss
+    cmp ecx, NB_TAB_H
+    jae .miss
+    test ebx, ebx
+    js .miss
+    cmp ebx, [edi+WG_PID]
+    jae .miss
+    xor ebp, ebp                ; tab index
+    xor edx, edx                ; running left edge
+.scan:
+    cmp ebp, [edi+WG_CODE]
+    jae .miss
+    push ebx
+    push edx
+    mov esi, [edi+WG_TEXT]
+    mov esi, [esi+ebp*4]
+    mov ecx, FONT_9
+    call gfx_strwidth_p
+    add eax, NB_TAB_PAD
+    pop edx
+    pop ebx
+    mov ecx, edx
+    add ecx, eax                ; right edge of this tab
+    cmp ebx, edx
+    jb .next
+    cmp ebx, ecx
+    jae .next
+    mov [edi+WG_SEL], ebp
+    popad
+    clc
+    ret
+.next:
+    mov edx, ecx
+    inc ebp
+    jmp .scan
+.miss:
+    popad
+    stc
+    ret
+
 ; eax = a list's widget id -> eax = its selected item, from 0
 wg_selected:
     imul eax, WG_SIZE
@@ -246,14 +353,16 @@ wg_setsel:
     pop edi
     ret
 
-; al = kind -> ZF set if the kind takes keys and hits (button, field, list).
-; Labels, consoles and groups never do.
+; al = kind -> ZF set if the kind takes keys and hits (button, field,
+; list, notebook). Labels, consoles and groups never do.
 wg_takes:
     cmp al, WGK_BUTTON
     je .yes
     cmp al, WGK_FIELD
     je .yes
     cmp al, WGK_LIST
+    je .yes
+    cmp al, WGK_NOTEBOOK
     je .yes
     mov al, 1
     test al, al                 ; ZF clear
@@ -398,6 +507,8 @@ wg_box:
     je .list
     cmp byte [edi+WG_KIND], WGK_FIELD
     je .field
+    cmp byte [edi+WG_KIND], WGK_NOTEBOOK
+    je .notebook
     mov esi, [edi+WG_TEXT]
     mov ecx, FONT_9
     call gfx_strwidth_p
@@ -411,6 +522,12 @@ wg_box:
     add eax, WG_CHROME
     mov [wg_boxw], eax
     mov dword [wg_boxh], GFX_CELL_H + WG_CHROME
+    jmp .out
+.notebook:
+    mov eax, [edi+WG_PID]
+    mov [wg_boxw], eax
+    mov eax, [edi+WG_TOP]
+    mov [wg_boxh], eax
     jmp .out
 .list:
     xor edx, edx
@@ -514,7 +631,29 @@ wg_key:
     je .field
     cmp byte [edi+WG_KIND], WGK_LIST
     je .list
+    cmp byte [edi+WG_KIND], WGK_NOTEBOOK
+    je .notebook
     jmp .no
+.notebook:
+    cmp dl, WK_LEFT
+    je .nbprev
+    cmp dl, WK_RIGHT
+    je .nbnext
+    jmp .no
+.nbprev:
+    mov eax, [edi+WG_SEL]
+    test eax, eax
+    jz .used
+    dec eax
+    mov [edi+WG_SEL], eax
+    jmp .used
+.nbnext:
+    mov eax, [edi+WG_SEL]
+    inc eax
+    cmp eax, [edi+WG_CODE]
+    jae .used
+    mov [edi+WG_SEL], eax
+    jmp .used
 .button:
     cmp dl, 10
     je .post
@@ -633,6 +772,108 @@ wg_drop:
     popad
     ret
 
+; edi = notebook widget; eax, ebx = its top left on the screen;
+; ecx = width available (already clipped). Paints the tab strip and the
+; sunken page body with the selected tab's label.
+wg_nb_paint:
+    pushad
+    mov [wg_nb_x], eax
+    mov [wg_nb_y], ebx
+    mov edx, [edi+WG_PID]
+    cmp edx, ecx
+    jbe .wok
+    mov edx, ecx
+.wok:
+    mov [wg_nb_w], edx
+    mov eax, [edi+WG_TOP]
+    mov [wg_nb_h], eax
+    cmp edx, 2 * TH_BEVEL_W + 16
+    jl .r
+    cmp eax, NB_TAB_H + 2 * TH_BEVEL_W + GFX_CELL_H
+    jl .r
+    ; page body
+    mov eax, [wg_nb_x]
+    mov ebx, [wg_nb_y]
+    add ebx, NB_TAB_H
+    mov ecx, [wg_nb_w]
+    mov edx, [wg_nb_h]
+    sub edx, NB_TAB_H
+    mov byte [gfx_colour], WG_WELL_FILL
+    call gfx_fillrect
+    mov esi, TH_BEVEL_SUNKEN
+    call gfx_bevel
+    mov esi, [edi+WG_TEXT]
+    mov ebp, [edi+WG_SEL]
+    mov esi, [esi+ebp*4]
+    add eax, TH_BEVEL_W + WG_BTN_PAD
+    add ebx, TH_BEVEL_W + WG_BTN_PAD
+    mov ecx, [wg_nb_w]
+    sub ecx, 2 * (TH_BEVEL_W + WG_BTN_PAD)
+    jle .page
+    mov byte [gfx_colour], TH_TEXT
+    mov byte [gfx_bg], WG_WELL_FILL
+    call wm_drawtitle
+.page:
+    mov dword [wg_nb_ox], 0
+    xor ebp, ebp
+.tab:
+    cmp ebp, [edi+WG_CODE]
+    jae .r
+    mov esi, [edi+WG_TEXT]
+    mov esi, [esi+ebp*4]
+    push ebp
+    push esi
+    mov ecx, FONT_9
+    call gfx_strwidth_p
+    add eax, NB_TAB_PAD
+    mov [wg_nb_tw], eax
+    pop esi
+    pop ebp
+    mov eax, [wg_nb_x]
+    add eax, [wg_nb_ox]
+    mov ebx, [wg_nb_y]
+    mov ecx, [wg_nb_tw]
+    mov edx, NB_TAB_H
+    mov byte [gfx_colour], TH_FACE
+    cmp ebp, [edi+WG_SEL]
+    je .fill
+    mov byte [gfx_colour], TH_TITLE_IDLE
+.fill:
+    call gfx_fillrect
+    push esi
+    mov esi, TH_BEVEL_RAISED
+    cmp ebp, [edi+WG_SEL]
+    je .bev
+    mov esi, TH_BEVEL_SUNKEN
+.bev:
+    call gfx_bevel
+    pop esi
+    push eax
+    push ebx
+    push ecx
+    add eax, TH_BEVEL_W + 2
+    add ebx, TH_BEVEL_W + 1
+    sub ecx, 2 * TH_BEVEL_W + 4
+    jle .lbl
+    mov byte [gfx_colour], TH_TEXT
+    mov byte [gfx_bg], TH_FACE
+    cmp ebp, [edi+WG_SEL]
+    je .ink
+    mov byte [gfx_bg], TH_TITLE_IDLE
+.ink:
+    call wm_drawtitle
+.lbl:
+    pop ecx
+    pop ebx
+    pop eax
+    mov edx, [wg_nb_tw]
+    add [wg_nb_ox], edx
+    inc ebp
+    jmp .tab
+.r:
+    popad
+    ret
+
 ; edi = window record, eax/ebx = its client area's top left, ecx/edx = its
 ; width and height: draws the window's widgets, each cut to the client area
 ; (a widget whose text row does not fit is not drawn).
@@ -687,12 +928,17 @@ wg_draw:
     je .console
     cmp byte [edi+WG_KIND], WGK_GROUP
     je .group
+    cmp byte [edi+WG_KIND], WGK_NOTEBOOK
+    je .notebook
     mov byte [gfx_colour], WM_TEXT
     mov byte [gfx_bg], WM_CLIENT
     call wm_drawtitle           ; as many characters as fit
 .out:
     popad
     ret
+.notebook:                      ; tab strip + sunken page body (2.6-notebook)
+    call wg_nb_paint
+    jmp .out
 .group:                         ; etched frame; caption on the top edge
     mov edx, [edi+WG_Y]
     add edx, [edi+WG_TOP]
@@ -1722,6 +1968,161 @@ bw_fid dd 0
 bw_lid dd 0
 bw_gid dd 0
 
+; nbtest (2.6-notebook): a window with a three-tab notebook; probes the
+; selected tab's raised face, the page well, the page label ink, then
+; switches to tab 1 via wg_nbclick and checks the new face / page label.
+NB_X equ 40
+NB_Y equ 20
+NB_W equ 240
+NB_H equ 140
+NB_WX equ 8
+NB_WY equ 8
+NB_WW equ 220
+NB_WH equ 100
+
+cmd_nbtest_run:
+    call gfx_mode13
+    mov esi, nb_fail
+    jc .say
+    mov byte [gfxt_ok], 1
+    mov byte [nb_stage], '0'
+    mov eax, NB_X
+    mov ebx, NB_Y
+    mov ecx, NB_W
+    mov edx, NB_H
+    mov esi, nb_title
+    call wm_create
+    mov [lt_win], eax
+    cmp eax, -1
+    je .fail
+    mov byte [nb_stage], '1'
+    mov ebx, NB_WX
+    mov ecx, NB_WY
+    mov esi, nb_tabs
+    mov edx, 3
+    mov edi, NB_WW
+    mov ebp, NB_WH
+    call wg_notebook
+    mov [nb_id], eax
+    cmp eax, -1
+    je .fail
+    mov byte [nb_stage], '2'
+    call wm_redraw
+    ; selected tab 0: raised light at its top-left
+    mov eax, NB_X + 1 + NB_WX
+    mov ebx, NB_Y + 1 + WM_TITLE_H + NB_WY
+    mov dl, TH_LIGHT
+    mov byte [nb_stage], '3'
+    call .must
+    ; face just inside the bevel, above the label row
+    mov eax, NB_X + 1 + NB_WX + TH_BEVEL_W
+    mov ebx, NB_Y + 1 + WM_TITLE_H + NB_WY + TH_BEVEL_W
+    mov dl, TH_FACE
+    mov byte [nb_stage], 'a'
+    call .must
+    mov eax, NB_X + 1 + NB_WX
+    mov ebx, NB_Y + 1 + WM_TITLE_H + NB_WY + NB_TAB_H
+    mov dl, TH_SHADOW
+    mov byte [nb_stage], 'b'
+    call .must
+    ; page body: below the label band (label uses the top of the well)
+    mov eax, NB_X + 1 + NB_WX + TH_BEVEL_W + WG_BTN_PAD
+    mov ebx, NB_Y + 1 + WM_TITLE_H + NB_WY + NB_TAB_H + TH_BEVEL_W + WG_BTN_PAD + GFX_CELL_H
+    mov dl, WG_WELL_FILL
+    mov byte [nb_stage], 'c'
+    call .must
+    mov esi, nb_t0
+    mov ecx, FONT_9
+    call gfx_strwidth_p
+    add eax, NB_TAB_PAD
+    add eax, 4
+    mov ebx, eax
+    mov eax, [nb_id]
+    mov ecx, 4
+    mov byte [nb_stage], 'd'
+    call wg_nbclick
+    jc .fail
+    mov eax, [nb_id]
+    imul eax, WG_SIZE
+    cmp dword [wg_table+eax+WG_SEL], 1
+    mov byte [nb_stage], 'e'
+    jne .fail
+    call wm_redraw
+    mov esi, nb_t0
+    mov ecx, FONT_9
+    call gfx_strwidth_p
+    add eax, NB_TAB_PAD
+    add eax, NB_X + 1 + NB_WX + TH_BEVEL_W
+    mov ebx, NB_Y + 1 + WM_TITLE_H + NB_WY + TH_BEVEL_W
+    mov dl, TH_FACE
+    mov byte [nb_stage], 'f'
+    call .must
+    mov eax, NB_X + 1 + NB_WX + TH_BEVEL_W
+    mov ebx, NB_Y + 1 + WM_TITLE_H + NB_WY + TH_BEVEL_W
+    mov dl, TH_TITLE_IDLE
+    mov byte [nb_stage], 'g'
+    call .must
+    mov eax, NB_X + 1 + NB_WX + TH_BEVEL_W + WG_BTN_PAD
+    mov ebx, NB_Y + 1 + WM_TITLE_H + NB_WY + NB_TAB_H + TH_BEVEL_W + WG_BTN_PAD + GFX_CELL_H
+    mov dl, WG_WELL_FILL
+    mov byte [nb_stage], 'h'
+    call .must
+    mov eax, [nb_id]
+    mov byte [nb_stage], 'i'
+    call wg_setfocus
+    jc .fail
+    mov al, WK_RIGHT
+    mov byte [nb_stage], 'j'
+    call wg_key
+    jc .fail
+    mov eax, [nb_id]
+    imul eax, WG_SIZE
+    cmp dword [wg_table+eax+WG_SEL], 2
+    mov byte [nb_stage], 'k'
+    jne .fail
+    mov eax, [lt_win]
+    call wm_close
+    jmp .end
+.fail:
+    mov byte [gfxt_ok], 0
+    mov eax, [lt_win]
+    call wm_close
+.end:
+    call gfx_text
+    mov esi, nb_pass
+    cmp byte [gfxt_ok], 1
+    je .say
+    mov esi, nb_fail
+    call puts
+    mov al, [nb_stage]
+    call putc
+    mov esi, nb_nl
+.say:
+    jmp puts
+.must:                          ; dl at (eax,ebx) or fail
+    push edx
+    call gfx_getpixel
+    pop edx
+    cmp cl, dl
+    je .mok
+    mov byte [gfxt_ok], 0
+    pop eax                     ; drop return into after_light chain
+    jmp .fail
+.mok:
+    ret
+
+nb_title db 'Notebook', 0
+nb_t0 db 'One', 0
+nb_t1 db 'Two', 0
+nb_t2 db 'Three', 0
+nb_tabs dd nb_t0, nb_t1, nb_t2
+nb_pass db 'nbtest: PASS', 10, 0
+nb_fail db 'nbtest: FAIL at ', 0
+nb_nl db 10, 0
+nb_stage db '0'
+align 4
+nb_id dd 0
+
 lt_title db 'Labels', 0
 lt_text db 'Name: Squirrel', 0
 lt_pass db 'label: PASS', 10, 0
@@ -1737,4 +2138,10 @@ wg_cur dd -1                    ; focused widget id, or -1
 wg_hitid dd -1
 wg_boxw dd 0
 wg_boxh dd 0
+wg_nb_x dd 0
+wg_nb_y dd 0
+wg_nb_w dd 0
+wg_nb_h dd 0
+wg_nb_ox dd 0
+wg_nb_tw dd 0
 wg_table times WG_MAX * WG_SIZE db 0

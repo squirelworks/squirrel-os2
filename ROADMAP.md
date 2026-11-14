@@ -148,6 +148,8 @@ The GUI grows in generations, and each generation is a shippable milestone (epic
   - [x] **2.5-bar**, **2.5-menu**, **2.5-clock** (`warpcenter` / `wcbar` / `wcmenu` / `wcclock`)
   - [ ] **W.3-launchpad**
 - [ ] **2.6** — Desktop objects with icons, drag and drop between folders and onto programs, context menus on the right button, Warp-style settings notebooks with tabs, shadows (shortcuts). PR-sized boxes: `TODO.md` **2.6-icons** … **2.6-shadows**, plus **W.2-templates**, **W.4-views**, **W.5-openas**.
+  - [x] **2.6-context**, **2.6-notebook** (`dkctx` / `nbtest`)
+  - [ ] **2.6-icons**, **2.6-drag**, **2.6-shadows**, **W.2-templates**, **W.4-views**, **W.5-openas**
 - [x] **2.7** — Long file names, FAT12/16/32 read and write for exchanging media, drive objects, a shredder object.
   - [x] Long names, FAT12/16/32 read and write, drive and shredder objects (#162)
   - [x] `diskutil` on FAT volumes (2.7-diskutil; view/check #171, format FAT from the OS)

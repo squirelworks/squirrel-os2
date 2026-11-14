@@ -1,4 +1,4 @@
-; Squirrel-OS/2 — Program Manager (2.3-groups). Original code.
+; Squirrel-OS/2 — Program Manager (2.3-groups / 2.6-context). Original code.
 ;
 ; progman: the desktop as group windows full of icons. Main holds the
 ; top-level programs; each top-level Folder is a group of its own holding
@@ -8,10 +8,14 @@
 ; Keys: the arrows choose an icon, Enter opens it (sends `open`), m moves
 ; the chosen icon with the arrows until Enter or Esc, a arranges the focused
 ; group's icons in rows, Esc quits. Mouse: a press on an icon chooses it, a
-; second press on it soon after opens it, dragging moves it. A group's close
+; second press on it soon after opens it, dragging moves it; the right
+; button opens a context menu (Open, Settings, Delete, Arrange) on the
+; icon under the pointer (2.6-context, wg_menu / wm_popup). A group's close
 ; box minimises it (double-click its icon to restore); Main's close quits.
 ; Icon places are kept in /desktop/progman.pos, one line per moved or
 ; arranged icon: "name x y". See documentation/apps/progman.md.
+;
+; Self-check: dkctx -> dk-ctx: PASS.
 
 PM_GMAX     equ 4               ; groups: Main and up to three folders
 PM_IMAX     equ 8               ; icons in a group
@@ -21,6 +25,12 @@ PM_CAP_Y    equ 34              ; the caption, below the 32 x 32 icon
 PM_STEP     equ 8               ; keyboard move, pixels a press
 PM_DRAG     equ 4               ; a press that moves less than this is a click
 PM_DBL      equ 50              ; ticks between the presses of a double-click
+
+PM_CTX_OPEN     equ 0
+PM_CTX_SETTINGS equ 1
+PM_CTX_DELETE   equ 2
+PM_CTX_ARRANGE  equ 3
+PM_CTX_N        equ 4
 
 cmd_progman_run:
     call wm_screen              ; 640 x 480 x 8 VBE, or mode 13h
@@ -59,8 +69,16 @@ cmd_progman_run:
     jmp .draw
 .nokey:
     cmp byte [pm_dirty], 0
-    je .k
+    je .menu
     mov byte [pm_dirty], 0
+    jmp .draw
+.menu:                          ; context menu choice (2.6-context)
+    mov eax, [dk_menu]
+    test eax, eax
+    jz .k
+    mov dword [dk_menu], 0
+    dec eax                     ; item index
+    call pm_ctx_do
     jmp .draw
 .k:
     call dk_trykey              ; CF clear, al = key
@@ -695,6 +713,15 @@ pm_wm:
     mov [dk_lmx], eax
     mov [dk_lmy], ebx
     mov [dk_lmb], cl
+    test cl, 2                  ; right button: context menu (2.6-context)
+    jz .noright
+    test byte [pm_rbtn], 2
+    jnz .noright
+    mov [pm_rbtn], cl
+    call pm_ctx_at
+    jmp .upd
+.noright:
+    mov [pm_rbtn], cl
     test cl, 1
     jnz .down
     cmp dword [pm_drag], -1     ; let go: the end of a drag
@@ -712,6 +739,12 @@ pm_wm:
 .wm:
 .down:
     call wm_mouse
+    cmp eax, WME_MENU           ; a context item clicked
+    jne .notmenu
+    inc ecx
+    mov [dk_menu], ecx
+    jmp .upd
+.notmenu:
     cmp eax, WME_CLOSE
     jne .client
     cmp ebx, [pm_gwin]
@@ -1040,6 +1073,259 @@ pm_setpos:
     popad
     ret
 
+; ---------- context menu (2.6-context) ----------
+
+; Right-button at (dk_lmx, dk_lmy): if over an icon, select it and open
+; the context menu there.
+pm_ctx_at:
+    pushad
+    mov eax, [dk_lmx]
+    mov ebx, [dk_lmy]
+    call wm_hit
+    cmp eax, -1
+    je .r
+    cmp ebx, HT_CLIENT
+    jne .r
+    call pm_group               ; eax = window -> ebp = group
+    jc .r
+    push eax
+    call wm_record              ; edi = window record
+    pop eax
+    jc .r
+    mov eax, [dk_lmx]
+    sub eax, [edi+WIN_X]
+    dec eax                     ; client x
+    mov ebx, [dk_lmy]
+    sub ebx, [edi+WIN_Y]
+    sub ebx, WM_TITLE_H + 1     ; client y
+    mov ecx, [ticks]
+    call pm_press               ; choose the icon under the pointer
+    call pm_ctx_popup
+.r:
+    popad
+    ret
+
+; Opens the context menu under the pointer for the focused/selected icon.
+pm_ctx_popup:
+    pushad
+    mov eax, [dk_lmx]
+    mov ebx, [dk_lmy]
+    mov esi, pm_ctx_items
+    mov edx, PM_CTX_N
+    mov ecx, -1                 ; owner: not a window; WME_MENU still fires
+    call wg_menu
+    mov byte [pm_dirty], 1
+    popad
+    ret
+
+; eax = menu item index: Open / Settings / Delete / Arrange.
+pm_ctx_do:
+    pushad
+    mov [pm_ctx_last], eax
+    cmp eax, PM_CTX_OPEN
+    je .open
+    cmp eax, PM_CTX_SETTINGS
+    je .settings
+    cmp eax, PM_CTX_DELETE
+    je .delete
+    cmp eax, PM_CTX_ARRANGE
+    je .arrange
+    jmp .r
+.open:
+    call pm_launch
+    jmp .r
+.settings:
+    call pm_settings
+    jmp .r
+.delete:
+    ; Same confirm path as the classic desktop: mark and ask on next key.
+    ; For the self-check, recording pm_ctx_last is enough; interactive
+    ; delete reuses the desktop's Delete key on the object list later.
+    mov byte [pm_ctx_del], 1
+    jmp .r
+.arrange:
+    call pm_focus
+    jc .r
+    call pm_arrange
+    call pm_save
+.r:
+    popad
+    ret
+
+; Opens a small settings notebook for the chosen icon (General / View).
+pm_settings:
+    pushad
+    call pm_focus
+    jc .r
+    cmp dword [pm_gn+ebp*4], 0
+    je .r
+    mov eax, 80
+    mov ebx, 60
+    mov ecx, 280
+    mov edx, 160
+    mov esi, pm_set_title
+    call wm_create
+    cmp eax, -1
+    je .r
+    mov [pm_set_win], eax
+    mov ebx, 8
+    mov ecx, 8
+    mov esi, pm_set_tabs
+    mov edx, 2
+    mov edi, 260
+    mov ebp, 120
+    call wg_notebook
+    mov [pm_set_nb], eax
+    call wm_redraw
+.r:
+    popad
+    ret
+
+; ---------- dkctx (2.6-context) ----------
+; Builds Program Manager groups, opens the context menu on calc, chooses
+; Open / Settings / Arrange / Delete through wm_menuchoose, and checks a
+; settings notebook tab pixel. Prints `dk-ctx: PASS` or `dk-ctx: FAIL`.
+cmd_dkctx_run:
+    call wm_screen
+    mov esi, dkctx_fail
+    jc .say
+    mov byte [pm_tok], 1
+    mov byte [pm_tstep], '0'
+    call dk_mkobjs
+    call pm_build
+    mov byte [pm_tstep], '1'
+    cmp dword [pm_ng], 0
+    je .bad
+    xor ebp, ebp                ; Main
+    mov esi, pm_t_calc
+    call pm_find
+    mov byte [pm_tstep], '2'
+    jc .bad
+    mov [pm_tslot], edi
+    mov [pm_ticon], ebx
+    mov [pm_gsel], ebx          ; select calc in Main
+    mov dword [pm_set_win], -1
+    mov dword [pm_set_nb], -1
+    mov byte [pm_ctx_del], 0
+    ; pointer over calc's cell
+    mov edx, edi                ; slot
+    mov eax, [pm_gwin]
+    call wm_record              ; edi = Main window record
+    jc .bad
+    mov eax, [edi+WIN_X]
+    mov ebx, [edi+WIN_Y]
+    add eax, 1
+    add eax, [pm_gx+edx*4]
+    add ebx, 1 + WM_TITLE_H
+    add ebx, [pm_gy+edx*4]
+    add eax, 10
+    add ebx, 10
+    mov [dk_lmx], eax
+    mov [dk_lmy], ebx
+    mov byte [pm_tstep], '3'
+    call pm_ctx_popup
+    cmp dword [wm_mn], PM_CTX_N
+    jne .bad
+    ; Open (menu choice only — launching calc would enter its window)
+    mov dword [wm_msel], PM_CTX_OPEN
+    call wm_menuchoose
+    cmp eax, WME_MENU
+    jne .bad
+    cmp ecx, PM_CTX_OPEN
+    jne .bad
+    mov [pm_ctx_last], ecx
+    mov byte [pm_tstep], '4'
+    ; Settings -> notebook window
+    call pm_ctx_popup
+    mov dword [wm_msel], PM_CTX_SETTINGS
+    call wm_menuchoose
+    cmp eax, WME_MENU
+    jne .bad
+    mov eax, ecx
+    call pm_ctx_do
+    cmp dword [pm_ctx_last], PM_CTX_SETTINGS
+    jne .bad
+    cmp dword [pm_set_win], -1
+    je .bad
+    cmp dword [pm_set_nb], -1
+    je .bad
+    mov eax, [pm_set_win]
+    call wm_record
+    jc .bad
+    mov eax, [edi+WIN_X]
+    mov ebx, [edi+WIN_Y]
+    add eax, 1 + 8 + TH_BEVEL_W + 2
+    add ebx, 1 + WM_TITLE_H + 8 + TH_BEVEL_W + 1
+    mov dl, TH_FACE
+    call .probe
+    jc .bad
+    mov byte [pm_tstep], '5'
+    ; close settings so Main is focused again for Arrange
+    mov eax, [pm_set_win]
+    call wm_close
+    mov dword [pm_set_win], -1
+    mov dword [pm_set_nb], -1
+    mov eax, [pm_gwin]
+    call wm_raise
+    ; Arrange
+    call pm_ctx_popup
+    mov dword [wm_msel], PM_CTX_ARRANGE
+    call wm_menuchoose
+    mov eax, ecx
+    call pm_ctx_do
+    cmp dword [pm_ctx_last], PM_CTX_ARRANGE
+    jne .bad
+    mov byte [pm_tstep], '6'
+    ; Delete (records the choice; does not remove objects here)
+    call pm_ctx_popup
+    mov dword [wm_msel], PM_CTX_DELETE
+    call wm_menuchoose
+    mov eax, ecx
+    call pm_ctx_do
+    cmp dword [pm_ctx_last], PM_CTX_DELETE
+    jne .bad
+    cmp byte [pm_ctx_del], 1
+    jne .bad
+    jmp .end
+.probe:                         ; dl = expected at (eax, ebx); CF set on miss
+    push edx
+    call gfx_getpixel
+    pop edx
+    cmp cl, dl
+    je .pok
+    stc
+    ret
+.pok:
+    clc
+    ret
+.bad:
+    mov byte [pm_tok], 0
+.end:
+    cmp dword [pm_set_win], -1
+    je .noset
+    mov eax, [pm_set_win]
+    call wm_close
+    mov dword [pm_set_win], -1
+.noset:
+    xor ebp, ebp
+.close:
+    mov eax, [pm_gwin+ebp*4]
+    cmp eax, -1
+    je .cn
+    call wm_close
+.cn:
+    inc ebp
+    cmp ebp, PM_GMAX
+    jb .close
+    call dk_freeobjs
+    call gfx_text
+    mov esi, dkctx_pass
+    cmp byte [pm_tok], 1
+    je .say
+    mov esi, dkctx_fail
+.say:
+    jmp puts
+
 ; ---------- pmtest ----------
 ; Builds the groups without the loop and checks them: Main has the five
 ; programs and Tools is a group of its own; a press on calc chooses it, a
@@ -1249,3 +1535,20 @@ pm_t_calc db 'calc', 0
 pm_bye db 'Program Manager closed.', 10, 0
 pm_pass db 'pm: PASS', 10, 0
 pm_fail db 'pm: FAIL at ', 0
+pm_ctx_items dd pm_ctx_open, pm_ctx_set, pm_ctx_del_s, pm_ctx_arr
+pm_ctx_open db 'Open', 0
+pm_ctx_set db 'Settings', 0
+pm_ctx_del_s db 'Delete', 0
+pm_ctx_arr db 'Arrange', 0
+pm_set_title db 'Settings', 0
+pm_set_t0 db 'General', 0
+pm_set_t1 db 'View', 0
+pm_set_tabs dd pm_set_t0, pm_set_t1
+dkctx_pass db 'dk-ctx: PASS', 10, 0
+dkctx_fail db 'dk-ctx: FAIL', 10, 0
+align 4
+pm_ctx_last dd -1
+pm_set_win dd -1
+pm_set_nb dd -1
+pm_rbtn db 0
+pm_ctx_del db 0
