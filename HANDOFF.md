@@ -27,7 +27,7 @@ Used here, in `ROADMAP.md`, `TODO.md` and on the issues (as labels).
   (`documentation/releases/2.3.0.md`); the owner publishes the tag. `main`
   includes 2.2 real windows, 2.3 Program Manager / File Manager / clipboard /
   Control Panel / bevels, 2.4 ring 3, 2.7 long names + FAT + drive objects
-  (diskutil view/check), 2.8 long-mode entry and SMP, H.1–H.6, 3.0 networking
+  (diskutil view/check/format), 2.8 long-mode entry and SMP, H.1–H.6, 3.0 networking
   and sound, A.1–A.7, C.1–C.9, G.1–G.9, P.1, P.2, P.5, P.6 (GUI, registry,
   DLLs), P.8 (dosrun, launch, mode 13h), P.9 (32-bit LX), P.10 (FreeBSD).
 - **Test gate:** `tools/regress.sh` (558 `check` lines at 2.3.0) and GitHub CI
@@ -71,7 +71,7 @@ qemu-system-i386 -drive file=build/os.img,format=raw -drive file=build/data.img,
 ## Suggested order
 
 1. ~~Merge `int/os2-control`, **2.3-bevel-default**, then **2.3.0 release notes**.~~ Done (#168, #172, and the 2.3.0 prep PR). Owner publishes `v2.3.0`.
-2. **2.7-diskutil** remainder (in-OS FAT format; #171 shipped view/check without ticking the box).
+2. ~~**2.7-diskutil** remainder (in-OS FAT format; #171 shipped view/check without ticking the box).~~ Done (format FAT12/16/32 from `diskutil`).
 3. **Generation 2 desktop** from the split boxes in `TODO.md`: **2.5-bar →
    2.5-menu → 2.5-clock → W.3-launchpad**, then **2.6-icons → 2.6-drag →
    2.6-context → 2.6-notebook → 2.6-shadows → W.2-templates → W.4-views →
@@ -91,17 +91,11 @@ Merged as #172.
   Actions → Draft release on the merge commit and Publishes `v2.3.0`
   with `os.img`, `floppy.img`, `data.img`, `cd.iso`, `uefi.img`.
 
-### 2.7-diskutil — FAT and long names in `diskutil`  `cursor-codex`
-- **Partial on `main` (#171):** view and check of FAT12/16/32 volumes, VFAT
-  names, SQFS long-name accounting. **Still open:** format FAT from the OS
-  (images are still made on the host by `tools/fatimg.py`). Do not retick the
-  box until format is in, or reword the box with the owner.
-- **Files:** `programs/diskutil.asm`, `programs/dufat.inc`,
-  `kernel/fat.asm`, `documentation/apps/diskutil.md`, `tools/fatimg.py`.
-- **Acceptance:** `diskutil` lists partition types, formats a FAT12/16/32
-  volume, checks one (lost/shared clusters, mismatched FAT copies) and shows
-  VFAT names; `tools/fatimg.py check` agrees on images it made. New checks
-  already include `diskutil-fat*`.
+### 2.7-diskutil — FAT and long names in `diskutil`  `status: done`
+View/check shipped as #171; format FAT12/16/32 from the OS completes the box.
+`run diskutil format hd2 12|16|32`, `run diskutil test format hd2 N`, and GUI
+`F` then `Y`. Checks `diskutil-fmt12` / `16` / `32`, `diskutil-fmt-gui`,
+host `fatimg.py check`, and `fattest` on the formatted images.
 
 ### P.6-win32-windows — Win32 top-level windows as desktop windows  `done (this branch)`
 - **What:** `CreateWindowEx` top-level windows from `programs/wingui.inc`

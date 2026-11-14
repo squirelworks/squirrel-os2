@@ -16,7 +16,11 @@
 ; long-name (VFAT) entries that do not belong to the entry after them;
 ; clusters in use that no file reaches (lost); FAT copies that differ
 ; from the first; a first FAT entry that does not match the media byte.
-; Nothing is written to the disk. See documentation/apps/diskutil.md.
+;
+; Format (SYS_DEVWRITE) builds an empty FAT12/16/32 volume the same way
+; tools/fatimg.py does: boot sector, FATs, fixed root or FAT32 root
+; cluster, and an MBR partition (types 01/04/06/0C) when the disk is
+; large enough for FAT16/32. See documentation/apps/diskutil.md.
 
 FAT_MEM     equ 512 * 1024      ; the first FAT, at most
 FAT_BITS    equ 64 * 1024       ; one bit per cluster: 512 K clusters
@@ -1213,3 +1217,717 @@ fat_selftest:
     call gui_puts
     xor eax, eax
     ret
+
+; ---------- format FAT12/16/32 (2.7) ----------
+; Layout matches tools/fatimg.py: OEM "SQUIRREL", two FATs, media 0xF8,
+; serial 0x5157524C, label "NO NAME". FAT16/32 on a disk larger than
+; 2048 sectors get an MBR partition at LBA 2048 (types 04/06/0C).
+
+; esi = "hdN 12|16|32" -> dname, fmt_bits; CF if the args are wrong
+parse_fmt_args:
+    call set_dev
+    jc .no
+    mov al, [dname_buf+2]
+    cmp al, '2'
+    je .bits
+    cmp al, '3'
+    jne .no
+.bits:
+    cmp byte [esi], ' '
+    je .sp
+    cmp byte [esi], 0
+    je .no
+    ; set_dev left esi at "hdN"; skip to the type
+    add esi, 3
+.sp:
+    cmp byte [esi], ' '
+    jne .num
+    inc esi
+    jmp .sp
+.num:
+    cmp word [esi], '12'
+    jne .n16
+    cmp byte [esi+2], 0
+    jne .no
+    mov dword [fmt_bits], 12
+    clc
+    ret
+.n16:
+    cmp word [esi], '16'
+    jne .n32
+    cmp byte [esi+2], 0
+    jne .no
+    mov dword [fmt_bits], 16
+    clc
+    ret
+.n32:
+    cmp word [esi], '32'
+    jne .no
+    cmp byte [esi+2], 0
+    jne .no
+    mov dword [fmt_bits], 32
+    clc
+    ret
+.no:
+    stc
+    ret
+
+; eax = 12/16/32 -> prints the digits (no newline)
+put_fat_bits:
+    pushad
+    mov edi, ln
+    call gui_utoa
+    mov esi, ln
+    call gui_puts
+    popad
+    ret
+
+; F in the GUI: ask to format hd2/hd3; type from size if unset
+fmt_gui_ask:
+    pushad
+    mov esi, [dname]
+    cmp dword [esi], 'hd2'
+    je .ok
+    cmp dword [esi], 'hd3'
+    je .ok
+    mov byte [fmt_ask], 0
+    mov byte [shown_rep], 5
+    popad
+    ret
+.ok:
+    call fmt_open_dev
+    jc .bad
+    call disk_sects_probe
+    jc .bad
+    mov [fmt_disk], eax
+    call fmt_pick_bits
+    mov byte [fmt_ask], 1
+    mov byte [shown_rep], 0
+    popad
+    ret
+.bad:
+    mov byte [shown_rep], 4
+    popad
+    ret
+
+; pick 12/16/32 from disk size (same thresholds as a host mkfs)
+fmt_pick_bits:
+    pushad
+    mov eax, [fmt_disk]
+    mov dword [fmt_bits], 12
+    cmp eax, 5000               ; ~2.5 MB: still FAT12-friendly
+    jb .r
+    mov dword [fmt_bits], 16
+    cmp eax, 70000              ; ~35 MB: need FAT32 for one-sector clusters
+    jb .r
+    mov dword [fmt_bits], 32
+.r:
+    popad
+    ret
+
+; open [dname] -> [hd1]; CF if missing (mount once first for hd2/hd3)
+fmt_open_dev:
+    pushad
+    mov eax, SYS_DEVFIND
+    mov ebx, [dname]
+    int 0x80
+    test eax, eax
+    js .no
+    mov [hd1], eax
+    popad
+    clc
+    ret
+.no:
+    popad
+    stc
+    ret
+
+; -> eax = readable sector count of [hd1]; CF if sector 0 fails
+disk_sects_probe:
+    push ebx
+    push ecx
+    push edx
+    push edi
+    xor eax, eax
+    mov edi, fsec
+    mov ebx, [hd1]
+    call rd_sector
+    jc .fail
+    xor edx, edx                ; last good sector index
+    mov ecx, 1                  ; next sector to try
+.grow:
+    mov eax, ecx
+    mov edi, fsec
+    mov ebx, [hd1]
+    call rd_sector
+    jc .bin
+    mov edx, ecx
+    add ecx, ecx
+    cmp ecx, 0x01000000
+    jb .grow
+.bin:
+    ; sectors 0..edx good; ecx failed (or hit the cap). Count in (edx, ecx].
+    lea eax, [edx+1]
+    mov edx, ecx
+.bloop:
+    cmp eax, edx
+    jae .done
+    mov ecx, eax
+    add ecx, edx
+    shr ecx, 1
+    push eax
+    mov eax, ecx
+    mov edi, fsec
+    mov ebx, [hd1]
+    call rd_sector
+    pop eax
+    jc .bad
+    lea eax, [ecx+1]
+    jmp .bloop
+.bad:
+    mov edx, ecx
+    jmp .bloop
+.done:
+    pop edi
+    pop edx
+    pop ecx
+    pop ebx
+    clc
+    ret
+.fail:
+    pop edi
+    pop edx
+    pop ecx
+    pop ebx
+    stc
+    ret
+
+; eax = volume sector, edi = 512-byte buffer -> CF on write error
+fat_wr:
+    pushad
+    add eax, [vbase]
+    mov edx, eax
+    mov ecx, edi
+    mov ebx, [hd1]
+    mov eax, SYS_DEVWRITE
+    int 0x80
+    cmp eax, 512
+    popad
+    jne .bad
+    clc
+    ret
+.bad:
+    stc
+    ret
+
+; eax = absolute disk sector, edi = buffer -> CF on error
+disk_wr:
+    pushad
+    mov edx, eax
+    mov ecx, edi
+    mov ebx, [hd1]
+    mov eax, SYS_DEVWRITE
+    int 0x80
+    cmp eax, 512
+    popad
+    jne .bad
+    clc
+    ret
+.bad:
+    stc
+    ret
+
+; zero ecx sectors starting at volume sector eax
+fmt_zero_secs:
+    pushad
+    mov edi, fsec
+    push eax
+    push ecx
+    mov ecx, 128
+    xor eax, eax
+    rep stosd
+    pop ecx
+    pop eax
+    test ecx, ecx
+    jz .r
+.s:
+    mov edi, fsec
+    call fat_wr
+    jc .bad
+    inc eax
+    loop .s
+.r:
+    popad
+    clc
+    ret
+.bad:
+    popad
+    stc
+    ret
+
+; format [dname] as FAT[fmt_bits] -> updates geometry; CF on error
+fat_format:
+    pushad
+    call fmt_open_dev
+    jc .no
+    call disk_sects_probe
+    jc .no
+    mov [fmt_disk], eax
+    cmp eax, 64
+    jb .no
+    mov dword [fmt_part], 0
+    mov dword [vbase], 0
+    mov ebx, [fmt_bits]
+    cmp ebx, 12
+    je .whole
+    ; FAT16/32: reuse an existing FAT partition, else make one at 2048
+    xor eax, eax
+    mov edi, sect
+    mov ebx, [hd1]
+    call rd_sector
+    jc .no
+    cmp word [sect+510], 0xAA55
+    jne .newpart
+    mov esi, sect + 446
+    mov ecx, 4
+.pe:
+    mov al, [esi+4]
+    mov edi, fat_ptypes
+    push ecx
+    mov ecx, 6
+    repne scasb
+    pop ecx
+    je .usep
+    add esi, 16
+    loop .pe
+.newpart:
+    mov eax, [fmt_disk]
+    cmp eax, 2048 + 256
+    jb .whole
+    mov dword [fmt_part], 1
+    mov dword [vbase], 2048
+    sub eax, 2048
+    mov [fsects], eax
+    jmp .geom
+.usep:
+    mov eax, [esi+8]
+    mov [vbase], eax
+    mov eax, [esi+12]
+    test eax, eax
+    jz .newpart
+    mov [fsects], eax
+    mov dword [fmt_part], 1
+    jmp .geom
+.whole:
+    mov eax, [fmt_disk]
+    mov [fsects], eax
+.geom:
+    call fmt_geometry
+    jc .no
+    cmp dword [fmt_part], 0
+    je .vol
+    call fmt_write_mbr
+    jc .no
+.vol:
+    call fmt_write_volume
+    jc .no
+    mov eax, [fmt_bits]
+    mov [ftype], eax
+    popad
+    clc
+    ret
+.no:
+    popad
+    stc
+    ret
+
+; from fsects and fmt_bits -> fspc, frsv, fnfats, ffatsz, frootsecs,
+; frootcl, fmedia, fmaxcl; CF if the size cannot hold that FAT type
+fmt_geometry:
+    pushad
+    mov dword [fnfats], 2
+    mov byte [fmedia], 0xF8
+    mov dword [frootcl], 0
+    mov eax, [fmt_bits]
+    cmp eax, 32
+    je .f32
+    mov dword [frsv], 1
+    mov dword [fspc], 1
+    mov dword [frootents], 512
+    cmp eax, 12
+    jne .loop
+    mov dword [frootents], 224
+    jmp .loop
+.f32:
+    mov dword [frsv], 32
+    mov dword [fspc], 1
+    mov dword [frootents], 0
+    mov dword [frootcl], 2
+.loop:
+    mov eax, [frootents]
+    shl eax, 5
+    add eax, 511
+    shr eax, 9
+    mov [frootsecs], eax
+    mov dword [ffatsz], 1
+    mov ecx, 20
+.fit:
+    mov eax, [ffatsz]
+    mul dword [fnfats]
+    add eax, [frsv]
+    add eax, [frootsecs]
+    mov edx, [fsects]
+    cmp edx, eax
+    jbe .fail
+    sub edx, eax
+    mov eax, edx
+    xor edx, edx
+    div dword [fspc]
+    mov [fmt_clusters], eax     ; data clusters
+    ; fatsz from (clusters+2)*bits
+    mov edx, eax
+    add edx, 2
+    mov eax, [fmt_bits]
+    mul edx                     ; edx:eax = (c+2)*bits — bits fits in 32
+    add eax, 7
+    shr eax, 3                  ; bytes
+    add eax, 511
+    shr eax, 9
+    mov [ffatsz], eax
+    loop .fit
+    mov eax, [fmt_clusters]
+    mov ebx, [fmt_bits]
+    cmp ebx, 12
+    jne .c16
+    cmp eax, 4085
+    jb .okrange
+    shl dword [fspc], 1
+    cmp dword [fspc], 128
+    ja .fail
+    jmp .loop
+.c16:
+    cmp ebx, 16
+    jne .c32
+    cmp eax, 65525
+    jb .chk16
+    shl dword [fspc], 1
+    cmp dword [fspc], 128
+    ja .fail
+    jmp .loop
+.chk16:
+    cmp eax, 4085
+    jb .fail
+    jmp .okrange
+.c32:
+    cmp eax, 65525
+    jb .fail
+.okrange:
+    test eax, eax
+    jz .fail
+    inc eax
+    mov [fmaxcl], eax           ; clusters 2 .. fmaxcl
+    mov eax, [fspc]
+    shl eax, 9
+    mov [fclbytes], eax
+    mov eax, [ffatsz]
+    mul dword [fnfats]
+    add eax, [frsv]
+    mov [frootlba], eax
+    add eax, [frootsecs]
+    mov [fdatalba], eax
+    popad
+    clc
+    ret
+.fail:
+    popad
+    stc
+    ret
+
+; MBR with one active FAT partition at [vbase], size [fsects]
+fmt_write_mbr:
+    pushad
+    mov edi, sect
+    mov ecx, 128
+    xor eax, eax
+    rep stosd
+    mov byte [sect+446], 0x80
+    mov dword [sect+447], 0x00FFFFFF      ; CHS start  FE FF FF in low 3 — pack manually
+    mov byte [sect+447], 0xFE
+    mov byte [sect+448], 0xFF
+    mov byte [sect+449], 0xFF
+    mov eax, [fmt_bits]
+    mov dl, 0x01
+    cmp eax, 12
+    je .ty
+    mov dl, 0x04
+    cmp eax, 16
+    jne .t32
+    cmp dword [fsects], 65536
+    jb .ty
+    mov dl, 0x06
+    jmp .ty
+.t32:
+    mov dl, 0x0C
+.ty:
+    mov [sect+450], dl
+    mov byte [sect+451], 0xFE
+    mov byte [sect+452], 0xFF
+    mov byte [sect+453], 0xFF
+    mov eax, [vbase]
+    mov [sect+454], eax
+    mov eax, [fsects]
+    mov [sect+458], eax
+    mov word [sect+510], 0xAA55
+    xor eax, eax
+    mov edi, sect
+    call disk_wr
+    popad
+    ret
+
+; boot sector, FATs, root (and FAT32 FSInfo / backup / cluster 2)
+fmt_write_volume:
+    pushad
+    call fmt_build_bpb
+    jc .no
+    xor eax, eax                ; boot at volume sector 0
+    mov edi, sect
+    call fat_wr
+    jc .no
+    cmp dword [fmt_bits], 32
+    jne .fats
+    ; FSInfo at sector 1, backup boot at 6
+    call fmt_build_fsinfo
+    mov eax, 1
+    mov edi, fsec
+    call fat_wr
+    jc .no
+    mov eax, 6
+    mov edi, sect
+    call fat_wr
+    jc .no
+.fats:
+    mov eax, [ffatsz]
+    mul dword [fnfats]
+    mov ecx, eax
+    mov eax, [frsv]
+    call fmt_zero_secs
+    jc .no
+    mov eax, [frootlba]
+    mov ecx, [frootsecs]
+    call fmt_zero_secs
+    jc .no
+    cmp dword [fmt_bits], 32
+    jne .seed
+    mov eax, 2
+    call cl_sector
+    mov ecx, [fspc]
+    call fmt_zero_secs
+    jc .no
+.seed:
+    call fmt_seed_fat
+    jc .no
+    popad
+    clc
+    ret
+.no:
+    popad
+    stc
+    ret
+
+; build BPB in sect from geometry
+fmt_build_bpb:
+    pushad
+    mov edi, sect
+    mov ecx, 128
+    xor eax, eax
+    rep stosd
+    mov eax, [fmt_bits]
+    cmp eax, 32
+    je .j32
+    mov byte [sect], 0xEB
+    mov byte [sect+1], 0x3C
+    mov byte [sect+2], 0x90
+    jmp .oem
+.j32:
+    mov byte [sect], 0xEB
+    mov byte [sect+1], 0x58
+    mov byte [sect+2], 0x90
+.oem:
+    mov esi, fmt_oem
+    mov edi, sect+3
+    mov ecx, 8
+    rep movsb
+    mov word [sect+11], 512
+    mov al, [fspc]
+    mov [sect+13], al
+    mov ax, [frsv]
+    mov [sect+14], ax
+    mov al, [fnfats]
+    mov [sect+16], al
+    mov ax, [frootents]
+    mov [sect+17], ax
+    mov eax, [fsects]
+    cmp dword [fmt_bits], 32
+    je .tot32
+    cmp eax, 0x10000
+    jae .tot32
+    mov [sect+19], ax
+    jmp .media
+.tot32:
+    mov word [sect+19], 0
+    mov [sect+32], eax
+.media:
+    mov al, [fmedia]
+    mov [sect+21], al
+    mov eax, [ffatsz]
+    cmp dword [fmt_bits], 32
+    je .fz32
+    mov [sect+22], ax
+    jmp .geo
+.fz32:
+    mov word [sect+22], 0
+    mov [sect+36], eax
+.geo:
+    mov word [sect+24], 63
+    mov word [sect+26], 255
+    mov eax, [vbase]
+    mov [sect+28], eax
+    cmp dword [fmt_bits], 32
+    je .e32
+    mov byte [sect+36], 0x80
+    mov byte [sect+38], 0x29
+    mov dword [sect+39], 0x5157524C
+    mov esi, fmt_label
+    mov edi, sect+43
+    mov ecx, 11
+    rep movsb
+    mov esi, fmt_fat12
+    cmp dword [fmt_bits], 12
+    je .fsys
+    mov esi, fmt_fat16
+.fsys:
+    mov edi, sect+54
+    mov ecx, 8
+    rep movsb
+    jmp .sig
+.e32:
+    mov word [sect+40], 0
+    mov word [sect+42], 0
+    mov dword [sect+44], 2      ; root cluster
+    mov word [sect+48], 1       ; FSInfo
+    mov word [sect+50], 6       ; backup boot
+    mov byte [sect+64], 0x80
+    mov byte [sect+66], 0x29
+    mov dword [sect+67], 0x5157524C
+    mov esi, fmt_label
+    mov edi, sect+71
+    mov ecx, 11
+    rep movsb
+    mov esi, fmt_fat32
+    mov edi, sect+82
+    mov ecx, 8
+    rep movsb
+.sig:
+    mov word [sect+510], 0xAA55
+    popad
+    clc
+    ret
+
+fmt_build_fsinfo:
+    pushad
+    mov edi, fsec
+    mov ecx, 128
+    xor eax, eax
+    rep stosd
+    mov dword [fsec], 0x41615252
+    mov dword [fsec+484], 0x61417272
+    mov dword [fsec+488], 0xFFFFFFFF
+    mov dword [fsec+492], 0xFFFFFFFF
+    mov word [fsec+510], 0xAA55
+    popad
+    ret
+
+; set FAT entries 0, 1, and 2 (FAT32) on every FAT copy
+fmt_seed_fat:
+    pushad
+    mov edi, fsec
+    mov ecx, 128
+    xor eax, eax
+    rep stosd
+    mov eax, [fmt_bits]
+    cmp eax, 12
+    jne .s16
+    ; FAT12: entry0 = 0xF00|media, entry1 = 0xFFF, packed in 3 bytes
+    movzx ecx, byte [fmedia]
+    or ecx, 0xF00
+    mov edx, 0xFFF
+    shl edx, 12
+    or ecx, edx
+    mov [fsec], ecx
+    jmp .write
+.s16:
+    cmp eax, 16
+    jne .s32
+    movzx eax, byte [fmedia]
+    or eax, 0xFF00
+    mov [fsec], ax
+    mov word [fsec+2], 0xFFFF
+    jmp .write
+.s32:
+    movzx eax, byte [fmedia]
+    or eax, 0x0FFFFF00
+    mov [fsec], eax
+    mov dword [fsec+4], 0x0FFFFFFF
+    mov dword [fsec+8], 0x0FFFFFFF
+.write:
+    xor ebx, ebx
+.w:
+    cmp ebx, [fnfats]
+    jae .ok
+    mov eax, [ffatsz]
+    mul ebx
+    add eax, [frsv]
+    mov edi, fsec
+    call fat_wr
+    jc .no
+    inc ebx
+    jmp .w
+.ok:
+    popad
+    clc
+    ret
+.no:
+    popad
+    stc
+    ret
+
+; format then check an empty volume: run diskutil test format hd2 N
+fat_format_selftest:
+    mov byte [bad], 'A'
+    call fat_format
+    jc fail
+    inc byte [bad]              ; B: analyse empty volume
+    call analyse
+    cmp byte [fat_ok], 1
+    jne fail
+    cmp byte [fat_big], 0
+    jne fail
+    cmp dword [nprob], 0
+    jne fail
+    cmp dword [nfiles], 0
+    jne fail
+    cmp dword [ndirs], 0
+    jne fail
+    mov eax, [ftype]
+    cmp eax, [fmt_bits]
+    jne fail
+    mov esi, pass
+    call gui_puts
+    xor eax, eax
+    ret
+
+fmt_oem   db 'SQUIRREL'
+fmt_label db 'NO NAME    '
+fmt_fat12 db 'FAT12   '
+fmt_fat16 db 'FAT16   '
+fmt_fat32 db 'FAT32   '

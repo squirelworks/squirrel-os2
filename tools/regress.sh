@@ -1173,6 +1173,23 @@ for t in 12 16 32; do
     target=$out/fat$t.img
     check_all diskutil-fat$t "gfx: hd2: FAT$t|gfx: Check: no problems found" 'mount d: hd2' '<ret>' 'run diskutil hd2' '<ret>' '<pause>' 'c' '<pause>' '<gfx>'
 done
+# 2.7: format FAT from the OS (blank images; mount once to register hd2)
+dd if=/dev/zero of="$out/dufmt12.img" bs=1024 count=1440 2>/dev/null
+dd if=/dev/zero of="$out/dufmt16.img" bs=1024 count=16384 2>/dev/null
+dd if=/dev/zero of="$out/dufmt32.img" bs=1024 count=40960 2>/dev/null
+target=$out/dufmt12.img
+check diskutil-fmt12 'diskutil: PASS'       'mount d: hd2' '<ret>' 'run diskutil test format hd2 12' '<ret>' '<pause>' '<pause>'
+fatok diskutil-fmt12-fsck "$out/dufmt12.img"
+check_all diskutil-fmt12-use 'D: FAT12, 1440 KB, hd2|fattest: PASS' 'mount d: hd2' '<ret>' 'fattest d:' '<ret>' '<pause>' '<pause>'
+target=$out/dufmt16.img
+check diskutil-fmt16 'diskutil: PASS'       'mount d: hd2' '<ret>' 'run diskutil test format hd2 16' '<ret>' '<pause>' '<pause>'
+fatok diskutil-fmt16-fsck "$out/dufmt16.img"
+check_all diskutil-fmt16-use 'D: FAT16, 15 MB, hd2|fattest: PASS' 'mount d: hd2' '<ret>' 'fattest d:' '<ret>' '<pause>' '<pause>'
+check_all diskutil-fmt-gui 'gfx: Formatted FAT16' 'mount d: hd2' '<ret>' 'run diskutil hd2' '<ret>' '<pause>' 'f' '<pause>' 'y' '<pause>' '<gfx>'
+target=$out/dufmt32.img
+check diskutil-fmt32 'diskutil: PASS'       'mount d: hd2' '<ret>' 'run diskutil test format hd2 32' '<ret>' '<pause>' '<pause>'
+fatok diskutil-fmt32-fsck "$out/dufmt32.img"
+check_all diskutil-fmt32-use 'D: FAT32, 39 MB, hd2|fattest: PASS' 'mount d: hd2' '<ret>' 'fattest d:' '<ret>' '<pause>' '<pause>'
 target=$saved_target
 # C.8: notebooks (notes, Nut code, graphs, tables, geometry; C.1: math cells by sqmath)
 check notebook      'notebook: PASS'        'run notebook test' '<ret>' '<pause>' '<pause>' '<pause>'
