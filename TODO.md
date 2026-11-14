@@ -400,7 +400,7 @@ From P.8 in `ROADMAP.md` and epic #118 (stream OS2-FOREIGN). Notes: `documentati
 - [x] **P.8-dos-launch** — `run prog.com` and `run prog.exe` (MZ without PE) go to dosrun without naming it.
 - [x] **P.8-dos-gfx** — VGA mode 13h for DOS programs: `A000` shown through `SYS_GUI`, INT 10h pixels and DAC calls, ports 3C8h/3C9h/3DAh, BIOS teletype in graphics, non-blocking keyboard polls, the BIOS tick count from the real timer.
   **Acceptance:** `run dosgfx.com` draws and writes `dosgfx: drawn` in graphics (read by `<gfx>`), and after a key prints `dosgfx: PASS` in text. Checks `dos-gfx`, `dos-gfx-after`.
-- [ ] **P.8-dos-window** — the DOS screen (text or mode 13h) inside a window of its own, once programs own windows (2.2).
+- [x] **P.8-dos-window** — the DOS screen (text or mode 13h) inside a window of its own (1x/2x, keys while focused). Checks `dos-win`, `dos-win-2x`, `dos-win-text`; existing `dos-*` still pass.
 
 ## 2.7 — Long names, FAT, drive objects (OS2-FS)
 
