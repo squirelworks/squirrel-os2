@@ -1177,13 +1177,16 @@ done
 # mkfat: format a blank disk as FAT12/16/32; fatimg.py check agrees; diskutil sees it
 python3 -c "open('$out/mkblank.img','wb').write(b'\\0'*(1440*1024))"
 target=$out/mkblank.img
-check_all du-fat-mk12 'Formatted FAT12 on hd2|D: FAT12, 1440 KB|gfx: Check: no problems found' 'mkfat hd2 12' '<ret>' '<pause>' 'mount d: hd2' '<ret>' 'run diskutil hd2' '<ret>' '<pause>' 'c' '<pause>' '<gfx>'
+check_all du-fat-mk12 'Formatted FAT12 on hd2|D: FAT12, 1440 KB, hd2' 'mkfat hd2 12' '<ret>' '<pause>' 'mount d: hd2' '<ret>'
+check_all du-fat-mk12-du 'gfx: hd2: FAT12, 2880 sectors, 1440 KB|gfx: Check: no problems found' 'mount d: hd2' '<ret>' 'run diskutil hd2' '<ret>' '<pause>' 'c' '<pause>' '<gfx>'
 fatok du-fat-mk12-fsck "$out/mkblank.img"
 python3 -c "open('$out/mkblank.img','wb').write(b'\\0'*(16384*1024))"
-check_all du-fat-mk16 'Formatted FAT16 on hd2|D: FAT16|gfx: Partition 1: type 04|gfx: Check: no problems found' 'mkfat hd2 16 --part' '<ret>' '<pause>' 'mount d: hd2' '<ret>' 'run diskutil hd2' '<ret>' '<pause>' 'c' '<pause>' '<gfx>'
+check_all du-fat-mk16 'Formatted FAT16 on hd2|D: FAT16' 'mkfat hd2 16 --part' '<ret>' '<pause>' 'mount d: hd2' '<ret>'
+check_all du-fat-mk16-du 'gfx: Partition 1: type 04|gfx: Check: no problems found' 'mount d: hd2' '<ret>' 'run diskutil hd2' '<ret>' '<pause>' 'c' '<pause>' '<gfx>'
 fatok du-fat-mk16-fsck "$out/mkblank.img"
 python3 -c "open('$out/mkblank.img','wb').write(b'\\0'*(40960*1024))"
-check_all du-fat-mk32 'Formatted FAT32 on hd2|D: FAT32|gfx: Partition 1: type 0C|gfx: Check: no problems found' 'mkfat hd2 32 --part' '<ret>' '<pause>' 'mount d: hd2' '<ret>' 'run diskutil hd2' '<ret>' '<pause>' 'c' '<pause>' '<gfx>'
+check_all du-fat-mk32 'Formatted FAT32 on hd2|D: FAT32' 'mkfat hd2 32 --part' '<ret>' '<pause>' 'mount d: hd2' '<ret>'
+check_all du-fat-mk32-du 'gfx: Partition 1: type 0C|gfx: Check: no problems found' 'mount d: hd2' '<ret>' 'run diskutil hd2' '<ret>' '<pause>' 'c' '<pause>' '<gfx>'
 fatok du-fat-mk32-fsck "$out/mkblank.img"
 target=$saved_target
 # C.8: notebooks (notes, Nut code, graphs, tables, geometry; C.1: math cells by sqmath)
