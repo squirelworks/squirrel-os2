@@ -65,7 +65,8 @@ main:
     call setup
     jc .out
     call run
-    call vga_leave              ; a program that ends in graphics
+    call vga_leave              ; closes a DOS window; replays its text to the console
+    call vga_report_win         ; doswin: PASS when mode 13h was checked
     movzx eax, byte [exit_code]
 .out:
     pop ebp
@@ -687,9 +688,10 @@ run:
 .bios:
     call bios_entry
     jmp .next
-.slice:                         ; now and then the graphics screen is shown
+.slice:                         ; now and then the DOS window is shown
     mov dword [vslice], VGA_SLICE
     call vga_tick
+    call vga_text_flush
     jmp .go
 .r:
     ret
@@ -2072,8 +2074,8 @@ key_get:
     mov word [key_held], 0
     ret
 .read:
-    cmp byte [vmode], 0x13
-    je .gread
+    cmp dword [vwin], -1        ; keys go to the focused DOS window
+    jne .wread
     mov eax, SYS_GETC
     int 0x80
     cmp eax, -1
@@ -2086,16 +2088,16 @@ key_get:
 .m:
     movzx eax, al
     ret
-.gread:                         ; graphics: show the screen, then wait
+.wread:                         ; show the screen, then wait for WE_KEY
+    cmp byte [vmode], 0x13
+    je .wf
+    mov byte [vtext_dirty], 1
+    call vga_text_flush
+    jmp .gw
+.wf:
     call vga_flush
 .gw:
-    call vga_key
-    test eax, eax
-    jnz .gk
-    mov eax, SYS_YIELD
-    int 0x80
-    jmp .gw
-.gk:
+    call vga_key_wait
     ret
 key_peek:
     cmp word [key_held], 0
@@ -2690,9 +2692,11 @@ d_rename:
 
 ; ======================== output helpers ========================
 
-putch:                          ; al -> the console; keeps registers
+putch:                          ; al -> the DOS window (or the console)
     cmp byte [vmode], 0x13
     je .gfx
+    cmp dword [vwin], -1
+    jne .twin
     pushad
     movzx ebx, al
     cmp bl, 13                  ; CR alone does nothing on this console
@@ -2702,13 +2706,16 @@ putch:                          ; al -> the console; keeps registers
 .r:
     popad
     ret
+.twin:
+    call vga_text_putc
+    ret
 .gfx:
     push ebx
     mov bl, [vink]
     call vga_tty
     pop ebx
     ret
-say:                            ; ebx = ASCIIZ
+say:                            ; ebx = ASCIIZ (host messages: the console)
     push eax
     mov eax, SYS_PUTS
     int 0x80
