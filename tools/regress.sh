@@ -1348,16 +1348,16 @@ disk=$out/hw.img; boot=$out/esp.img
 export QEMU_TEXT=0x1f8000 QEMU_BIN=qemu-system-x86_64
 if [ -f "$OVMF_FD" ] && command -v qemu-system-x86_64 >/dev/null; then
     export QEMU_EXTRA="-bios $OVMF_FD"
-    check_all uefi-x64      'Squirrel-OS/2 2.1|systest: PASS|blkdev  '  $uefi_keys systest '<ret>' ls '<ret>'
+    check_all uefi-x64      'Squirrel-OS/2 2.3.0|systest: PASS|blkdev  '  $uefi_keys systest '<ret>' ls '<ret>'
     check_all uefi-x64-mem  'BIOS memory map:|usable|KB free'  $uefi_keys mem '<ret>'
-    check_all uefi-x64-gop  'gop: Squirrel-OS/2 2.1|gop: > echo UEFI GOP x|gop: UEFI GOP x'  $uefi_keys 'echo UEFI GOP x' '<ret>' '<pause>' '<gop>'
+    check_all uefi-x64-gop  'gop: Squirrel-OS/2 2.3.0|gop: > echo UEFI GOP x|gop: UEFI GOP x'  $uefi_keys 'echo UEFI GOP x' '<ret>' '<pause>' '<gop>'
 else
     skip uefi-x64 "no OVMF at $OVMF_FD"
 fi
 if [ -f "$OVMF32_CODE" ] && [ -f "$OVMF32_VARS" ] && command -v qemu-system-x86_64 >/dev/null; then
     cp "$OVMF32_VARS" "$out/ovmf32-vars.fd"
     export QEMU_EXTRA="-drive if=pflash,format=raw,readonly=on,file=$OVMF32_CODE -drive if=pflash,format=raw,file=$out/ovmf32-vars.fd"
-    check_all uefi-ia32     'Squirrel-OS/2 2.1|systest: PASS|gop: > systest'  $uefi_keys systest '<ret>' '<pause>' '<gop>'
+    check_all uefi-ia32     'Squirrel-OS/2 2.3.0|systest: PASS|gop: > systest'  $uefi_keys systest '<ret>' '<pause>' '<gop>'
 else
     skip uefi-ia32 "no 32-bit OVMF at $OVMF32_CODE"
 fi
