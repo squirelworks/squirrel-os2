@@ -25,6 +25,7 @@ SYS_DELETE  equ 15          ; ebx = name            -> 0 or -1
 SYS_RENAME  equ 16          ; ebx = old, ecx = new  -> 0 or -1
 SYS_EXEC    equ 17          ; ebx = file name, ecx = argument -> pid or LD_E* (< 0)
 SYS_READDIR equ 18          ; ebx = cursor (0 first), ecx = 20-byte buf -> next cursor, 0 at end, -1 no disk
+                            ; (2.7: ebx bit 31 set: ecx = 72-byte buf, edx = directory path or 0; volume.asm)
 SYS_PALLOC  equ 19          ;                       -> zeroed 4 KB page or 0
 SYS_PFREE   equ 20          ; ebx = page            -> 0 or -1
 SYS_SBRK    equ 21          ; ebx = bytes (signed)   -> old break or -1
@@ -40,13 +41,30 @@ SYS_NETSENDTO equ 30        ; ebx = block -> bytes, or -1 (1.9.7)
 SYS_NETRECVFROM equ 31      ; ebx = block -> bytes, -1 port taken, -2 nothing (1.9.7)
 SYS_SETPRIO equ 32          ; ebx = 0..3 -> 0, or -1 (1.9.9)
 SYS_DEVREG  equ 33          ; ebx = name -> register a null char device (1.9.12)
-SYS_COUNT   equ 34
+SYS_DEVUNREG equ 34         ; ebx = name -> remove a device SYS_DEVREG made (2.0.2)
+SYS_GUI     equ 35          ; ebx = GUI_* op, ecx/edx = args: graphics for programs (appsys.asm)
+SYS_SETTLS  equ 36          ; ebx = base of the FS/GS segment -> its selector (P.5)
+SYS_WINOPEN  equ 37         ; ebx = block: x, y, w, h, title, flags -> window id or -1 (2.2-progwin)
+SYS_WINCLOSE equ 38         ; ebx = id -> 0 or -1
+SYS_WINMOVE  equ 39         ; ebx = id, ecx = x | y << 16, edx = w | h << 16 (0 keeps) -> 0 or -1
+SYS_WINTITLE equ 40         ; ebx = id, ecx = title -> 0 or -1
+SYS_WINDRAW  equ 41         ; ebx = id, ecx = 28-byte command -> 0, a colour (WD_PIXEL), or -1
+SYS_WINFLUSH equ 42         ; ebx = id -> 0 or -1: what was drawn reaches the screen
+SYS_WINEVENT equ 43         ; ebx = 16-byte buffer, ecx = 0 wait / 1 poll -> 0, or -1 nothing
+SYS_WININFO  equ 44         ; ebx = id or -1, ecx = 16-byte buffer -> 0 or -1
+SYS_NET     equ 45          ; ebx = NET_* op: names, TCP, settings (3.0, netsys.asm)
+SYS_AUDIO   equ 46          ; ebx = AU_* op: sound for programs (3.0, kernel/audio/audio.asm)
+SYS_DEBUG   equ 47          ; ebx = DBG_* op, ecx/edx = args: tracing for debuggers (debug.asm, A.4)
+SYS_TTY     equ 48          ; ebx = TTY_* op | tty << 8: terminals for programs (tty.asm, A.3)
+SYS_CLIPPUT  equ 49         ; ebx = text, ecx = length -> the length kept (2.3-clipboard)
+SYS_CLIPGET  equ 50         ; ebx = buffer, ecx = its size -> the clipboard's length
+SYS_COUNT   equ 51
 
 SYS_ENOSYS  equ -1
 SYSCALL_VEC equ 0x80
 
 ; Install the gate: 32-bit trap gate, DPL 3, so IF is left as the caller
-; had it and future ring-3 code may call it.
+; had it and ring-3 code (2.4) may call it.
 syscall_init:
     mov edi, idt+SYSCALL_VEC*8
     mov eax, syscall_isr
@@ -55,16 +73,354 @@ syscall_init:
     ret
 
 syscall_isr:
+    KSEGS
+    call smp_on_ap              ; on an application processor: the BSP
+    jc .cont                    ; runs the call (2.8, smp.asm)
+    push dword .cont
+    jmp ap_divert
+.cont:
+    push esi                    ; a Linux process uses its own table (P.1)
+    mov esi, [proc_cur]
+    cmp dword [esi+PCB_LINUX], 0
+    pop esi
+    jne lx_isr
+    push eax
+    mov eax, [esp+8]            ; CS from the 32-bit interrupt frame
+    mov [lm_irq_cs], eax
+    pop eax
+    call syscall_isr_body
+    iretd
+
+; Shared with the 64-bit int 0x80 gate (2.9 everyday stay). Uses lm_irq_cs
+; for the ring-3 check; leaves the return value in lm_sysret and eax.
+; Native table only (Linux personality stays on the 32-bit lx_isr path).
+syscall_isr_body:
     cmp eax, SYS_COUNT
     jae .bad
     pushad
+    test byte [lm_irq_cs], 3    ; from ring 3 (2.4) ...
+    jz .call
+    call sys_uargs              ; ... its pointers must be its own memory
+    jc .efault
+.call:
     call [syscall_table+eax*4]
-    mov [esp+28], eax       ; overwrite saved eax so popad returns it
+.ret:
+    mov [esp+28], eax           ; overwrite saved eax so popad returns it
+    mov [lm_sysret], eax
     popad
-    iretd
+    ret
+.efault:
+    mov eax, SYS_EFAULT
+    jmp .ret
 .bad:
     mov eax, SYS_ENOSYS
-    iretd
+    mov [lm_sysret], eax
+    ret
+
+; ---------- ring-3 pointer checks (2.4) ----------
+; For a call from ring 3, every pointer argument must lie in memory that
+; belongs to the program: its program area, its heap up to the break, or
+; the ring-3 stack windows. Otherwise the call returns SYS_EFAULT (-1)
+; without running. Strings must end inside the same region. SYS_PALLOC
+; and SYS_PFREE hand out physical pages, so they are kernel-only.
+; See documentation/kernel/ring3.md.
+
+; one byte per call: what to check, from these
+UA_NONE     equ 0
+UA_BZ       equ 1           ; ebx -> string
+UA_BZ_CZ    equ 2           ; ebx, ecx -> strings
+UA_BZ_CZ0   equ 3           ; ebx -> string, ecx -> string or 0
+UA_C_D      equ 4           ; ecx -> edx bytes
+UA_B_C      equ 5           ; ebx -> ecx bytes
+UA_C_512    equ 6           ; ecx -> a sector
+UA_C_20     equ 7           ; ecx -> 20 bytes
+UA_DEV      equ 8           ; ecx -> edx bytes (char) or a sector (block)
+UA_NETSEND  equ 9           ; ebx -> 16-byte block, its +8 -> its +12 bytes
+UA_NETRECV  equ 10          ; ebx -> 20-byte block, its +4 -> its +8 bytes
+UA_KERNEL   equ 11          ; refused from ring 3
+UA_GUI      equ 12          ; per GUI_* operation (gui_uargs, appsys.asm)
+UA_NET      equ 13          ; per NET_* operation (net_uargs, netsys.asm)
+UA_AUDIO    equ 14          ; per AU_* operation (audio_uargs, audio/audio.asm)
+UA_READDIR  equ 15          ; 2.7: ecx -> 20 bytes, or with ebx bit 31 72 bytes and edx -> string or 0
+UA_DEBUG    equ 16          ; per DBG_* operation (dbg_uargs, debug.asm)
+UA_TTY      equ 17          ; per TTY_* operation (tty_uargs, tty.asm)
+
+SYS_EFAULT  equ -1
+
+sys_uarg_kind:
+    db UA_NONE, UA_BZ, UA_NONE, UA_NONE         ; putc puts getc yield
+    db UA_NONE, UA_NONE, UA_NONE, UA_NONE       ; spawn exit wait getpid
+    db UA_C_512, UA_C_512, UA_BZ, UA_C_D        ; bread bwrite open read
+    db UA_C_D, UA_NONE, UA_BZ, UA_BZ            ; write close create delete
+    db UA_BZ_CZ, UA_BZ_CZ0, UA_READDIR, UA_KERNEL ; rename exec readdir palloc
+    db UA_KERNEL, UA_NONE, UA_BZ, UA_DEV        ; pfree sbrk devfind devread
+    db UA_DEV, UA_NONE, UA_B_C, UA_NONE         ; devwrite seek fserror send
+    db UA_NONE, UA_NONE, UA_NETSEND, UA_NETRECV ; recv keyevents netsendto netrecvfrom
+    db UA_NONE, UA_BZ, UA_BZ                    ; setprio devreg devunreg
+    db UA_GUI                                   ; gui
+    db UA_NONE                                  ; settls
+    times 8 db UA_NONE                          ; 37-44 windows: checked in winsys.asm
+    db UA_NET, UA_AUDIO                         ; net audio
+    db UA_DEBUG                                 ; debug
+    db UA_TTY                                   ; tty
+    db UA_B_C, UA_B_C                           ; clipput clipget
+%if $-sys_uarg_kind != SYS_COUNT
+%error sys_uarg_kind needs one byte per system call
+%endif
+
+; eax = call number, ebx/ecx/edx = its arguments -> CF if a pointer is
+; not the caller's. Keeps every register.
+sys_uargs:
+    pushad
+    movzx eax, byte [sys_uarg_kind+eax]
+    cmp eax, UA_TTY
+    ja .ok
+    jmp [.kinds+eax*4]
+.kinds:
+    dd .ok, .bz, .bz_cz, .bz_cz0, .c_d, .b_c, .c_512, .c_20, .dev, .netsend, .netrecv, .bad, .gui, .net, .audio
+    dd .readdir, .debug, .tty
+.net:
+    call net_uargs
+    jc .bad
+    jmp .ok
+.audio:
+    call audio_uargs
+    jc .bad
+    jmp .ok
+.readdir:
+    test ebx, ebx
+    jns .c_20
+    test edx, edx
+    jz .rd_buf
+    mov esi, edx
+    call ua_str
+    jc .bad
+.rd_buf:
+    mov esi, ecx
+    mov ecx, 72                 ; RD_LEN (volume.asm)
+    jmp .range
+.debug:
+    call dbg_uargs
+    jc .bad
+    jmp .ok
+.tty:
+    call tty_uargs
+    jc .bad
+    jmp .ok
+.gui:
+    call gui_uargs
+    jc .bad
+    jmp .ok
+.bz_cz0:
+    test ecx, ecx
+    jz .bz
+.bz_cz:
+    mov esi, ecx
+    call ua_str
+    jc .bad
+.bz:
+    mov esi, ebx
+    call ua_str
+    jc .bad
+    jmp .ok
+.c_d:
+    mov esi, ecx
+    mov ecx, edx
+    jmp .range
+.b_c:
+    mov esi, ebx
+    jmp .range
+.c_512:
+    mov esi, ecx
+    mov ecx, SECTOR_SIZE
+    jmp .range
+.c_20:
+    mov esi, ecx
+    mov ecx, 20
+    jmp .range
+.dev:
+    mov esi, ecx
+    mov ecx, edx
+    call dev_handle
+    test ebx, ebx
+    jz .ok                  ; no such device: the call itself says so
+    cmp dword [ebx+DEV_TYPE], DEV_BLOCK
+    jne .range
+    mov ecx, SECTOR_SIZE
+    jmp .range
+.netsend:
+    mov esi, ebx
+    mov ecx, 16
+    call ua_range
+    jc .bad
+    mov esi, [ebx+8]
+    mov ecx, [ebx+12]
+    jmp .range
+.netrecv:
+    mov esi, ebx
+    mov ecx, 20
+    call ua_range
+    jc .bad
+    mov esi, [ebx+4]
+    mov ecx, [ebx+8]
+.range:
+    call ua_range
+    jc .bad
+.ok:
+    popad
+    clc
+    ret
+.bad:
+    popad
+    stc
+    ret
+
+; esi = address -> eax = the end of the caller's region that holds it,
+; or CF. Keeps the other registers.
+ua_region:
+    push ebx
+    mov ebx, [proc_cur]
+    mov ebx, [ebx+PCB_AS]
+    test ebx, ebx
+    jz .no
+    mov eax, PROG_BASE+PROG_MAX
+    cmp esi, PROG_BASE
+    jb .no
+    cmp esi, eax
+    jb .yes
+    mov eax, [ebx+AS_BRK]
+    cmp esi, HEAP_BASE
+    jb .no
+    cmp esi, eax
+    jb .yes
+    mov eax, USTACK_BASE+PROC_MAX*USTACK_SIZE
+    cmp esi, USTACK_BASE
+    jb .no
+    cmp esi, eax
+    jb .yes
+.no:
+    pop ebx
+    stc
+    ret
+.yes:
+    pop ebx
+    clc
+    ret
+
+; esi = address, ecx = bytes -> CF unless [esi, esi+ecx) is the caller's
+ua_range:
+    push eax
+    push edx
+    call ua_region
+    jc .r
+    mov edx, esi
+    add edx, ecx
+    jc .bad                 ; wraps around
+    cmp edx, eax
+    ja .bad
+    push esi                ; every page of it must be safe to touch
+    and esi, -PAGE_SIZE
+.pg:
+    call ua_page_ok
+    jc .badpg
+    add esi, PAGE_SIZE
+    cmp esi, edx
+    jb .pg
+    pop esi
+    clc
+    jmp .r
+.badpg:
+    pop esi
+.bad:
+    stc
+.r:
+    pop edx
+    pop eax
+    ret
+
+; esi = an address in one of the caller's regions -> CF if the kernel
+; must not touch its page: a ring-3 stack page that is not mapped and is
+; not in the calling thread's own window above its guard page (there a
+; kernel access just grows the stack, as a ring-3 one would). The
+; program area and the heap up to the break are always mapped. Without
+; this a string or buffer on another thread's untouched stack page, or
+; on a guard page, would fault in the kernel and end the caller instead
+; of failing the call. Keeps every register.
+ua_page_ok:
+    cmp esi, USTACK_BASE
+    jb .ok
+    pushad
+    mov edi, [proc_cur]
+    mov ebp, [edi+PCB_AS]
+    ; walk the caller's PAE tables for this stack address
+    mov ebx, [ebp+AS_PD]
+    mov eax, esi
+    shr eax, 30
+    mov eax, [ebx+eax*8]
+    test eax, eax
+    jz .own
+    and eax, -PAGE_SIZE
+    mov edx, esi
+    shr edx, PAE_PD_SHIFT
+    and edx, PAE_IDX_MASK
+    mov eax, [eax+edx*8]
+    test eax, PG_P
+    jz .own
+    test eax, PG_PS
+    jnz .own
+    and eax, -PAGE_SIZE
+    mov edx, esi
+    shr edx, PAE_PT_SHIFT
+    and edx, PAE_IDX_MASK
+    test dword [eax+edx*8], PG_P
+    jnz .yes                ; mapped
+.own:
+    call vm_ustack_top      ; eax = top of the caller's own window
+    cmp esi, eax
+    jae .no
+    sub eax, USTACK_SIZE-PAGE_SIZE ; above its guard page
+    cmp esi, eax
+    jb .no
+.yes:
+    popad
+.ok:
+    clc
+    ret
+.no:
+    popad
+    stc
+    ret
+
+; esi = string -> CF unless it starts and ends (zero byte) in one of the
+; caller's regions
+ua_str:
+    push eax
+    push esi
+    call ua_region
+    jc .r
+    call ua_page_ok
+    jc .r
+.s:
+    cmp esi, eax
+    jae .bad
+    test esi, PAGE_SIZE-1   ; each new page must be safe to touch too
+    jnz .rd
+    call ua_page_ok
+    jc .r
+.rd:
+    cmp byte [esi], 0
+    je .ok
+    inc esi
+    jmp .s
+.ok:
+    clc
+    jmp .r
+.bad:
+    stc
+.r:
+    pop esi
+    pop eax
+    ret
 
 syscall_table:
     dd sys_putc
@@ -101,6 +457,19 @@ syscall_table:
     dd sys_netrecvfrom
     dd sys_setprio
     dd sys_devreg
+    dd sys_devunreg
+    dd sys_gui
+    dd sys_settls
+    dd sys_winopen, sys_winclose, sys_winmove, sys_wintitle   ; 2.2-progwin
+    dd sys_windraw, sys_winflush, sys_winevent, sys_wininfo
+    dd sys_net
+    dd sys_audio
+    dd sys_debug
+    dd sys_tty
+    dd sys_clipput, sys_clipget                 ; 2.3-clipboard
+%if $-syscall_table != SYS_COUNT*4
+%error syscall_table and SYS_COUNT disagree
+%endif
 
 ; ---------- handlers: args in ebx/ecx/edx, result in eax ----------
 sys_putc:
@@ -119,6 +488,8 @@ sys_puts:                   ; through the console device (0.7.1)
 ; Waits for a key press and returns its ASCII code.
 ; Enter -> 10, Backspace -> 8, Esc -> 27; releases and unmapped keys are skipped.
 sys_getc:
+    call tty_getc               ; a program on a terminal reads its keys (A.3)
+    jnc .r
     cmp byte [in_on], 0
     jne in_getc                 ; input redirected (shell.asm): -1 at the end
     push eax                    ; one byte from the keyboard device (0.7.1)
@@ -128,6 +499,7 @@ sys_getc:
     call dev_read
     pop eax
     movzx eax, al
+.r:
     ret
 
 ; Lets the next READY process run; if there is none, sleeps until the
@@ -146,6 +518,10 @@ sys_exit:
 sys_wait:
     jmp proc_wait
 
+sys_reserved:                   ; a number kept for a call another branch adds
+    mov eax, SYS_ENOSYS
+    ret
+
 sys_getpid:
     mov eax, [proc_cur]
     mov eax, [eax+PCB_PID]
@@ -158,6 +534,11 @@ sys_setprio:
 ; character device under that name (1.9.12). eax = 0, or -1.
 sys_devreg:
     jmp dev_reg_null
+
+; ebx = ASCIIZ name of a device SYS_DEVREG registered: removes it and
+; frees its slot (2.0.2). eax = 0, or -1 (no such run-time device).
+sys_devunreg:
+    jmp dev_unreg_null
 
 ; Raw sector access. Writes are limited to the data disk (drive 1) so a
 ; program cannot overwrite the boot image.
@@ -222,6 +603,8 @@ sys_rename:
 ; the cursor into the buffer and returns the cursor for the next call.
 ; A subdirectory's size reads as -1 (0.8.0).
 sys_readdir:
+    test ebx, ebx
+    js fs_readdir_long          ; bit 31: long names, any directory (2.7)
     mov eax, -1
     cmp byte [fs_mounted], 0
     je .r

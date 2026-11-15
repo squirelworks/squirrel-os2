@@ -8,13 +8,35 @@ ORG 0x8000
 
 ; Memory map (see documentation/kernel/memory-map.md)
 KSCRATCH equ 0x20000            ; 64 KB kernel scratch (driver/FS buffers)
+; The kernel image has two parts (2.4, documentation/kernel/kernel-image.md):
+; the low image (this file up to KERNEL_SIZE) that the boot sector loads to
+; 0x8000, and the high image (section .high, after it on the disk) that
+; stage2 reads itself and copies to KHIGH_BASE before protected mode.
+KHIGH_BASE  equ 0x100000        ; the high image runs here (1 MB)
+KHIGH_MAX   equ 0x100000        ; reserved for it: 1 MB, to 0x1FFFFF
+KHIGH_LBA   equ 1+KERNEL_SIZE/512 ; its first sector on the boot disk
+KHIGH_SIG   equ 0x49483253      ; 'S2HI', its last dword
+USER_CS     equ 0x28|3          ; ring-3 selectors (2.4, documentation/kernel/ring3.md)
+USER_DS     equ 0x30|3
+
+; Interrupt entry from ring 3: a program may have loaded a null selector
+; into DS or ES, so the handlers that touch memory reload them first.
+%macro KSEGS 0
+    push eax
+    mov ax, USER_DS
+    mov ds, ax
+    mov es, ax
+    pop eax
+%endmacro
 stage2:
     cli
     xor ax, ax                  ; the boot sector may leave ES elsewhere
     mov ds, ax
     mov es, ax
-    ; the CPU must have CPUID, an FPU and 4 MB pages (PSE): a Pentium or
-    ; later (0.9.3). Say so instead of crashing later.
+    mov [ld_drive], dl          ; the boot drive, from the boot sector
+    mov dword [UEFI_INFO], 0    ; a BIOS boot: no UEFI hand-off (H.1, drivers/gopcon.asm)
+    ; the CPU must have CPUID, an FPU and PAE: a Pentium Pro or later
+    ; (2.8-pae). Say so instead of crashing later.
     pushfd
     pop eax
     mov ecx, eax
@@ -29,8 +51,8 @@ stage2:
     jz .oldcpu
     mov eax, 1
     cpuid
-    and edx, (1 << 0)|(1 << 3)  ; FPU, PSE
-    cmp edx, (1 << 0)|(1 << 3)
+    and edx, (1 << 0)|(1 << 6)  ; FPU, PAE
+    cmp edx, (1 << 0)|(1 << 6)
     je .cpuok
 .oldcpu:
     mov si, msg_oldcpu
@@ -51,6 +73,7 @@ stage2:
     or al, 2
     and al, 0xFE
     out 0x92, al
+    call load_high              ; the high kernel image above 1 MB
     ; BIOS memory map (int 0x15, E820) into E820_BUF for mm_init
     xor ebx, ebx
     mov di, E820_BUF
@@ -87,18 +110,39 @@ gdt_tss_main:                   ; 0x18: the TSS of everything that normally runs
     dw TSS_SIZE-1,0,0x8900,0    ; (base filled in by tss_init, KB-17)
 gdt_tss_df:                     ; 0x20: the double-fault task
     dw TSS_SIZE-1,0,0x8900,0
+    dw 0xFFFF,0,0xFA00,0x00CF   ; 0x28: ring-3 code, flat (2.4)
+    dw 0xFFFF,0,0xF200,0x00CF   ; 0x30: ring-3 data, flat; the kernel's DS/ES too
+gdt_tls:                        ; 0x38: per-process TLS segment, FS/GS (P.5, tls.asm)
+    dw 0xFFFF,0,0xF200,0x00CF
+gdt_cs64:                       ; 0x40: 64-bit kernel code, long mode (2.8, lm.asm)
+    dw 0xFFFF,0,0x9A00,0x00AF
+gdt_tss_cpu:                    ; 0x48 on: one TSS per CPU record (2.8, smp.asm)
+    times 16 dq 0               ; SMP_MAX
+gdt_tss64:                      ; 0xC8: 64-bit TSS (16-byte system descriptor; 2.9)
+    times 2 dq 0
 gdt_desc:
     dw $-gdt-1
     dd gdt
 e820_count dw 0                 ; written in real mode, so also below 32 KB
-msg_oldcpu db 'Squirrel-OS/2 needs a Pentium-class CPU (CPUID, FPU, 4 MB pages).', 13, 10, 0
+; UEFI hand-off header (H.1): boot/uefi/ finds it by its signature, then
+; fills E820_BUF, e820_count, ld_drive and UEFI_INFO, copies the two
+; images and enters pm through this GDT. See documentation/kernel/hardware.md.
+uefi_hdr dd 'S2UE', pm, gdt_desc, ld_drive, e820_count, KERNEL_SIZE, KHIGH_BASE
+msg_oldcpu db 'Squirrel-OS/2 needs a Pentium Pro-class CPU (CPUID, FPU, PAE).', 13, 10, 0
+%include "khigh.asm"
 
 BITS 32
 pm:
     mov ax, 0x10
+    mov ss, ax
+    ; DS, ES, FS and GS hold the flat ring-3 data selector everywhere, in
+    ; the kernel too: an iretd to ring 3 then never has to reload them,
+    ; and the ISRs reload them (KSEGS) in case a program changed them (2.4)
+    mov ax, USER_DS
     mov ds, ax
     mov es, ax
-    mov ss, ax
+    mov fs, ax
+    mov gs, ax
     mov esp, SHELL_STACK
 
     ; IDT (timer + keyboard)
@@ -125,7 +169,11 @@ pm:
     mov edi, idt+0x21*8
     mov eax, kbd_isr
     call set_gate
+    mov edi, idt+0x2C*8
+    mov eax, mouse_isr          ; IRQ 12 (2.0.1)
+    call set_gate
     call syscall_init
+    call dbg_init               ; INT3 from ring 3 (A.4)
     lidt [idt_desc]
     call fpu_init
     call proc_init
@@ -133,8 +181,9 @@ pm:
     call vm_init
     call tss_init               ; double faults get their own stack (KB-17)
     call ata_init
-    call mouse_init             ; polled PS/2 mouse (1.9.10)
+    call mouse_init             ; PS/2 mouse (1.9.10; IRQ 12 since 2.0.1)
     call dev_init
+    call hw_init                ; PCI disks, USB (OS2-HW, drivers/hw.asm)
 
     ; PIC + PIT
     mov al, 0x11
@@ -151,9 +200,15 @@ pm:
     mov al, 1
     out 0x21, al
     out 0xA1, al
-    mov al, 0xFC
+    mov al, 0xFC                ; timer and keyboard
+    mov ah, 0xFF
+    cmp byte [mouse_up], 0
+    je .masks
+    mov al, 0xF8                ; and the cascade (IRQ 2) ...
+    mov ah, 0xEF                ; ... to IRQ 12, the mouse (2.0.1)
+.masks:
     out 0x21, al
-    mov al, 0xFF
+    mov al, ah
     out 0xA1, al
     mov al, 0x36
     out 0x43, al
@@ -163,6 +218,11 @@ pm:
     out 0x40, al
 
     call klingon_font_load
+%ifdef LM_BOOT64
+    ; 2.9-lm-boot64: stay in IA-32e for the whole run (compat CS, 64-bit IDT)
+    call lm_boot_enter
+%endif
+
     xor eax, eax                ; English as the base, then Klingon
     call lang_select            ; unless built with -DDEFAULT_LANG_EN
 %ifndef DEFAULT_LANG_EN
@@ -171,6 +231,7 @@ pm:
 %endif
     call cls
     call show_banner
+    call klog_boot              ; the kernel log's first line (A.5)
     cmp dword [0x8000+KERNEL_SIZE-4], KERNEL_SIG
     je .whole
     mov esi, msg_partial
@@ -179,8 +240,10 @@ pm:
     call fs_mount_boot
     call ins_mount_system       ; no data disk: an installed system's partition (I.4)
     call hist_load
+    call cp_boot                ; the Control Panel's settings (2.3-control)
     mov byte [shell_up], 1      ; from here a crash can restart the shell
     sti                         ; autoexec.bat may run apps that need keys
+    call smp_init               ; start the other CPUs and park them (2.8)
     call bat_autoexec
     call sh_prompt
     sti
@@ -395,12 +458,136 @@ run_simple:
     mov edi, cmd_gfxtext
     call streq
     je .gfxtext
+    mov edi, cmd_vbetest        ; 2.1
+    call streq
+    je .vbetest
+    mov edi, cmd_cpus           ; 2.8-smp-ap
+    call streq
+    je .cpus
+    mov edi, cmd_lmtest         ; 2.8-lm-entry
+    call streq
+    je .lmtest
+    mov edi, cmd_lmstay         ; 2.9-lm-kernel: 64-bit IDT stay
+    call streq
+    je .lmstay
+    mov edi, cmd_lmpage         ; 2.9-lm-kernel: 4-level per-process paging
+    call streq
+    je .lmpage
+    mov edi, cmd_lmthunk        ; 2.9-lm-kernel: permanent stay + compat thunks
+    call streq
+    je .lmthunk
+    mov edi, cmd_lmboot         ; 2.9-lm-kernel: everyday / boot stay
+    call streq
+    je .lmboot
+    mov edi, cmd_cliptest       ; 2.1-blit-clip
+    call streq
+    je .cliptest
+    mov edi, cmd_bevtest        ; W.1-theme
+    call streq
+    je .bevtest
+    mov edi, cmd_bevwidgets     ; 2.3-bevel-default
+    call streq
+    je .bevwidgets
+    mov edi, cmd_nbtest         ; 2.6-notebook
+    call streq
+    je .nbtest
+    mov edi, cmd_dkctx          ; 2.6-context
+    call streq
+    je .dkctx
+    mov edi, cmd_wpstmpl        ; W.2-templates
+    call streq
+    je .wpstmpl
+    mov edi, cmd_winvbe         ; 2.2-vbe-wm
+    call streq
+    je .winvbe
+    mov edi, cmd_winclip        ; 2.2-clip-z
+    call streq
+    je .winclip
+    mov edi, cmd_winhit         ; 2.2-frame
+    call streq
+    je .winhit
+    mov edi, cmd_windrag        ; 2.2-mouse
+    call streq
+    je .windrag
+    mov edi, cmd_winmin         ; 2.2-minmax
+    call streq
+    je .winmin
+    mov edi, cmd_winmenu        ; 2.2-sysmenu
+    call streq
+    je .winmenu
+    mov edi, cmd_pfont          ; 2.2-propfont
+    call streq
+    je .pfont
+    mov edi, cmd_icontest       ; 2.3-icons
+    call streq
+    je .icontest
+    mov edi, cmd_cbtest         ; 2.3-clipboard
+    call streq
+    je .cbtest
+    mov edi, cmd_filemgr        ; 2.3-filemgr
+    call streq
+    je .filemgr
+    mov edi, cmd_control        ; 2.3-control
+    call streq
+    je .control
+    mov edi, cmd_cptest
+    call streq
+    je .cptest
+    mov edi, cmd_fmtest
+    call streq
+    je .fmtest
+    mov edi, cmd_foldview       ; W.4-views
+    call streq
+    je .foldview
+    mov edi, cmd_openas         ; W.5-openas
+    call streq
+    je .openas
+    mov edi, cmd_progman        ; 2.3-groups
+    call streq
+    je .progman
+    mov edi, cmd_pmtest
+    call streq
+    je .pmtest
+    mov edi, cmd_warpcenter     ; 2.5-bar / menu / clock
+    call streq
+    je .warpcenter
+    mov edi, cmd_wcbar
+    call streq
+    je .wcbar
+    mov edi, cmd_wcmenu
+    call streq
+    je .wcmenu
+    mov edi, cmd_wcclock
+    call streq
+    je .wcclock
+    mov edi, cmd_launchpad      ; W.3-launchpad
+    call streq
+    je .launchpad
+    mov edi, cmd_wclp
+    call streq
+    je .wclp
+    mov edi, cmd_dkicons        ; 2.6-icons
+    call streq
+    je .dkicons
+    mov edi, cmd_dkdrag         ; 2.6-drag
+    call streq
+    je .dkdrag
+    mov edi, cmd_dkshadow       ; 2.6-shadows
+    call streq
+    je .dkshadow
+
+    mov edi, cmd_winalttab      ; 2.2-alttab
+    call streq
+    je .winalttab
     mov edi, cmd_desktop
     call streq
     je .desktop
     mov edi, cmd_listtest
     call streq
     je .listtest
+    mov edi, cmd_scrolltest     ; 2.0.2
+    call streq
+    je .scrolltest
     mov edi, cmd_drawpx         ; 1.6.5
     call streq
     je .drawpx
@@ -413,9 +600,24 @@ run_simple:
     mov edi, cmd_mousetest      ; 1.9.10
     call streq
     je .mousetest
+    mov edi, cmd_ptrtest        ; 2.0.1
+    call streq
+    je .ptrtest
     mov edi, cmd_ifconfig       ; 1.9.11 bare
     call streq
     je .ifconfig
+    mov edi, cmd_dhcp           ; 3.0
+    call streq
+    je .dhcp
+    mov edi, cmd_dnsbare        ; 3.0
+    call streq
+    je .dnsbare
+    mov edi, cmd_audio          ; 3.0
+    call streq
+    je .audio
+    mov edi, cmd_audiotest      ; 3.0
+    call streq
+    je .audiotest
     mov edi, cmd_objs           ; 1.7.2
     call streq
     je .objs
@@ -489,6 +691,8 @@ run_simple:
     call [ebx+4]
     jmp .empty
 .unknown:
+    call vol_command            ; mount, umount, cp, lfntest, fattest (2.7)
+    jnc .empty
     call sh_usage               ; a command word without its arguments?
     jnc .empty
     mov esi, [lstr+LS_UNKNOWN*4]
@@ -626,6 +830,127 @@ run_simple:
 .gfxtext:
     call cmd_gfxtext_run
     jmp .empty
+.cliptest:
+    call cmd_cliptest_run
+    jmp .empty
+.bevtest:
+    call cmd_bevtest_run
+    jmp .empty
+.bevwidgets:
+    call cmd_bevwidgets_run
+    jmp .empty
+.nbtest:
+    call cmd_nbtest_run
+    jmp .empty
+.dkctx:
+    call cmd_dkctx_run
+    jmp .empty
+.wpstmpl:
+    call cmd_wpstmpl_run
+    jmp .empty
+.winvbe:
+    call cmd_winvbe_run
+    jmp .empty
+.winclip:
+    call cmd_winclip_run
+    jmp .empty
+.winhit:
+    call cmd_winhit_run
+    jmp .empty
+.windrag:
+    call cmd_windrag_run
+    jmp .empty
+.winmin:
+    call cmd_winmin_run
+    jmp .empty
+.winmenu:
+    call cmd_winmenu_run
+    jmp .empty
+.pfont:
+    call cmd_pfont_run
+    jmp .empty
+.icontest:
+    call cmd_icontest_run
+    jmp .empty
+.cbtest:
+    call cmd_cbtest_run
+    jmp .empty
+.filemgr:
+    call cmd_filemgr_run
+    jmp .empty
+.control:
+    call cmd_control_run
+    jmp .empty
+.cptest:
+    call cmd_cptest_run
+    jmp .empty
+.fmtest:
+    call cmd_fmtest_run
+    jmp .empty
+.foldview:
+    call cmd_foldview_run
+    jmp .empty
+.openas:
+    call cmd_openas_run
+    jmp .empty
+.progman:
+    call cmd_progman_run
+    jmp .empty
+.pmtest:
+    call cmd_pmtest_run
+    jmp .empty
+.warpcenter:
+    call cmd_warpcenter_run
+    jmp .empty
+.wcbar:
+    call cmd_wcbar_run
+    jmp .empty
+.wcmenu:
+    call cmd_wcmenu_run
+    jmp .empty
+.wcclock:
+    call cmd_wcclock_run
+    jmp .empty
+.launchpad:
+    call cmd_launchpad_run
+    jmp .empty
+.wclp:
+    call cmd_wclp_run
+    jmp .empty
+.dkicons:
+    call cmd_dkicons_run
+    jmp .empty
+.dkdrag:
+    call cmd_dkdrag_run
+    jmp .empty
+.dkshadow:
+    call cmd_dkshadow_run
+    jmp .empty
+
+.winalttab:
+    call cmd_winalttab_run
+    jmp .empty
+.vbetest:
+    call cmd_vbetest_run
+    jmp .empty
+.cpus:
+    call cmd_cpus_run
+    jmp .empty
+.lmtest:
+    call cmd_lmtest_run
+    jmp .empty
+.lmstay:
+    call cmd_lmstay_run
+    jmp .empty
+.lmpage:
+    call cmd_lmpage_run
+    jmp .empty
+.lmthunk:
+    call cmd_lmthunk_run
+    jmp .empty
+.lmboot:
+    call cmd_lmboot_run
+    jmp .empty
 .desktop:
     call cmd_desktop_run
     jmp .empty
@@ -641,14 +966,32 @@ run_simple:
 .mousetest:
     call cmd_mousetest_run
     jmp .empty
+.ptrtest:
+    call cmd_ptrtest_run
+    jmp .empty
 .ifconfig:
     call cmd_ifconfig_show
+    jmp .empty
+.dhcp:
+    call cmd_dhcp_run
+    jmp .empty
+.dnsbare:
+    call cmd_dns_show
+    jmp .empty
+.audio:
+    call cmd_audio_run
+    jmp .empty
+.audiotest:
+    call cmd_audiotest_run
     jmp .empty
 .objs:
     call cmd_objs_run
     jmp .empty
 .listtest:
     call cmd_listtest_run
+    jmp .empty
+.scrolltest:
+    call cmd_scrolltest_run
     jmp .empty
 .fieldtest:
     call cmd_fieldtest_run
@@ -751,6 +1094,9 @@ puts:
     ret
 
 putc:                         ; al = char; preserves all registers
+    cmp byte [tty_count], 0
+    jne tty_putc                ; a program on a terminal (tty.asm, A.3)
+.con:
     cmp byte [cap_on], 0
     jne cap_putc                ; output redirected (shell.asm)
     push eax
@@ -836,33 +1182,56 @@ cursor_sync:
     ret
 
 ; ---------- ISRs ----------
+; Bodies end with ret so the 64-bit IDT (2.9 lm_boot / everyday stay) can
+; call them through lm64_call32. lm_irq_cs is the interrupted CS (set by
+; the 32-bit or 64-bit stub before the body runs).
 timer_isr:
+    KSEGS
+    push eax
+    mov eax, [esp+8]            ; CS from the 32-bit interrupt frame
+    mov [lm_irq_cs], eax
+    pop eax
+    call timer_isr_body
+    iretd
+
+timer_isr_body:
     push eax
     inc dword [ticks]
+    call sysinfo_tick           ; CPU time (A.5)
     mov al, 0x20
     out 0x20, al
+    pushad
+    call hw_tick                ; polled drivers (OS2-HW)
+    popad
     ; preemption (1.1): once the slice is used up, the first tick that
-    ; lands in a loaded program's code switches to the next READY
-    ; process. Kernel code is never interrupted this way (it is not
+    ; lands in a loaded program (ring 3 since 2.4) switches to the next
+    ; READY process. Kernel code is never interrupted this way (it is not
     ; reentrant), so the check waits for the next tick instead.
     dec dword [sched_left]
     jg .out
-    mov eax, [esp+4]            ; interrupted EIP
-    cmp eax, PROG_BASE
-    jb .out
-    cmp eax, PROG_BASE+PROG_MAX
-    jae .out
+    test byte [lm_irq_cs], 3    ; interrupted CS: only ring-3 code (2.4)
+    jz .out
     call proc_preempt
 .out:
     pop eax
-    iretd
+    ret
 
 ; IRQ1: queue the raw scancode (dropped if the ring is full), and post
 ; a key event if a process asked for them (msg.asm)
 kbd_isr:
+    KSEGS
+    call kbd_isr_body
+    iretd
+
+kbd_isr_body:
     push eax
     push ebx
     push ecx
+    in al, 0x64
+    test al, 1                  ; nothing there: read already (cp_kbd, 2.3-control)
+    jz .eoi
+    test al, 0x20               ; an auxiliary byte: it is the mouse's (2.0.1)
+    jnz .aux
     in al, 0x60
     mov ebx, [kbd_head]
     lea ecx, [ebx+1]
@@ -875,12 +1244,19 @@ kbd_isr:
     pushad
     call key_event              ; and a key event for SYS_KEYEVENTS (1.2.1)
     popad
+.eoi:
     mov al, 0x20
     out 0x20, al
     pop ecx
     pop ebx
     pop eax
-    iretd
+    ret
+.aux:
+    in al, 0x60
+    test byte [mouse_up], 1
+    jz .eoi
+    call mouse_byte
+    jmp .eoi
 
 ; Pops one scancode into al; CF set if the ring is empty. Clobbers ebx.
 ; Call with interrupts disabled.
@@ -901,6 +1277,10 @@ kbd_dequeue:
 ; Tracks Shift and Ctrl. Returns ZF set if al was a modifier make/break code
 ; (the caller should then ignore it).
 kbd_shift_track:
+    cmp al, 0x38                ; Alt (2.2-sysmenu; right Alt is E0 38)
+    je .adown
+    cmp al, 0xB8
+    je .aup
     cmp al, 0x1D
     je .cdown
     cmp al, 0x9D
@@ -927,6 +1307,12 @@ kbd_shift_track:
     ret                       ; ZF set by the compare
 .cup:
     mov byte [kbd_ctrl], 0
+    ret
+.adown:
+    mov byte [kbd_alt], 1
+    ret                       ; ZF set by the compare
+.aup:
+    mov byte [kbd_alt], 0
     ret
 
 ; al = make code -> al = ASCII (0 if unmapped), honouring Shift.
@@ -961,7 +1347,8 @@ default_isr:
 
 ; ---------- data ----------
 banner db 'Squirrel-OS/2'          ; (the "help" file: the English banner)
-banner_rest db ' 2.0.0', 10  ; OS version: here only (see releases/PROCESS.md)
+banner_rest db ' 2.3.0', 10  ; OS version: here only (see releases/PROCESS.md)
+                              ; command list: LS_COMMANDS (localized)
 msg_partial db 'Warning: kernel image only partly loaded', 10, 0
 cmd_ls db 'ls', 0
 cmd_cat db 'cat ', 0
@@ -972,7 +1359,7 @@ cmd_trap db 'trap', 0
 cmd_overflow db 'overflow', 0
 
 ; argument for the next app started with run (e.g. run edit notes)
-run_arg times 64 db 0           ; FS_PATHMAX
+run_arg times 96 db 0           ; FS_PATHMAX (fs.asm)
 run_rest dd 0                   ; whole argument text, for loaded programs
 cmd_ps db 'ps', 0
 cmd_mem db 'mem', 0
@@ -1043,6 +1430,7 @@ usage_cmds:                     ; command, syntax, hint key or -1
     dd u_arp, u_arp_t, -1
     dd u_ping, u_ping_t, -1
     dd u_fetch, u_fetch_t, -1
+    dd u_host, u_host_t, -1
     dd u_run, u_run_t, LS_USAGE_RUN, u_batch, u_batch_t, -1, u_echo, u_echo_t, -1, 0
 u_put db 'put', 0
 u_mk db 'mk', 0
@@ -1056,6 +1444,7 @@ u_batch db 'batch', 0
 u_arp db 'arp', 0
 u_ping db 'ping', 0
 u_fetch db 'fetch', 0
+u_host db 'host', 0
 u_echo db 'echo', 0
 u_put_t db 'put <file> <text>', 0
 u_mk_t db 'mk <file>', 0
@@ -1068,7 +1457,8 @@ u_run_t db 'run <app|file> [text]', 0
 u_batch_t db 'batch <file>', 0
 u_arp_t db 'arp <ip>', 0
 u_ping_t db 'ping <ip>', 0
-u_fetch_t db 'fetch <ip> <port> <path>', 0
+u_fetch_t db 'fetch <host> <port> <path>', 0
+u_host_t db 'host <name>', 0
 u_echo_t db 0
 u_gap db '   ', 0
 
@@ -1088,12 +1478,51 @@ arg_cmds:
     dd cmd_ping, cmd_ping_run
     dd cmd_fetch, cmd_fetch_run
     dd cmd_ifconfig_arg, cmd_ifconfig_run
+    dd cmd_host, cmd_host_run
+    dd cmd_dns_arg, cmd_dns_run
+    dd cmd_control_a, cmd_control_arg   ; 2.3-control
     dd 0, 0
 cmd_disk db 'disk', 0
 cmd_blktest db 'blktest', 0
 cmd_gfxtest db 'gfxtest', 0
 cmd_gfxprim db 'gfxprim', 0
 cmd_gfxtext db 'gfxtext', 0
+cmd_vbetest db 'vbetest', 0
+cmd_cliptest db 'cliptest', 0
+cmd_bevtest db 'bevtest', 0
+cmd_bevwidgets db 'bevwidgets', 0
+cmd_nbtest db 'nbtest', 0
+cmd_dkctx db 'dkctx', 0
+cmd_wpstmpl db 'wpstmpl', 0
+cmd_winvbe db 'winvbe', 0
+cmd_winclip db 'winclip', 0
+cmd_winhit db 'winhit', 0
+cmd_windrag db 'windrag', 0
+cmd_winmin db 'winmin', 0
+cmd_winmenu db 'winmenu', 0
+cmd_winalttab db 'winalttab', 0
+cmd_progman db 'progman', 0
+cmd_filemgr db 'filemgr', 0
+cmd_control db 'control', 0
+cmd_control_a db 'control ', 0
+cmd_cptest db 'cptest', 0
+cmd_cbtest db 'cbtest', 0
+cmd_fmtest db 'fmtest', 0
+cmd_foldview db 'foldview', 0
+cmd_openas db 'openas', 0
+cmd_pmtest db 'pmtest', 0
+cmd_warpcenter db 'warpcenter', 0
+cmd_wcbar db 'wcbar', 0
+cmd_wcmenu db 'wcmenu', 0
+cmd_wcclock db 'wcclock', 0
+cmd_launchpad db 'launchpad', 0
+cmd_wclp db 'wclp', 0
+cmd_dkicons db 'dkicons', 0
+cmd_dkdrag db 'dkdrag', 0
+cmd_dkshadow db 'dkshadow', 0
+
+cmd_pfont db 'pfont', 0
+cmd_icontest db 'icontest', 0
 cmd_wintest db 'wintest', 0
 cmd_winmove db 'winmove', 0
 cmd_winfocus db 'winfocus', 0
@@ -1101,10 +1530,12 @@ cmd_labeltest db 'labeltest', 0
 cmd_buttontest db 'buttontest', 0
 cmd_fieldtest db 'fieldtest', 0
 cmd_listtest db 'listtest', 0
+cmd_scrolltest db 'scrolltest', 0
 cmd_drawpx db 'drawpx', 0
 cmd_objtest db 'objtest', 0
 cmd_nettest db 'nettest', 0
 cmd_mousetest db 'mousetest', 0
+cmd_ptrtest db 'ptrtest', 0
 cmd_ifconfig db 'ifconfig', 0
 cmd_objs db 'objs', 0
 cmd_objcat db 'objcat ', 0
@@ -1112,6 +1543,12 @@ cmd_arp db 'arp ', 0
 cmd_ping db 'ping ', 0
 cmd_fetch db 'fetch ', 0
 cmd_ifconfig_arg db 'ifconfig ', 0
+cmd_host db 'host ', 0
+cmd_dns_arg db 'dns ', 0
+cmd_dhcp db 'dhcp', 0
+cmd_dnsbare db 'dns', 0
+cmd_audio db 'audio', 0
+cmd_audiotest db 'audiotest', 0
 cmd_desktop db 'desktop', 0
 cmd_proctest db 'proctest', 0
 
@@ -1204,6 +1641,7 @@ num_buf times 16 db 0
 
 kbd_shift db 0
 kbd_ctrl db 0
+kbd_alt db 0                    ; 1 while Alt is down (2.2-sysmenu)
 
 ; Set-1 make codes 0x00..0x7F. Keypad * - + are mapped; other keypad
 ; keys stay 0 so arrows (0x48/0x4B/0x4D/0x50) remain free for apps.
@@ -1271,24 +1709,49 @@ puthex:
 %include "batch.asm"
 %include "mm.asm"
 %include "vm.asm"
+%include "vbe.asm"
 %include "dev.asm"
 %include "chardev.asm"
 %include "lang.asm"
 %include "klingon.asm"
 %include "crash.asm"
+%include "mouse.asm"
+
+; ---------- high image (2.4) ----------
+; Everything from here to the next "section .text" runs at KHIGH_BASE
+; (1 MB), copied there by load_high (khigh.asm) before protected mode.
+; New kernel code goes here: the low image above is capped at 96 KB, this
+; part at KHIGH_LIMIT. See documentation/kernel/kernel-image.md.
+section .high vstart=KHIGH_BASE follows=.text align=16
+khigh_start:
+%include "smp.asm"
+%include "lm.asm"
 %include "browser.asm"
 %include "calc.asm"
 %include "editor.asm"
 %include "draw.asm"
 %include "drawpx.asm"
 %include "loader.asm"
+%include "personalities/linux/linux.asm"
+%include "personalities/common/tls.asm"
+%include "personalities/bsd/bsd.asm"
 %include "sci.asm"
 %include "matrix.asm"
 %include "diff.asm"
 %include "graph.asm"
+%include "pfont.asm"
+%include "icon.asm"
 %include "wm.asm"
+%include "winsys.asm"
+%include "clip.asm"
 %include "widget.asm"
 %include "desktop.asm"
+%include "progman.asm"
+%include "warpcenter.asm"      ; 2.5-bar / menu / clock
+%include "launchpad.asm"       ; W.3-launchpad
+%include "deskicons.asm"       ; 2.6-icons / 2.6-drag
+%include "filemgr.asm"
+%include "control.asm"         ; 2.3-control
 %include "object.asm"
 %include "net.asm"
 %include "ne2k.asm"
@@ -1296,8 +1759,47 @@ puthex:
 %include "ip.asm"
 %include "udp.asm"
 %include "tcp.asm"
-%include "mouse.asm"
+%include "dhcp.asm"                 ; 3.0 (OS2-NET-AUDIO)
+%include "dns.asm"
+%include "netsys.asm"
+%include "audio/pci.asm"           ; 3.0 (OS2-NET-AUDIO)
+%include "audio/ac97.asm"
+%include "audio/hda.asm"
+%include "audio/audio.asm"
+%include "appsys.asm"
+%include "fslfn.asm"
+%include "volume.asm"
+%include "fat.asm"
+%include "fsobj.asm"
+%include "wps.asm"              ; W.2-templates
+%include "shadow.asm"           ; 2.6-shadows
+%include "debug.asm"
+%include "tty.asm"
+%include "drivers/hw.asm"
+%include "drivers/pci.asm"
+%include "drivers/ahci.asm"
+%include "drivers/nvme.asm"
+%include "drivers/xhci.asm"
+%include "drivers/usbkbd.asm"
+%include "drivers/usbmsd.asm"
+%include "drivers/gopcon.asm"
+%include "sysinfo.asm"
 
+
+; the high image ends on a sector boundary, with its signature last
+KHIGH_LIMIT equ (INS_PART_LBA-KHIGH_LBA)*512 ; to the installer's partition
+%if $-$$ > KHIGH_MAX-4 || $-$$ > KHIGH_LIMIT-4
+%error the high kernel image is larger than KHIGH_MAX or KHIGH_LIMIT
+%endif
+%if $-$$ > GOP_SHADOW-KHIGH_BASE-4
+%error the high kernel image runs into the GOP console's text shadow (drivers/gopcon.asm)
+%endif
+times (512-(($-$$+4) % 512)) % 512 db 0
+dd KHIGH_SIG
+khigh_end:
+KHIGH_SECTS equ (khigh_end-khigh_start)/512
+
+section .text
 align 8
 idt: times 256 dq 0
 idt_desc:

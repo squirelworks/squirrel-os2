@@ -47,6 +47,43 @@ partition 1 of the boot disk, from boot on.
 
 The directory is cached in memory (`KSCRATCH+0x1000`) and written through on every change.
 
+## Long names (2.7)
+
+Names have up to 63 characters (`FS_LNAMEMAX`; 15 before 2.7). Spaces are allowed; in the shell a
+name with spaces goes in double quotes (`cd "My Documents"`, `cp a "b c"`), and `cat` also takes
+the rest of the line as before. The 32-byte entry and the 64-entry table stay as they are
+(`kernel/fslfn.asm`):
+
+- A name of 15 characters or fewer is stored in the entry's name field exactly as before.
+- A longer name gets a **short alias** in the name field: its first characters, `~` and a number
+  that no other entry of the directory uses (`quarterly-rep~1`, then `~2`, ...). The whole name is
+  kept in **continuation entries** of 23 characters each (a 63-character name takes three):
+
+| Offset | Continuation entry |
+|--------|--------------------|
+| 0 | 23 characters of the name, zero-padded |
+| 23 | Checksum of the owner's 16-byte name field (rotate right, add) |
+| 24 | Zero (a capacity of 0: no extent for older kernels' allocator) |
+| 28 | `0xFF` as the parent (no directory has that id, so no listing shows it) |
+| 29 | Kind 2 (`DK_LFN`) |
+| 30 | The owner's entry index (0–63) |
+| 31 | Sequence number, 1 for the first 23 characters |
+
+  The owner's byte 30 (`DE_LFN`, reserved before 2.7) counts its continuation entries.
+- Either the long name or the alias finds the file: `fs_find_in` compares both, so programs that
+  use the 16-byte name from `SYS_READDIR`, the file browser and the installer keep working.
+  `ls`, `pwd` and the prompt show long names.
+- A long name uses table entries: the 64 entries are shared by files, directories and
+  continuation entries. `fs_create` or `mv` refuse with `Directory table full` when the parts do
+  not fit (checked before anything changes).
+- **Older kernels** show the alias, never list the continuation entries, and never allocate over
+  them. If one deletes or renames the owner, its parts no longer match it (index or checksum), and
+  the next 2.7 mount frees them (`lfn_sweep`).
+- `tools/sqfs.py` reads and writes long names the same way.
+- `lfntest` creates a 49-character name, reads it back through the alias, checks the next alias
+  is `~2`, moves it into a directory under another long name and back to a short one, checks that
+  the continuation entries are freed and that 64 characters are refused.
+
 ## Directories (0.8.0)
 
 The 64-entry table stays as it is. A directory is just an entry of kind 1, with no extent; its id is its index in the table plus 1. Every entry records the id of the directory it is in. Disks written before 0.8.0 have zeros in those bytes, which means "a file in the root", so they mount unchanged.
@@ -104,11 +141,12 @@ Without a data disk, `ls` and `cat` fall back to the built-in (ROM) table, as be
 | `fs_seek` | `ebx` fd, `ecx` offset (signed), `edx` whence | new position / −1 (1.0.2) |
 | `fs_format` | — | CF on error |
 
-On −1, `fs_errno` says why (0.9.2): `FE_NOFS`, `FE_NAME` (empty, over 15 characters, `.` or `..`),
+On −1, `fs_errno` says why (0.9.2): `FE_NOFS`, `FE_NAME` (empty, over 63 characters (15 before 2.7), `.` or `..`),
 `FE_EXISTS`, `FE_NODIR` (a directory on the path is missing), `FE_TABLE` (64 entries used),
 `FE_NOTFOUND`, `FE_BUSY` (open), `FE_NOTEMPTY`, `FE_CWD` (the current directory), `FE_LOOP`
 (a directory into itself), `FE_IO`, `FE_FULL` (no free run of sectors), `FE_ISDIR`, `FE_NOFD`
-(all eight descriptors in use). The shell prints the matching message (`fs_report`/`fs_why`), and
+(all eight descriptors in use), and since 2.7 `FE_NODRIVE` (no drive mounted on the letter of a
+`x:` path) and `FE_XDEV` (renaming between SQFS and a drive, or between drives). The shell prints the matching message (`fs_report`/`fs_why`), and
 the editors and `draw` show it on their message line. Syscalls return −1; since 1.0.3 a program
 asks why with `SYS_FSERROR`, which returns the `FE_*` code and copies the same words the shell
 prints (localized where the shell's are, as for `Not found`) into the program's buffer. The
@@ -152,17 +190,21 @@ middle overwrites, and a write past the old end grows the file as before.
 | `pwd` | Print the current directory (0.8.0) |
 | `ls <d>` | List another directory (0.8.0) |
 | `format` | Erase the data disk and reseed the built-in files |
+| `cp <from> <to>` | Copy a file; either side may be on a FAT drive; `<to>` may be a directory (2.7) |
+| `mount`, `mount x: <disk\|file>`, `umount x:` | FAT drives (2.7, `fat.md`) |
+| `lfntest` | Long names: see above (2.7) |
 | `fstest` | Create, write 1300 bytes in two pieces (forcing a move), reopen, read back and compare, check EOF, rename, delete |
 
 Typed without its arguments, a command prints how to use it (`mkdir` → `Usage: mkdir <dir>`; 0.9.2).
-Failures say why: `Already exists`, `Bad name: 1 to 15 characters, not . or ..`, `No such directory`,
+Failures say why: `Already exists`, `Bad name: 1 to 63 characters, not . or ..`, `No such directory`,
 `Directory not empty`, `Is a directory`, `Disk full`, and so on.
 
 `run <app>` still starts the built-in applications; other names are loaded from files by the program loader (0.4.0, `loader.md`).
 
 ## Limitations
 
-- 64 entries in all (files and directories together), 15-character names, paths up to 63 characters.
+- 64 entries in all (files, directories and long-name continuation entries together), names up to
+  63 characters, paths up to 95 characters (`FS_PATHMAX` 96; 64 before 2.7).
 - Seeking is limited to positions inside the file (0 to its size); there are no sparse files.
 - Write-through, no cache: every partial sector write is a read-modify-write.
 - No journaling or fsck; a crash during a file move can leave the old extent referenced.

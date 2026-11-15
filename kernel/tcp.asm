@@ -10,12 +10,12 @@ T_SYN       equ 2
 T_RST       equ 4
 T_PSH       equ 8
 T_ACK       equ 16
-TCP_WIN     equ 1024
 TCP_WAIT    equ 100                 ; one second, then one retry
 TCP_READ    equ 300                 ; how long fetch waits for the page
 TCP_IDLE    equ 50                  ; stop sooner once bytes have arrived
-TCP_BUF     equ 1024
-TCP_LOCAL   equ 41000
+TCP_BUF     equ 8192                ; receive buffer, and the window offered (3.0)
+TCP_MSS     equ 512                 ; data bytes in one segment we send
+TCP_LOCAL   equ 41000               ; local ports 41000..41999, a new one each time
 
 ; eax = value, edi advanced: four bytes, most significant first
 tcp_w32:
@@ -133,7 +133,9 @@ tcp_build:
     pop eax
     stosb                           ; flags
     push eax
-    mov ax, TCP_WIN
+    mov eax, TCP_BUF                ; the window: what is free (3.0)
+    sub eax, [tcp_len]
+    mov [tcp_lastwin], eax
     xchg al, ah
     stosw
     xor ax, ax
@@ -219,7 +221,14 @@ tcp_round:
 tcp_connect:
     mov [tcp_rip], eax
     mov [tcp_rport], dx
-    mov word [tcp_lport], TCP_LOCAL
+    mov ax, [tcp_nextport]          ; 3.0: a fresh local port for each
+    inc ax                          ; connection, so a quick second one
+    cmp ax, TCP_LOCAL + 1000        ; is not taken for the last
+    jb .lp
+    mov ax, TCP_LOCAL
+.lp:
+    mov [tcp_nextport], ax
+    mov [tcp_lport], ax
     mov eax, [ticks]
     shl eax, 4
     add eax, 0x10000
@@ -263,7 +272,19 @@ tcp_connect:
     ret
 
 ; esi = bytes, ecx = length. CF set if they are not acknowledged.
+; Sent TCP_MSS bytes a segment, each acknowledged before the next (3.0).
 tcp_send:
+    test ecx, ecx
+    jz .done
+    mov edx, ecx
+    cmp edx, TCP_MSS
+    jbe .n
+    mov edx, TCP_MSS
+.n:
+    push ecx
+    push esi
+    push edx
+    mov ecx, edx
     mov eax, [tcp_snd_nxt]
     mov [tcp_snd_seq], eax
     mov dword [tcp_built], tcp_seg
@@ -273,7 +294,81 @@ tcp_send:
     mov [tcp_seglen], eax
     sub eax, 20
     add [tcp_snd_nxt], eax
-    jmp tcp_round
+    call tcp_round
+    pop edx
+    pop esi
+    pop ecx
+    jc .r
+    cmp byte [tcp_rst], 0
+    jne .fail
+    add esi, edx
+    sub ecx, edx
+    jmp tcp_send
+.done:
+    clc
+.r:
+    ret
+.fail:
+    stc
+    ret
+
+; Send an ACK now with the current numbers and window. Keeps registers.
+tcp_ack_now:
+    pushad
+    mov eax, [tcp_snd_nxt]
+    mov [tcp_snd_seq], eax
+    mov dword [tcp_built], tcp_ack
+    mov edi, tcp_ack
+    mov al, T_ACK
+    xor ecx, ecx
+    call tcp_build
+    mov esi, tcp_ack
+    mov ecx, eax
+    call tcp_xmit
+    popad
+    ret
+
+; edi = buffer, ecx = its size -> eax = bytes taken off the front of the
+; received data (0 when none is waiting). When the window we last
+; offered was under a quarter of the buffer, an ACK tells the sender it
+; has grown (3.0). Keeps the other registers.
+tcp_take:
+    push ecx
+    push esi
+    push edi
+    mov eax, [tcp_len]
+    cmp ecx, eax
+    jbe .n
+    mov ecx, eax
+.n:
+    push ecx
+    mov esi, tcp_buf
+    cld
+    rep movsb
+    pop ecx
+    mov eax, [tcp_len]
+    sub eax, ecx
+    mov [tcp_len], eax
+    push ecx
+    mov edi, tcp_buf
+    lea esi, [tcp_buf + ecx]
+    mov ecx, eax
+    rep movsb
+    pop eax
+    test eax, eax
+    jz .r
+    cmp byte [tcp_state], 2
+    jne .r
+    cmp byte [tcp_gotfin], 0
+    jne .r
+    cmp dword [tcp_lastwin], TCP_BUF / 4
+    jae .r
+    call tcp_ack_now
+.r:
+    pop edi
+    pop esi
+    pop ecx
+    ret
 
 ; ebx = IPv4 total length. The segment is in net_rx.
 tcp_input:
@@ -460,7 +555,7 @@ cmd_fetch_run:
 .go:
     call next_word
     push edi
-    call ip_aton
+    call dns_resolve            ; a name or a dotted quad (3.0)
     pop esi
     jc .bad
     mov [tcp_fetch_ip], eax
@@ -563,7 +658,7 @@ cmd_fetch_run:
 
 tcp_http_tail db ' HTTP/1.0', 13, 10, 13, 10, 0
 
-tcp_state   db 0
+tcp_state   db 0                    ; 0 closed, 1 SYN sent, 2 open
 tcp_rst     db 0
 tcp_gotfin  db 0
 tcp_synok   db 0
@@ -573,6 +668,7 @@ align 2
 tcp_lport   dw 0
 tcp_rport   dw 0
 tcp_fetch_port dw 0
+tcp_nextport dw TCP_LOCAL - 1
 align 4
 tcp_rip     dd 0
 tcp_iss     dd 0
@@ -590,8 +686,10 @@ tcp_built   dd 0
 tcp_fetch_ip dd 0
 tcp_reqlen  dd 0
 tcp_last    dd 0
+tcp_lastwin dd 0
+tcp_owner   dd 0                    ; pid of the program with the connection
 tcp_pseudo  times 12 db 0
-tcp_seg     times 128 db 0
+tcp_seg     times 20 + TCP_MSS + 4 db 0
 tcp_ack     times 24 db 0
 tcp_req     times 96 db 0
-tcp_buf     times TCP_BUF db 0
+tcp_buf     times TCP_BUF + 4 db 0           ; + room for fetch's newline and NUL

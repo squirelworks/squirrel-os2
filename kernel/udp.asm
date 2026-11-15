@@ -256,7 +256,9 @@ udp_take:
 ; -> ax = the checksum of the pseudo-header plus the packet.
 ; A packet that already carries a correct checksum comes back as 0.
 ; The caller stores the result, and stores FFFF when that result is 0.
+; Sums in place (3.0), so a packet of any length can be checked.
 udp_csum:
+    push ebx
     push ecx
     push esi
     push edi
@@ -272,16 +274,80 @@ udp_csum:
     mov eax, ecx
     xchg al, ah
     stosw
-    mov edi, udp_pseudo + 12
-    rep movsb
+    xor ebx, ebx
+    push esi
+    push ecx
+    mov esi, udp_pseudo
+    mov ecx, 12
+    call tcp_addsum
+    pop ecx
+    pop esi
+    call tcp_addsum
+.fold:
+    mov eax, ebx
+    shr eax, 16
+    jz .inv
+    and ebx, 0xFFFF
+    add ebx, eax
+    jmp .fold
+.inv:
+    not bx
+    movzx eax, bx
     pop edi
     pop esi
     pop ecx
-    push ecx
-    mov esi, udp_pseudo
-    add ecx, 12
-    call net_cksum
-    pop ecx
+    pop ebx
+    ret
+
+; Kernel datagrams (3.0: DHCP and DNS). eax = destination, edx = local
+; port | remote port << 16, esi = bytes, ecx = length (to UDP_RAWMAX).
+; The source address is net_our_ip (0.0.0.0 while DHCP asks).
+; -> CF set if it could not be sent.
+UDP_RAWMAX  equ 576
+udp_send_raw:
+    cmp ecx, UDP_RAWMAX
+    ja .bad
+    pushad
+    mov [udp_rdst], eax
+    mov edi, udp_rawpkt
+    cld
+    mov eax, edx
+    xchg al, ah
+    stosw
+    mov eax, edx
+    shr eax, 16
+    xchg al, ah
+    stosw
+    lea eax, [ecx + 8]
+    mov [udp_rlen], eax
+    xchg al, ah
+    stosw
+    xor ax, ax
+    stosw
+    rep movsb
+    mov eax, [net_our_ip]
+    cmp byte [udp_rdst], 127
+    jne .src
+    mov eax, [net_lo_ip]
+.src:
+    mov edx, [udp_rdst]
+    mov ecx, [udp_rlen]
+    mov esi, udp_rawpkt
+    call udp_csum
+    test ax, ax
+    jnz .cs
+    mov ax, 0xFFFF
+.cs:
+    mov [udp_rawpkt + 6], ax
+    mov eax, [udp_rdst]
+    mov esi, udp_rawpkt
+    mov ecx, [udp_rlen]
+    mov dl, IP_UDP
+    call ip_output
+    popad
+    ret
+.bad:
+    stc
     ret
 
 ; ebx = IPv4 total length. The packet is in net_rx. Deliver it to the
@@ -298,8 +364,6 @@ udp_input:
     jb .r
     cmp ecx, eax
     ja .r
-    cmp ecx, 8 + UDP_MAX
-    ja .r
     mov ax, [net_rx + ETH_HDR + 20 + 6]
     test ax, ax
     jz .nocheck
@@ -315,6 +379,24 @@ udp_input:
     movzx edx, byte [net_rx + ETH_HDR + 20 + 2]
     shl edx, 8
     mov dl, [net_rx + ETH_HDR + 20 + 3]
+    cmp byte [dhcp_busy], 0         ; 3.0: an answer to the DHCP client
+    je .notdhcp
+    cmp edx, DHCP_CPORT
+    jne .notdhcp
+    lea esi, [net_rx + ETH_HDR + 20 + 8]
+    sub ecx, 8
+    jmp dhcp_input
+.notdhcp:
+    cmp byte [dns_busy], 0          ; 3.0: an answer to the resolver
+    je .notdns
+    cmp dx, [dns_lport]
+    jne .notdns
+    lea esi, [net_rx + ETH_HDR + 20 + 8]
+    sub ecx, 8
+    jmp dns_input
+.notdns:
+    cmp ecx, 8 + UDP_MAX
+    ja .r
     call udp_lookup
     jc .r
     mov eax, [net_rx + ETH_HDR + 12]
@@ -461,4 +543,7 @@ udp_got     dd 0
 udp_user    dd 0
 udp_sock    dd 0
 udp_src_fix dd 0
-udp_pseudo  times 12 + 8 + UDP_MAX db 0
+udp_pseudo  times 12 db 0
+udp_rdst    dd 0
+udp_rlen    dd 0
+udp_rawpkt  times 8 + UDP_RAWMAX db 0

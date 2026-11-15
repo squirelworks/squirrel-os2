@@ -1,13 +1,15 @@
-# Linux personality (scaffold)
+# Linux personality
 
-Maps ELF binaries that use the Linux syscall ABI onto native Squirrel services.
+Runs static Linux i386 ELF32 programs (P.1, P.2). Original code.
 
-## Planned first subset
+- `linux.asm` (included from `pm.asm`): `lx_enter_user` builds the Linux initial stack
+  (argc, argv, envp, auxv); `lx_isr` translates Linux `int 0x80` calls (`exit`, `exit_group`,
+  `read`, `write`, `open`, `close`, `lseek`, `getpid`, `brk`, `mmap`, `mmap2`, `munmap`) onto
+  native services, other numbers return `-ENOSYS`.
+- The loader (`kernel/loader.asm`) marks an ELF with `EI_OSABI = 3` as Linux by setting
+  `PCB_LINUX` to its entry point.
+- Tests: `programs/lxhello.asm`, `programs/lxfile.asm`, `programs/lxcat.asm`.
 
-- Static ELF loader (stub exists: `kernel/loaders/elf_stub.asm`)
-- Syscalls: `read`, `write`, `open`/`openat`, `close`, `exit`/`exit_group`, `brk`/`mmap` (minimal), `getpid`
-- Console and simple file I/O sufficient to run many small Unix tools
-
-Shares infrastructure with the `unix` personality where practical.
-
-Status: ELF validation stub implemented; mapping and real translation pending (see plannedmilestones F.1–F.4).
+The full table, the fd and memory mapping, and what is missing are in
+`documentation/architecture/foreign-compatibility.md`. Shares infrastructure with the `unix`
+personality (P.10) where practical.

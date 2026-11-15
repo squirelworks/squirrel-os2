@@ -1,6 +1,10 @@
 # Desktop
 
-`desktop` (since 1.6.0) is a shell command that switches to graphics mode and shows the desktop. The desktop is a window titled `Squirrel-OS/2 Desktop`, drawn with the window manager and widgets (`../kernel/windows.md`, `../kernel/widgets.md`). It is implemented in `kernel/desktop.asm`. Keyboard, and since 1.9.10 a polled mouse (`../kernel/mouse.md`): a left click selects a list row; a second click on the same row opens it.
+`desktop` (since 1.6.0) is a shell command that switches to graphics mode and shows the desktop. The desktop is a window titled `Squirrel-OS/2 Desktop`, drawn with the window manager and widgets (`../kernel/windows.md`, `../kernel/widgets.md`). It is implemented in `kernel/desktop.asm`. Keyboard, and since 1.9.10 a polled mouse (`../kernel/mouse.md`): a left click selects a list row; a second click on the same row opens it. Since 2.0.2 the row is mapped through the list's scroll (`wg_list_item`), so a click picks the entry under the pointer even when the list has scrolled. The desktop still uses mode 13h; VBE linear modes (2.1) are not selected here yet (`../kernel/graphics.md`).
+
+Since 2.2 (**2.2-vbe-wm**) the desktop runs on the window manager's screen (`wm_screen`, `../kernel/windows.md`): 640×480 at 8 bpp when VBE is there, else mode 13h. The 320×200 layout below (the desktop window, program windows, the Rename window, mouse rows) is centred on the larger screen: `dk_ox` / `dk_oy` hold the offset, `dk_org` adds it to a layout position, and the mouse pointer is moved by the same offset when the desktop opens and back when it closes, so a pointer that was over a row stays over it. The Program Manager in 2.3 replaces this layout.
+
+Since **2.2-mouse** the desktop window has the Warp title-bar boxes and can be moved by its title, sized by its edges and corners, and maximised and restored with the mouse (`../kernel/windows.md`). Its close box closes the desktop, as Esc does. A click on a list row works wherever the window has been moved.
 
 ```
 +---------------------------------------+
@@ -89,6 +93,130 @@ Checks (on a data disk of their own): `dk-hold` (the help row names `calc`), `dk
 Delete asks on the help row (`Delete notes? y: yes`). `y` deletes the object's file and the object, and any other key keeps it. A folder with something in it is refused (`Not empty`, until a key is pressed). Neither key works while an object is held. If every file in `/desktop` is deleted, the next desktop writes the defaults again.
 
 Checks (on a data disk of their own): `dk-rename-win`, `dk-rename` (`edit` becomes `notes` on the desktop and in `objcat`), `dk-rename-esc`, `dk-delete-ask`, `dk-delete-no`, `dk-delete` (`ls /desktop` no longer lists `edit.obj`), `dk-delete-full`.
+
+## Shadows (2.6-shadows)
+
+A `Shadow` class under `DesktopObject` (`kernel/shadow.asm`) is a shortcut: its
+text fields `target` (the original's name) and `at` (the original's folder,
+empty at the top level) point at another desktop object. Shadow object files
+live under `/desktop` (for example `/desktop/extra-sh.obj`) like Programs and
+Folders. Renaming an object on the desktop (`r`) calls `sh_follow_rename`, which
+walks every file under `/desktop` and rewrites each Shadow whose `target` or
+`at` still held the old name. Moving one (`m` / `p`) calls `sh_follow_move`,
+which updates `at` the same way. Any Shadow path under `/desktop` is found;
+there is no fixed file list. `open` on a Shadow finds a live object with that
+`target` name and sends it `open`.
+
+Self-check `dkshadow` creates a Program and a Shadow at an arbitrary path
+under `/desktop`, renames and moves the original (the shadow file follows via
+the directory walk), reloads after freeing the live objects (a reboot), and
+checks that opening a Shadow of a Folder reaches the folder → `dk-shadow: PASS`.
+
+## WarpCenter and LaunchPad (2.5 / W.3)
+
+One raised strip along the top of the window manager's screen holds the
+WarpCenter chrome and the LaunchPad pads. Height is 28 pixels (`WPC_H` /
+`LP_H`). Program Manager group windows sit below it: `pm_place` adds
+`wc_top` and `lp_top`. When both are live they share that strip, so only
+WarpCenter reserves the height (`wc_top = 28`, `lp_top = 0`) and pads are
+drawn on the bar instead of a second band.
+
+```
++------------------------------------------------------------------+
+| [Squirrel]  [pad0] [pad1] [pad2] [pad3] [pad4] [pad5]   HH:MM:SS |
++------------------------------------------------------------------+
+|  Program Manager groups …                                        |
+```
+
+| Part | Module | What it does |
+|------|--------|----------------|
+| Bar | `wc_paint` | Full-width face (`TH_FACE`) with a raised `gfx_bevel`. From `wm_paint`, above windows and under pop-up menus. |
+| Squirrel menu | `warpcenter.asm` | Button on the left (label from `wc_btn`). Click it, or press `s`, to open a pop-up of top-level desktop Programs and Folders; choosing a Program sends it `open`. |
+| LaunchPad pads | `launchpad.asm` / `lp_paint` | Six faces between the Squirrel button and the clock when WarpCenter is live; otherwise the pads own the whole strip. Empty pads are sunken wells; a named pad is a raised face. Drop (drag-release or digit `1`…`6`) assigns a Program; click launches; `/desktop/launchpad.cfg` persists. |
+| Tray clock | `warpcenter.asm` | `HH:MM:SS` from the CMOS clock on the right; redraws when the second changes. |
+
+Paint order in `wm_paint`: `wc_paint` then `lp_paint`. When WarpCenter is
+live, `lp_paint` draws only the pads (it does not refill the strip, so it
+does not erase the button or clock). When only LaunchPad is live, `lp_paint`
+draws the strip and the pads as before.
+
+Commands: `warpcenter` (bar + menu + clock; also enables pads), `launchpad`
+(pads; also enables the WarpCenter chrome so both share the strip), and the
+self-checks `wcbar` / `wcmenu` / `wcclock` / `wclp` (each enables only what
+it probes).
+
+Esc quits the interactive command (`WarpCenter closed.` / `LaunchPad closed.`).
+
+Self-checks: `wcbar` → `wc-bar: PASS`; `wcmenu` → `wc-menu: PASS`;
+`wcclock` → `wc-clock: PASS`; `wclp` assigns `calc` to pad 0, save/clear/load,
+launch-check and pad pixels → `wclp: PASS`.
+
+## Desktop icons and drag (2.6-icons / 2.6-drag)
+
+`deskicons.asm` draws top-level desktop objects as 32×32 icons with
+captions on the desktop surface itself (not only inside Program Manager
+group windows). Icons sit below the WarpCenter strip (`wc_top`) and are
+painted from `wm_paint` after the desktop fill, under windows. While
+`warpcenter` is running, `dki_on` keeps them live.
+
+| Part | What it does |
+|------|----------------|
+| Icons | One cell per top-level object (`in` empty): `gfx_drawicon` plus a caption. Programs use their named `mkicon` art; folders use `folder`; File objects use `file`. |
+| File class | `File` under `DesktopObject` with a text `path` field. Dropping a File onto a Program sends `drop`, which copies the path into `dk_arg` / `run_arg` and opens the program. |
+| Folder drop | Dropping any object onto a Folder sets its `in` to that folder's name and saves `/desktop/<name>.obj`, so the move survives a reboot. |
+
+Self-checks: `dkicons` enables the surface, finds `calc` and probes glyph
+pixels → `dk-icons: PASS`; `dkdrag` creates a File, drops it on `edit`
+(path in `dk_arg`), moves it into `Tools` and checks the saved object →
+`dk-drag: PASS`.
+
+## Context menu and settings notebook (2.6-context / 2.6-notebook)
+
+Right-button on a Program Manager icon opens a context menu (Open, Open as...,
+Settings, Arrange) through `wg_menu` (`wm_popup`); Delete is left out until a
+confirm UI exists. Open as cascades to Icon / Tree / Details / Settings (W.5).
+Settings opens a `wg_notebook` window with General / View tabs; the Program
+Manager loop handles tab clicks and the close box. A right-click selects
+without arming the double-click timer. The notebook widget itself lives in
+`widget.asm`: tab strip, sunken page body, click or Left/Right to switch
+pages. Self-checks: `dkctx` → `dk-ctx: PASS`; `nbtest` → `nbtest: PASS`.
+Desktop-surface icons and drag (`2.6-icons` / `2.6-drag`) are covered above.
+
+## Folder views (W.4-views)
+
+Folder windows (the File Manager) switch between **Icon**, **Tree** and
+**Details** views with `i` / `t` / `d` (`fm_setview` in `kernel/filemgr.asm`).
+Details is the two-pane layout from 2.3; Tree is the directory tree alone;
+Icon lays entries out as 32×32 icons with captions. Design:
+[`filemgr.md`](filemgr.md). Self-check `foldview` → `foldview: PASS`
+(regress `fold-views`).
+
+## Open as (W.5-openas)
+
+Right-button on a File Manager directory opens **Open as** (Icon / Tree /
+Details / Settings): the first three call `fm_setview`; Settings opens a
+folder settings notebook. On Program Manager icons, **Open as...** cascades
+to the same four choices (views open or switch a File Manager window;
+Settings uses the object notebook). Self-check `openas` → `openas: PASS`.
+
+## Templates (W.2-templates)
+
+A `Template` class under `DesktopObject` (`kernel/wps.asm`) has text fields
+`of` (the class to create: `Folder` or `Program`) and `seed` (for a Program,
+the `entry` name). On first desktop start with a data disk, `wps_attach`
+writes `/desktop/Templates.obj` and seed templates
+`/desktop/tmpl-Folder.obj` / `/desktop/tmpl-Program.obj` (both with
+`in: Templates`) and loads them into the desktop object table.
+
+Dragging a Template in Program Manager onto a group window, or dropping one
+with `m` / `p` on the classic desktop, calls `wps_create_from`: a new object
+of that class is created in the destination folder, saved under `/desktop`,
+and listed; the template itself is not moved. `open` on a Template (and
+Settings on any object) opens the shared General / View settings notebook.
+
+Self-check `wpstmpl` builds the Templates folder, creates a Folder on the
+desktop and a Program in Tools from the seed templates, and probes a
+settings-notebook tab face → `wps: PASS`. Check `wps-tmpl`.
 
 ## Booting into the desktop
 

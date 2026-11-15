@@ -9,6 +9,9 @@
   sqfs.py IMAGE mkdir PATH           make a directory
 
 Paths use '/' between directories (0.8.0); they always start at the root.
+Names may have up to 63 characters (2.7): a longer one than 15 gets a short
+alias ("quarterly-rep~1") in its entry and its whole name in continuation
+entries, as kernel/fslfn.asm writes them; either name finds it.
 The format matches kernel/fs.asm and documentation/kernel/filesystem.md.
 """
 import os
@@ -23,24 +26,39 @@ DATA_LBA = DIR_LBA + DIR_SECTS
 DIRENT = 32
 MAXFILES = DIR_SECTS * SECTOR // DIRENT
 NAMELEN = 16
-KIND_FILE, KIND_DIR = 0, 1
+KIND_FILE, KIND_DIR, KIND_LFN = 0, 1, 2
+LNAMEMAX, PART = 63, 23            # 2.7: long names, characters per part
 
 
 class Entry:
     def __init__(self, raw):
+        self.raw = bytes(raw)
         self.name = raw[:NAMELEN].split(b'\0')[0].decode('latin-1')
         self.start, self.size, self.cap = struct.unpack_from('<III', raw, NAMELEN)
-        self.parent, self.kind = raw[28], raw[29]
+        self.parent, self.kind, self.lfn = raw[28], raw[29], raw[30]
 
     def pack(self):
+        if self.kind == KIND_LFN and self.name:
+            return self.raw            # a long name's part, as written
         raw = self.name.encode('latin-1').ljust(NAMELEN, b'\0')
-        raw += struct.pack('<IIIBBH', self.start, self.size, self.cap,
-                           self.parent, self.kind, 0)
+        raw += struct.pack('<IIIBBBB', self.start, self.size, self.cap,
+                           self.parent, self.kind, self.lfn, 0)
         return raw
 
     def clear(self):
         self.name, self.start, self.size, self.cap = '', 0, 0, 0
-        self.parent = self.kind = 0
+        self.parent = self.kind = self.lfn = 0
+        self.raw = bytes(DIRENT)
+
+    def is_part(self):
+        return bool(self.name) and self.kind == KIND_LFN and self.parent == 0xFF
+
+
+def name_sum(name16):
+    s = 0
+    for c in name16:
+        s = ((s >> 1) | ((s & 1) << 7)) + c & 0xFF
+    return s
 
 
 class Disk:
@@ -66,9 +84,54 @@ class Disk:
 
     def find_in(self, name, parent):
         for e in self.entries:
-            if e.name and e.name == name and e.parent == parent:
+            if (e.name and not e.is_part() and e.parent == parent
+                    and name in (e.name, self.long_name(e))):
                 return e
         return None
+
+    def parts_of(self, e):
+        i = self.entries.index(e)
+        return [x for x in self.entries if x.is_part() and x.raw[30] == i]
+
+    def long_name(self, e):
+        """The whole name: the alias's parts put together (2.7)."""
+        if not e.lfn:
+            return e.name
+        i, s = self.entries.index(e), name_sum(e.pack()[:NAMELEN])
+        parts = {x.raw[31]: x for x in self.entries
+                 if x.is_part() and x.raw[30] == i and x.raw[23] == s}
+        if sorted(parts) != list(range(1, e.lfn + 1)):
+            return e.name
+        return ''.join(parts[k].raw[:PART].split(b'\0')[0].decode('latin-1')
+                       for k in sorted(parts))
+
+    def set_name(self, e, name, parent):
+        for x in self.parts_of(e):
+            x.clear()
+        e.lfn = 0
+        if len(name) <= NAMELEN - 1:
+            e.name = name
+            return
+        need = (len(name) + PART - 1) // PART
+        free = [x for x in self.entries if not x.name and x is not e]
+        if len(free) < need:
+            sys.exit('sqfs: directory full')
+        taken = set()
+        for x in self.entries:
+            if x.name and not x.is_part() and x.parent == parent and x is not e:
+                taken |= {x.name, self.long_name(x)}
+        for k in range(1, 100):
+            alias = name[:NAMELEN - 2 - len(str(k))] + '~' + str(k)
+            if alias not in taken:
+                break
+        e.name, e.lfn = alias, need
+        s = name_sum(e.pack()[:NAMELEN])
+        i = self.entries.index(e)
+        for k in range(need):
+            x = free[k]
+            raw = name[k * PART:(k + 1) * PART].encode('latin-1').ljust(PART, b'\0')
+            raw += bytes([s]) + bytes(4) + bytes([0xFF, KIND_LFN, i, k + 1])
+            x.__init__(raw)
 
     def dir_id(self, e):
         return self.entries.index(e) + 1
@@ -91,11 +154,11 @@ class Disk:
         return self.find_in(name, parent)
 
     def path_of(self, e):
-        names = [e.name]
+        names = [self.long_name(e)]
         seen = 0
         while e.parent and seen < MAXFILES:
             e = self.entries[e.parent - 1]
-            names.append(e.name)
+            names.append(self.long_name(e))
             seen += 1
         return '/'.join(reversed(names))
 
@@ -107,7 +170,8 @@ class Disk:
             sys.exit('sqfs: directory full')
         e = free[0]
         e.clear()
-        e.name, e.parent, e.kind = name, parent, kind
+        e.name, e.parent, e.kind = '?', parent, kind
+        self.set_name(e, name, parent)
         return e
 
     def alloc(self, sectors):
@@ -122,8 +186,8 @@ class Disk:
 
 
 def check_name(name):
-    if (not name or len(name) >= NAMELEN or name in ('.', '..')
-            or any(c <= ' ' or c > '~' or c == '/' for c in name)):
+    if (not name or len(name) > LNAMEMAX or name in ('.', '..')
+            or any(c < ' ' or c > '~' or c == '/' for c in name)):
         sys.exit('sqfs: bad name %r' % name)
 
 
@@ -142,7 +206,7 @@ def main(argv):
     d = Disk(path)
     if cmd == 'ls':
         for e in d.entries:
-            if e.name:
+            if e.name and not e.is_part():
                 if e.kind == KIND_DIR:
                     print('%-24s  <dir>' % (d.path_of(e) + '/'))
                 else:
@@ -178,6 +242,8 @@ def main(argv):
         if e.kind == KIND_DIR and any(x.name and x.parent == d.dir_id(e)
                                       for x in d.entries):
             sys.exit('sqfs: directory not empty')
+        for x in d.parts_of(e):
+            x.clear()
         e.clear()
         d.save()
     elif cmd == 'mkdir':

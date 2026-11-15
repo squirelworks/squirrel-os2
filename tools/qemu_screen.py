@@ -4,16 +4,21 @@
 Usage: qemu_screen.py [--disk DATA_IMAGE] [--target DISK] [--nic] [--floppy|--cdrom] IMAGE [KEYS...]
 Each KEYS argument is typed as text; a token like "<ret>", "<esc>",
 "<backspace>" or "<up>" is sent as that single QEMU key name, and
-"<pause>" waits a second before the next key, and "<gfx>" reads the text
+"<pause>" waits a second before the next key, "<gop>" reads the text the
+GOP console drew (UEFI boot, printed as "gop: <line>"), and "<gfx>" reads the text
 drawn in graphics mode (the 5 x 7 font of tools/font5x7.txt; on the
 klingon-font branch, pIqaD letterforms; in 6 x 8 cells at any pixel
-offset) and prints each line found as "gfx: <text>" after the text screen.
+offset, and the proportional faces of tools/fontp*.txt) and prints each
+line found as "gfx: <text>" after the text screen.
 --disk attaches DATA_IMAGE as the primary slave (the kernel's data disk).
 --target attaches DISK as the secondary master (the installer's target;
 always a scratch image, never a real disk).
 --floppy boots IMAGE from the floppy drive instead of the first hard disk.
 --cdrom boots IMAGE as a CD in the secondary master position (installer I.6).
-QEMU_EXTRA in the environment adds QEMU options (e.g. QEMU_EXTRA='-cpu 486,-pse'). The 80x25 VGA text buffer is printed at the end.
+QEMU_EXTRA in the environment adds QEMU options (e.g. QEMU_EXTRA='-cpu 486,-pse').
+QEMU_BIN picks the emulator (default qemu-system-i386; qemu-system-x86_64 for
+long mode and SMP, 2.8, and for 64-bit UEFI firmware), QEMU_TEXT the address the text screen is read from
+(default 0xb8000; a UEFI boot keeps it in RAM at 0x1f8000, OS2-HW H.2). The 80x25 VGA text buffer is printed at the end.
 """
 import os, socket, subprocess, sys, tempfile, time
 
@@ -24,7 +29,9 @@ KEYMAP = {' ': 'spc', '\n': 'ret', '-': 'minus', '=': 'equal', '/': 'slash',
           '+': 'shift-equal', '*': 'shift-8', '%': 'shift-5', '!': 'shift-1',
           '?': 'shift-slash', '(': 'shift-9', ')': 'shift-0', ':': 'shift-semicolon', '_': 'shift-minus',
           '^': 'shift-6', '[': 'bracket_left', ']': 'bracket_right',
-          '<': 'shift-comma', '>': 'shift-dot', '|': 'shift-backslash'}
+          '<': 'shift-comma', '>': 'shift-dot', '|': 'shift-backslash',
+          '"': 'shift-apostrophe', "'": 'apostrophe', '~': 'shift-grave_accent',
+          '\\': 'backslash'}   # 2.7: quoted paths, aliases (NAME~1)
 
 
 def monitor(sock, cmd):
@@ -59,7 +66,8 @@ def read_ppm(path):
 
 def gfx_text(path):
     """Lines of text drawn with the kernel's font on a 320 x 200 screen
-    (QEMU may dump it doubled to 640 x 400). A cell is read only when its
+    (QEMU may dump it doubled to 640 x 400) or on a VBE screen such as
+    640 x 480 (2.2-vbe-wm), read at its own size. A cell is read only when its
     spacing column and bottom row are all one colour (the background); its
     other pixels are ink where they differ from that colour."""
     import mkfont
@@ -78,15 +86,19 @@ def gfx_text(path):
         if any(rows):
             font.setdefault(rows, chr(c))
     w, h, rgb = read_ppm(path)
-    sx, sy = w // 320, h // 200
+    if w * 200 == h * 320:              # mode 13h, maybe doubled
+        sw, sh = 320, 200
+    else:                               # 2.2-vbe-wm: a VBE mode, read as is
+        sw, sh = w, h
+    sx, sy = w // sw, h // sh
     px = [[rgb[((y * sy) * w + x * sx) * 3:((y * sy) * w + x * sx) * 3 + 3]
-           for x in range(320)] for y in range(200)]
+           for x in range(sw)] for y in range(sh)]
     lines = []
     for oy in range(8):
         for ox in range(6):
-            for top in range(oy, 200 - 7, 8):
+            for top in range(oy, sh - 7, 8):
                 text = ''
-                for left in range(ox, 320 - 5, 6):
+                for left in range(ox, sw - 5, 6):
                     bg = px[top + 7][left + 5]
                     ch = ' '
                     if all(px[top + 7][left + i] == bg for i in range(6)) and \
@@ -99,6 +111,103 @@ def gfx_text(path):
                     word = word.strip()
                     if len(word) >= 2 and word not in lines:
                         lines.append(word)
+    five = list(lines)
+    for word in prop_text(rgb, w, h, sw, sh):   # 5 x 7 text can half-match a face
+        if not any(word in line for line in five) and word not in lines:
+            lines.append(word)
+    return lines
+
+
+def prop_text(rgb, w, h, sw, sh):
+    """Runs of text drawn in the proportional faces (2.2-propfont,
+    tools/fontp*.txt) on a solid background. A glyph is read where its
+    columns match exactly, the column after it and the one before the run
+    are all background, and so are its clear pixels; a gap one space wide
+    (plus its spacing column) is a space, a wider gap ends the run. Needs
+    numpy; without it nothing is read."""
+    try:
+        import numpy as np
+    except ImportError:
+        return []
+    import mkfont
+    img = np.frombuffer(rgb, np.uint8)[:w * h * 3].reshape(h, w, 3)[::h // sh, ::w // sw].astype(np.uint32)
+    ids = (img[..., 0] << 16) | (img[..., 1] << 8) | img[..., 2]
+    words = []
+    for _, name, height in mkfont.FACES:
+        glyphs = mkfont.read_p(name, height)
+        space = len(glyphs[0x20][0])
+        first = {}
+        for code, rows in glyphs.items():
+            if code == 0x20:
+                continue
+            cols = tuple(sum((rows[r][c] == '#') << r for r in range(height)) for c in range(len(rows[0])))
+            first.setdefault(cols[0], []).append((cols, chr(code)))
+        for v in first.values():
+            v.sort(key=lambda g: -len(g[0]))
+        starts = np.array(sorted(first), dtype=np.uint32)
+        for colour in np.unique(ids):
+            ink = (ids != colour).astype(np.uint32)
+            codes = np.zeros((sh - height + 1, sw), np.uint32)
+            for r in range(height):
+                codes |= ink[r:r + sh - height + 1] << r
+            cand = np.argwhere(np.isin(codes[:, 1:], starts) & (codes[:, :-1] == 0))
+            done = set()
+            for y, x in cand:
+                x += 1
+                if (y, x) in done:
+                    continue
+                row = codes[y]
+                text, pos = '', x
+                while pos < sw:
+                    for cols, ch in first.get(int(row[pos]), ()):
+                        end = pos + len(cols)
+                        if end < sw and row[end] == 0 and tuple(int(v) for v in row[pos:end]) == cols:
+                            break
+                    else:
+                        break
+                    done.add((y, pos))
+                    text += ch
+                    pos = end + 1
+                    gap = 0
+                    while pos + gap < sw and row[pos + gap] == 0:
+                        gap += 1
+                    if gap == 0:
+                        continue
+                    if gap != space + 1:
+                        break
+                    text += ' '
+                    pos += gap
+                text = text.strip()
+                if len(text) >= 2 and text not in words:
+                    words.append(text)
+    return words
+
+
+def gop_text(path):
+    """Lines of the 80 x 25 text screen as the GOP console (OS2-HW H.2,
+    kernel/drivers/gopcon.asm) draws it: 8 x 16 cells from the top-left
+    corner, zoomed by the largest whole number that fits, the 5 x 7 glyph
+    at (1, 1) with every row doubled."""
+    import mkfont
+    font = {tuple(rows): chr(c) for c, rows in mkfont.read().items() if c != 0x20}
+    w, h, rgb = read_ppm(path)
+    if w < 640 or h < 400:
+        return []
+    z = min(w // 640, h // 400)
+
+    def px(x, y):
+        o = (y * w + x) * 3
+        return rgb[o:o + 3]
+    lines = []
+    for row in range(25):
+        text = ''
+        for col in range(80):
+            x0, y0 = col * 8 * z, row * 16 * z
+            bg = px(x0, y0)
+            rows = tuple(sum((px(x0 + (1 + c) * z, y0 + (1 + 2 * r) * z) != bg) << (4 - c) for c in range(5))
+                         for r in range(7))
+            text += font.get(rows, ' ')
+        lines.append(text.rstrip())
     return lines
 
 
@@ -129,7 +238,7 @@ def main():
     path = os.path.join(tmp, 'mon')
     dump = os.path.join(tmp, 'vga.bin')
     gfx = []                            # text read from graphics mode
-    qemu = subprocess.Popen(['qemu-system-i386', '-display', 'none',
+    qemu = subprocess.Popen([os.environ.get('QEMU_BIN', 'qemu-system-i386'), '-display', 'none',
                              '-drive', (f'format=raw,file={image},index=2,media=cdrom' if cdrom
                                         else f'format=raw,file={image},if=floppy' if boot
                                         else f'format=raw,file={image},index=0,media=disk'),
@@ -147,6 +256,16 @@ def main():
             if chunk == '<pause>':      # let the guest run for a second
                 time.sleep(1)
                 continue
+            if chunk == '<gop>':        # OS2-HW H.2: read the GOP console's pixels
+                shot = os.path.join(tmp, f'gop{len(gfx)}.ppm')
+                monitor(sock, f'screendump "{shot}"')
+                for _ in range(50):
+                    if os.path.exists(shot) and os.path.getsize(shot) > 0:
+                        break
+                    time.sleep(0.1)
+                time.sleep(0.2)
+                gfx += ['\x00gop: ' + line for line in gop_text(shot) if line]
+                continue
             if chunk == '<gfx>':        # read the text off the graphics screen
                 shot = os.path.join(tmp, f'gfx{len(gfx)}.ppm')
                 monitor(sock, f'screendump "{shot}"')
@@ -155,6 +274,10 @@ def main():
                         break
                     time.sleep(0.1)
                 time.sleep(0.2)
+                keep = os.environ.get('QEMU_SHOTS')    # 2.2: keep the dumps
+                if keep:
+                    import shutil
+                    shutil.copy(shot, os.path.join(keep, f'shot{len(os.listdir(keep))}.ppm'))
                 gfx += gfx_text(shot)
                 continue
             # 1.9.10: inject relative mouse motion or a button bitmask
@@ -174,7 +297,9 @@ def main():
                     key = 'shift-' + ch.lower()
                 monitor(sock, 'sendkey ' + key)
         time.sleep(0.5)
-        monitor(sock, f'pmemsave 0xb8000 4000 "{dump}"')
+        # OS2-HW H.2: on a UEFI boot the text screen lives in RAM at GOP_SHADOW
+        text_addr = os.environ.get('QEMU_TEXT', '0xb8000')
+        monitor(sock, f'pmemsave {text_addr} 4000 "{dump}"')
         for _ in range(50):
             if os.path.exists(dump) and os.path.getsize(dump) == 4000:
                 break
@@ -184,7 +309,7 @@ def main():
             line = data[row * 160:(row + 1) * 160:2].decode('cp437')
             print(line.rstrip())
         for line in gfx:
-            print('gfx: ' + line)
+            print(line[1:] if line.startswith('\x00') else 'gfx: ' + line)
     finally:
         qemu.kill()
 

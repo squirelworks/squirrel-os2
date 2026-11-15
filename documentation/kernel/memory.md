@@ -28,29 +28,31 @@ Without a map, 1–32 MB is assumed and `mem` says so.
 
 | Routine / syscall | In | Out |
 |-------------------|----|-----|
-| `pg_alloc`, `SYS_PALLOC` (19) | — | a zeroed 4 KB page, or 0 when none is left |
+| `pg_alloc`, `SYS_PALLOC` (19) | — | a zeroed 4 KB page, or 0 when none is left. `SYS_PALLOC`/`SYS_PFREE` are kernel-only since 2.4 (−1 from ring 3, `ring3.md`) |
 | `pg_free`, `SYS_PFREE` (20) | `eax` / `ebx` = page | 0, or −1 if it is not an allocated page |
 
 Both run with interrupts off, so a timer or keyboard interrupt never sees a half-updated list.
 
 ### Shell
 
-- `mem` prints the BIOS map and the page totals (`Pages above 1 MB: 129920 KB total, 129920 KB free` with QEMU's default 128 MB).
+- `mem` prints the BIOS map and the page totals (`Pages above 2 MB: 128896 KB total, 128880 KB free` with QEMU's default 128 MB; the allocator starts at 2 MB since 2.4, above the high kernel image; PAE uses four table pages at boot).
 - `memtest` allocates every page and checks that each comes back zeroed and distinct. It then frees them all, checks the free count is restored, and checks that a double free and a misaligned free are refused.
 
 The bump allocator from 0.0.6 (`kmalloc`) no longer exists in the current kernel. The page allocator replaces it.
 
-## Paging and address spaces (0.6.1)
+## Paging and address spaces (0.6.1, PAE since 2.8-pae)
 
 Location: `../../kernel/vm.asm`.
 
 ### Kernel mapping
 
-`vm_init` runs right after `mm_init`. It takes two pages from the allocator and builds:
+`vm_init` runs right after `mm_init`. It turns on **PAE** (CR4.PAE) and builds 64-bit entries:
 
-- **A page table for 0–4 MB** with 4 KB pages, mapping every page to itself.
-- **The kernel page directory.** Entry 0 points at that table. Entries 1–63 are 4 MB pages (CR4.PSE) that identity-map 4–256 MB.
-  Everything above 256 MB is left unmapped.
+- **A PDPT** (what CR3 holds) with one present entry for 0–1 GB.
+- **A page directory** for that gigabyte: two page tables cover 0–4 MB with 4 KB pages; the rest of the first 256 MB is identity-mapped with 2 MB pages.
+- Everything above 256 MB is left unmapped until something needs it: since 2.1, `vm_map_range` adds 2 MB PAE pages for a physical range (the VBE linear framebuffer's PCI BAR) in the kernel tables. Address spaces already created with `as_create` keep their copy from that time, so they do not see a later LFB map until that is taught (not needed while only the kernel shell draws).
+
+If the CPU has NX (CPUID `0x80000001` EDX bit 20), `vm_init` also sets EFER.NXE. Heap and ring-3 stack pages are then mapped with the NX bit so a jump into them is a page fault (`nx-heap`, `nx-stack`). The top page of each ring-3 stack window stays executable for the exit stub. CPUs without NX (for example QEMU `-cpu pentium3`) keep working; the NX checks are skipped there.
 
 It then loads CR3 and sets CR0.PG. Because the mapping is the identity, the kernel keeps running at the same addresses, and every pointer in the system means the same thing before and after.
 
@@ -60,8 +62,9 @@ It then loads CR3 and sets CR0.PG. Because the mapping is the identity, the kern
 
 | Pages | Content |
 |-------|---------|
-| 1 | Page directory: a copy of the kernel's |
-| 1 | Private copy of the 0–4 MB page table |
+| 1 | PDPT: a copy of the kernel's |
+| 1 | Private copy of the 0–1 GB page directory |
+| 2 | Private copies of the 0–2 MB and 2–4 MB page tables |
 | 16 | The program area `0x30000–0x3FFFF`, fresh zeroed pages |
 
 So a program sees the whole kernel at the usual addresses, but its own 64 KB at `0x30000`.
@@ -71,9 +74,17 @@ The records live in `as_table` (one per process slot):
 
 | Field | Meaning |
 |-------|---------|
-| `AS_PD` | Physical address of the page directory (what CR3 is set to) |
+| `AS_PD` | Physical address of the PDPT (what CR3 is set to in PAE) |
 | `AS_REFS` | Processes using it; the last `as_release` frees every page |
 | `AS_PAGES` | Pages owned, shown by `ps` as memory in KB |
+| `AS_PML4` | 4-level root for long mode (2.9), or 0 until `as_lm_sync` builds it |
+
+### 4-level wrappers for long mode (2.9)
+
+Long mode needs a PML4 in CR3, and long-mode PDPTEs may set the writable bit (PAE PDPTE.W is
+reserved). `as_lm_sync` builds a PML4 and a separate long-mode PDPT that mirrors the PAE PDPT's
+present entries with `P|W` and the same page-directory pointers. Everyday CR3 stays the PAE PDPT;
+`lm_call` loads the PML4 only for the round trip. See `long-mode.md` (`lmpage`).
 
 Each PCB has a `PCB_AS` field (0 means the kernel's directory):
 
@@ -92,7 +103,7 @@ Everything still runs in ring 0, so a program can still write over kernel memory
 
 ## Program heap (0.6.2)
 
-Each program's address space has a heap that starts empty at `HEAP_BASE` = `0x40000000` and can grow to 4 MB, which is one page table (directory entry 256).
+Each program's address space has a heap that starts empty at `HEAP_BASE` = `0x40000000` and can grow to 4 MB (two PAE page tables in the 1–2 GB page directory).
 
 `SYS_SBRK` (21) moves the end of the heap, the *break*:
 

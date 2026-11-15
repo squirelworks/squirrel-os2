@@ -1,17 +1,14 @@
-# Windows personality (scaffold)
+# Windows personality
 
-Maps PE/PE32+ binaries onto the native Squirrel process model.
+Win32 PE32 console programs (P.5) run through `programs/winrun.asm`, an ordinary SQX program:
+the PE loader (headers, sections, base relocations, import binding) and a stdcall KERNEL32 shim
+live there, not in the kernel. The kernel loader only hands every `MZ` file to `winrun`.
+Imports without a shim are bound to a stub that names them when called.
 
-## Planned scope (incremental)
+Test: `programs/winhello.asm`, a hand-written PE32. Details and the shim table:
+`documentation/architecture/foreign-compatibility.md`.
 
-1. Console subsystem: `WriteFile` / `ReadFile` / `ExitProcess` and a handful of kernel32 calls.
-2. Basic file and process APIs.
-3. Later: graphics mapping onto the Squirrel desktop (not a full Win32 GDI peer).
-
-## Notes
-
-- Calling convention and structure layouts must be documented from public headers only.
-- No ReactOS or WINE sources.
-- Prefer native x86_64 execution; cross-arch translation is out of scope for the first implementation.
-
-Status: directory only.
+P.6 adds GUI programs (USER32/GDI32 over the 2.2 window calls, `programs/wingui.inc`), registry emulation
+(`programs/winreg.inc`) and an original DLL loader in `winrun` (DLLs from the disk, exports,
+LoadLibrary/GetProcAddress). Next: P.7 (PE32+). Public format descriptions only; no
+ReactOS or Wine sources.

@@ -21,6 +21,8 @@ SLICE_TICKS     equ 5           ; 50 ms at 100 Hz (1.1)
 PRIO_MIN        equ 0
 PRIO_NORM       equ 1
 PRIO_MAX        equ 3
+AGE_TICKS       equ 200         ; READY this long without running: aged (2.0.2)
+PRIO_AGED       equ PRIO_MAX + 1 ; an aged process outranks every priority
 
 ; states
 P_FREE          equ 0
@@ -28,6 +30,7 @@ P_READY         equ 1
 P_RUNNING       equ 2
 P_WAITING       equ 3           ; blocked in wait()
 P_ZOMBIE        equ 4           ; exited, not yet reaped
+P_APRUN         equ 5           ; running ring-3 code on an application processor (2.8)
 
 ; PCB layout (64 bytes)
 PCB_PID         equ 0
@@ -39,6 +42,10 @@ PCB_CODE        equ 20          ; exit code
 PCB_WAITPID     equ 24          ; pid this process waits on
 PCB_PARENT      equ 28
 PCB_AS          equ 32          ; address space record, 0 = the kernel's
+; PCB extension (2.8): a second 64-byte record per slot in proc_ext, at the
+; same stride, so [pcb+PCBX_*] reaches it (the PCB itself is full)
+PCBX            equ proc_ext-proc_table
+PCB_UFRAME      equ PCBX+0      ; 1: stopped by a ring-3 preemption, so any CPU may resume it
 PCB_NAME        equ 40          ; 16 bytes: program or app name (0.8.2)
 PROC_NAMELEN    equ 16
 PCB_PRIO        equ 56          ; 0..3; higher runs first (1.9.9)
@@ -84,16 +91,23 @@ proc_spawn:
     mov eax, -1
     jmp .out
 .got:
+    mov dword [proc_cpu+edx*4], 0   ; its CPU time (A.5)
     mov eax, [proc_next_pid]
     inc dword [proc_next_pid]
     mov [edi+PCB_PID], eax
     mov [edi+PCB_ENTRY], ebx
     mov [edi+PCB_ARG], ecx
     mov dword [edi+PCB_CODE], 0
+    mov dword [edi+PCB_UFRAME], 0   ; starts in the kernel: the BSP's (2.8)
     mov dword [edi+PCB_WAITPID], 0
     mov byte [edi+PCB_NAME], 0
     mov dword [edi+PCB_PRIO], PRIO_NORM
+    call proc_stamp             ; its wait for the CPU starts now (2.0.2)
     mov dword [edi+PCB_FPU], 0  ; starts with a freshly reset FPU
+    mov dword [edi+PCB_LINUX], 0    ; native ABI unless the loader says so (P.1)
+    call tty_inherit            ; on its parent's terminal, if any (A.3)
+    call tls_clear              ; and no TLS segment base (P.5)
+    call lx_sig_clear           ; and Linux signals at their defaults (P.2)
     call msg_reset              ; and an empty message queue (1.2)
     mov ebx, [proc_cur]
     push eax
@@ -130,6 +144,8 @@ proc_spawn:
 
 proc_trampoline:
     mov ebx, [proc_cur]
+    cmp dword [ebx+PCB_AS], 0
+    jne proc_enter_user         ; a loaded program's thread: ring 3 (2.4)
     push dword [ebx+PCB_ARG]
     call [ebx+PCB_ENTRY]
     add esp, 4
@@ -137,8 +153,12 @@ proc_trampoline:
     ; fall through
 ; ebx = exit code. Does not return.
 proc_exit:
+    call ws_procgone            ; its windows close (2.2-progwin)
     cli
     mov esi, [proc_cur]
+    call dbg_exit               ; what it traced runs on untraced (A.4)
+    call tty_exit               ; its terminals close (A.3)
+    call klog_exit              ; (A.5)
     mov [esi+PCB_CODE], ebx
     mov dword [esi+PCB_STATE], P_ZOMBIE
     mov eax, [esi+PCB_PID]
@@ -158,6 +178,62 @@ proc_exit:
 
 ; ebx = pid -> eax = its exit code (slot is freed), or -1 if there is
 ; no such process or it is the caller.
+; ebx = the current PCB, whose address space is a program's: starts its
+; entry in ring 3 on the slot's ring-3 stack, as entry(arg) with a return
+; address that exits with the returned value (2.4). The kernel stack is
+; empty from here on; TSS.ESP0 (proc_switch) points at its top.
+proc_enter_user:
+    mov edi, ebx
+    call vm_ustack_top
+    lea esi, [eax-16]           ; the exit stub, at the stack's top
+    mov eax, esi
+    call vm_ustack_fault        ; map that page now, unless an earlier
+    test eax, eax               ; thread in this slot did
+    jz .mapped
+    cmp eax, 3
+    jne .fail
+.mapped:
+    mov edi, esi
+    mov dword [edi], 0xB8C389   ; mov ebx, eax / mov eax, SYS_EXIT ...
+    mov dword [edi+3], SYS_EXIT
+    mov word [edi+7], 0x80CD    ; ... / int 0x80
+    sub edi, LD_ARGMAX          ; the argument string under it
+    mov eax, [ebx+PCB_ARG]
+    mov ecx, eax                ; the loader's copy is kernel memory:
+    sub ecx, prog_args          ; copy it into the program's stack
+    cmp ecx, PROC_MAX*LD_ARGMAX
+    jae .arg                    ; a thread's argument: passed as it is
+    push esi
+    mov esi, eax
+    mov eax, edi
+    mov ecx, LD_ARGMAX/4
+    rep movsd
+    pop esi
+    mov edi, eax
+.arg:
+    cmp dword [ebx+PCB_LINUX], 0
+    jne lx_enter_user           ; a Linux program: its own start-up stack (P.1)
+    mov [edi-4], eax            ; entry(arg)
+    mov [edi-8], esi            ; returns into the stub
+    lea eax, [edi-8]
+    push dword USER_DS          ; ss
+    push eax                    ; esp
+    push dword 0x202            ; eflags: IF, IOPL 0
+    push dword USER_CS
+    push dword [ebx+PCB_ENTRY]
+    call dbg_entry              ; started by a debugger: stops here first (A.4)
+    xor eax, eax                ; no kernel values leak into ring 3
+    xor ebx, ebx
+    xor ecx, ecx
+    xor edx, edx
+    xor esi, esi
+    xor edi, edi
+    xor ebp, ebp
+    iretd
+.fail:
+    mov ebx, -1
+    jmp proc_exit
+
 proc_wait:
     push esi
     push edi
@@ -342,6 +418,7 @@ proc_switch:
     pushfd
     cli
     pushad
+.again:
     mov esi, [proc_cur]
     ; highest priority among READY slots, and the current if RUNNING
     mov ebx, -1
@@ -356,7 +433,7 @@ proc_switch:
     cmp edi, esi
     jne .nmax
 .cand:
-    mov eax, [edi+PCB_PRIO]
+    call proc_eff_prio          ; eax = priority, raised if aged (2.0.2)
     cmp eax, ebx
     jle .nmax
     mov ebx, eax
@@ -364,7 +441,7 @@ proc_switch:
     add edi, PCB_SIZE
     loop .findmax
     cmp ebx, -1
-    je proc_panic
+    je .stuck
     mov edi, esi
     mov ecx, PROC_MAX
 .scan:
@@ -377,32 +454,144 @@ proc_switch:
     je .none
     cmp dword [edi+PCB_STATE], P_READY
     jne .next
-    cmp [edi+PCB_PRIO], ebx
+    call proc_eff_prio
+    cmp eax, ebx
     je .go
 .next:
     loop .scan
 .none:
     cmp dword [esi+PCB_STATE], P_RUNNING
-    jne proc_panic
+    jne .stuck
+    mov dword [esi+PCB_UFRAME], 0   ; it goes on here
     popad
     popfd
     stc
     ret
+.stuck:
+    ; nothing to run here. Threads on application processors come back
+    ; (as READY) when they enter the kernel: wait for them (2.8).
+    ; Without any, this is a deadlock.
+    call proc_any_aprun
+    jc proc_panic
+    sti
+    hlt
+    cli
+    jmp .again
 .go:
+    ; claim the arriving one: an application processor may take a READY
+    ; thread at the same time (2.8)
+    mov eax, P_READY
+    mov edx, P_RUNNING
+    lock cmpxchg [edi+PCB_STATE], edx
+    jne .again
+    mov dword [edi+PCB_UFRAME], 0
+    ; the leaving one becomes READY only once nothing here uses its stack
+    ; any more (below), since an application processor may then resume it
+    mov dword [sched_leave], 0
     cmp dword [esi+PCB_STATE], P_RUNNING
     jne .keep
-    mov dword [esi+PCB_STATE], P_READY
+    mov dword [sched_leave], P_READY
 .keep:
+    mov [sched_leaving], esi
     call proc_fpu_swap
     mov [esi+PCB_ESP], esp
-    mov dword [edi+PCB_STATE], P_RUNNING
+    xchg esi, edi
+    call proc_stamp             ; the one leaving starts waiting now
+    xchg esi, edi
+    call proc_stamp             ; the one arriving has had its turn
     mov dword [sched_left], SLICE_TICKS     ; a full slice for the next one
     mov [proc_cur], edi
     call vm_load
+    call proc_set_esp0
+    call tls_switch             ; its FS/GS base (P.5)
     mov esp, [edi+PCB_ESP]
+    mov eax, [sched_leave]
+    test eax, eax
+    jz .stays
+    mov esi, [sched_leaving]
+    mov [esi+PCB_STATE], eax
+.stays:
     popad
     popfd
     clc
+    ret
+
+; -> CF unless some thread is running on an application processor
+proc_any_aprun:
+    push edi
+    push ecx
+    mov edi, proc_table
+    mov ecx, PROC_MAX
+.l:
+    cmp dword [edi+PCB_STATE], P_APRUN
+    je .yes
+    add edi, PCB_SIZE
+    loop .l
+    pop ecx
+    pop edi
+    stc
+    ret
+.yes:
+    pop ecx
+    pop edi
+    clc
+    ret
+
+; edi = PCB: TSS.ESP0 = the top of its kernel stack, where ring-3 code
+; enters the kernel (2.4). Also keeps the 64-bit TSS RSP0 in sync while
+; a permanent long-mode stay is active (2.9). Clobbers eax.
+proc_set_esp0:
+    mov eax, edi
+    sub eax, proc_table
+    jz .shell
+    shr eax, 6                  ; / PCB_SIZE: the slot
+    imul eax, PROC_STACK_SIZE
+    add eax, PROC_STACK_BASE
+    mov [tss_main+TSS_ESP0], eax
+    jmp lm_sync_rsp0
+.shell:
+    mov dword [tss_main+TSS_ESP0], SHELL_STACK
+    jmp lm_sync_rsp0
+
+; Priority aging (2.0.2). Each slot keeps the tick at which it last got
+; or gave up the CPU (proc_since). A READY process that has waited
+; AGE_TICKS since then counts as PRIO_AGED, above every real priority,
+; so it runs for one slice even while higher priorities stay busy; the
+; switch restamps it, so it then waits again. A priority-0 process
+; therefore gets at least one slice every AGE_TICKS and cannot starve.
+
+; edi = PCB -> eax = the priority the scheduler compares
+proc_eff_prio:
+    mov eax, [edi+PCB_PRIO]
+    cmp dword [edi+PCB_STATE], P_READY
+    jne .r
+    push ebx
+    push edx
+    mov ebx, edi
+    sub ebx, proc_table
+    shr ebx, 6                  ; / PCB_SIZE
+    mov edx, [ticks]
+    sub edx, [proc_since+ebx*4]
+    cmp edx, AGE_TICKS
+    jb .young
+    mov eax, PRIO_AGED
+.young:
+    pop edx
+    pop ebx
+.r:
+    ret
+
+; edi = PCB: its slot's wait starts at the current tick
+proc_stamp:
+    push eax
+    push ebx
+    mov ebx, edi
+    sub ebx, proc_table
+    shr ebx, 6
+    mov eax, [ticks]
+    mov [proc_since+ebx*4], eax
+    pop ebx
+    pop eax
     ret
 
 ; esi = outgoing PCB, edi = incoming: gives each process its own x87
@@ -434,6 +623,10 @@ proc_fpu_area:
 ; slice: the same priority switch as a yield. If nothing else at its
 ; priority is READY the program keeps the CPU for another slice.
 proc_preempt:
+    push eax
+    mov eax, [proc_cur]         ; its kernel stack now only returns to ring 3:
+    mov dword [eax+PCB_UFRAME], 1   ; an application processor may resume it (2.8)
+    pop eax
     mov dword [sched_left], SLICE_TICKS
     inc dword [sched_preempts]
     jmp proc_switch
@@ -442,8 +635,10 @@ proc_preempt:
 proc_idle:
     call proc_switch
     jnc .ran
+    mov byte [proc_idling], 1   ; the ticks till the next interrupt are idle (A.5)
     sti
     hlt
+    mov byte [proc_idling], 0
 .ran:
     ret
 
@@ -640,6 +835,11 @@ kbd_getscan:
     ret
 
 proc_table times PROC_MAX*PCB_SIZE db 0
+proc_ext times PROC_MAX*PCB_SIZE db 0   ; PCB extension (2.8, PCBX)
+sched_leave dd 0                ; proc_switch: the leaving one's new state, or 0 (2.8)
+sched_leaving dd 0
+proc_cr2 times PROC_MAX dd 0    ; CR2 of a fault an application processor handed over (2.8)
+proc_since times PROC_MAX dd 0  ; tick of the last switch in or out (2.0.2)
 proc_fpu times PROC_MAX*FPU_SAVE db 0     ; fnsave areas, one per slot (1.0.1)
 proc_cur dd 0
 kbd_wait_hook dd 0              ; called (if set) while kbd_getscan waits
@@ -648,12 +848,14 @@ sched_preempts dd 0             ; switches made by the timer
 proc_next_pid dd 0
 pt_pids times 3 dd 0
 
-state_names dd st_free, st_ready, st_running, st_waiting, st_zombie
+state_names dd st_free, st_ready, st_running, st_waiting, st_zombie, st_aprun, st_stopped
+st_aprun db 'running (AP)', 0
 st_free db 'free', 0
 st_ready db 'ready', 0
 st_running db 'running', 0
 st_waiting db 'waiting', 0
 st_zombie db 'zombie', 0
+st_stopped db 'stopped', 0
 ps_header db 'PID      STATE    NAME              MEMORY', 10, 0
 ps_none db '-', 0
 proc_shell_name db 'shell', 0

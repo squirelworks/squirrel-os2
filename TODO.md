@@ -6,6 +6,8 @@ summaries are in [ROADMAP.md](ROADMAP.md). History is in
 
 ## How to take a task
 
+**Hand-off (2026-11-14; ownership 2026-11-15):** the open boxes below are left for Cursor / Codex. [HANDOFF.md](HANDOFF.md) has a card per open item (files, acceptance, test), the order, and **Agent ownership** (`*-b55f` = 2.9 long-mode; `*-2eaf` = desktop/Warp). *(in progress)* items have a branch already — finish or rebase; do not redo.
+
 - Work top to bottom. A task lower on this list waits until the open tasks above it are on `main`, except where a task says it is independent.
 - One task, one PR. Branch from current `main`. Do not stack a PR on another feature branch.
 - Original code only. Update the design note in the same PR. If the version moves, add `documentation/releases/X.Y.Z.md` and the row in `documentation/releases/PROCESS.md`.
@@ -27,7 +29,7 @@ A new defect that contradicts `documentation/specifications.md` or a milestone g
 Added after the roadmap was written, from the question "has it been run in a VM?". Release note: `documentation/releases/0.9.3.md`.
 
 - [x] **0.9.3-floppy** — Boot from a 1.44 MB floppy image (CHS fallback in the boot sector; KB-11, KB-12). Checks `floppy-boot`, `floppy-data`, `floppy-e820`.
-- [x] **0.9.3-cpu** — Say "needs a Pentium-class CPU" and halt instead of crashing (KB-13). Checks `cpu-nopse`, `cpu-nofpu`.
+- [x] **0.9.3-cpu** — Say "needs a Pentium-class CPU" and halt instead of crashing (KB-13). Checks `cpu-nopae`, `cpu-nofpu`.
 - [x] **0.9.3-calc-hist** — `calc` history at `/calc.hist` (KB-15). Check `calc-hist-root`.
 - [x] **0.9.3-planned** — Banner lists `graph`, `diff`, `topo` as planned. Check `ver-planned`.
 - [x] **0.9.3-build** — `tools/build.sh`, `tools/run.sh`, `tools/bochs_smoke.sh`, and `documentation/guides/getting-started.md` (QEMU, Bochs, VirtualBox).
@@ -263,6 +265,154 @@ The owner asked for the remaining Warp-table holes after 1.9.8, as patch release
 - [x] **W.3-ifconfig** — `ifconfig` shows and sets inet / mask / gw; IPv4 routing uses the mask. Defaults stay QEMU's.
 - [x] **W.4-devreg** — `SYS_DEVREG` registers a null char device at run time. `run drvtest` → `drv: PASS`; `devices` lists it.
 
+## 2.0.x — Clean up 2.0
+
+From the 2.0.0 → 4.x plan in `ROADMAP.md` (imported 2026-11-04). These are the follow-ups left by 1.9.10–1.9.12. Each box is one PR; 2.0.1 is the boxes marked 2.0.1, and the version moves to 2.0.1 with the first of them. Work top to bottom.
+
+- [x] **2.0.1-irq12** — An interrupt-driven PS/2 mouse driver on IRQ 12 instead of polling. Mouse bytes are drained everywhere, so they never reach the keyboard path in the text shell.
+  **Acceptance:** `mousetest` still prints `mouse: PASS`; mouse packets sent while the text shell is up do not show up as typed characters. Done in 2.0.1 (`mouse_isr`, KB-18); checks `mousetest`, `mouse-still`, `mouse-shell`, `mouse-calc`.
+- [x] **2.0.1-saveunder** — A save-under for the soft cursor: the pixels under it are kept and put back when it moves, so it leaves no trail.
+  **Acceptance:** a check moves the pointer over the desktop and reads the old position back as the original pixels. Done in 2.0.1 (`ptr_show` / `ptr_hide`); checks `ptrtest`, `ptr-trail`.
+- [x] **2.0.1-sign** — PS/2 X/Y sign and overflow bits handled, so moves to the left and up work and overflowed packets are dropped.
+  **Acceptance:** `mousetest` decodes fixed packets for each sign case and an overflow case. Done in 2.0.1 (`mouse_decode`); check `mouse-decode`.
+- [x] **2.0.2-scroll** — A click in a scrolled list picks the row under the pointer, not the row at that position before scrolling.
+  **Acceptance:** a check scrolls a list, clicks, and reads the selected entry. Done in 2.0.2: lists scroll (`WG_TOP`, `WG_ROWS`; before, a list that did not fit was not drawn), and `wg_list_item` maps a clicked row to its item; `dk_mouse` uses it. Check `scrolltest`.
+- [x] **2.0.2-aging** — Priority aging: a READY process that has waited long enough is run even if higher priorities stay busy.
+  **Acceptance:** `run priotest` still passes, and a priority-0 spinner makes progress beside a priority-3 spinner. Done in 2.0.2 (`AGE_TICKS`, `proc_eff_prio`); checks `prio`, `age`.
+- [x] **2.0.2-devunreg** — `SYS_DEVUNREG` frees a slot `SYS_DEVREG` took.
+  **Acceptance:** `run drvtest` passes twice in one boot, and `devices` no longer lists the device afterwards. Done in 2.0.2 (`SYS_DEVUNREG` = 34); checks `drv-devices`, `drv-again`.
+- [x] **2.0.2-subnet** — `ifconfig` refuses a gateway that is not on the interface's subnet.
+  **Acceptance:** `ifconfig gw` with an off-subnet address prints an error and leaves the old gateway. Done in 2.0.2; checks `ifconfig-offnet`, `ifconfig-offnet-keep`, `ifconfig-offnet-la`.
+
+## 2.1 — Framebuffer graphics
+
+From the 2.1 milestone in `ROADMAP.md` and epic #114. Resumed 2026-11-07 after the post-2.0.2 pause. Work top to bottom; each box is one PR. Mode 13h stays as the fallback throughout. Design notes go in `documentation/kernel/graphics.md` (and `documentation/apps/desktop.md` / `documentation/kernel/windows.md` when the desktop or window manager learns a new mode). Tick the matching line in the progress issue #132 when the last 2.1 box merges and 2.1 is released.
+
+- [x] **2.1-vbe-mode** — Enter one VBE linear-framebuffer mode (640×480×32 bpp) from protected mode (Bochs/QEMU DISPI on the standard VGA, or a VBE BIOS), map the linear framebuffer so put/get pixel reach it, and return to text mode. When VBE is not there, fall back to mode 13h. A shell command `vbetest` prints `vbe: PASS` only after writing and reading back a pixel in the VBE mode (or `vbe: 13h` when it fell back and the 13h read-back worked). Existing `gfxtest` / desktop checks still pass.
+- [x] **2.1-modes** — The other modes: 640×480, 800×600 and 1024×768 at 8, 16 and 32 bpp. `vbetest` walks them (or takes a mode); each succeeds with a pixel read-back. Mode 13h remains the fallback when a mode is refused.
+- [x] **2.1-dblbuf** — Double buffering: draw to a back buffer, then flip (or blit) to the visible framebuffer. A self-check draws off-screen, confirms the front is unchanged, flips, and reads the new pixels.
+- [x] **2.1-dirty** — Dirty rectangles: mark regions that changed and only copy those on flip. A check dirties two rects, flips, and confirms pixels outside them are untouched on the front buffer while the dirty ones match.
+- [x] **2.1-blit-clip** — A blitter (copy rect) and clip regions: draws and blits are clipped to a rectangle; a check reads ink inside the clip and background outside it.
+
+## 2.4 — Ring 3 and protection
+
+From the 2.4 milestone in `ROADMAP.md`. Worked by the OS2-K stream; each box is a branch the condenser folds into a PR. Design notes go in `documentation/kernel/kernel-image.md` and `documentation/kernel/ring3.md`.
+
+- [x] **2.4-khigh** — Room to grow: the kernel gets a high image above 1 MB that `stage2` loads after the 96 KB low image, from hard disk, floppy and CD; the page allocator starts above it and `install copy` writes it. Checks `floppy-khigh`, `cd-khigh`, `khigh-missing`, `khigh-mem`, and the existing boot/installer checks.
+- [x] **2.4-user** — Loaded programs and their threads run in ring 3 with their own page tables; kernel pages are supervisor-only, the TSS gives each slot its kernel stack, and privileged instructions or kernel memory end only that program. Check `ring3`, `ring3-after`.
+- [x] **2.4-ustack** — Growing ring-3 stacks: a 512 KB window per thread, mapped page by page on first touch, with a guard page reported as a stack overflow. Checks `ring3` (64 KB of stack), `stackover`.
+- [x] **2.4-uptr** — The syscall gate checks every pointer a ring-3 caller passes (strings, buffers, blocks) against the program's own memory and refuses the rest with -1; `SYS_PALLOC`/`SYS_PFREE` are kernel-only. Check `ring3`.
+
+## 2.2 — Real windows
+
+From the 2.2 milestone in `ROADMAP.md` and epic #114. Start after the last 2.1 box is on `main`. Work top to bottom; each box is one PR-sized step (the condenser may group neighbouring boxes into one PR). Kernel code waits for the 96 KB kernel limit to be lifted (stream OS2-K); until then only small kernel additions. Design notes go in `documentation/kernel/windows.md` (the API is published there first), `documentation/kernel/widgets.md` and `documentation/kernel/graphics.md`. Mode 13h stays the fallback when VBE is not there. Every box keeps the 1.4–2.1 checks (`wintest`, `winmove`, `winfocus`, `desktop`, `dk-*`) passing.
+
+- [x] **2.2-api** — Publish the 2.2 window, event and drawing API in `documentation/kernel/windows.md` before the code (docs only). Reading check: every routine and syscall the later 2.2 boxes add is listed with its registers.
+- [x] **W.1-theme** — Warp 4 theme constants in one place (`kernel/theme.inc`: palette indices, frame and bevel widths, title bar heights and colours, desktop colour) and `gfx_bevel` (raised / sunken box, light top-left, dark bottom-right). `wm.asm`, `widget.asm` and `desktop.asm` take their colours and sizes from it, with no literal colours left. A self-check `bevtest` reads back the light, face and dark pixels of a raised and a sunken bevel and prints `bevel: PASS`.
+- [x] **2.2-vbe-wm** — The window manager and desktop draw on a VBE screen (640×480 at 8 bpp, palette indices from the theme); mode 13h when VBE is refused. Mouse coordinates follow the mode. `winvbe` draws a window in the VBE mode and reads back frame and title pixels from the front buffer → `winvbe: PASS`.
+- [x] **2.2-clip-z** — Windows may be partly off-screen, and each window is drawn clipped to its own rectangle minus the windows above it (2.1 clip regions), so a redraw after a move repaints only what was uncovered. Drawing moves to the VBE back buffer and only dirty rectangles are flipped (2.1-dblbuf, 2.1-dirty). Up to 16 windows (`WM_MAX`). `winclip` moves a top window off a lower one and checks the uncovered pixels show the lower window while pixels outside the old rectangle were not rewritten → `winclip: PASS`.
+- [x] **2.2-frame** — Warp-style frame: sizing border, title bar with the system-menu box on the left and minimise / maximise / close boxes on the right. `wm_hit` (x, y → window id and part: client, title, border edge or corner, sysmenu, min, max, close). `winhit` probes each part of a window and of two overlapping windows → `winhit: PASS`.
+- [x] **2.2-mouse** — Mouse window management: a click raises and focuses the window under the pointer (z-order by mouse), dragging the title moves it, dragging a border or corner resizes it (minimum size kept), the boxes minimise, maximise / restore and close. A scripted mouse-event injector (`wm_inject`, also used by the checks) drives `windrag` (move, resize, raise, close, and the window list printed afterwards) → `windrag: PASS`.
+- [x] **2.2-minmax** — Minimised windows become icons along the bottom of the desktop (double-click restores); maximise fills the screen and remembers the old rectangle. `winmin` checks the list states and rectangles → `winmin: PASS`.
+- [x] **2.2-sysmenu** — System menu (Restore, Move, Size, Minimise, Maximise, Close) from the sysmenu box or Alt+Space, with keyboard move and size (arrows, Enter, Esc). A menu is a reusable pop-up (`wg_menu`) other programs can use. `winmenu` → `winmenu: PASS`.
+- [x] **2.2-alttab** — Alt+Tab shows a switcher with the window titles and raises the chosen window on release; Alt+Esc sends the top window to the bottom. `winalttab` checks the focus order → `alttab: PASS`.
+- [x] **2.2-propfont** — Original proportional bitmap fonts: a 9-pixel and a 12-pixel face drawn from `tools/fontp*.txt` by `tools/mkfont.py` (width table plus bitmaps), `gfx_drawstr_p` and `gfx_strwidth_p`. Title bars, menus and widgets use the proportional face; the 5×7 font stays for consoles and the regress screen reader. `qemu_screen.py` learns to read the proportional face. `pfont` reads back ink and spacing pixels and checks string widths → `pfont: PASS`.
+- [x] **2.2-progwin** — Programs open windows: syscalls to create, close, move, set the title, draw (fill, line, text, blit) in the client area, and receive window events (`MSG_WIN*`: key, mouse, close, resize, redraw) through the message queue. A test program in `programs/` opens a window, draws, gets a scripted click and a close → `progwin: PASS`. `documentation/kernel/syscalls.md` lists the calls.
+
+## 2.3 — Program Manager / Warp 3 desktop
+
+From the 2.3 milestone in `ROADMAP.md`. Start after **2.2-progwin** is on `main`. Design notes in `documentation/apps/desktop.md` and new pages under `documentation/apps/`.
+
+- [x] **2.3-icons** — An original 32×32, 16-colour icon format, `tools/mkicon.py` (text art → icon file), `gfx_drawicon` with a transparent colour, and original icons for the built-in programs, folders and files. `icontest` reads back pixels → `icon: PASS`.
+- [x] **2.3-groups** — Program Manager: the desktop shows `/desktop` folders as group windows full of icons with captions; double-click (or Enter) launches, drag moves an icon (saved), groups open, close and arrange. The 1.9 object model (`Program`, `Folder`) stays underneath. Checks for launch, move-and-reboot, and arrange (`pm-*`).
+- [x] **2.3-filemgr** — Two-pane File Manager: directory tree left, file list right, copy / move / delete / rename / make directory by menu, keys and drag between panes. Checks on a data disk of their own (`fm-*`).
+- [x] **2.3-clipboard** — Clipboard: kernel text clipboard with syscalls to put and get, Ctrl+Ins / Shift+Ins / Shift+Del (and Ctrl+C / Ctrl+V) in field widgets and the editors, and a Clipboard viewer program. `cbtest` (2.1 already has a `cliptest`) copies from a field and pastes into another → `clip: PASS`; checks `cbtest`, `ed-clip-*`, `clip-*`.
+- [x] **2.3-control** — Control Panel v1: colours (theme scheme from **W.1-theme**), mouse (double-click time, button swap, speed), date and time (reads and sets the RTC), keyboard (repeat rate and delay). Settings saved in `/desktop/control.cfg` and applied at boot. Checks that a change survives a reboot (`cp-*`).
+- [x] **2.3-bevel-default** — Warp-style bevelled 3D controls are the default for every widget (buttons press in, fields and lists are sunken, group boxes etched), all through `gfx_bevel` and `theme.inc`. Pixel-probe check `bevwidgets` → `bevwidgets: PASS`.
+- [x] **2.3.0** — The release. Every 2.2 and 2.3 box above is on `main`: release note `documentation/releases/2.3.0.md`, banner `2.3.0`, PROCESS table, README, HANDOFF. Prep merged as #173; **notes retargeted for tip cut**; **tag still `needs: squirrel`** after remaining gate PR #205 lands (~~#184~~ / ~~#197~~ / ~~#204~~ already on `main`; see HANDOFF **Release coordination** and `documentation/releases/TO_3.0.0.md`). **Ask the owner before tagging.**
+
+## 2.5 — WarpCenter / LaunchPad (includes W.3)
+
+From the 2.5 milestone in `ROADMAP.md` and W.3 in epic #117. Start after **2.3-bevel-default** is on `main`. W.3 belongs with these boxes (one sizeable PR may group neighbouring ones). Design notes in `documentation/apps/desktop.md`. Every box keeps the 2.2–2.3 checks (`wintest`, `pm-*`, `fm-*`, `cp-*`, `bevwidgets`) passing.
+
+- [x] **2.5-bar** — A WarpCenter-style bar along the top of the screen (the default; a taskbar layout is a Control Panel / settings choice), with the desktop and program windows laid out below it. Pixel probe of the bar face and bevel → `wc-bar: PASS`.
+- [x] **2.5-menu** — A Squirrel menu from the bar that lists programs (and folders) and launches the chosen one into a real window. Scripted open of `calc` (or another built-in) → `wc-menu: PASS`.
+- [x] **2.5-clock** — A tray clock on the bar that shows the RTC time and ticks (a pixel or glyph probe sees the display change across a second, or after a scripted RTC step). Check `wc-clock` → `wc-clock: PASS`.
+- [x] **W.3-launchpad** — LaunchPad pads on the WarpCenter (shared top chrome; pads alone when WarpCenter is off; lane `-2eaf`): drop a program onto a pad, click the pad to launch; pads persist across reboot in `/desktop/launchpad.cfg`. Check `wclp` → `wclp: PASS`.
+
+## 2.6 — Workplace Shell desktop (includes W.2, W.4, W.5)
+
+From the 2.6 milestone in `ROADMAP.md` and W.2 / W.4 / W.5 in epic #117. Start after **2.5-bar** is on `main` (the bar reserves the top strip). W.2, W.4 and W.5 belong with these boxes. Design notes in `documentation/apps/desktop.md` and `documentation/kernel/widgets.md` (notebook tabs). Drive and shredder object classes already exist (**2.7-objects**); this section is the Generation-2 GUI over the object desktop.
+
+- [x] **2.6-icons** *(lane `-2eaf`)* — Desktop objects drawn with 32×32 icons and captions on the desktop surface (not only as Program Manager list rows); existing `mkicon` icons for programs, folders and files. Pixel probe of an icon glyph → `dk-icons: PASS`.
+- [x] **2.6-drag** *(lane `-2eaf`)* — Mouse drag and drop between folders and onto programs: dropping a file on a program opens that program with the file; moves persist across reboot (object files under `/desktop`). Check `dk-drag` → `dk-drag: PASS`.
+- [x] **2.6-context** — Right-button context menu on a desktop object (Open, Settings, Delete, and the usual arrange items), built on `wg_menu`. Check `dk-ctx` → `dk-ctx: PASS`.
+- [x] **2.6-notebook** — A Warp-style settings notebook widget with tabs (`wg_notebook` in `widget.asm`): tab strip, page body, switching pages by click. Self-check reads tab and page pixels → `nbtest: PASS`.
+- [x] **2.6-shadows** — Shadow (shortcut) objects that point at an original; renaming or moving the original updates the shadow's target, and the link survives a reboot. Check `dk-shadow` → `dk-shadow: PASS`.
+- [x] **W.2-templates** — Workplace Shell object model in the GUI: every desktop object opens a settings notebook (**2.6-notebook**); a Templates folder; dragging a template onto the desktop (or into a folder) creates a new object of that class. Check `wps-tmpl` → `wps: PASS`.
+- [x] **W.4-views** — Folder views: Icon, Tree and Details (switchable per folder window). Check `fold-views` → `foldview: PASS`.
+- [x] **W.5-openas** — Context menu "Open as → Icon / Tree / Details / Settings" on a folder (and Settings on any object), using **2.6-context**, **W.4-views** and **2.6-notebook**. Check `openas` → `openas: PASS`.
+
+## W.6 — System objects (needs 2.6 + 2.7-objects)
+
+From W.6 in `ROADMAP.md` / epic #117. Start after **2.6-icons** and **2.6-context** are on `main`. Drive and Shredder object classes are already on `main` (**2.7-objects** in `kernel/fsobj.asm`); these boxes put Startup and System Setup beside them on the Generation-2 desktop and wire all four through icons, context menus and notebooks.
+
+- [ ] **W.6-startup** *(claimed lane `-2eaf`; #209; start after 2.6 icons/shadows on `main`)* — A Startup folder: objects (or shadows) placed in it are opened when the desktop starts; removing one stops that. Check `w6-startup` → `startup: PASS`.
+- [ ] **W.6-syssetup** *(claimed lane `-2eaf`; #210; start after 2.6 icons/shadows on `main`)* — A System Setup object that opens the system setup folder / Control Panel entry points; together with Drive and Shredder icons on the desktop, right-click and Settings notebook work like any other object. Check `w6-setup` → `syssetup: PASS`.
+
+## Path to 3.0.0 (version marks)
+
+Fine-grain ladder, owners, acceptance, depends-on:
+[`documentation/releases/TO_3.0.0.md`](documentation/releases/TO_3.0.0.md).
+Index also in `ROADMAP.md`. Tick the matching mark when that cut’s last PR lands
+(and for ship tags, when the owner publishes).
+
+- [ ] **M0 / 2.3.0 tip** *(owner after gate PRs)* — ~~#184~~ + ~~#197~~ + ~~#204~~ on `main`; land #205; retargeted `2.3.0.md`; owner tags `v2.3.0`
+- [ ] **M1 / 2.3.1** *(`-2eaf`, #209)* — `W.6-startup-2eaf` → `startup: PASS`
+- [ ] **M2 / 2.3.2** *(`-b55f`, #211)* — ring-3 programs under permanent stay (after #204)
+- [ ] **M3 / 2.3.25** *(`-2eaf`, #210)* — `W.6-syssetup-2eaf` → `syssetup: PASS`
+- [ ] **M4 / 2.6.0** *(shared / owner)* — Generation 2 declared complete; banner `2.6.0`
+- [ ] **M6 / 2.9.0** *(`-b55f`)* — tick `2.9-lm-kernel` (stay + boot64 + ring-3 stay + x86_64 flavour)
+- [ ] **M7 / 2.9.1** *(`-b55f`)* — `2.9-syscall64` / `hello64`
+- [ ] **M8 / 2.9.25** *(`-b55f` / shared, #212)* — freestanding C objects in `tools/build.sh`
+- [ ] **M10–M15 / 2.9.2–2.9.7** — `3.0-users` … `3.0-themes` (#213–#218; boxes below)
+- [ ] **M16 / 3.0.0** *(owner)* — ship tag when M7 + remainder boxes are done
+
+## Later milestones
+
+The milestones after Generation 2 (3.0 remainder boxes below, 3.x / 4.x GUI, remaining foreign programs P.3 / P.4 / P.7 / P.11 / P.12, and any further Warp polish) are in `ROADMAP.md`, `TO_3.0.0.md`, and the epics #114–#119. **2.5**, **2.6** and **W.2–W.6** are split in the sections above.
+
+## P — Foreign programs, first steps
+
+From P.1–P.12 in `ROADMAP.md` and epic #118 (stream OS2-FOREIGN). Each box ships with a hand-written test program in `programs/` and a regression check. Design: `documentation/architecture/foreign-compatibility.md`.
+
+- [x] **P.1-linux-elf** — Linux i386 static ELF32 (`EI_OSABI` 3): Linux initial stack, `int 0x80` personality with `write` and `exit`/`exit_group`, `-ENOSYS` for the rest.
+  **Acceptance:** `run lxhello` prints `lxhello: PASS` and its argc/argv; a native program run afterwards in the same slot still uses native calls. Checks `lx-hello`, `lx-argv`, `lx-then-native`.
+- [x] **P.2-linux-files** — Linux `read`, `open`, `close`, `lseek`, `brk`, anonymous `mmap`/`mmap2`, `munmap`, `getpid`, with `-errno` results.
+  **Acceptance:** `run lxfile` prints `lxfile: PASS`; `echo acorns | run lxcat` prints `lx: acorns`. Checks `lx-file`, `lx-pipe`.
+- [x] **P.2-linux-more** — `writev`/`readv`, `ioctl` (isatty), `uname`, `stat64`/`fstat64`, `openat`, `_llseek`, `access`, `rename`/`unlink`/`mkdir`/`rmdir`, `getcwd`, time calls, uid calls, signal-mask stubs, `set_thread_area` on a per-process TLS segment.
+  **Acceptance:** `run lxsys` prints `lxsys: PASS` (and reads a value through GS). Checks `lx-sys`, `lx-uname`.
+- [x] **P.5-win32-console** — Win32 PE32 console programs: `winrun` (PE loader with relocations and import binding, KERNEL32 shim), and the kernel loader hands `MZ` files to it.
+  **Acceptance:** `run winhello` prints `winhello: PASS`; an import without a shim is named when called. Checks `win-hello`, `win-cmdline`, `win-missing`, `win-notpe`.
+- [x] **P.5-win32-crt** — The TEB through FS (`SYS_SETTLS`, per-process TLS segment) and an msvcrt subset (start-up, stdio and printf, strings, memory, atexit/exit) plus the KERNEL32 start-up calls, so MinGW-built console programs run.
+  **Acceptance:** `run wincrt acorn` prints `crt: -5 acorn 00ab x  |` and `wincrt: PASS`. Checks `win-crt`, `win-printf`.
+- [x] **P.8-dos-design** — DOS `.COM` personality design (V86 monitor, `INT 21h` subset, memory map, tests) in `documentation/architecture/dos-personality.md`. Building it waits for 2.4.
+- [x] **P.2-linux-signals** — Linux signals: `rt_sigaction`, `rt_sigprocmask`, `rt_sigpending`, `kill`/`tkill`/`tgkill`, delivery on the way back to ring 3 with an i386 signal frame, `sigreturn`/`rt_sigreturn`, default actions, `pause`, `getppid`.
+  **Acceptance:** `run lxsig` prints `lxsig: PASS` and then `Program ended by signal 15`, never `lxsig: still here`. Checks `lx-sig`, `lx-sig-term`, `lx-sig-after`.
+- [x] **P.10-freebsd** — FreeBSD i386 static ELF32 (`EI_OSABI` 9): a call table over the Linux handlers with FreeBSD numbers, stack arguments and CF + errno results.
+  **Acceptance:** `run bsdhello` prints `Hello from FreeBSD land!` and `bsdhello: PASS`. Checks `bsd-hello`, `bsd-after`.
+- [x] **P.9-os2-text** — OS/2 32-bit text-mode programs: `os2run` (LX loader with fixups, TIB/PIB, DOSCALLS shims by ordinal), and the kernel loader hands `MZ`+`LX` files to it.
+  **Acceptance:** `run os2hello acorns` prints `Hello from OS/2 land!`, `arguments: acorns` and `os2hello: PASS`; an import without a shim is named when called. Checks `os2-hello`, `os2-missing`, `os2-notlx`, `os2-after`.
+
+- [x] **P.6-win32-gui** — USER32/GDI32 subset over `SYS_GUI` for GUI-subsystem PE32 programs (`programs/wingui.inc`, test `winwnd`).
+
+- [x] **P.6-registry** — ADVAPI32 registry emulation over `registry.dat` (`programs/winreg.inc`, test `winreg`).
+
+- [x] **P.6-dll-loader** — An original DLL loader in `winrun`: DLLs from the disk, export binding by name and ordinal, forwarders, DllMain, LoadLibrary/GetProcAddress (test `windll` with `acorn.dll`).
+
+- [x] **P.6-win32-windows** — Win32 top-level windows as real desktop windows (`SYS_WIN*`); close box → `WM_CLOSE`.
+  **Acceptance:** `run winwnd` shows `Acorn window` in the window list; `q` then a click on the close box prints `winwnd: PASS` and ends; `progwin` still passes. Checks `win-gui`, `win-gui-close`, `win-gui-after`, `progwin`.
+
 ## Installer (unscheduled)
 
 The author lifted the old gate ("not before the 1.5 and 1.6 boxes above are closed") on 2026-10-31: these boxes now run alongside the 1.x work, and stay out of the desktop and editor files. Each PR carries the OS version it ships in, like any other release (I.1 and I.2 shipped in 1.7.2). Each box is one PR. Design notes go in `documentation/guides/install.md` with the first box. The target is an IDE/ATA disk in BIOS mode; the regression run uses a blank QEMU disk as the target.
@@ -284,27 +434,87 @@ The author lifted the old gate ("not before the 1.5 and 1.6 boxes above are clos
 
 Kept here so they are not added as tasks by accident. Reasons are in `ROADMAP.md`.
 
-- `topo` before 2.x.
-- Text-mode `graph` ahead of **1.3-graph**.
-- Foreign personalities (F.1 is the first PR of that era, and not before 2.0).
 - Porting the full kernel off x86.
 - virtio-blk, ATA IRQ, a `/dev` directory, loading driver code from disk (1.9.12 registers a null device at run time only).
-- Ring 3 and growing stacks (2.x, per `documentation/kernel/memory.md`).
-- Classic OS/2 binary compatibility.
+- Ring 3 and growing stacks ahead of milestone 2.4.
+- Classic OS/2 binary compatibility, except the optional late P.9 text-mode personality.
+- `topo` (C.9) and foreign personalities (P.1–P.12) are now on the plan in `ROADMAP.md`; they are split into boxes when they come up, not before.
 
-## Modern hardware (unscheduled)
+## P.8 — DOS programs
 
-Not before 2.0.0's prerequisites are on `main` (see `ROADMAP.md`). Each box is one PR, and the BIOS boot path and its regression checks keep passing. QEMU covers each one: OVMF for UEFI, `-device ahci`, `-device nvme`, `-device qemu-xhci` with `usb-kbd` and `usb-storage`.
+From P.8 in `ROADMAP.md` and epic #118 (stream OS2-FOREIGN). Notes: `documentation/architecture/dosrun.md`.
 
-- [ ] **H.1-uefi** — A UEFI loader that reads the memory map, loads the kernel, and enters it with the same handoff as the BIOS path.
+- [x] **P.8-dosrun** — `dosrun`, an 8086/186 interpreter with the `INT 21h`/BIOS subset, runs DOS `.COM` and MZ `.EXE` programs as a user program (V86 waits for the low kernel image to leave the first megabyte).
+  **Acceptance:** `run dosrun doshello.com acorns`, `doscpu.com`, `dosfile.com` and `dosexe.exe` each print their PASS line, and the shell works afterwards. Checks `dos-hello`, `dos-cpu`, `dos-file`, `dos-exe`, `dos-missing`, `dos-after`.
+- [x] **P.8-dos-launch** — `run prog.com` and `run prog.exe` (MZ without PE) go to dosrun without naming it.
+- [x] **P.8-dos-gfx** — VGA mode 13h for DOS programs: `A000` shown through `SYS_GUI`, INT 10h pixels and DAC calls, ports 3C8h/3C9h/3DAh, BIOS teletype in graphics, non-blocking keyboard polls, the BIOS tick count from the real timer.
+  **Acceptance:** `run dosgfx.com` draws and writes `dosgfx: drawn` in graphics (read by `<gfx>`), and after a key prints `dosgfx: PASS` in text. Checks `dos-gfx`, `dos-gfx-after`.
+- [x] **P.8-dos-window** — the DOS screen (text or mode 13h) inside a window of its own (1x/2x, keys while focused). Checks `dos-win`, `dos-win-2x`, `dos-win-text`; existing `dos-*` still pass.
+  **Acceptance:** `run dosgfx.com` draws in a window (scaled 1x/2x); client pixels match the 13h buffer; the desktop around it is untouched; `doswin: PASS`. Checks `dos-win`, `dos-win-2x`, `dos-win-text`; existing `dos-*` still pass.
+
+## 2.7 — Long names, FAT, drive objects (OS2-FS)
+
+Roadmap 2.7 and the FAT/long-name side of A.5's disk utility. The desktop parts (drive and shredder objects) are coordinated with the 2.2/2.3 desktop work.
+
+- [x] **2.7-lfn** — SQFS names up to 63 characters: unique short aliases in the entry, the whole name in continuation entries older kernels ignore, orphans freed at mount. Checks `lfntest`, `lfn-host`, `lfn-kernel`, `lfn-sweep`.
+- [x] **2.7-fat** — FAT12/16/32 read and write on drive letters (`mount`, `umount`, `cp`; disks, partitions, image files), VFAT long names both ways. Checks `fat12-*`, `fat16-*`, `fat32-*`, `fat-*`; images checked afterwards by `tools/fatimg.py check`.
+- [x] **2.7-objects** — Drive objects (one per mounted drive, opening lists it) and a shredder object (a file dropped on it is deleted).
+- [x] **2.7-diskutil** — `diskutil` understands FAT volumes and long names (partition types, format FAT, check a FAT volume). View/check on main as #171; format FAT12/16/32 from the OS (`run diskutil format hd2 N`, `F` in the GUI). Checks `diskutil-fmt12`, `diskutil-fmt16`, `diskutil-fmt32`, `diskutil-fmt-gui`, and host `fatimg.py check` / `fattest` on the result.
+
+## 2.8–2.9 core — 64-bit kernel and SMP (OS2-K)
+
+From the 2.8–2.9 bridge in `ROADMAP.md` (the hardware drivers H.1–H.6 are the next section). Each box is a branch the condenser folds into a PR; the BIOS boot path and every regression check keep passing, and checks that need x86-64 run under `qemu-system-x86_64`. Design notes in `documentation/kernel/long-mode.md` and `documentation/kernel/smp.md`.
+
+- [x] **2.8-lm-entry** — Enter long mode from the 32-bit kernel (4-level identity tables, EFER.LME, 64-bit code segment), run a 64-bit routine and come back. Checks `lm-test`, `lm-again`, `lm-nolm`.
+- [x] **2.8-smp-ap** — Find the CPUs (ACPI MADT), start the application processors (INIT-SIPI-SIPI through a real-mode trampoline) into the kernel's protected mode and paging with a stack and per-CPU data each, and park them. `cpus` lists them; a check under `-smp 4` sees four CPUs online.
+- [x] **2.8-smp-sched** — Per-CPU run queues: the APs run ring-3 threads, the kernel is entered under one lock, IPIs wake idle CPUs. A check runs four spinning threads at once on four CPUs.
+- [x] **2.8-pae** — The 32-bit kernel's paging on PAE (64-bit entries), the format long mode shares; NX on the heap and stacks. Checks `nx-heap`, `nx-stack`, `cpu-pentium3`.
+- [x] **2.9-lm-boot64** *(landed #204 + follow-ups #222, lane `-b55f`)* — Boot-time / `LM_BOOT64` everyday long-mode stay (`lmboot` command, os-lm64.img; nestable `lm64_call32`, everyday IRQ0/1/12 + `int 0x80` gates, `lm_enter_everyday` / `lm_boot_enter`). #222: nest EOI on overflow, nestable thunk CR3 frames, syscall return in eax. Checks `lm-boot`, `lm-boot-again`, `lm-boot64`, `lm-boot64-again`, `lm-boot-nolm`, `lm-boot64-nolm`. Does **not** alone tick `2.9-lm-kernel`.
+- [ ] **2.9-lm-ring3-stay** *(claimed lane `-b55f` — after boot64; mark **2.3.2**; paused until tip cut + Sarah/credits go)* — Ring-3 programs run while permanent stay is active. Check existing `ring3` / desktop suite under stay.
+- [ ] **2.9-lm-kernel** *(IDT stay #189 + paging #193 + stay+thunks #196 + boot64 `lmboot`/`os-lm64.img` #204/#222 on `main`; + ring3-stay — mark **2.9.0**, lane `-b55f` — do not tick until boot stays + ring-3 under stay + x86_64 suite flavour)* — The kernel stays in long mode: 64-bit IDT and TSS (IST for double faults), 4-level per-process address spaces, the 32-bit kernel code reached through compatibility-mode thunks until it is ported, and 32-bit programs in compatibility mode. The whole regression suite passes under `qemu-system-x86_64`.
+- [ ] **2.9-syscall64** *(claimed lane `-b55f` — after 2.9-lm-kernel; mark **2.9.1**; paused until tip cut + Sarah/credits go; also #221)* — 64-bit programs: an ELF64 loader and the `syscall`/`sysret` ABI (STAR/LSTAR, 64-bit call table, pointer checks), with `int 0x80` unchanged for 32-bit programs. A `hello64` check. **Also:** under permanent LM stay, Linux/BSD `int 0x80` currently returns `-ENOSYS` from `lm64_syscall_isr` because `lx_isr` still `iretd`s; teach the personality a returnable body through `lm64_call32` (or native `syscall`) so `lxhello` works on `os-lm64.img`.
+- [ ] **2.9-freestanding-c** *(claimed lane `-b55f` / shared — mark **2.9.25**; #212; CONTINUANCE 3a; paused until tip cut + Sarah/credits go)* — Wire freestanding C objects into `tools/build.sh`; one trivial linked symbol; NASM boot/entry unchanged.
+
+## Modern hardware (2.8–2.9)
+
+Scheduled in the 64-bit bridge, 2.8–2.9 in `ROADMAP.md`. Each box is one PR, and the BIOS boot path and its regression checks keep passing. QEMU covers each one: OVMF for UEFI, `-device ahci`, `-device nvme`, `-device qemu-xhci` with `usb-kbd` and `usb-storage`.
+
+- [x] **H.1-uefi** — A UEFI loader that reads the memory map, loads the kernel, and enters it with the same handoff as the BIOS path.
   **Acceptance:** QEMU with OVMF boots to the shell prompt.
-- [ ] **H.2-gop** — Text console on the UEFI GOP framebuffer (the 1.3 bitmap font), used when VGA text mode is not there.
+- [x] **H.2-gop** — Text console on the UEFI GOP framebuffer (the 1.3 bitmap font), used when VGA text mode is not there.
   **Acceptance:** the UEFI boot prints the banner and a check reads it back from the framebuffer.
-- [ ] **H.3-ahci** — AHCI/SATA disk driver registered as `hd0`/`hd1` like the ATA driver.
+- [x] **H.3-ahci** — AHCI/SATA disk driver registered as `hd0`/`hd1` like the ATA driver.
   **Acceptance:** SQFS mounts and the `persist-*` checks pass on an AHCI disk.
-- [ ] **H.4-nvme** — NVMe disk driver behind the same interface.
+- [x] **H.4-nvme** — NVMe disk driver behind the same interface.
   **Acceptance:** SQFS mounts and a file written before a reboot reads back after it.
-- [ ] **H.5-usb-kbd** — xHCI controller and a USB keyboard feeding the existing `kbd` device.
+- [x] **H.5-usb-kbd** — xHCI controller and a USB keyboard feeding the existing `kbd` device.
   **Acceptance:** the shell takes input from `usb-kbd` with no PS/2 keyboard attached.
-- [ ] **H.6-usb-storage** — USB mass storage, so the system can boot from and read the stick it was written to.
+- [x] **H.6-usb-storage** — USB mass storage, so the system can boot from and read the stick it was written to.
   **Acceptance:** SQFS on a `usb-storage` disk lists its files.
+
+## 3.0 — Networking and sound (OS2-NET-AUDIO)
+
+From the 3.0 line in `ROADMAP.md` (audio, a network settings GUI, DHCP, DNS and an HTTP client). Worked by the OS2-NET-AUDIO stream; each box is a branch the condenser folds into a PR. Design notes go in `documentation/kernel/network.md`, `documentation/kernel/audio.md` and `documentation/apps/network.md` / `documentation/apps/audio.md`.
+
+- [x] **3.0-dhcp** — A DHCP client (`dhcp`): DISCOVER/OFFER/REQUEST/ACK over broadcasts, setting address, mask, gateway, DNS server and lease. Checks `dhcp`, `dhcp-dns`, `dhcp-nonic`.
+- [x] **3.0-dns** — A DNS resolver: A queries, CNAME and compressed names, a cache, `host <name>`, `dns [ip [port]]`, names in `ping` and `fetch`. Checks `host-*`, `ping-name`, `fetch-name`.
+- [x] **3.0-http** — `SYS_NET` for programs and an HTTP/1.1 client (`http.inc`: Content-Length, chunked, redirects) with `run wget`. Checks `wget-*`.
+- [x] **3.0-netcfg** — The network settings program: a window with the four values, DHCP, Apply and Save, and `show`/`dhcp`/`set`/`save`/`load` from the shell. Checks `netcfg-*`.
+- [x] **3.0-ac97** — An AC'97 driver (QEMU `-device AC97`): PCI bus mastering, a buffer descriptor list, PCM out and in, the codec's mixer registers.
+- [x] **3.0-hda** — An Intel HDA driver (QEMU `-device intel-hda -device hda-duplex`): CORB/RIRB, codec widget walk, an output and an input stream.
+- [x] **3.0-mixer** — A mixer: master and PCM volume and mute, read back from the codec, in a window and from the shell.
+- [x] **3.0-media** — A.6 media apps: a WAV player, a sound recorder that saves WAV, and a spectrum analyser.
+
+## 3.0 remainder — accounts, services, themes (path to 3.0.0)
+
+Split from ROADMAP / HANDOFF / `TO_3.0.0.md` M10–M16. Net/audio half above is done.
+Prefer starting after `2.9-lm-kernel` (**2.9.0**) so everyday use is 64-bit-capable;
+UI boxes may prototype earlier if they do not require syscall64.
+
+- [ ] **3.0-users** *(mark **2.9.2**, lane `-b55f` / shared; #213)* — Login screen, `/etc`-style account file, hashed passwords. Check `users` → `users: PASS` (name locked in the PR).
+- [ ] **3.0-perms** *(mark **2.9.3**, lane `-b55f`; #214)* — Owner and mode on SQFS entries, enforced in `fs.asm`. Check `perms` → `perms: PASS`.
+- [ ] **3.0-services** *(mark **2.9.4**, lane `-b55f`; #215)* — Start at boot; restart on crash. Check `services` → `services: PASS`.
+- [ ] **3.0-eventlog** *(mark **2.9.5**, lane `-b55f`; #216)* — Kernel + service log viewed by the existing log viewer. Check `eventlog` → `eventlog: PASS`.
+- [ ] **3.0-taskmgr** *(mark **2.9.6**, lane `-2eaf`; #217)* — End task, priorities, CPU per CPU (SMP). Check `taskmgr` → `taskmgr: PASS`.
+- [ ] **3.0-themes** *(mark **2.9.7**, lane `-2eaf`; #218)* — Warp 4 default, “Classic”, Luna-like via `theme.inc`. Check `themes` → `themes: PASS`.
+- [ ] **3.0.0** *(owner)* — Release note `documentation/releases/3.0.0.md`, banner `3.0.0`, PROCESS row; tag after M7 (`2.9-syscall64`) + the remainder boxes above. **Ask the owner before tagging.**

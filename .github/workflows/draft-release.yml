@@ -1,0 +1,97 @@
+# Builds the release images from one commit and puts them on a GitHub Release.
+#
+# Run it by hand (Actions -> Draft release -> Run workflow). It never runs on
+# its own and never publishes: a new release is created as a DRAFT, and the
+# owner presses "Publish release", which is also when GitHub creates the tag.
+# If the release already exists (published or draft) for the same commit, the
+# images are attached to it instead (replacing files of the same name).
+#
+# See documentation/releases/PROCESS.md, "Release points".
+
+name: Draft release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag, e.g. v2.0.2"
+        required: true
+      target:
+        description: "Commit to build (the release-prep merge commit), full or short SHA"
+        required: true
+      sha256sums:
+        description: "Optional: the staged SHA256SUMS text; the build must match it"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: draft-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag }}
+      TARGET: ${{ inputs.target }}
+      SUMS: ${{ inputs.sha256sums }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Check inputs
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "tag must look like v1.2.3"; exit 1; }
+          [[ "$TARGET" =~ ^[0-9a-f]{7,40}$ ]] || { echo "target must be a commit SHA"; exit 1; }
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check out the target commit
+        run: |
+          git checkout --detach "$TARGET"
+          echo "SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          git merge-base --is-ancestor HEAD origin/main || { echo "target is not on main"; exit 1; }
+
+      - name: Install build tools
+        run: sudo apt-get update -q && sudo apt-get install -y -q nasm
+
+      - name: Build the images
+        run: |
+          tools/build.sh --fresh
+          mkdir out
+          cp build/os.img build/floppy.img build/data.img build/cd.iso out/
+          (cd out && sha256sum os.img floppy.img data.img cd.iso > SHA256SUMS)
+          cat out/SHA256SUMS
+
+      - name: Compare with the staged checksums
+        if: inputs.sha256sums != ''
+        run: |
+          # The form field is one line, so pairs may arrive space-separated.
+          printf '%s\n' "$SUMS" | grep -oE '[0-9a-f]{64} +[^ ]+' | awk '{print $1"  "$2}' | sort -k2 > expected
+          [ -s expected ] || { echo "no checksums found in the sha256sums input"; exit 1; }
+          sort -k2 out/SHA256SUMS > built
+          diff -u expected built || { echo "the build does not match the staged SHA256SUMS"; exit 1; }
+
+      - name: Create the draft, or attach to the existing release
+        run: |
+          ver="${TAG#v}"
+          notes="documentation/releases/$ver.md"
+          [ -f "$notes" ] || { echo "missing $notes"; exit 1; }
+          title="Squirrel-OS/2 $(head -n 1 "$notes" | sed -E 's/^#+ *//')"
+          files="out/os.img out/floppy.img out/data.img out/cd.iso out/SHA256SUMS"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            if commit=$(git rev-parse -q --verify "refs/tags/$TAG^{commit}"); then
+              [ "$commit" = "$SHA" ] || { echo "$TAG points at $commit, not $SHA"; exit 1; }
+            fi
+            gh release upload "$TAG" $files --clobber
+            echo "Attached the images to the existing release $TAG."
+          else
+            gh release create "$TAG" --draft --target "$SHA" \
+              --title "$title" --notes-file "$notes" $files
+            echo "Created a draft release for $TAG on $SHA."
+          fi
+          gh release view "$TAG" --json url --jq .url >> "$GITHUB_STEP_SUMMARY"

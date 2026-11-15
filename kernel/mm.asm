@@ -1,14 +1,15 @@
 ; Squirrel-OS/2 — physical page allocator (0.6.0)
 ; Included from pm.asm. Original code.
 ;
-; Manages 4 KB pages of RAM above 1 MB, as reported by the BIOS memory
+; Manages 4 KB pages of RAM above 2 MB, as reported by the BIOS memory
 ; map (E820, read in real mode by stage2). Free pages form a singly
 ; linked list threaded through the pages themselves; a bitmap marks
 ; pages in use so bad and double frees are refused.
 ; See documentation/kernel/memory.md.
 
 PAGE_SIZE   equ 4096
-MM_START    equ 0x100000            ; first managed address (1 MB)
+MM_START    equ KHIGH_BASE+KHIGH_MAX ; first managed address (2 MB): the high
+                                    ; kernel image owns 1-2 MB (2.4)
 MM_LIMIT    equ 0x10000000          ; manage at most 256 MB
 MM_BITMAP   equ 0x58000             ; 1 bit per page below MM_LIMIT: 8 KB
 E820_BUF    equ 0x1000              ; entries left by stage2 (24 bytes each)
@@ -290,7 +291,7 @@ cmd_memtest_run:
 mm_m_map db 'BIOS memory map:', 10, 0
 mm_m_usable db '  usable', 10, 0
 mm_m_reserved db '  reserved', 10, 0
-mm_m_pages db 'Pages above 1 MB: ', 0
+mm_m_pages db 'Pages above 2 MB: ', 0
 mm_m_kbtotal db ' KB total, ', 0
 mm_m_kbfree db ' KB free', 10, 0
 mm_m_guess db '(no BIOS map: assumed 32 MB)', 10, 0

@@ -18,7 +18,7 @@ usage_put=(adds a line to the file)
 usage_run=(apps: see the list above, or ls)
 fe_error=error
 fe_nofs=No file system mounted (attach a data disk).
-fe_name=Bad name: 1 to 15 characters, not . or ..
+fe_name=Bad name: 1 to 63 characters, not . or ..
 fe_exists=Already exists
 fe_nodir=No such directory
 fe_table=Directory table full (64 entries)
@@ -49,6 +49,7 @@ inst_anykey=Press any key.
 net_noreply=No reply
 net_badaddr=Bad address
 net_of4= of 4
+
 
 # Klingon branch: app, loader and shell texts
 calc_banner=Basic Calculator (Esc to exit)\n
@@ -136,4 +137,12 @@ bat_m_stopped=Batch stopped\n
 desktop_title=Squirrel-OS/2 Desktop
 desktop_heading=Programs:
 desktop_help=Enter: open  Bksp: up  Esc: shell
-commands=Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>\n          mv <f> <new> | mkdir <d> | cd <d> | pwd | echo | batch <f> | format\n          ps | disk | mem | devices | lang <en|la|tlh> | desktop | install\n          objcat\nTests: systest | proctest | blktest | fstest | memtest | keys\n       gfxtest | gfxprim | gfxtext | wintest | winmove | winfocus | nettest\n       labeltest | buttontest | fieldtest | listtest | drawpx | objtest | objs\nApps: files, calc, sci, graph, matrix, diff, edit, vedit, draw   (planned: topo)\n
+commands=Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>\n          mv <f> <new> | mkdir <d> | cd <d> | pwd | echo | batch <f> | format\n          ps | disk | mem | devices | lang <en|la|tlh> | desktop | install\n          objcat | mount [x: <disk|file>] | umount x: | cp <from> <to>\nTests: systest | proctest | blktest | fstest | memtest | keys\n       gfxtest | gfxprim | gfxtext | vbetest | wintest | winmove | winfocus | nettest\n       labeltest | buttontest | fieldtest | listtest | drawpx | objtest | objs\nApps: files, calc, sci, graph, matrix, diff, edit, vedit, draw   (planned: topo)\n
+net_offnet=Gateway is not on that subnet
+net_nodhcp=No DHCP server answered
+net_nohost=Host not found
+fe_nodrive=No such drive (see mount)
+fe_xdev=Cannot move between drives
+wc_btn=Squirrel
+wc_bye=WarpCenter closed.
+lp_bye=LaunchPad closed.

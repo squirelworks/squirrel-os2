@@ -47,7 +47,7 @@ Found while checking release readiness (booting in other configurations and in B
 
 - **KB-11** Booting from a floppy image hung: the boot sector only used extended disk reads, which floppies do not support. Resolved with a CHS fallback.
 - **KB-12** After a floppy boot the BIOS memory map was missing (`no BIOS map: assumed 32 MB`): ES still pointed past the kernel when E820 ran. Resolved: the kernel clears DS/ES first.
-- **KB-13** On a CPU without an FPU or 4 MB pages the kernel crashed silently. Resolved: it now says it needs a Pentium-class CPU and halts.
+- **KB-13** On a CPU without an FPU or PAE the kernel crashed silently. Resolved: it now says it needs a Pentium Pro-class CPU (CPUID, FPU, PAE) and halts.
 - **KB-14** The boot banner said 0.2.3. Resolved: `banner_rest` carries the current version.
 - **KB-15** `calc` wrote `calc.hist` into the current directory, so each directory got its own history. Resolved: it is kept at `/calc.hist`.
 - Also: `graph`, `diff` and `topo` were listed as apps but are scaffolds; the banner now lists them as planned.
@@ -63,6 +63,12 @@ Found by stress testing processes and threads:
 Found by stress testing processes and threads:
 
 - **KB-17** A stack overflow did not reset the machine, as the specification said it would. A thread that ran off its 8 KB stack silently wrote over the stack of the slot below it, so a different process crashed, and memory could be lost. Resolved: an unmapped guard page sits under every stack, and the double fault it causes goes through a task gate to a stack of its own, so it is reported (`*** stack overflow in pid N`) and ends only that process; the shell offers its usual restart. Checks `stackover`, `stack-shell`.
+
+## 2.0.1
+
+Found while planning the 2.0.x clean-up:
+
+- **KB-18** After the mouse moved or clicked in the text shell (or in any program other than the desktop), the keyboard stopped answering. The 1.9.10 driver read mouse bytes only by polling from the desktop, so a mouse byte stayed in the keyboard controller's output buffer and every key waited behind it. Resolved in 2.0.1: the mouse runs on IRQ 12, and `kbd_isr` passes an auxiliary byte to the mouse instead of reading it as a key. Checks `mouse-shell`, `mouse-calc`.
 
 ## Notes
 

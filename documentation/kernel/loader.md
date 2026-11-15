@@ -41,12 +41,13 @@ space while copying the image from the staging buffer, then switches back. The a
 is copied into a 64-byte buffer owned by the process slot. When the process is reaped, its pages
 go back to the page allocator. Each program runs in an
 ordinary process slot with that slot's 8 KB stack, so it is scheduled, waited on and reaped like
-the built-in apps. Programs run in ring 0 like the rest of the system. There is no protection
-yet (see 2.x).
+the built-in apps. Since 2.4 programs run in ring 3, on a ring-3 stack of their own, and cannot
+touch kernel memory (`ring3.md`); the slot's 8 KB stack is their kernel stack.
 
 ## Formats
 
-The first four bytes select the format.
+The first bytes select the format: `SQX1`, `0x7F ELF`, or `MZ`. A file with none of these
+whose name ends in `.com` (any case) is a DOS program.
 
 ### SQX (flat binary)
 
@@ -70,8 +71,30 @@ file and the rest of `p_memsz` reads as zero (the whole area is cleared first). 
 types are ignored. The entry point must be inside the area. There is no dynamic linking,
 interpreter or relocation. `PT_INTERP` is ignored and such a program will not run correctly.
 
-`kernel/loaders/elf_stub.asm` remains the separate design sketch for a Linux personality.
-The native loader here takes no Linux ABI. Programs use the Squirrel-OS/2 `int 0x80` calls.
+An ELF whose `EI_OSABI` byte is 3 (`ELFOSABI_LINUX`) is loaded the same way but runs under
+the Linux personality (P.1): it starts with the Linux initial stack and its `int 0x80` calls
+use Linux numbers. Other ELF programs use the Squirrel-OS/2 `int 0x80` calls. See
+`../architecture/foreign-compatibility.md`.
+
+### MZ (Windows programs)
+
+A file starting with `MZ` is not loaded by the kernel: the loader runs the program `winrun`
+from the data disk with the argument `<file> <argument>` instead, and returns its pid (P.5).
+`winrun` loads Win32 PE32 console programs (`../architecture/foreign-compatibility.md`). When
+`winrun` is not on the disk, `run prog.exe` reports `Unknown command or program`.
+
+### MZ with LX (OS/2 programs)
+
+An `MZ` file whose `e_lfanew` points at `LX` is an OS/2 32-bit program: the loader runs
+`os2run <file> <argument>` for it (P.9, `../architecture/foreign-compatibility.md`).
+
+### MZ without PE, and .COM (DOS programs)
+
+An `MZ` file without `PE`,0,0 at its `e_lfanew` offset (or too short to have one) is a DOS
+`.EXE`, and a headerless file named `*.com` is a DOS `.COM`. The loader runs `dosrun <file>
+<argument>` for both, the same way (P.8, `../architecture/dosrun.md`). `winrun` given such a
+file directly passes it on to `dosrun` and waits for it. Files over 64 KB are refused before
+any of this (`LD_EBIG`), DOS ones included.
 
 ## Program ABI
 

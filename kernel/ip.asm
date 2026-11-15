@@ -72,6 +72,11 @@ ip_output:
     je .lo
     cmp byte [ne_up], 0
     je .bad
+    cmp eax, 0xFFFFFFFF         ; limited broadcast (3.0, DHCP): no ARP
+    jne .unicast
+    mov esi, ip_bmac
+    jmp .havemac
+.unicast:
     mov ebx, eax
     xor ebx, [net_our_ip]
     and ebx, [net_netmask]      ; same network? (1.9.11)
@@ -197,7 +202,11 @@ ip_input:
     cmp eax, [net_our_ip]
     je .ours
     cmp al, 127
-    jne .r
+    je .ours
+    cmp eax, 0xFFFFFFFF         ; broadcast, and (while DHCP asks) the
+    je .ours                    ; address a server offers us (3.0)
+    cmp byte [dhcp_busy], 0
+    je .r
 .ours:
     cmp byte [net_rx + ETH_HDR + 9], IP_ICMP
     jne .udp
@@ -326,7 +335,7 @@ cmd_ping_run:
     inc esi
     jmp .sp
 .go:
-    call ip_aton
+    call dns_resolve            ; a name or a dotted quad (3.0)
     jc .bad
     mov [ping_dst], eax
     xor ebx, ebx
@@ -376,11 +385,18 @@ cmd_ifconfig_run:
     call next_word
     call ip_aton
     jc .bad
+    ; the gateway must be on the interface's subnet (2.0.2), or no
+    ; packet for another network could ever reach it
+    mov ebx, eax
+    xor ebx, [ifc_ip]
+    and ebx, [ifc_mask]
+    jnz .offnet
     mov [net_gw_ip], eax
     mov eax, [ifc_ip]
     mov [net_our_ip], eax
     mov eax, [ifc_mask]
     mov [net_netmask], eax
+    mov byte [net_dhcp_on], 0   ; set by hand now (3.0)
 .show:
     mov esi, ifc_lab_ip
     call puts
@@ -402,6 +418,9 @@ cmd_ifconfig_run:
     jmp putc
 .bad:
     mov esi, [lstr + LS_NET_BADADDR * 4]
+    jmp lputs_nl
+.offnet:                        ; nothing changed (2.0.2)
+    mov esi, [lstr + LS_NET_OFFNET * 4]
     jmp lputs_nl
 
 ; eax = address: print dotted quad (no newline)
@@ -445,6 +464,7 @@ net_lo_ip   db 127, 0, 0, 1
 net_gw_ip   db 10, 0, 2, 2
 net_netmask db 255, 255, 255, 0
 ip_zmac     times 6 db 0
+ip_bmac     times 6 db 0xFF
 ip_dmac     times 6 db 0
 ip_proto    db 0
 ping_got    db 0

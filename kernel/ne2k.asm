@@ -294,6 +294,8 @@ ne_poll:
     pushad
     xor ebp, ebp
 .next:
+    cmp dword [ne_if + IF_COUNT], NET_QLEN
+    jae .done                   ; 3.0: the queue is full; the rest wait in the card
     mov dx, NE_CR               ; CURR is on page 1
     mov al, CR_PAGE1 | CR_NODMA | CR_START
     out dx, al

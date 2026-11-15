@@ -2,7 +2,9 @@
 
 ## boot.asm (current — 0.9.3)
 
-- Loads 192 sectors (LBA 1–192, the 96 KB `pm.asm` image) to `0x8000` and jumps to `0000:8000`.
+- Loads 192 sectors (LBA 1–192, the 96 KB low `pm.asm` image) to `0x8000` and jumps to `0000:8000`
+  with the boot drive in `dl`. Since 2.4 the kernel's high image follows on the disk and
+  `stage2` reads it itself, above 1 MB (`kernel-image.md`).
   Up to 1.7.2 it was 128 sectors (64 KB); `KERNEL_SIZE` in `pm.asm` grew when that was nearly full. The image ends at `0x1FFFF`,
   just below `KSCRATCH`.
 - From a hard disk it uses the BIOS extended read (int 0x13, AH=0x42, disk address packet),
@@ -17,7 +19,7 @@
   and halts.
 - The kernel's real-mode entry clears DS/ES first (the floppy path leaves ES past the image,
   which broke the E820 memory map), then checks the CPU: without CPUID, an FPU or 4 MB pages
-  (PSE) it prints `Squirrel-OS/2 needs a Pentium-class CPU (CPUID, FPU, 4 MB pages).` and halts.
+  (PAE) it prints `Squirrel-OS/2 needs a Pentium Pro-class CPU (CPUID, FPU, PAE).` and halts.
 - The kernel's last dword is the signature `S2OK`; at boot the kernel checks it and prints
   `Warning: kernel image only partly loaded` if it is missing.
 - The GDT sits right after the real-mode entry code, inside the first 32 KB, because `lgdt` in

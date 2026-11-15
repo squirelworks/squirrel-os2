@@ -138,11 +138,31 @@ This avoids retargeting chains and confirmation steps.
 | 1.9.11  | 2026-11-01 | Configurable network addresses       |
 | 1.9.12  | 2026-11-01 | Devices registered at run time       |
 | 2.0.0   | 2026-11-01 | Warp-style system                    |
+| 2.0.1   | 2026-11-04 | Mouse on IRQ 12, no pointer trail    |
+| 2.0.2   | 2026-11-04 | 2.0 clean-up, part two               |
+| 2.1.0   | 2026-11-13 | Framebuffer, ring 3, apps, games, foreign programs |
+| 2.3.0   | 2026-11-14 | Real windows, Program Manager, FAT/LFN, UEFI/SMP, net/audio |
 
 ## Next planned release
 
-**H.1–H.6** — modern hardware (UEFI, GOP, AHCI, NVMe, USB), then the 2.x / 3.0 vision in `plannedmilestones.md`.
+**2.3.0** — **tip cut**, not prep-only `fc3ae21`. Land gate PRs #184 / #197 / #204 /
+#205, retarget `2.3.0.md` to that tip, then the owner publishes the tag. Agents
+never tag. Fine-grain ladder through **3.0.0** (including `+0.0.1` / `+0.0.25` /
+`+0.25.0`-style marks): [`TO_3.0.0.md`](TO_3.0.0.md). Checklist and handshake:
+`../../HANDOFF.md` (**Release coordination**). Boxes: `../../TODO.md`.
 
-2.0.0 is the Warp-style tag of the 1.9.12 system (`2.0.0.md`). Owner tags after merge (`../../TODO.md`).
+**Version bump guide (tip → 3.0.0):** `+0.0.1` = one small box; `+0.0.25` = small
+multi-file / pair-closing slice; jump to `2.6.0` / `2.9.0` / `3.0.0` when a
+ROADMAP generation or bridge ships (see TO_3.0.0 scheme table).
+
+**2.1.0** is published (`2.1.0.md`). **2.0.2** is published (`2.0.2.md`). **2.0.1** is published (`v2.0.1`).
+
+2.0.0 is the Warp-style tag of the 1.9.12 system (`2.0.0.md`).
+
+## Release points
+
+A release is cut when a group of `TODO.md` boxes that shares a version is all on `main`: each 2.0.x patch, then each roadmap milestone (2.1, 2.2, …). For each one, Claude opens a release-prep PR (this section, the release note's status, README), builds `os.img`, `floppy.img`, `data.img` and `cd.iso` from the merged commit, and writes `SHA256SUMS`. The owner then creates the tag `vX.Y.Z` on that commit and publishes a GitHub Release with those files. Release images are never committed to the repository.
+
+The **Draft release** workflow (`.github/workflows/draft-release.yml`) does the upload. It runs only when started by hand (Actions → Draft release → Run workflow) with the tag, the target commit (which must be on `main`) and, optionally, the staged `SHA256SUMS` text. It builds the four images from that commit with `tools/build.sh --fresh`, refuses to go on if they differ from the staged checksums, and then creates a **draft** release with the images, `SHA256SUMS`, and `documentation/releases/X.Y.Z.md` as the notes. Nothing is public until the owner presses *Publish release*, which also creates the tag. If the release already exists for that commit, the workflow attaches the files to it instead. Claude starts the workflow and posts the draft's link, so the owner's part is one click.
 
 The forward plan and the PR-sized tasks are [`../../ROADMAP.md`](../../ROADMAP.md) and [`../../TODO.md`](../../TODO.md).
