@@ -35,16 +35,17 @@ slot's ring-3 stack (below):
 
 ## Page tables
 
-Every address space is a copy of the kernel's page directory with a private copy of the 0–4 MB
-page table (`vm.asm`). The user bit (`PG_U`) is set only on:
+Every address space is a copy of the kernel's PAE PDPT with a private 0–1 GB page directory and
+private 0–4 MB page tables (`vm.asm`, 2.8-pae). The user bit (`PG_U`) is set only on:
 
-- the 0–4 MB directory entry, and in its table only the 16 program-area pages (`0x30000`–`0x3FFFF`);
-- the heap's directory entry and pages (`0x40000000`, `SYS_SBRK`);
-- the ring-3 stack directory entry and pages (`0x7FC00000`).
+- the 0–4 MB directory entries, and in those tables only the 16 program-area pages (`0x30000`–`0x3FFFF`);
+- the heap's page-table entries (`0x40000000`, `SYS_SBRK`);
+- the ring-3 stack page-table entries (`0x7FC00000`).
 
 Everything else, the kernel's low and high images, its data and stacks, the identity-mapped RAM
 and the framebuffer, is supervisor-only. A ring-3 access there is a page fault with the user bit
-in the error code (`error=00000005` for a read).
+in the error code (`error=00000005` for a read). With NX, heap and stack pages (except each
+window's top page, which holds the exit stub) also refuse instruction fetch (`nx-heap`, `nx-stack`).
 
 ## Growing stacks
 

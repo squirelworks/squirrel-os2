@@ -1,88 +1,136 @@
-; Squirrel-OS/2 — paging and per-process address spaces (0.6.1)
+; Squirrel-OS/2 — PAE paging and per-process address spaces (0.6.1, 2.8-pae)
 ; Included from pm.asm. Original code.
 ;
-; Paging is on from boot. The kernel's page directory identity-maps the
-; first 256 MB: 0-4 MB with 4 KB pages (one page table), the rest with
-; 4 MB pages. Every loaded program gets an address space of its own: a
-; copy of that directory and of the low page table, with the program
-; area (PROG_BASE, 64 KB) backed by fresh pages. So two programs linked
-; at the same address can be alive at once, and a program's stray
-; access above 256 MB faults and ends only that program. Since 0.6.2 a
-; program also has a heap at HEAP_BASE that SYS_SBRK grows and shrinks.
-; See documentation/kernel/memory.md.
+; Paging is on from boot, in PAE mode (CR4.PAE, 64-bit entries, a PDPT).
+; The kernel's tables identity-map the first 256 MB: 0-4 MB with 4 KB
+; pages (two page tables), the rest with 2 MB pages. Every loaded
+; program gets an address space of its own: a copy of the PDPT and of
+; the low page directory and tables, with the program area (PROG_BASE,
+; 64 KB) backed by fresh pages. So two programs linked at the same
+; address can be alive at once, and a program's stray access above
+; 256 MB faults and ends only that program. Since 0.6.2 a program also
+; has a heap at HEAP_BASE that SYS_SBRK grows and shrinks. Since 2.8-pae
+; the heap and ring-3 stacks are mapped with the NX bit when the CPU
+; has it (EFER.NXE), so a jump into them is a page fault. See
+; documentation/kernel/memory.md.
 
 PG_P        equ 1                   ; present
 PG_W        equ 2                   ; writable
 PG_U        equ 4                   ; ring 3 may use it (2.4)
-PG_PS       equ 0x80                ; 4 MB page (needs CR4.PSE)
-VM_IDENT    equ MM_LIMIT >> 22      ; identity-mapped 4 MB slots: 64
+PG_PS       equ 0x80                ; 2 MB page (PAE) / was 4 MB with PSE
+PG_NX_HI    equ 0x80000000          ; high dword: execute-disable (bit 63)
+VM_EFER     equ 0xC0000080          ; IA32_EFER (also in lm.asm)
+VM_EFER_NXE equ 1 << 11
 
-PROG_PTE    equ PROG_BASE >> 12     ; first page-table entry of the area
+; PAE walk: [31:30] PDPT, [29:21] PD, [20:12] PT; 512 entries per table
+PAE_PD_SHIFT    equ 21
+PAE_PT_SHIFT    equ 12
+PAE_IDX_MASK    equ 0x1FF
+PAE_ENT_SIZE    equ 8
+PAE_ENTS        equ 512
+PAE_PDPT_ENTS   equ 4
+PAE_2MB         equ 1 << 21
+
+PROG_PTE    equ PROG_BASE >> 12     ; first PTE index in the 0-2 MB table
 PROG_PAGES  equ PROG_MAX >> 12      ; 16
 
 ; address space record
-AS_PD       equ 0                   ; page directory (physical)
+AS_PD       equ 0                   ; PDPT (physical; what CR3 holds)
 AS_REFS     equ 4                   ; processes using it; 0 = slot free
 AS_PAGES    equ 8                   ; pages it owns (tables included)
 AS_BRK      equ 12                  ; end of the heap (0.6.2)
 AS_SIZE     equ 16
 AS_MAX      equ PROC_MAX
 
-HEAP_BASE   equ 0x40000000          ; heap: one page table, PDE 256
+HEAP_BASE   equ 0x40000000          ; heap: up to 4 MB (two PAE page tables)
 HEAP_MAX    equ 0x400000
-HEAP_PDE    equ HEAP_BASE >> 22
 
 ; Ring-3 stacks (2.4): one 512 KB window per process slot in the top 4 MB
-; below 2 GB, one page table (PDE 511). Pages are mapped when first
-; touched (vm_ustack_fault); the lowest page of each window never is, so
-; a runaway stack faults there and is reported as a stack overflow.
+; below 2 GB. Pages are mapped when first touched (vm_ustack_fault); the
+; lowest page of each window never is, so a runaway stack faults there
+; and is reported as a stack overflow. Two PAE PDs cover the 4 MB.
 USTACK_BASE equ 0x7FC00000
 USTACK_SIZE equ 0x80000
-USTACK_PDE  equ USTACK_BASE >> 22
 %if PROC_MAX*USTACK_SIZE > 0x400000
-%error the ring-3 stack windows must fit one page table
+%error the ring-3 stack windows must fit 4 MB
 %endif
 
-; Builds the kernel page directory and turns paging on.
+; Builds the kernel PDPT and turns PAE paging on. Enables EFER.NXE when
+; the CPU has NX (CPUID 0x80000001 EDX bit 20).
 vm_init:
     pushad
-    call pg_alloc               ; page table for 0-4 MB
+    call nx_probe
+    call pg_alloc               ; page table for 0-2 MB
     test eax, eax
     jz .nomem
     mov [kernel_pt], eax
     mov edi, eax
     mov eax, PG_P|PG_W
-    mov ecx, 1024
-.pt:
-    stosd
+    mov ecx, PAE_ENTS
+.pt0:
+    mov [edi], eax
+    mov dword [edi+4], 0
+    add edi, PAE_ENT_SIZE
     add eax, PAGE_SIZE
-    loop .pt
+    loop .pt0
     ; stack guard pages (KB-17): not present, so running off the bottom
     ; of a stack faults instead of writing the memory below it. Program
     ; address spaces copy this table, so they have the holes too.
     mov edi, [kernel_pt]
-    add edi, (PROC_STACK_BASE >> 12) * 4
+    add edi, (PROC_STACK_BASE >> 12) * PAE_ENT_SIZE
     mov ecx, PROC_GUARDS
 .guard:
     mov dword [edi], 0
-    add edi, (PROC_STACK_SIZE >> 12) * 4
+    mov dword [edi+4], 0
+    add edi, (PROC_STACK_SIZE >> 12) * PAE_ENT_SIZE
     loop .guard
-    call pg_alloc
+    call pg_alloc               ; page table for 2-4 MB
+    test eax, eax
+    jz .nomem
+    mov [kernel_pt_hi], eax
+    mov edi, eax
+    mov eax, (2 << 20)|PG_P|PG_W
+    mov ecx, PAE_ENTS
+.pt1:
+    mov [edi], eax
+    mov dword [edi+4], 0
+    add edi, PAE_ENT_SIZE
+    add eax, PAGE_SIZE
+    loop .pt1
+    call pg_alloc               ; page directory for 0-1 GB
+    test eax, eax
+    jz .nomem
+    mov [kernel_pd0], eax
+    mov edi, eax
+    mov eax, [kernel_pt]
+    or eax, PG_P|PG_W
+    mov [edi], eax
+    mov dword [edi+4], 0
+    mov eax, [kernel_pt_hi]
+    or eax, PG_P|PG_W
+    mov [edi+PAE_ENT_SIZE], eax
+    mov dword [edi+PAE_ENT_SIZE+4], 0
+    add edi, 2*PAE_ENT_SIZE
+    mov eax, (2*PAE_2MB)|PG_P|PG_W|PG_PS
+    mov ecx, (MM_LIMIT >> PAE_PD_SHIFT) - 2   ; 4 MB .. 256 MB
+.pd2m:
+    mov [edi], eax
+    mov dword [edi+4], 0
+    add edi, PAE_ENT_SIZE
+    add eax, PAE_2MB
+    loop .pd2m
+    call pg_alloc               ; PDPT (CR3)
     test eax, eax
     jz .nomem
     mov [kernel_pd], eax
     mov edi, eax
-    mov eax, [kernel_pt]
-    or eax, PG_P|PG_W
-    stosd
-    mov eax, (1 << 22)|PG_P|PG_W|PG_PS
-    mov ecx, VM_IDENT-1
-.pd:
-    stosd
-    add eax, 1 << 22
-    loop .pd
+    mov eax, [kernel_pd0]
+    or eax, PG_P                ; PDPTE: only P (W is reserved in PAE)
+    mov [edi], eax              ; PDPT[0] -> PD0; the rest stay 0
+    mov dword [edi+4], 0
+    call nx_enable              ; EFER.NXE before PG, when the CPU has it
     mov eax, cr4
-    or eax, 0x10                ; PSE
+    or eax, 1 << 5              ; PAE
     mov cr4, eax
     mov eax, [kernel_pd]
     mov cr3, eax
@@ -100,11 +148,55 @@ vm_init:
     hlt
     jmp .h
 
+; Sets vm_nx when CPUID 0x80000001 EDX bit 20 (NX) is present.
+nx_probe:
+    pushad
+    mov byte [vm_nx], 0
+    mov eax, 0x80000000
+    cpuid
+    cmp eax, 0x80000001
+    jb .r
+    mov eax, 0x80000001
+    cpuid
+    bt edx, 20
+    jnc .r
+    mov byte [vm_nx], 1
+.r:
+    popad
+    ret
+
+; Turns on EFER.NXE when vm_nx is set. Keeps every register.
+nx_enable:
+    cmp byte [vm_nx], 0
+    je .r
+    push eax
+    push ecx
+    push edx
+    mov ecx, VM_EFER
+    rdmsr
+    or eax, VM_EFER_NXE
+    wrmsr
+    pop edx
+    pop ecx
+    pop eax
+.r:
+    ret
+
+; -> eax = high dword for a new user data page (NX when available).
+vm_nx_hi:
+    xor eax, eax
+    cmp byte [vm_nx], 0
+    je .r
+    mov eax, PG_NX_HI
+.r:
+    ret
+
 ; -> eax = a new address space (record pointer), or 0 if out of
 ; records or memory. Its program area is zeroed.
 as_create:
     push ebx
     push ecx
+    push edx
     push esi
     push edi
     mov ebx, as_table
@@ -120,34 +212,65 @@ as_create:
     mov dword [ebx+AS_PD], 0
     mov dword [ebx+AS_PAGES], 0
     mov dword [ebx+AS_BRK], HEAP_BASE
-    call pg_alloc
+    call pg_alloc               ; private PDPT
     test eax, eax
     jz .fail
     mov [ebx+AS_PD], eax
     inc dword [ebx+AS_PAGES]
     mov edi, eax
     mov esi, [kernel_pd]
-    mov ecx, 1024
+    mov ecx, PAGE_SIZE/4
     rep movsd
-    call pg_alloc               ; private copy of the 0-4 MB table
+    call pg_alloc               ; private PD0 (0-1 GB)
+    test eax, eax
+    jz .fail
+    inc dword [ebx+AS_PAGES]
+    mov edi, eax
+    mov esi, [kernel_pd0]
+    mov ecx, PAGE_SIZE/4
+    rep movsd
+    mov esi, [ebx+AS_PD]
+    or eax, PG_P                ; PDPTE: only P (and PWT/PCD); W is reserved
+    mov [esi], eax              ; PDPT[0] -> private PD0
+    mov dword [esi+4], 0
+    call pg_alloc               ; private 0-2 MB table
     test eax, eax
     jz .fail
     inc dword [ebx+AS_PAGES]
     mov edi, eax
     mov esi, [kernel_pt]
-    mov ecx, 1024
+    mov ecx, PAGE_SIZE/4
     rep movsd
-    mov esi, [ebx+AS_PD]
-    lea edi, [eax+PROG_PTE*4]
-    or eax, PG_P|PG_W|PG_U      ; the identity entries in it stay kernel-only
-    mov [esi], eax
+    mov edx, [ebx+AS_PD]
+    mov edx, [edx]              ; PD0
+    and edx, -PAGE_SIZE
+    mov esi, eax                ; physical PT (flags clear from pg_alloc)
+    or eax, PG_P|PG_W|PG_U
+    mov [edx], eax
+    mov dword [edx+4], 0
+    lea edi, [esi+PROG_PTE*PAE_ENT_SIZE]
+    call pg_alloc               ; private 2-4 MB table
+    test eax, eax
+    jz .fail
+    inc dword [ebx+AS_PAGES]
+    push edi                    ; keep the program-area PTE pointer
+    mov edi, eax
+    mov esi, [kernel_pt_hi]
+    mov ecx, PAGE_SIZE/4
+    rep movsd
+    or eax, PG_P|PG_W|PG_U
+    mov [edx+PAE_ENT_SIZE], eax
+    mov dword [edx+PAE_ENT_SIZE+4], 0
+    pop edi
     mov ecx, PROG_PAGES
 .area:
     call pg_alloc
     test eax, eax
     jz .fail
-    or eax, PG_P|PG_W|PG_U
-    stosd
+    or eax, PG_P|PG_W|PG_U      ; executable: program code lives here
+    mov [edi], eax
+    mov dword [edi+4], 0
+    add edi, PAE_ENT_SIZE
     inc dword [ebx+AS_PAGES]
     loop .area
     mov dword [ebx+AS_REFS], 1
@@ -160,6 +283,7 @@ as_create:
 .out:
     pop edi
     pop esi
+    pop edx
     pop ecx
     pop ebx
     ret
@@ -190,29 +314,49 @@ as_teardown:
     mov esi, [ebx+AS_PD]
     test esi, esi
     jz .done
-    mov edx, [esi+HEAP_PDE*4]   ; heap pages and their table
-    call as_free_table
-    mov edx, [esi+USTACK_PDE*4] ; ring-3 stack pages and their table (2.4)
-    call as_free_table
-.low:
+    ; PDPT[1..3]: heap, stacks, late MMIO maps (2.8-pae).
+    ; as_free_pd clobbers esi; reload the PDPT from the record each time.
+    mov edx, [esi+1*PAE_ENT_SIZE]
+    call as_free_pd
+    mov esi, [ebx+AS_PD]
+    mov edx, [esi+2*PAE_ENT_SIZE]
+    call as_free_pd
+    mov esi, [ebx+AS_PD]
+    mov edx, [esi+3*PAE_ENT_SIZE]
+    call as_free_pd
+    mov esi, [ebx+AS_PD]
+    ; PD0: private low tables and the program-area pages
     mov edx, [esi]
-    and edx, -PAGE_SIZE         ; its 0-4 MB table
-    cmp edx, [kernel_pt]
-    je .pd                      ; not replaced yet
+    and edx, -PAGE_SIZE
+    cmp edx, [kernel_pd0]
+    je .pdpt
+    mov eax, [edx]              ; PT 0-2 MB
+    and eax, -PAGE_SIZE
+    cmp eax, [kernel_pt]
+    je .pd0
     mov ecx, PROG_PAGES
-    lea edi, [edx+PROG_PTE*4]
+    lea edi, [eax+PROG_PTE*PAE_ENT_SIZE]
 .area:
+    push eax
     mov eax, [edi]
     and eax, -PAGE_SIZE
     cmp eax, MM_START           ; still the identity entry: not ours
     jb .next
     call pg_free
 .next:
-    add edi, 4
+    pop eax
+    add edi, PAE_ENT_SIZE
     loop .area
+    call pg_free                ; 0-2 MB table (eax still holds it)
+    mov eax, [edx+PAE_ENT_SIZE]
+    and eax, -PAGE_SIZE
+    cmp eax, [kernel_pt_hi]
+    je .pd0
+    call pg_free                ; 2-4 MB table
+.pd0:
     mov eax, edx
     call pg_free
-.pd:
+.pdpt:
     mov eax, esi
     call pg_free
 .done:
@@ -222,14 +366,41 @@ as_teardown:
     popad
     ret
 
-; edx = a page directory entry (0: none): frees every page its table
-; maps, then the table. Clobbers eax, ecx, edi.
-as_free_table:
+; edx = a PDPT entry (0: none): frees every page table it points at
+; (and the pages those tables map), then the page directory. Clobbers
+; eax, ecx, edi, esi.
+as_free_pd:
     test edx, edx
     jz .r
     and edx, -PAGE_SIZE
-    mov ecx, 1024
+    mov ecx, PAE_ENTS
     mov edi, edx
+.pde:
+    mov eax, [edi]
+    test eax, PG_P
+    jz .n
+    test eax, PG_PS
+    jnz .n                      ; a 2 MB identity page: not ours to free
+    push ecx
+    push edi
+    mov esi, eax
+    call as_free_table
+    pop edi
+    pop ecx
+.n:
+    add edi, PAE_ENT_SIZE
+    loop .pde
+    mov eax, edx
+    call pg_free
+.r:
+    ret
+
+; esi = a page directory entry (with flags): frees every page its table
+; maps, then the table. Clobbers eax, ecx, edi.
+as_free_table:
+    and esi, -PAGE_SIZE
+    mov ecx, PAE_ENTS
+    mov edi, esi
 .p:
     mov eax, [edi]
     test eax, eax
@@ -237,11 +408,10 @@ as_free_table:
     and eax, -PAGE_SIZE
     call pg_free
 .n:
-    add edi, 4
+    add edi, PAE_ENT_SIZE
     loop .p
-    mov eax, edx
+    mov eax, esi
     call pg_free
-.r:
     ret
 
 ; edi = PCB: loads its page directory (if not already loaded).
@@ -332,13 +502,15 @@ sys_sbrk:
 heap_map:
     cmp esi, edi
     jae .ok
-    call heap_pte
+    call as_pte
     jc .r
     call pg_alloc
     test eax, eax
     jz .no
     or eax, PG_P|PG_W|PG_U
     mov [ebx], eax
+    call vm_nx_hi
+    mov [ebx+4], eax
     inc dword [ebp+AS_PAGES]
     add esi, PAGE_SIZE
     jmp heap_map
@@ -355,9 +527,10 @@ heap_map:
 heap_unmap:
     cmp esi, edi
     jae .r
-    call heap_pte
+    call as_pte
     mov eax, [ebx]
     mov dword [ebx], 0
+    mov dword [ebx+4], 0
     invlpg [esi]
     and eax, -PAGE_SIZE
     call pg_free
@@ -367,38 +540,56 @@ heap_unmap:
 .r:
     ret
 
-; ebp = address space, esi = heap address -> ebx = its page table
-; entry; the table is made on first use. CF if there is no memory for it.
-heap_pte:
-    push edx
-    mov edx, HEAP_PDE
-    call as_pte
-    pop edx
-    ret
-
-; ebp = address space, esi = address, edx = its directory index -> ebx =
-; its page table entry; a ring-3 table is made on first use. CF if there
-; is no memory for it.
+; ebp = address space, esi = virtual address -> ebx = its page table
+; entry; a ring-3 PD and PT are made on first use. CF if there is no
+; memory for them. Clobbers eax. Keeps edx (sys_sbrk keeps the old break
+; there).
 as_pte:
+    push edx
     mov ebx, [ebp+AS_PD]
-    mov eax, [ebx+edx*4]
+    mov eax, esi
+    shr eax, 30                 ; PDPT index
+    lea ebx, [ebx+eax*8]
+    mov eax, [ebx]
     test eax, eax
-    jnz .have
+    jnz .have_pd
+    call pg_alloc
+    test eax, eax
+    jz .no
+    inc dword [ebp+AS_PAGES]
+    or eax, PG_P                ; PDPTE: W is reserved
+    mov [ebx], eax
+    mov dword [ebx+4], 0
+.have_pd:
+    and eax, -PAGE_SIZE
+    mov edx, esi
+    shr edx, PAE_PD_SHIFT
+    and edx, PAE_IDX_MASK
+    lea ebx, [eax+edx*8]
+    mov eax, [ebx]
+    test eax, eax
+    jnz .have_pt
     call pg_alloc
     test eax, eax
     jz .no
     inc dword [ebp+AS_PAGES]
     or eax, PG_P|PG_W|PG_U
-    mov [ebx+edx*4], eax
-.have:
+    mov [ebx], eax
+    mov dword [ebx+4], 0        ; NX is on PTEs only (stack top page must stay executable)
+    mov eax, [ebx]
+.have_pt:
+    test eax, PG_PS
+    jnz .no                     ; a 2 MB page: not a table
     and eax, -PAGE_SIZE
-    mov ebx, esi
-    shr ebx, 12
-    and ebx, 1023
-    lea ebx, [eax+ebx*4]
+    mov edx, esi
+    shr edx, PAE_PT_SHIFT
+    and edx, PAE_IDX_MASK
+    lea ebx, [eax+edx*8]
+    pop edx
     clc
     ret
 .no:
+    pop edx
     stc
     ret
 
@@ -446,7 +637,6 @@ vm_ustack_fault:
     jb .guard
     add esi, edx
     and esi, -PAGE_SIZE
-    mov edx, USTACK_PDE
     call as_pte
     jc .no
     mov eax, 3
@@ -457,6 +647,15 @@ vm_ustack_fault:
     jz .no
     or eax, PG_P|PG_W|PG_U
     mov [ebx], eax
+    ; NX on stack pages, except the window's top page: the exit stub
+    ; that proc_enter_user writes there must stay executable (2.4, 2.8-pae)
+    call vm_nx_hi
+    lea edx, [ecx-PAGE_SIZE]
+    cmp esi, edx
+    jb .nx
+    xor eax, eax
+.nx:
+    mov [ebx+4], eax
     inc dword [ebp+AS_PAGES]
     invlpg [esi]
     xor eax, eax
@@ -477,7 +676,7 @@ vm_ustack_fault:
 
 ; ---------- framebuffer map (2.1) ----------
 ; eax = physical address (any), ecx = byte length.
-; Identity-maps enough 4 MB pages (PSE) in the kernel page directory to
+; Identity-maps enough 2 MB pages (PAE PS) in the kernel page tables to
 ; cover [eax, eax+ecx). Addresses below MM_LIMIT are already mapped.
 ; Reloads CR3. CF set if ecx is 0. Keeps registers (pushad/popad).
 vm_map_range:
@@ -485,33 +684,40 @@ vm_map_range:
     test ecx, ecx
     jz .fail
     mov edx, eax                ; start
-    lea ebx, [eax+ecx-1]        ; last byte
-    and edx, -0x400000          ; 4 MB align down
-    or ebx, 0x3FFFFF            ; align up to end of its 4 MB page
-    inc ebx                     ; first byte past the range
+    lea ebp, [eax+ecx-1]        ; last byte (ebp: end; ebx is the PDE pointer)
+    and edx, -PAE_2MB           ; 2 MB align down
+    or ebp, PAE_2MB-1           ; align up to end of its 2 MB page
+    inc ebp                     ; first byte past the range
 .map:
-    cmp edx, ebx
+    cmp edx, ebp
     jae .ok
     cmp edx, MM_LIMIT           ; already identity-mapped
     jb .next
-    mov eax, edx
-    shr eax, 22                 ; PDE index
-    mov ecx, [kernel_pd]
-    lea ecx, [ecx+eax*4]
+    mov esi, edx
+    call vm_kernel_pde          ; ebx = &PDE in the kernel tables
+    jc .next
     mov eax, edx
     or eax, PG_P|PG_W|PG_PS
-    mov [ecx], eax
-    mov ecx, cr3                ; and in the directory in use, when a program
-    and ecx, -4096              ; asked (2.2-progwin): its own copy of the
-    mov esi, edx                ; kernel directory was made before this map
-    shr esi, 22
-    mov [ecx+esi*4], eax
+    mov [ebx], eax
+    mov dword [ebx+4], 0
+    mov ecx, cr3                ; and in the directory in use, when a
+    and ecx, -4096              ; program asked (2.2-progwin)
+    cmp ecx, [kernel_pd]
+    je .next
+    mov esi, edx
+    mov eax, ecx
+    call vm_pde_in_root         ; ebx = &PDE in the current root
+    jc .next
+    mov eax, edx
+    or eax, PG_P|PG_W|PG_PS
+    mov [ebx], eax
+    mov dword [ebx+4], 0
 .next:
-    add edx, 0x400000
+    add edx, PAE_2MB
     jmp .map
 .ok:
-    mov eax, cr3                ; flush TLB for the new entries, staying in
-    mov cr3, eax                ; the address space in use (2.2-progwin)
+    mov eax, cr3                ; flush TLB / reload PAE PDPTRs
+    mov cr3, eax
     popad
     clc
     ret
@@ -520,9 +726,52 @@ vm_map_range:
     stc
     ret
 
+; esi = address -> ebx = &PDE in the kernel tables (creates a PD when
+; needed). CF if out of memory. Clobbers eax, edi.
+vm_kernel_pde:
+    mov eax, [kernel_pd]
+    jmp vm_pde_in_root
+
+; eax = PDPT, esi = address -> ebx = &PDE (allocates a PD when the PDPTE
+; is empty). CF if out of memory. Keeps edx (vm_map_range walks with it).
+vm_pde_in_root:
+    push edx
+    push edi
+    mov edi, eax
+    mov eax, esi
+    shr eax, 30
+    lea ebx, [edi+eax*8]
+    mov eax, [ebx]
+    test eax, eax
+    jnz .pd
+    call pg_alloc
+    test eax, eax
+    jz .no
+    or eax, PG_P                ; PDPTE: W is reserved
+    mov [ebx], eax
+    mov dword [ebx+4], 0
+.pd:
+    and eax, -PAGE_SIZE
+    mov edx, esi
+    shr edx, PAE_PD_SHIFT
+    and edx, PAE_IDX_MASK
+    lea ebx, [eax+edx*8]
+    pop edi
+    pop edx
+    clc
+    ret
+.no:
+    pop edi
+    pop edx
+    stc
+    ret
+
 vm_m_nomem db '*** no memory for page tables', 10, 0
 
 align 4
-kernel_pd dd 0
-kernel_pt dd 0
+kernel_pd dd 0                  ; PDPT (CR3)
+kernel_pd0 dd 0                 ; page directory for 0-1 GB
+kernel_pt dd 0                  ; 0-2 MB page table
+kernel_pt_hi dd 0               ; 2-4 MB page table
+vm_nx db 0                      ; 1: NX is available and EFER.NXE is on
 as_table times AS_MAX*AS_SIZE db 0

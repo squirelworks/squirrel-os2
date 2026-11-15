@@ -348,7 +348,7 @@ pm32:
     and eax, ~0x100
     wrmsr
     xor eax, eax
-    mov cr4, eax                        ; PAE off: the kernel uses 32-bit paging
+    mov cr4, eax                        ; PAE off: the kernel turns PAE on in vm_init
     jmp handoff32
 
 %include "handoff32.inc"

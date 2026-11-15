@@ -76,7 +76,7 @@ qemu-system-i386 -drive file=build/os.img,format=raw -drive file=build/data.img,
    2.5-menu → 2.5-clock → W.3-launchpad**, then **2.6-icons → 2.6-drag →
    2.6-context → 2.6-notebook → 2.6-shadows → W.2-templates → W.4-views →
    W.5-openas**, then **W.6-startup → W.6-syssetup** (W.6 needs 2.6 + 2.7-objects).
-4. **2.8-pae → 2.9-lm-kernel → 2.9-syscall64** (the 64-bit kernel; largest risk).
+4. ~~**2.8-pae**~~ → **2.9-lm-kernel → 2.9-syscall64** (the 64-bit kernel; largest risk).
 5. **3.0** remainder (accounts, permissions, services, event log, task manager, themes).
 6. **P.3, P.4, P.7, P.11, P.12**, then 3.x and 4.x.
 
@@ -143,13 +143,8 @@ host `fatimg.py check`, and `fattest` on the formatted images.
   System Setup opens setup entry points and Drive/Shredder behave as desktop
   objects `syssetup: PASS`.
 
-### 2.8-pae — PAE paging and NX  `cursor-codex`
-- **Files:** `kernel/vm.asm`, `kernel/mm.asm`, `kernel/lm.asm`,
-  `documentation/kernel/memory.md`, `documentation/kernel/long-mode.md`.
-- **Acceptance:** the 32-bit kernel runs on PAE (64-bit entries, PDPT);
-  a ring-3 program that jumps into its heap or stack is ended with a
-  page-fault report (`nx-heap`, `nx-stack` checks); the whole suite passes
-  with PAE on; CPUs without NX keep working (`-cpu pentium3` check).
+### 2.8-pae — PAE paging and NX  `status: done`
+PAE + NX on `main` (this branch). Checks `nx-heap`, `nx-stack`, `cpu-pentium3`.
 
 ### 2.9-lm-kernel — stay in long mode  `cursor-codex`
 - **Depends on:** 2.8-pae.

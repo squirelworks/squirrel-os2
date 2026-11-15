@@ -35,8 +35,8 @@ stage2:
     mov es, ax
     mov [ld_drive], dl          ; the boot drive, from the boot sector
     mov dword [UEFI_INFO], 0    ; a BIOS boot: no UEFI hand-off (H.1, drivers/gopcon.asm)
-    ; the CPU must have CPUID, an FPU and 4 MB pages (PSE): a Pentium or
-    ; later (0.9.3). Say so instead of crashing later.
+    ; the CPU must have CPUID, an FPU and PAE: a Pentium Pro or later
+    ; (2.8-pae). Say so instead of crashing later.
     pushfd
     pop eax
     mov ecx, eax
@@ -51,8 +51,8 @@ stage2:
     jz .oldcpu
     mov eax, 1
     cpuid
-    and edx, (1 << 0)|(1 << 3)  ; FPU, PSE
-    cmp edx, (1 << 0)|(1 << 3)
+    and edx, (1 << 0)|(1 << 6)  ; FPU, PAE
+    cmp edx, (1 << 0)|(1 << 6)
     je .cpuok
 .oldcpu:
     mov si, msg_oldcpu
@@ -126,7 +126,7 @@ e820_count dw 0                 ; written in real mode, so also below 32 KB
 ; fills E820_BUF, e820_count, ld_drive and UEFI_INFO, copies the two
 ; images and enters pm through this GDT. See documentation/kernel/hardware.md.
 uefi_hdr dd 'S2UE', pm, gdt_desc, ld_drive, e820_count, KERNEL_SIZE, KHIGH_BASE
-msg_oldcpu db 'Squirrel-OS/2 needs a Pentium-class CPU (CPUID, FPU, 4 MB pages).', 13, 10, 0
+msg_oldcpu db 'Squirrel-OS/2 needs a Pentium Pro-class CPU (CPUID, FPU, PAE).', 13, 10, 0
 %include "khigh.asm"
 
 BITS 32

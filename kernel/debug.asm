@@ -634,8 +634,15 @@ dbg_xlat:
     mov edx, eax
     mov ebx, [dbg_x_as]
     mov ebx, [ebx+AS_PD]
-    shr eax, 22
-    mov eax, [ebx+eax*4]
+    shr eax, 30                 ; PDPT index (PAE, 2.8-pae)
+    mov eax, [ebx+eax*8]
+    test eax, PG_P
+    jz .no
+    and eax, -PAGE_SIZE
+    mov ebx, edx
+    shr ebx, PAE_PD_SHIFT
+    and ebx, PAE_IDX_MASK
+    mov eax, [eax+ebx*8]
     test eax, PG_P
     jz .no
     test eax, PG_U
@@ -644,9 +651,9 @@ dbg_xlat:
     jnz .no
     and eax, -PAGE_SIZE
     mov ebx, edx
-    shr ebx, 12
-    and ebx, 1023
-    mov eax, [eax+ebx*4]
+    shr ebx, PAE_PT_SHIFT
+    and ebx, PAE_IDX_MASK
+    mov eax, [eax+ebx*8]
     test eax, PG_P
     jz .no
     test eax, PG_U

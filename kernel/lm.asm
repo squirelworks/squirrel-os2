@@ -11,10 +11,12 @@
 ; 2.8–2.9). See documentation/kernel/long-mode.md.
 ;
 ; Sequence (Intel SDM vol. 3, 9.8.5, and AMD APM vol. 2, 14.6):
-;   in:  paging off, CR4.PAE on, CR3 = PML4, EFER.LME on, paging on
-;        (now IA-32e compatibility mode), far jump to a 64-bit segment
+;   in:  paging off, CR4.PAE on (already on since 2.8-pae), CR3 = PML4,
+;        EFER.LME on, paging on (now IA-32e compatibility mode), far jump
+;        to a 64-bit segment
 ;   out: far return to the 32-bit kernel segment, paging off, EFER.LME
-;        off, CR4.PAE off, CR3 = the 32-bit directory, paging on
+;        off, CR4 restored (PAE stays on), CR3 = the PAE PDPT, paging on
+;        (EFER.NXE is left alone)
 
 LM_EFER      equ 0xC0000080
 LM_EFER_LME  equ 1 << 8

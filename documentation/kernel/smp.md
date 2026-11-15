@@ -16,9 +16,11 @@ At boot, once the timer runs and interrupts are on, `smp_init` on the bootstrap 
 
 An AP starts in real mode at `0700:0000`. The trampoline loads the kernel's GDT (it lies below
 32 KB) and far-jumps into `ap_pm32` in the kernel. There the AP takes its stack from the record the
-BSP is starting (`smp_ap_rec`), turns on PSE and the kernel's page directory and the shared IDT,
-sets up its FPU, loads its own TSS, enables its local APIC and its timer, marks itself online, and
-enters the AP scheduler `ap_idle` (below).
+BSP is starting (`smp_ap_rec`), turns on PAE (and EFER.NXE when the BSP enabled NX), loads the
+kernel's PDPT into CR3, turns paging on, loads the shared IDT, sets up its FPU, loads its own TSS,
+enables its local APIC and its timer, marks itself online, and enters the AP scheduler `ap_idle`
+(below). The AP must match the BSP's PAE mode: without CR4.PAE the PDPT is read as a 32-bit page
+directory and the AP's stores can corrupt the BSP.
 
 `cpus` prints one line per CPU (`CPU 1: APIC id 1, online`, the BSP as
 `boot processor`, or `did not start`) and `N CPU(s) online`. Regress: `cpus-one`, and under

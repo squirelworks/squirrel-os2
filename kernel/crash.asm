@@ -218,6 +218,9 @@ exc_page_fault:
     call puts
     mov eax, cr2
     call puthex
+    mov esi, exc_m_fetch            ; NX / instruction fetch (2.8-pae)
+    test byte [exc_err], 0x10
+    jnz .rw
     mov esi, exc_m_read
     test byte [exc_err], 2
     jz .rw
@@ -499,6 +502,7 @@ exc_m_err db ' error=', 0
 exc_m_addr db ' address=', 0
 exc_m_read db ' (read, ', 0
 exc_m_write db ' (write, ', 0
+exc_m_fetch db ' (fetch, ', 0
 exc_m_notpresent db 'page not present)', 0
 exc_m_protect db 'protection)', 0
 exc_m_stack db 10, '    stack:', 0

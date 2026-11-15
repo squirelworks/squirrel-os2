@@ -338,16 +338,28 @@ ua_page_ok:
     jb .ok
     pushad
     mov edi, [proc_cur]
-    mov ebx, [edi+PCB_AS]
-    mov ebx, [ebx+AS_PD]
-    mov eax, [ebx+USTACK_PDE*4]
+    mov ebp, [edi+PCB_AS]
+    ; walk the caller's PAE tables for this stack address
+    mov ebx, [ebp+AS_PD]
+    mov eax, esi
+    shr eax, 30
+    mov eax, [ebx+eax*8]
     test eax, eax
     jz .own
     and eax, -PAGE_SIZE
     mov edx, esi
-    shr edx, 12
-    and edx, 1023
-    test dword [eax+edx*4], PG_P
+    shr edx, PAE_PD_SHIFT
+    and edx, PAE_IDX_MASK
+    mov eax, [eax+edx*8]
+    test eax, PG_P
+    jz .own
+    test eax, PG_PS
+    jnz .own
+    and eax, -PAGE_SIZE
+    mov edx, esi
+    shr edx, PAE_PT_SHIFT
+    and edx, PAE_IDX_MASK
+    test dword [eax+edx*8], PG_P
     jnz .yes                ; mapped
 .own:
     call vm_ustack_top      ; eax = top of the caller's own window
