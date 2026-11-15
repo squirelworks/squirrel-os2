@@ -5,6 +5,13 @@
 #   regress  tools/regress.sh, the full scripted QEMU run, with OVMF so the
 #            UEFI checks run as well. This is the check to wait for before a
 #            merge: a green "regress" means every check in regress.sh passed.
+#            The run is split into shards ("regress shard N") that each build
+#            the images and run some of regress.sh's check groups (REGRESS_GROUPS,
+#            the 'if in_group NAME' blocks); "regress" itself passes only when
+#            every shard passed and the shards covered every group exactly once.
+#            Each check boots a fresh QEMU without KVM (about 4 s), so one
+#            machine took about an hour; the shards take about 20 minutes, set
+#            by the data group (one data.img shared by ~320 checks in order).
 #
 # A newer push to the same PR cancels the run still going for the older one.
 # The SquirrelBIOS UEFI check (uefi-squirrelbios) is skipped here: it needs
@@ -57,9 +64,25 @@ jobs:
             build/uefi.img
           retention-days: 7
 
-  regress:
+  regress-shard:
+    name: regress shard ${{ matrix.shard }} (${{ matrix.groups }})
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        # Balanced by the check times of a full run (minutes): data 17.5 | apps 12.4,
+        # hw 1.4, auto 0.3 | progs 6.9, wps 3.5, games 2.1, snd 1.5 | dk 3.0, net 2.3,
+        # dos 2.5, dev 2.4. data cannot be split, so more shards would not finish sooner.
+        include:
+          - shard: 1
+            groups: data
+          - shard: 2
+            groups: apps hw auto
+          - shard: 3
+            groups: progs wps games snd
+          - shard: 4
+            groups: dk net dos dev
     steps:
       - uses: actions/checkout@v4
 
@@ -69,10 +92,11 @@ jobs:
           sudo apt-get install -y -q --no-install-recommends \
             nasm python3 python3-numpy qemu-system-x86 ovmf ovmf-ia32
 
-      - name: tools/regress.sh
+      - name: tools/regress.sh (${{ matrix.groups }})
         shell: bash
         env:
           TMPDIR: ${{ runner.temp }}
+          REGRESS_GROUPS: ${{ matrix.groups }}
         run: |
           start=$(date +%s)
           set +e
@@ -81,7 +105,7 @@ jobs:
           set -e
           mins=$(( ($(date +%s) - start + 59) / 60 ))
           {
-            echo "### regress.sh: $(grep -c '^ok ' regress.log) ok, $(grep -c '^FAIL ' regress.log) FAIL, $(grep -c '^skip ' regress.log) skipped, ${mins} min"
+            echo "### regress.sh shard ${{ matrix.shard }} (${{ matrix.groups }}): $(grep -c '^ok ' regress.log) ok, $(grep -c '^FAIL ' regress.log) FAIL, $(grep -c '^skip ' regress.log) skipped, ${mins} min"
             if grep -q '^FAIL ' regress.log; then
               echo '```'
               grep '^FAIL ' regress.log
@@ -95,7 +119,45 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: regress-log
+          name: regress-log-${{ matrix.shard }}
           path: regress.log
           if-no-files-found: ignore
           retention-days: 14
+
+  # The check to wait for before a merge, as before the split.
+  regress:
+    needs: regress-shard
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: regress-log-*
+          path: logs
+
+      - name: All shards passed and every check group ran once
+        shell: bash
+        run: |
+          status=0
+          if [ "${{ needs.regress-shard.result }}" != success ]; then
+            echo "::error title=regress::a regress shard did not pass (${{ needs.regress-shard.result }})"
+            status=1
+          fi
+          want=$(sed -n 's/^if in_group \([a-z0-9-]*\); then.*/\1/p' tools/regress.sh | sort -u)
+          got=$(cat logs/*/regress.log 2>/dev/null | sed -n 's/^groups: //p' | tr ' ' '\n' | sed '/^$/d' | sort)
+          if [ "$want" != "$(printf '%s\n' "$got" | sort -u)" ] || [ -n "$(printf '%s\n' "$got" | uniq -d)" ]; then
+            echo "::error title=regress::the shards must run each check group once; regress.sh has: $(echo $want), the shards ran: $(echo $got)"
+            status=1
+          fi
+          {
+            echo "### regress.sh, all shards: $(cat logs/*/regress.log 2>/dev/null | grep -c '^ok ') ok, $(cat logs/*/regress.log 2>/dev/null | grep -c '^FAIL ') FAIL, $(cat logs/*/regress.log 2>/dev/null | grep -c '^skip ') skipped"
+            if cat logs/*/regress.log 2>/dev/null | grep -q '^FAIL '; then
+              echo '```'
+              cat logs/*/regress.log | grep '^FAIL '
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit $status

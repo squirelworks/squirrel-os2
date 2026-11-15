@@ -1,10 +1,25 @@
 #!/bin/sh
 # Build the image and run scripted shell sessions in QEMU, checking the screen.
 # Usage: tools/regress.sh   (needs nasm, qemu-system-i386, python3)
+#        REGRESS_GROUPS='progs wps' tools/regress.sh   builds everything, then runs only those
+#        check groups (the 'if in_group NAME' blocks below). CI splits the run this way.
+#        Unset, every group runs, in order, as one run.
 set -e
 root=$(cd "$(dirname "$0")/.." && pwd)
 out=${TMPDIR:-/tmp}/squirrel-os2-build
 mkdir -p "$out"
+groups=${REGRESS_GROUPS:-}
+in_group() {   # in_group NAME: does this run include check group NAME?
+    [ -z "$groups" ] && return 0
+    case " $groups " in *" $1 "*) return 0 ;; esac
+    return 1
+}
+if [ -n "$groups" ]; then
+    for g in $groups; do
+        grep -q "^if in_group $g; then" "$0" || { echo "regress.sh: no check group '$g'" >&2; exit 1; }
+    done
+    echo "groups: $groups"
+fi
 # CONTINUANCE §3c: checked TODO/ROADMAP/HANDOFF boxes that name a check must
 # find it here; open boxes must not claim a check that already exists.
 python3 "$root/tools/docs_lint.py" || exit 1
@@ -165,6 +180,11 @@ check_once() {   # check_once NAME 'WANT1|WANT2|...' KEYS...: each WANT appears 
     if [ -z "$bad" ]; then echo "ok   $name"; else echo "FAIL $name (want exactly 1 each:$bad)"; fail=1; fi
 }
 
+# Check groups. Each 'if in_group NAME' block below shares disk images, shell state it
+# relies on and background servers only with the blocks of the same NAME (and with the
+# images built above), so REGRESS_GROUPS can run groups on different machines. A group may
+# have several blocks; they run in file order. The lines between blocks always run.
+if in_group data; then   # data.img: shell, editors, installer, graphics, desktop, objects
 check fs-format     'formatted SQFS'        ls '<ret>'   # must run first: blank disk
 check systest      'systest: PASS'          systest '<ret>'
 check getc-echo    'abz'                    keys '<ret>' abcd '<backspace>' '<backspace>' z '<ret>'
@@ -560,6 +580,9 @@ fetch_pid=$!
 check fetch-hello   'hello from squirrel'   "fetch 10.0.2.2 $fetch_port /hello.txt" '<ret>' '<pause>' '<pause>' '<pause>'
 kill $fetch_pid 2>/dev/null || true
 wait $fetch_pid 2>/dev/null || true
+fi
+if in_group net; then   # net.img and tools/netserve.py; needs the NE2000
+nic=1   # as in the data group above, which a net-only run skips
 # 3.0 (OS2-NET-AUDIO): DHCP from slirp; DNS and HTTP/1.1 from tools/netserve.py on the host
 # (slirp delivers 10.0.2.2:<port> to 127.0.0.1:<port>); wget and netcfg on a disk of their own
 python3 "$root/tools/sqfs.py" "$out/net.img" format 1024
@@ -597,7 +620,9 @@ check_all netcfg-gui-apply 'gfx: Applied|inet 10.0.2.77' 'run netcfg' '<ret>' '<
 disk=$net_disk
 kill $net_pid 2>/dev/null || true
 wait $net_pid 2>/dev/null || true
+fi
 nic=
+if in_group data; then
 check dhcp-nonic    'No DHCP server answered' dhcp '<ret>'
 check arp-nonic     'No reply'              'arp 10.0.2.2' '<ret>'
 # 1.9.6: ICMP echo. Loopback does not need the card.
@@ -618,6 +643,8 @@ check_all desktop-objs 'Program < DesktopObject|0 live' desktop '<ret>' '<pause>
 # "Program < DesktopObject" (one space after "<").
 check_once desktop-objs-2 'Program < DesktopObject|  DesktopObject|0 live' \
                    desktop '<ret>' '<pause>' '<esc>' desktop '<ret>' '<pause>' '<esc>' objs '<ret>'
+fi
+if in_group wps; then   # pm, wps, lp, fm and cp images, each formatted here
 # 2.3-groups: the Program Manager on a disk of its own (its places file in /desktop)
 pm_disk=$disk
 python3 "$root/tools/sqfs.py" "$out/pm.img" format 1024 >/dev/null
@@ -690,6 +717,8 @@ check cp-bad        'control: show | scheme 0-3' 'control speed 9' '<ret>'
 check cptest        'cp: PASS'              cptest '<ret>' '<pause>'
 check cp-text       'systest: PASS'         cptest '<ret>' '<pause>' systest '<ret>'
 disk=$pm_disk
+fi
+if in_group dk; then    # desktop object stores on blank images made here
 # 1.8.3: the desktop's entries are object files in /desktop, written the
 # first time; a removed file's entry is gone. A disk of their own, so the
 # other desktop checks keep all five entries.
@@ -756,6 +785,8 @@ check_all dk-delete-last-again 'gfx: draw|gfx: Squirrel-OS/2 Desktop' desktop '<
 dd if=/dev/zero of="$out/dkshadow.img" bs=1024 count=1024 2>/dev/null
 disk=$out/dkshadow.img
 check dk-shadow     'dk-shadow: PASS'       dkshadow '<ret>'
+fi
+if in_group data; then
 disk=$out/data.img
 check gfx-read-list 'gfx: Dogwood'         listtest '<ret>' '<pause>' '<gfx>'
 check topo-stub     'Scaffolded. Simplicial homology'  'run topo' '<ret>'
@@ -841,6 +872,8 @@ check cpu-nofpu     'needs a Pentium Pro-class CPU'
 export QEMU_EXTRA='-cpu pentium3'
 check cpu-pentium3  'systest: PASS'         systest '<ret>'
 unset QEMU_EXTRA
+fi
+if in_group progs; then   # progs.img
 disk=$out/progs.img
 check ld-sqx        'Hello from a loaded program!'  'run hello' '<ret>'
 check ld-arg        'Argument: world'       'run hello world' '<ret>'
@@ -1007,6 +1040,8 @@ check drv           'drv: PASS'             'run drvtest' '<ret>'
 # time, past the four run-time slots, and devices no longer lists it
 check_none drv-devices 'null    char' 'con     char' 'run drvtest' '<ret>' devices '<ret>'
 check_none drv-again 'drv: FAIL' 'drv: PASS' 'run drvtest' '<ret>' 'run drvtest' '<ret>' 'run drvtest' '<ret>' 'run drvtest' '<ret>' 'run drvtest' '<ret>' 'run drvtest' '<ret>'
+fi
+if in_group games; then   # games.img
 # OS2-GAMES: each game's rules self-check, then a short scripted game
 disk=$out/games.img
 check mines-test    'mines: PASS'           'run mines test' '<ret>'
@@ -1038,6 +1073,8 @@ check checkers-test 'checkers: PASS'        'run checkers test' '<ret>' '<pause>
 check_all checkers-play 'Computer plays f6-g5|You (b): 12   Computer (w): 12' 'run checkers 1' '<ret>' c3d4 '<ret>' '<pause>' '<pause>'
 check go-test       'go: PASS'              'run go test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>'
 check_all go-play   'Computer plays f3|You cannot play there' 'run go 1' '<ret>' e5 '<ret>' e5 '<ret>'
+fi
+if in_group progs; then
 # the directory checks' scratch entries go: progs.img's 64-entry directory is full by now
 for f in d2/n d2/s d2 d3 d5/e d5/g d5 la1 t1 edir; do python3 "$root/tools/sqfs.py" "$out/progs.img" rm "$f" >/dev/null 2>&1 || true; done
 disk=$out/progs.img
@@ -1047,6 +1084,8 @@ check l10n-edit-tlh "ghItlhwI': (untitled)" 'lang tlh' '<ret>' 'run edit' '<ret>
 check l10n-draw-la  'Programma pingendi - ASCII canvas' 'lang la' '<ret>' 'run draw' '<ret>'
 check l10n-calc-en  'Basic Calculator (Esc to exit)' 'run calc' '<ret>'
 check lang-systest  'systest: PROBATUM'     'lang la' '<ret>' systest '<ret>'
+fi
+if in_group apps; then   # apps.img, and the 2.7 SQFS/FAT images diskutil reads back
 # OS2-APPS: graphics for programs (SYS_GUI, programs/gui.inc) and the A.1 apps
 disk=$out/apps.img
 # 2.3-clipboard: cbtest leaves "clip me" on the clipboard; the viewer shows it
@@ -1278,6 +1317,8 @@ check notebook-err  'gfx: ! line 2: division by zero' 'run notebook' '<ret>' '<p
 check_all notebook-save '%% code|print 5|%% note|acorns' 'run notebook n.nb' '<ret>' '<pause>' 'n' 'acorns' '<esc>' 'c' 'print 5' '<esc>' '<ctrl-s>' '<pause>' '<esc>' '<pause>' 'cat n.nb' '<ret>'
 check_all notebook-math 'gfx: z = -3 + 4i|gfx: v = 25 m/s|gfx: 1/7 = 0.1428571428571428571428571428571428571429' 'run notebook' '<ret>' '<pause>' 'm' 'z = (1+2i)^2' '<ret>' 'v = 90 [km/h] to [m/s]' '<ret>' 'digits 40' '<ret>' '1/7' '<esc>' '<pause>' '<gfx>'
 check notebook-quit 'systest: PASS'         'run notebook' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
+fi
+if in_group dos; then   # dos.img
 # P.8: DOS .COM and .EXE programs run in the dosrun 8086 interpreter
 disk=$out/dos.img
 check_all dos-hello 'Hello from DOS land!|#! tail: acorns|doshello: PASS'  'run dosrun doshello.com acorns' '<ret>'
@@ -1323,6 +1364,8 @@ check_all win-reg     'winreg: PASS|winreg: count 2'  'run winreg' '<ret>' 'run 
 check win-reg-file    'HKCU\Software\Acorn|count|4|02000000'  'run winreg' '<ret>' 'run winreg again' '<ret>' 'cat registry.dat' '<ret>'
 check_all win-dll     'windll: Hello from acorn.dll|windll: PASS'  'run windll' '<ret>'
 check win-dll-gone    'not implemented: Gone' 'run windll gone' '<ret>'
+fi
+if in_group dev; then   # dev.img
 # A.4: SYS_DEBUG, the disassembler and the debugger
 disk=$out/dev.img
 check dbg-api       'dbgtest: PASS'         'run dbgtest' '<ret>' '<pause>'
@@ -1348,6 +1391,8 @@ check_all term-sessions 'gfx: Terminal 1 - dbgtgt|gfx: 1> dbgtgt s|gfx: Terminal
 check_all term-ctrlc 'gfx: ^C|gfx: *** CPU exception 14 (page fault) in pid 3 (dbgtgt)|gfx: [exit code -1]'  'run terminal' '<ret>' '<pause>' '<pause>' 'dbgtgt s' '<ret>' '<pause>' '<ctrl-c>' '<pause>' 'dbgtgt f' '<ret>' '<pause>' '<pause>' '<gfx>'
 check_all term-debugger 'gfx: pid 3 hit breakpoint 1|gfx: pid 3 stopped|gfx: jmp 0x30073 <here.spin>|gfx: pid 3 ended (exit code -1)'  'run terminal' '<ret>' '<pause>' '<pause>' 'debugger dbgtgt s' '<ret>' '<pause>' 'b level1' '<ret>' c '<ret>' '<pause>' 'bd 1' '<ret>' c '<ret>' '<pause>' '<esc>' '<pause>' q '<ret>' '<pause>' '<gfx>'
 check_all term-quit 'systest: PASS|0        running  shell'  'run terminal' '<ret>' '<pause>' '<pause>' 'dbgtgt s' '<ret>' '<f2>' '<pause>' exit '<ret>' '<pause>' '<f10>' '<pause>' '<pause>' systest '<ret>' ps '<ret>'
+fi
+if in_group snd; then   # snd.img
 # 3.0 (OS2-NET-AUDIO): sound. AC'97 and Intel HDA under QEMU (-audiodev none paces the DMA in
 # real time; -audiodev wav writes what was played, which tools/wavcheck.py listens to)
 python3 "$root/tools/sqfs.py" "$out/snd.img" format 1024
@@ -1402,6 +1447,8 @@ for snd in "AC97,audiodev=snd0" "intel-hda -device hda-output,audiodev=snd0"; do
 done
 unset QEMU_EXTRA
 disk=$snd_disk
+fi
+if in_group hw; then   # hw.img (also copied for q35 and read by the UEFI checks)
 # OS2-HW H.3/H.4: AHCI and NVMe disks as sd0 and nv0 (drivers/ahci.asm, drivers/nvme.asm)
 disk=$out/hw.img
 hwdisk "$out/sata.img"; hwdisk "$out/nvme.img"
@@ -1486,6 +1533,8 @@ else
     skip uefi-squirrelbios "set SQUIRRELBIOS_FD to SquirrelBIOS-2.1.0-x86_64-uefi.fd"
 fi
 unset QEMU_EXTRA QEMU_TEXT QEMU_BIN boot
+fi
+if in_group auto; then   # auto.img, dkauto.img, then no data disk
 disk=$out/auto.img
 check bat-autoexec  'autoexec ran'
 check lang-autoexec 'Tabulae:'              ls '<ret>'
@@ -1496,4 +1545,5 @@ disk=
 check no-disk       'no data disk'          blktest '<ret>'
 check devices-nodisk 'hd1     block   absent'  devices '<ret>'
 check rom-fallback  'Hello from Squirrel'   'cat edit' '<ret>'
+fi
 exit $fail
