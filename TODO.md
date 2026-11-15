@@ -29,7 +29,7 @@ A new defect that contradicts `documentation/specifications.md` or a milestone g
 Added after the roadmap was written, from the question "has it been run in a VM?". Release note: `documentation/releases/0.9.3.md`.
 
 - [x] **0.9.3-floppy** — Boot from a 1.44 MB floppy image (CHS fallback in the boot sector; KB-11, KB-12). Checks `floppy-boot`, `floppy-data`, `floppy-e820`.
-- [x] **0.9.3-cpu** — Say "needs a Pentium-class CPU" and halt instead of crashing (KB-13). Checks `cpu-nopse`, `cpu-nofpu`.
+- [x] **0.9.3-cpu** — Say "needs a Pentium-class CPU" and halt instead of crashing (KB-13). Checks `cpu-nopae`, `cpu-nofpu`.
 - [x] **0.9.3-calc-hist** — `calc` history at `/calc.hist` (KB-15). Check `calc-hist-root`.
 - [x] **0.9.3-planned** — Banner lists `graph`, `diff`, `topo` as planned. Check `ver-planned`.
 - [x] **0.9.3-build** — `tools/build.sh`, `tools/run.sh`, `tools/bochs_smoke.sh`, and `documentation/guides/getting-started.md` (QEMU, Bochs, VirtualBox).
