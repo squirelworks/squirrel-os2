@@ -5,6 +5,9 @@ set -e
 root=$(cd "$(dirname "$0")/.." && pwd)
 out=${TMPDIR:-/tmp}/squirrel-os2-build
 mkdir -p "$out"
+# CONTINUANCE §3c: checked TODO/ROADMAP/HANDOFF boxes that name a check must
+# find it here; open boxes must not claim a check that already exists.
+python3 "$root/tools/docs_lint.py" || exit 1
 python3 "$root/tools/mkstrings.py" --check || exit 1
 python3 "$root/tools/mkfont.py" --check || exit 1
 python3 "$root/tools/mkicon.py" --check || exit 1   # 2.3-icons

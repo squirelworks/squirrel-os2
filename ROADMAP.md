@@ -144,7 +144,7 @@ The GUI grows in generations, and each generation is a shippable milestone (epic
 
 ### 2.5–2.7 — Generation 2: "Windows 95 / OS/2 Warp 4 class"
 
-- [ ] **2.5** — A WarpCenter-style bar (the default; a taskbar layout is a setting), a Squirrel menu, a tray clock. PR-sized boxes: `TODO.md` **2.5-bar**, **2.5-menu**, **2.5-clock** (W.3 LaunchPad is **W.3-launchpad** with them).
+- [x] **2.5** — A WarpCenter-style bar (the default; a taskbar layout is a setting), a Squirrel menu, a tray clock. PR-sized boxes: `TODO.md` **2.5-bar**, **2.5-menu**, **2.5-clock** (W.3 LaunchPad is **W.3-launchpad** with them).
   - [x] **2.5-bar**, **2.5-menu**, **2.5-clock** (`warpcenter` / `wcbar` / `wcmenu` / `wcclock`)
   - [ ] **W.3-launchpad**
 - [ ] **2.6** — Desktop objects with icons, drag and drop between folders and onto programs, context menus on the right button, Warp-style settings notebooks with tabs, shadows (shortcuts). PR-sized boxes: `TODO.md` **2.6-icons** … **2.6-shadows**, plus **W.2-templates**, **W.4-views**, **W.5-openas**.
@@ -252,7 +252,7 @@ Each P step ships a tiny original test binary in the tree and a regression `PASS
   - [x] USER32/GDI32 subset, registry over `registry.dat`, DLL loader (#163)
   - [x] Win32 top-level windows as real desktop windows (P.6-win32-windows)
 - [ ] **P.7** — PE64.
-- [ ] **P.8** — A DOS personality (V86 mode or an emulator) for DOS programs in a window.
+- [x] **P.8** — A DOS personality (V86 mode or an emulator) for DOS programs in a window.
   - [x] `dosrun` (8086/186 interpreter, `INT 21h`), `.com`/`.exe` launch, mode 13h graphics (#146, #149, #153)
   - [x] The DOS screen in a window of its own (P.8-dos-window)
 - [ ] **P.9** — OS/2 16/32-bit text-mode API (`DosWrite` and the like), optional and late.

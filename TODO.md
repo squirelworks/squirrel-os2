@@ -432,13 +432,13 @@ From P.8 in `ROADMAP.md` and epic #118 (stream OS2-FOREIGN). Notes: `documentati
 - [x] **P.8-dos-gfx** — VGA mode 13h for DOS programs: `A000` shown through `SYS_GUI`, INT 10h pixels and DAC calls, ports 3C8h/3C9h/3DAh, BIOS teletype in graphics, non-blocking keyboard polls, the BIOS tick count from the real timer.
   **Acceptance:** `run dosgfx.com` draws and writes `dosgfx: drawn` in graphics (read by `<gfx>`), and after a key prints `dosgfx: PASS` in text. Checks `dos-gfx`, `dos-gfx-after`.
 - [x] **P.8-dos-window** — the DOS screen (text or mode 13h) inside a window of its own (1x/2x, keys while focused). Checks `dos-win`, `dos-win-2x`, `dos-win-text`; existing `dos-*` still pass.
-  **Acceptance:** `run dosgfx.com` draws in a window (scaled 1x/2x); client pixels match the 13h buffer; the desktop around it is untouched; `doswin: PASS`. Checks `dos-win`, `dos-win-after`; existing `dos-*` still pass.
+  **Acceptance:** `run dosgfx.com` draws in a window (scaled 1x/2x); client pixels match the 13h buffer; the desktop around it is untouched; `doswin: PASS`. Checks `dos-win`, `dos-win-2x`, `dos-win-text`; existing `dos-*` still pass.
 
 ## 2.7 — Long names, FAT, drive objects (OS2-FS)
 
 Roadmap 2.7 and the FAT/long-name side of A.5's disk utility. The desktop parts (drive and shredder objects) are coordinated with the 2.2/2.3 desktop work.
 
-- [x] **2.7-lfn** — SQFS names up to 63 characters: unique short aliases in the entry, the whole name in continuation entries older kernels ignore, orphans freed at mount. Checks `lfntest`, `lfn-host`, `lfn-kernel`, `lfn-sqfs-py`, `lfn-sweep`, `lfn-sweep-freed`.
+- [x] **2.7-lfn** — SQFS names up to 63 characters: unique short aliases in the entry, the whole name in continuation entries older kernels ignore, orphans freed at mount. Checks `lfntest`, `lfn-host`, `lfn-kernel`, `lfn-sweep`.
 - [x] **2.7-fat** — FAT12/16/32 read and write on drive letters (`mount`, `umount`, `cp`; disks, partitions, image files), VFAT long names both ways. Checks `fat12-*`, `fat16-*`, `fat32-*`, `fat-*`; images checked afterwards by `tools/fatimg.py check`.
 - [x] **2.7-objects** — Drive objects (one per mounted drive, opening lists it) and a shredder object (a file dropped on it is deleted).
 - [x] **2.7-diskutil** — `diskutil` understands FAT volumes and long names (partition types, format FAT, check a FAT volume). View/check on main as #171; format FAT12/16/32 from the OS (`run diskutil format hd2 N`, `F` in the GUI). Checks `diskutil-fmt12`, `diskutil-fmt16`, `diskutil-fmt32`, `diskutil-fmt-gui`, and host `fatimg.py check` / `fattest` on the result.
