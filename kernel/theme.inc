@@ -2,6 +2,9 @@
 ; and the desktop draw with. Colours are palette indices: the text mode's EGA
 ; palette, which the DAC keeps in mode 13h (bright colours at 0x38-0x3F).
 ; Code uses these names, never the numbers (documentation/kernel/windows.md).
+;
+; Starship vibe on the klingon-font line is language/brand (may'Duj), not a
+; palette fork: changing TH_* here breaks gfx OCR / pixel probes in regress.
 
 TH_DESKTOP          equ 0x03    ; cyan desktop
 TH_FACE             equ 0x07    ; 3D face grey

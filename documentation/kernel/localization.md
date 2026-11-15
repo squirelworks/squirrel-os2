@@ -20,7 +20,7 @@ A language may not define keys English lacks. The generated file is checked in, 
 | `lstr` | One pointer per key: the current language's text, or English where it has none |
 | `lang_select` | `eax` = language index; refills `lstr` (English at boot) |
 | `lang_set_code` | `esi` = code (`en`, `la`, `tlh`); CF if unknown |
-| `show_banner` | Localized product name, then the version and the (English) command help |
+| `show_banner` | Localized product name, then the version and the localized command help (`commands` key; tlh brand `may'Duj`) |
 | `lputs_nl` | Prints `esi` and a newline. Strings are stored without one, so they can be used inline. |
 
 Code prints a string with `mov esi, [lstr+LS_FILES*4]`. Strings used so far: the banner name, the prompt, the `ls` header, `Not found`, `Unknown command`, the `keys` prompt, the `systest` result, the `lang` messages, (1.0.5) the shell's `Usage:` lines and every file-system error reason, and (1.0.6) the titles of `calc`, `edit` and `draw`.

@@ -25,7 +25,7 @@ localization/
 
 | Key | English | Latin | Klingon | Used by |
 |-----|---------|-------|---------|---------|
-| banner | Squirrel-OS/2 | Sciurus-OS/2 | Squirrel-OS/2 | First banner line |
+| banner | Squirrel-OS/2 | Sciurus-OS/2 | may'Duj | First banner line (tlh: battlecruiser brand) |
 | prompt | > | > | > | Shell and batch prompt |
 | files | Files: | Tabulae: | tebwI': | `ls` header |
 | notfound | Not found | Non inventum | tu'lu'be' | `cat` |
@@ -33,7 +33,7 @@ localization/
 | calc | Basic Calculator | Calculator simplex | mI' De'wI' | `calc` title |
 | edit | Text Editor | Editor textus | ghItlhwI' | `edit` status line |
 | draw | Drawing Program | Programma pingendi | mIllogh chenmoHwI' | `draw` title |
-| hello | Hello from Squirrel-OS/2 | Salve ex Sciurus-OS/2 | nuqneH Squirrel-OS/2 | (not yet) |
+| hello | Hello from Squirrel-OS/2 | Salve ex Sciurus-OS/2 | nuqneH may'Duj | (not yet) |
 | result | 2 + 2 = 4 | II + II = IV | cha' + cha' = loS | (not yet) |
 | keys | Type keys, Enter to finish: | Claves preme, Enter ad finiendum: | leQmey yIbach, Enter yIbach rInmeH: | `keys` |
 | systest_pass | systest: PASS | systest: PROBATUM | systest: Qapla' | `systest` |
@@ -63,8 +63,11 @@ localization/
 | net_noreply | No reply | Nullum responsum | jang tu'lu'be' | `arp` when nobody answers (1.9.5) |
 | net_badaddr | Bad address | Inscriptio mala | ngoq QIH | `arp` when the text is not an address (1.9.5) |
 | net_of4 |  of 4 |  ex 4 |  vo' 4 | `ping` reply count (1.9.6) |
-| wc_btn | Squirrel | Sciurus | Squirrel | WarpCenter menu button (2.5) |
-| wc_bye | WarpCenter closed. | Centrum Sciuri clausum. | WarpCenter SoQlu'pu'. | WarpCenter quit line (2.5) |
+| wc_btn | Squirrel | Sciurus | may' | WarpCenter menu button (2.5) |
+| wc_bye | WarpCenter closed. | Centrum Sciuri clausum. | may'jo' SoQlu'pu'. | WarpCenter quit line (2.5) |
+| lp_bye | LaunchPad closed. | LaunchPad clausum. | ghunpa' SoQlu'pu'. | LaunchPad quit line (W.3) |
+| desktop_title | Squirrel-OS/2 Desktop | (en) | may'Duj DeSwI' | Desktop window title |
+| desktop_bye | Desktop closed. | Mensa clausa. | DeSwI' SoQlu'pu'. | Desktop quit line |
 
 ## Runtime (0.8.1)
 
@@ -80,3 +83,7 @@ See `documentation/kernel/localization.md`.
 - Kernel and applications look up strings by key.
 - Fallback is English if a translation is missing (a key left out of a file).
 - Values are printable ASCII; the generator refuses anything else.
+
+On the `klingon-font` joke line, finishing the remaining English literals (and
+later COM1) is scaffolded in `documentation/klingon-ascii-exit.md` — docs and
+checklists first; no COM1 code until that plan's Phase 3 gate.

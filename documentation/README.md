@@ -14,6 +14,11 @@ All material under this tree is project-native. External or contemporary sources
 | `guides/`       | Build, run, and contribution guides          |
 | `releases/`     | Release notes and version history            |
 
+Joke-line only (`klingon-font`): future full ASCII→Klingon purge scaffold —
+[`klingon-ascii-exit.md`](klingon-ascii-exit.md) and
+[`klingon-ascii-exit-checklist.md`](klingon-ascii-exit-checklist.md). COM1
+code stays frozen until the checklist Phase 3 gate.
+
 ## Status
 
 Documentation is active.

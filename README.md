@@ -77,9 +77,22 @@ Font: lowercase `q` now has a straight stem with a right-hand tail on its descen
   words (`q`, `clear`, `det`, `y/n`) stay as they are. Latin has no
   translations for these yet and falls back to English. The built-in
   `help`, `calc`, `sci` and `matrix` files keep their English text.
+- **Product name in tlh:** `may'Duj` ("battlecruiser") — the OS as a Klingon
+  starship's bridge computer. Desktop title `may'Duj DeSwI'`, WarpCenter
+  button `may'`, bar `may'jo'`, LaunchPad `ghunpa'`. Banner help uses
+  `ra'mey:` / `chovmey:` / `ghunmey:` with `{command}` braces so Latin
+  command spellings stay readable under the digraph pass.
+- Starship vibe is naming and language (may'Duj + full tlh chrome), not a
+  separate colour theme — Warp palette stays so gfx OCR / pixel probes keep
+  working under `DEFAULT_LANG_EN` regress.
 - The kernel starts in Klingon. Build with `nasm -DDEFAULT_LANG_EN` to start
   in English; `tools/regress.sh` does, so its English checks still apply.
   `lang en` switches at run time (the letters stay alien).
+- **Future ASCII exit (scaffold only):** leftover English `db` chrome and the
+  intentional COM1 Latin leak (BIOS joke keeps serial ASCII so smokes pass)
+  are inventoried in `documentation/klingon-ascii-exit.md` and
+  `documentation/klingon-ascii-exit-checklist.md`. **Do not convert COM1
+  until that checklist's Phase 3 gate is signed off.**
 
 ### Refreshing the branch later
 

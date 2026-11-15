@@ -54,6 +54,7 @@ net_nodhcp=Nullus minister DHCP respondit
 net_nohost=Hospes non inventus
 fe_nodrive=Nullus talis discus (vide mount)
 fe_xdev=Inter discos moveri non potest
+desktop_bye=Mensa clausa.\n
 wc_btn=Sciurus
 wc_bye=Centrum Sciuri clausum.
 lp_bye=LaunchPad clausum.
