@@ -157,7 +157,8 @@ The GUI grows in generations, and each generation is a shippable milestone (epic
   - [x] **W.2-templates** (`wpstmpl` / `wps-tmpl`)
   - [x] **W.4-views** (`foldview` / `fold-views`)
   - [x] **W.5-openas** (`openas`)
-  - [ ] **2.6-icons**, **2.6-drag** *(#184)*, **2.6-shadows** *(#188)* — lane `-2eaf`
+  - [x] **2.6-shadows** (`dkshadow` → `dk-shadow: PASS`; object-file links under `/desktop`)
+  - [ ] **2.6-icons**, **2.6-drag** *(#184)* — lane `-2eaf`
 - [x] **2.7** — Long file names, FAT12/16/32 read and write for exchanging media, drive objects, a shredder object.
   - [x] Long names, FAT12/16/32 read and write, drive and shredder objects (#162)
   - [x] `diskutil` on FAT volumes (2.7-diskutil; view/check #171, format FAT from the OS)

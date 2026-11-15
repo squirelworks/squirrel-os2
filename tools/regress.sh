@@ -651,6 +651,7 @@ check wclp-cfg      '0 calc'                'cat /desktop/launchpad.cfg' '<ret>'
 check_all wclp-gfx  'gfx: calc|gfx: files'  launchpad '<ret>' '<pause>' '<gfx>' '<esc>' '<pause>'
 check wclp-digit    '1 calc'                launchpad '<ret>' '<pause>' '<right>' '2' '<esc>' '<pause>' 'cat /desktop/launchpad.cfg' '<ret>'
 check wclp-text     'systest: PASS'         wclp '<ret>' '<pause>' systest '<ret>'
+
 # W.4-views: Icon / Tree / Details switchable on the File Manager window
 check fold-views    'foldview: PASS'        foldview '<ret>'
 # W.5-openas: Open as → Icon / Tree / Details / Settings on a folder; Settings on objects
@@ -748,6 +749,10 @@ check_all dk-delete-last 'gfx: files|gfx: calc|gfx: edit|gfx: vedit|gfx: draw|gf
                    desktop '<ret>' '<pause>' '<down>' '<down>' '<down>' '<down>' '<down>' '<delete>' y '<pause>' '<gfx>'
 check_none dk-delete-last-ls "${nl}Tools.obj" 'draw.obj' 'ls /desktop' '<ret>'
 check_all dk-delete-last-again 'gfx: draw|gfx: Squirrel-OS/2 Desktop' desktop '<ret>' '<pause>' '<gfx>'
+# 2.6-shadows: Shadow object files follow rename/move across a simulated reboot
+dd if=/dev/zero of="$out/dkshadow.img" bs=1024 count=1024 2>/dev/null
+disk=$out/dkshadow.img
+check dk-shadow     'dk-shadow: PASS'       dkshadow '<ret>'
 disk=$out/data.img
 check gfx-read-list 'gfx: Dogwood'         listtest '<ret>' '<pause>' '<gfx>'
 check topo-stub     'Scaffolded. Simplicial homology'  'run topo' '<ret>'

@@ -94,6 +94,24 @@ Delete asks on the help row (`Delete notes? y: yes`). `y` deletes the object's f
 
 Checks (on a data disk of their own): `dk-rename-win`, `dk-rename` (`edit` becomes `notes` on the desktop and in `objcat`), `dk-rename-esc`, `dk-delete-ask`, `dk-delete-no`, `dk-delete` (`ls /desktop` no longer lists `edit.obj`), `dk-delete-full`.
 
+## Shadows (2.6-shadows)
+
+A `Shadow` class under `DesktopObject` (`kernel/shadow.asm`) is a shortcut: its
+text fields `target` (the original's name) and `at` (the original's folder,
+empty at the top level) point at another desktop object. Shadow object files
+live under `/desktop` (for example `/desktop/extra-sh.obj`) like Programs and
+Folders. Renaming an object on the desktop (`r`) calls `sh_follow_rename`, which
+walks every file under `/desktop` and rewrites each Shadow whose `target` or
+`at` still held the old name. Moving one (`m` / `p`) calls `sh_follow_move`,
+which updates `at` the same way. Any Shadow path under `/desktop` is found;
+there is no fixed file list. `open` on a Shadow finds a live object with that
+`target` name and sends it `open`.
+
+Self-check `dkshadow` creates a Program and a Shadow at an arbitrary path
+under `/desktop`, renames and moves the original (the shadow file follows via
+the directory walk), reloads after freeing the live objects (a reboot), and
+checks that opening a Shadow of a Folder reaches the folder → `dk-shadow: PASS`.
+
 ## WarpCenter and LaunchPad (2.5 / W.3)
 
 One raised strip along the top of the window manager's screen holds the
