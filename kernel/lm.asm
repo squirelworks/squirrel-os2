@@ -1,14 +1,14 @@
-; Squirrel-OS/2 — long mode entry and exit (2.8-lm-entry)
+; Squirrel-OS/2 — long mode entry and exit (2.8-lm-entry, 2.9 paging)
 ; Included from pm.asm, in the high image. Original code.
 ;
-; The first piece of the 64-bit bridge: the kernel can switch the CPU
-; from 32-bit protected mode with paging into long mode (IA-32e, 64-bit
-; code), run a 64-bit routine there, and come back. lm_call does the
-; round trip with interrupts off; the 64-bit page tables identity-map
-; the first LM_MAP_GB GB with 2 MB pages, so every kernel address (low
-; and high image, stacks, buffers, identity-mapped RAM) means the same in
-; both modes. Later steps keep the kernel in long mode for good (TODO.md
-; 2.8–2.9). See documentation/kernel/long-mode.md.
+; The 64-bit bridge: the kernel can switch from 32-bit protected mode with
+; paging into long mode (IA-32e, 64-bit code), run a 64-bit routine, and
+; come back. lm_call does the round trip with interrupts off. CR3 in long
+; mode is a 4-level root from as_lm_cr3 (kernel or per-process): a PML4
+; whose PDPT mirrors the everyday PAE tables, so program-area pages and
+; the kernel identity map mean the same in both modes. Later steps keep
+; the kernel in long mode for good (TODO.md 2.9-lm-kernel). See
+; documentation/kernel/long-mode.md.
 ;
 ; Sequence (Intel SDM vol. 3, 9.8.5, and AMD APM vol. 2, 14.6):
 ;   in:  paging off, CR4.PAE on (already on since 2.8-pae), CR3 = PML4,
@@ -22,8 +22,6 @@ LM_EFER      equ 0xC0000080
 LM_EFER_LME  equ 1 << 8
 LM_EFER_LMA  equ 1 << 10
 LM_CS64      equ 0x40               ; 64-bit kernel code (gdt_cs64, pm.asm)
-LM_MAP_GB    equ 4                  ; identity-mapped below 4 GB
-LM_PG_PS     equ 0x80               ; 2 MB page in a page directory
 
 ; -> CF clear when the CPU has long mode (CPUID 0x80000001 EDX bit 29).
 ; Keeps every register.
@@ -45,49 +43,30 @@ lm_supported:
     stc
     ret
 
-; Builds the 4-level tables once: a PML4, a PDPT and LM_MAP_GB page
-; directories of 2 MB pages. -> CF if long mode is missing or there is no
-; memory. Keeps every register.
+; Ensures a 4-level root exists for the current process (or the kernel).
+; Optional: set lm_as_override to an address-space record (or leave 0 to
+; use PCB_AS / kernel) before calling. -> CF if long mode is missing or
+; there is no memory. Keeps every register except when CF is set on the
+; supported check (then nothing else changed).
 lm_init:
-    cmp dword [lm_pml4], 0
-    jne .done
     call lm_supported
     jc .r
     pushad
-    call pg_alloc               ; zeroed pages
+    mov eax, [lm_as_override]
     test eax, eax
-    jz .nomem
-    mov ebx, eax                ; PML4
-    call pg_alloc
-    test eax, eax
-    jz .nomem
-    mov edx, eax                ; PDPT
-    or eax, PG_P|PG_W
-    mov [ebx], eax              ; PML4[0] -> PDPT (high dword stays 0)
-    xor esi, esi                ; GB index
-.gb:
-    call pg_alloc
-    test eax, eax
-    jz .nomem
-    mov edi, eax
-    or eax, PG_P|PG_W
-    mov [edx+esi*8], eax        ; PDPT[i] -> PD
-    mov eax, esi
-    shl eax, 30                 ; first byte of this GB
-    or eax, PG_P|PG_W|LM_PG_PS
-    mov ecx, 512
-.pde:
-    mov [edi], eax
-    mov dword [edi+4], 0
-    add edi, 8
-    add eax, 1 << 21
-    loop .pde
-    inc esi
-    cmp esi, LM_MAP_GB
-    jb .gb
-    mov [lm_pml4], ebx
+    jnz .sync
+    mov edi, [proc_cur]
+    test edi, edi
+    jz .kern
+    mov eax, [edi+PCB_AS]
+    jmp .sync
+.kern:
+    xor eax, eax
+.sync:
+    call as_lm_cr3
+    jc .nomem
+    mov [lm_pml4], eax          ; PML4 for this entry
     popad
-.done:
     clc
 .r:
     ret
@@ -98,7 +77,8 @@ lm_init:
 
 ; eax = 64-bit routine (it ends with ret; it may use every register but
 ; rsp) -> runs it in long mode with interrupts off and comes back. CF if
-; long mode is not available. The 32-bit registers are kept.
+; long mode is not available. The 32-bit registers are kept. Uses the
+; 4-level root from lm_init (per-process or kernel via as_lm_cr3).
 lm_call:
     call lm_init
     jnc .go
@@ -235,18 +215,21 @@ lm_m_fail db 'lm: FAIL', 10, 0
 lm_m_nolm db 'lm: no long mode', 10, 0
 cmd_lmtest db 'lmtest', 0
 align 4
-lm_pml4   dd 0
-lm_target dd 0
-lm_esp    dd 0
-lm_cr3    dd 0
-lm_cr4    dd 0
-lm_res    times 4 dd 0
+lm_pml4        dd 0             ; PML4 selected for the current lm_call
+lm_as_override dd 0             ; non-zero: as_lm_cr3 uses this AS record
+lm_target      dd 0
+lm_esp         dd 0
+lm_cr3         dd 0             ; saved PAE CR3
+lm_cr4         dd 0
+lm_res         times 4 dd 0
+lm_probe_addr  dd 0             ; VA for lm_probe64 / lmpage
 
-; ---------- 2.9-lm-kernel (IDT first): 64-bit IDT + TSS with IST ----------
+; ---------- 2.9-lm-kernel (IDT): 64-bit IDT + TSS with IST ----------
 ; Stay in long mode with a 64-bit IDT long enough for the timer to fire
 ; through a 64-bit gate (and IST1 ready for double faults), then leave and
-; put the 32-bit IDT/TSS back. Everyday paging stays PAE until a later step
-; builds 4-level per-process spaces. See documentation/kernel/long-mode.md.
+; put the 32-bit IDT/TSS back. CR3 while staying is the 4-level wrapper
+; (as_lm_cr3); everyday paging remains the PAE PDPT. See
+; documentation/kernel/long-mode.md.
 
 SEL_TSS64     equ 0xC8              ; gdt_tss64 in pm.asm (16-byte descriptor)
 LM64_TSS_SIZE equ 104
@@ -335,7 +318,10 @@ lm_set_gate64_ist:
 ; TSS are restored (the stay test loads the 64-bit ones).
 lm_call_stay:
     call lm_idt_init
+    jc .r
+    call lm_init                ; refresh the per-process / kernel PML4
     jnc .go
+.r:
     ret
 .go:
     pushad
@@ -513,7 +499,134 @@ lmstay_m_pass db 'lmstay: PASS', 10, 0
 lmstay_m_fail db 'lmstay: FAIL', 10, 0
 lmstay_m_nolm db 'lmstay: no long mode', 10, 0
 cmd_lmstay db 'lmstay', 0
+
+; ---------- 2.9-lm-kernel (paging): per-process 4-level roots ----------
+; Creates two address spaces, stamps different bytes at the program area
+; (0x30000 = PROG_BASE in loader.asm; that equ is defined after this
+; file is included) under PAE, enters long mode with each space's PML4,
+; and checks that the private page is isolated while a kernel mark stays
+; shared.
+LMPAGE_PROG equ 0x30000
+
+cmd_lmpage_run:
+    mov dword [lm_as_override], 0
+    mov dword [lmpage_as1], 0
+    mov dword [lmpage_as2], 0
+    mov dword [lmpage_save_cr3], 0
+    call lm_supported
+    jc .nolm
+    call as_create
+    test eax, eax
+    jz .fail
+    mov [lmpage_as1], eax
+    call as_create
+    test eax, eax
+    jz .fail
+    mov [lmpage_as2], eax
+    ; Stamp private program-area bytes under each PAE PDPT.
+    mov eax, cr3
+    mov [lmpage_save_cr3], eax
+    mov ebx, [lmpage_as1]
+    mov eax, [ebx+AS_PD]
+    mov cr3, eax
+    mov byte [LMPAGE_PROG], 0xA1
+    mov ebx, [lmpage_as2]
+    mov eax, [ebx+AS_PD]
+    mov cr3, eax
+    mov byte [LMPAGE_PROG], 0xB2
+    mov eax, [lmpage_save_cr3]
+    mov cr3, eax
+    ; Long mode with AS1: private byte + shared kernel mark
+    mov eax, [lmpage_as1]
+    mov [lm_as_override], eax
+    mov dword [lm_probe_addr], LMPAGE_PROG
+    mov eax, lm_probe64
+    call lm_call
+    jc .nolm_clean
+    cmp dword [lm_res], 0xA1
+    jne .fail
+    mov dword [lm_probe_addr], lmpage_kern_mark
+    mov eax, lm_probe64
+    call lm_call
+    jc .nolm_clean
+    mov ebx, [lm_res]
+    mov [lmpage_k1], ebx
+    cmp bl, 0x5C
+    jne .fail
+    ; Long mode with AS2
+    mov eax, [lmpage_as2]
+    mov [lm_as_override], eax
+    mov dword [lm_probe_addr], LMPAGE_PROG
+    mov eax, lm_probe64
+    call lm_call
+    jc .nolm_clean
+    cmp dword [lm_res], 0xB2
+    jne .fail
+    mov dword [lm_probe_addr], lmpage_kern_mark
+    mov eax, lm_probe64
+    call lm_call
+    jc .nolm_clean
+    mov eax, [lm_res]
+    cmp eax, [lmpage_k1]
+    jne .fail
+    cmp al, 0x5C
+    jne .fail
+    call lmpage_cleanup
+    mov esi, lmpage_m_pass
+    jmp puts
+.fail:
+    call lmpage_cleanup
+    mov esi, lmpage_m_fail
+    jmp puts
+.nolm_clean:
+    call lmpage_cleanup
+.nolm:
+    mov dword [lm_as_override], 0
+    mov esi, lmpage_m_nolm
+    jmp puts
+
+lmpage_cleanup:
+    push eax
+    mov dword [lm_as_override], 0
+    mov eax, [lmpage_as1]
+    test eax, eax
+    jz .a2
+    call as_release
+    mov dword [lmpage_as1], 0
+.a2:
+    mov eax, [lmpage_as2]
+    test eax, eax
+    jz .cr3
+    call as_release
+    mov dword [lmpage_as2], 0
+.cr3:
+    mov eax, [lmpage_save_cr3]
+    test eax, eax
+    jz .r
+    mov cr3, eax
+.r:
+    pop eax
+    ret
+
+BITS 64
+; Read the byte at lm_probe_addr into lm_res (zero-extended).
+lm_probe64:
+    mov eax, [rel lm_probe_addr]
+    movzx eax, byte [rax]
+    mov [rel lm_res], eax
+    ret
+BITS 32
+
+lmpage_kern_mark db 0x5C                ; shared kernel byte both PML4s must see
+lmpage_m_pass db 'lmpage: PASS', 10, 0
+lmpage_m_fail db 'lmpage: FAIL', 10, 0
+lmpage_m_nolm db 'lmpage: no long mode', 10, 0
+cmd_lmpage db 'lmpage', 0
 align 4
+lmpage_as1      dd 0
+lmpage_as2      dd 0
+lmpage_save_cr3 dd 0
+lmpage_k1       dd 0
 lm_idt_ready  dd 0
 lm_ist1_page  dd 0
 lm_ist1_top   dd 0

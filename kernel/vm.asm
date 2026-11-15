@@ -1,4 +1,5 @@
-; Squirrel-OS/2 — PAE paging and per-process address spaces (0.6.1, 2.8-pae)
+; Squirrel-OS/2 — PAE paging and per-process address spaces (0.6.1, 2.8-pae,
+; 2.9-lm-kernel paging step)
 ; Included from pm.asm. Original code.
 ;
 ; Paging is on from boot, in PAE mode (CR4.PAE, 64-bit entries, a PDPT).
@@ -11,8 +12,11 @@
 ; 256 MB faults and ends only that program. Since 0.6.2 a program also
 ; has a heap at HEAP_BASE that SYS_SBRK grows and shrinks. Since 2.8-pae
 ; the heap and ring-3 stacks are mapped with the NX bit when the CPU
-; has it (EFER.NXE), so a jump into them is a page fault. See
-; documentation/kernel/memory.md.
+; has it (EFER.NXE), so a jump into them is a page fault. Since 2.9 each
+; space also has a 4-level (PML4) wrapper for long mode that points at
+; the same page directories through a long-mode PDPT (W allowed there;
+; PAE PDPTE.W stays clear). Everyday CR3 is still the PAE PDPT. See
+; documentation/kernel/memory.md and long-mode.md.
 
 PG_P        equ 1                   ; present
 PG_W        equ 2                   ; writable
@@ -35,11 +39,12 @@ PROG_PTE    equ PROG_BASE >> 12     ; first PTE index in the 0-2 MB table
 PROG_PAGES  equ PROG_MAX >> 12      ; 16
 
 ; address space record
-AS_PD       equ 0                   ; PDPT (physical; what CR3 holds)
+AS_PD       equ 0                   ; PDPT (physical; what CR3 holds in PAE)
 AS_REFS     equ 4                   ; processes using it; 0 = slot free
 AS_PAGES    equ 8                   ; pages it owns (tables included)
 AS_BRK      equ 12                  ; end of the heap (0.6.2)
-AS_SIZE     equ 16
+AS_PML4     equ 16                  ; 4-level root for long mode (2.9), 0 = none yet
+AS_SIZE     equ 20
 AS_MAX      equ PROC_MAX
 
 HEAP_BASE   equ 0x40000000          ; heap: up to 4 MB (two PAE page tables)
@@ -212,6 +217,7 @@ as_create:
     mov dword [ebx+AS_PD], 0
     mov dword [ebx+AS_PAGES], 0
     mov dword [ebx+AS_BRK], HEAP_BASE
+    mov dword [ebx+AS_PML4], 0  ; 4-level wrapper built on demand (as_lm_sync)
     call pg_alloc               ; private PDPT
     test eax, eax
     jz .fail
@@ -311,6 +317,23 @@ as_release:
 as_teardown:
     pushad
     mov ebx, eax
+    ; 4-level wrapper: PML4 and its long-mode PDPT only (the PDs stay
+    ; owned by the PAE PDPT path below).
+    mov eax, [ebx+AS_PML4]
+    test eax, eax
+    jz .pae
+    mov edx, [eax]              ; PML4[0] -> LM PDPT
+    and edx, -PAGE_SIZE
+    push eax
+    test edx, edx
+    jz .pml4
+    mov eax, edx
+    call pg_free
+.pml4:
+    pop eax
+    call pg_free
+    mov dword [ebx+AS_PML4], 0
+.pae:
     mov esi, [ebx+AS_PD]
     test esi, esi
     jz .done
@@ -363,6 +386,7 @@ as_teardown:
     mov dword [ebx+AS_PD], 0
     mov dword [ebx+AS_REFS], 0
     mov dword [ebx+AS_PAGES], 0
+    mov dword [ebx+AS_PML4], 0
     popad
     ret
 
@@ -766,12 +790,116 @@ vm_pde_in_root:
     stc
     ret
 
+; ---------- 4-level wrappers for long mode (2.9-lm-kernel paging) ----------
+; PAE PDPTE.W is reserved, so the everyday PDPT cannot be CR3 in long mode
+; with writable hierarchical permissions. Each address space (and the
+; kernel) gets a PML4 whose PML4[0] points at a long-mode PDPT that
+; mirrors the PAE PDPT's present entries with P|W and the same page
+; directory pointers. Everyday CR3 stays the PAE PDPT; lm_call loads the
+; PML4. Refresh before every long-mode entry so late PDPTEs (heap, MMIO)
+; are visible.
+
+; eax = address space record, or 0 for the kernel.
+; Builds the wrapper if needed and copies PAE PDPT[0..3] into the
+; long-mode PDPT. -> CF set if out of memory. Keeps every register
+; except the flags.
+as_lm_sync:
+    pushad
+    mov ebp, eax                ; AS or 0
+    test ebp, ebp
+    jnz .proc
+    mov esi, [kernel_pd]        ; PAE PDPT
+    mov edi, kernel_pml4        ; where to store the PML4 pointer
+    jmp .have_src
+.proc:
+    mov esi, [ebp+AS_PD]
+    lea edi, [ebp+AS_PML4]
+.have_src:
+    test esi, esi
+    jz .fail
+    mov ebx, [edi]              ; existing PML4?
+    test ebx, ebx
+    jnz .refresh
+    call pg_alloc               ; PML4
+    test eax, eax
+    jz .fail
+    mov ebx, eax
+    call pg_alloc               ; long-mode PDPT
+    test eax, eax
+    jz .fail_pml4
+    mov edx, eax
+    or eax, PG_P|PG_W
+    mov [ebx], eax              ; PML4[0] -> LM PDPT (high dword 0)
+    mov dword [ebx+4], 0
+    mov [edi], ebx
+    test ebp, ebp
+    jz .refresh
+    add dword [ebp+AS_PAGES], 2
+.refresh:
+    mov edx, [ebx]              ; LM PDPT
+    and edx, -PAGE_SIZE
+    xor ecx, ecx                ; PDPTE index 0..3
+.copy:
+    mov eax, [esi+ecx*8]
+    test eax, PG_P
+    jz .empty
+    and eax, -PAGE_SIZE
+    or eax, PG_P|PG_W           ; long-mode PDPTE: W allowed
+    mov [edx+ecx*8], eax
+    mov dword [edx+ecx*8+4], 0
+    jmp .next
+.empty:
+    mov dword [edx+ecx*8], 0
+    mov dword [edx+ecx*8+4], 0
+.next:
+    inc ecx
+    cmp ecx, PAE_PDPT_ENTS
+    jb .copy
+    popad
+    clc
+    ret
+.fail_pml4:
+    mov eax, ebx
+    call pg_free
+.fail:
+    popad
+    stc
+    ret
+
+; eax = address space record, or 0 for the kernel.
+; Syncs the 4-level wrapper -> eax = PML4 physical address, CF on failure.
+; Clobbers nothing else (pushad around the sync's allocations path via
+; as_lm_sync; then reloads the pointer).
+as_lm_cr3:
+    push ebx
+    mov ebx, eax
+    call as_lm_sync
+    jc .r
+    test ebx, ebx
+    jnz .proc
+    mov eax, [kernel_pml4]
+    jmp .ok
+.proc:
+    mov eax, [ebx+AS_PML4]
+.ok:
+    test eax, eax
+    jz .bad
+    pop ebx
+    clc
+    ret
+.bad:
+    stc
+.r:
+    pop ebx
+    ret
+
 vm_m_nomem db '*** no memory for page tables', 10, 0
 
 align 4
-kernel_pd dd 0                  ; PDPT (CR3)
+kernel_pd dd 0                  ; PDPT (CR3 in PAE)
 kernel_pd0 dd 0                 ; page directory for 0-1 GB
 kernel_pt dd 0                  ; 0-2 MB page table
 kernel_pt_hi dd 0               ; 2-4 MB page table
+kernel_pml4 dd 0                ; 4-level root for long mode (2.9)
 vm_nx db 0                      ; 1: NX is available and EFER.NXE is on
 as_table times AS_MAX*AS_SIZE db 0

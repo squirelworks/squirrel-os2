@@ -460,6 +460,9 @@ run_simple:
     mov edi, cmd_lmstay         ; 2.9-lm-kernel: 64-bit IDT stay
     call streq
     je .lmstay
+    mov edi, cmd_lmpage         ; 2.9-lm-kernel: 4-level per-process paging
+    call streq
+    je .lmpage
     mov edi, cmd_cliptest       ; 2.1-blit-clip
     call streq
     je .cliptest
@@ -884,6 +887,9 @@ run_simple:
     jmp .empty
 .lmstay:
     call cmd_lmstay_run
+    jmp .empty
+.lmpage:
+    call cmd_lmpage_run
     jmp .empty
 .desktop:
     call cmd_desktop_run
