@@ -17,6 +17,8 @@ literal suffix **`-b55f`** or **`-2eaf`** (same as the branch suffix). Shared
 files need coordinated rebases; do not race edits. Suite-wide checklist:
 [squirrelsoft `docs/AGENT_LANES.md`](https://github.com/squirelworks/squirrelsoft/blob/main/docs/AGENT_LANES.md).
 
+**Living lane claims issue:** [#201](https://github.com/squirelworks/squirrel-os2/issues/201) (RPS over #200; see #202). Close #198/#199/#200 when convenient.
+
 ### Progress notes `-b55f`
 
 - **Landed:** `2.9-lm-paging-b55f` (#193 / `lmpage`). **In progress:** `2.9-lm-stay-thunks-b55f` (#196 / `lmthunk`). **Next after merge:** `2.9-lm-kernel-tick-b55f` (only once boot stays / x86_64 suite flavour).
