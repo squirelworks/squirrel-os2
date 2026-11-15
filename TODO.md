@@ -350,7 +350,7 @@ From the 2.6 milestone in `ROADMAP.md` and W.2 / W.4 / W.5 in epic #117. Start a
 - [x] **2.6-notebook** — A Warp-style settings notebook widget with tabs (`wg_notebook` in `widget.asm`): tab strip, page body, switching pages by click. Self-check reads tab and page pixels → `nbtest: PASS`.
 - [ ] **2.6-shadows** — Shadow (shortcut) objects that point at an original; renaming or moving the original updates the shadow's target, and the link survives a reboot. Check `dk-shadow` → `dk-shadow: PASS`.
 - [ ] **W.2-templates** — Workplace Shell object model in the GUI: every desktop object opens a settings notebook (**2.6-notebook**); a Templates folder; dragging a template onto the desktop (or into a folder) creates a new object of that class. Check `wps-tmpl` → `wps: PASS`.
-- [ ] **W.4-views** — Folder views: Icon, Tree and Details (switchable per folder window). Check `fold-views` → `foldview: PASS`.
+- [x] **W.4-views** — Folder views: Icon, Tree and Details (switchable per folder window). Check `fold-views` → `foldview: PASS`.
 - [ ] **W.5-openas** — Context menu "Open as → Icon / Tree / Details / Settings" on a folder (and Settings on any object), using **2.6-context**, **W.4-views** and **2.6-notebook**. Check `openas` → `openas: PASS`.
 
 ## W.6 — System objects (needs 2.6 + 2.7-objects)
