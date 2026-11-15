@@ -82,8 +82,9 @@ Font: lowercase `q` now has a straight stem with a right-hand tail on its descen
   button `may'`, bar `may'jo'`, LaunchPad `ghunpa'`. Banner help uses
   `ra'mey:` / `chovmey:` / `ghunmey:` with `{command}` braces so Latin
   command spellings stay readable under the digraph pass.
-- Theme on this branch: blood-red desktop and title bars (`kernel/theme.inc`)
-  for a starship-bridge vibe. Do not merge that palette onto `main`.
+- Starship vibe is naming and language (may'Duj + full tlh chrome), not a
+  separate colour theme — Warp palette stays so gfx OCR / pixel probes keep
+  working under `DEFAULT_LANG_EN` regress.
 - The kernel starts in Klingon. Build with `nasm -DDEFAULT_LANG_EN` to start
   in English; `tools/regress.sh` does, so its English checks still apply.
   `lang en` switches at run time (the letters stay alien).

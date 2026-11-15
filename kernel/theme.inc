@@ -3,23 +3,23 @@
 ; palette, which the DAC keeps in mode 13h (bright colours at 0x38-0x3F).
 ; Code uses these names, never the numbers (documentation/kernel/windows.md).
 ;
-; klingon-font branch: blood-red bridge colours (starship vibe) instead of
-; the cyan/blue Warp defaults. Do not merge this palette onto main.
+; Starship vibe on the klingon-font line is language/brand (may'Duj), not a
+; palette fork: changing TH_* here breaks gfx OCR / pixel probes in regress.
 
-TH_DESKTOP          equ 0x04    ; red desktop (Klingon bridge)
+TH_DESKTOP          equ 0x03    ; cyan desktop
 TH_FACE             equ 0x07    ; 3D face grey
 TH_LIGHT            equ 0x3F    ; bevel highlight, white
 TH_SHADOW           equ 0x38    ; bevel shadow, dark grey
 TH_DARK             equ 0x00    ; outer bevel edge, black
 TH_FRAME            equ 0x3F    ; window frame
-TH_TITLE            equ 0x0C    ; title bar of the focused window, light red
+TH_TITLE            equ 0x01    ; title bar of the focused window, blue
 TH_TITLE_IDLE       equ 0x38    ; title bar of the others, dark grey
 TH_TITLE_TEXT       equ 0x3F    ; title text, white
 TH_CLIENT           equ 0x07    ; client area, light grey
 TH_TEXT             equ 0x00    ; text on the client area, black
 TH_BTN_FACE         equ 0x3F    ; sunken well (fields, lists); buttons use TH_FACE
 TH_POINTER          equ 0x0F    ; the mouse pointer (mouse.asm)
-TH_SELECT           equ 0x04    ; a chosen menu row (2.2-sysmenu)
+TH_SELECT           equ 0x01    ; a chosen menu row (2.2-sysmenu)
 TH_SELECT_TEXT      equ 0x3F
 TH_BEVEL_W          equ 2       ; rings in a bevel (gfx_bevel)
 TH_BEVEL_RAISED     equ 0       ; gfx_bevel esi: raised
