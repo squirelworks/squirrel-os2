@@ -279,6 +279,7 @@ dk_drop:
 .set:
     mov ebx, 1
     call obj_set                ; in
+    push ecx                    ; the new in (folder name or empty)
     mov edx, [dk_heldk]
     mov esi, [dk_files+edx*4]
     test esi, esi
@@ -286,6 +287,12 @@ dk_drop:
     call dk_path
     call obj_save               ; (no data disk: kept until the desktop closes)
 .nofile:
+    mov eax, [dk_held]          ; 2.6-shadows: move follows into Shadow files
+    xor ebx, ebx
+    call obj_get                ; name
+    mov esi, eax
+    pop edi                     ; new in
+    call sh_follow_move
     call dk_unhold
     call dk_relist
 .r:
@@ -376,11 +383,11 @@ dk_rename:
     call obj_set
     call dk_save
     cmp dword [eax+OBJ_CLASS], dk_c_fold
-    jne .close
+    jne .shadows
     xor edx, edx                ; a folder: what was in it moves with it
 .f:
     cmp edx, [dk_n]
-    jae .close
+    jae .shadows
     mov eax, [dk_objs+edx*4]
     push ecx
     mov ebx, 1
@@ -397,6 +404,10 @@ dk_rename:
 .fn:
     inc edx
     jmp .f
+.shadows:                       ; 2.6-shadows: rename follows into Shadow files
+    mov esi, ebp
+    mov edi, ecx
+    call sh_follow_rename
 .close:
     mov eax, [dk_rwin]
     call wm_close
@@ -533,6 +544,7 @@ dk_mkobjs:
     call obj_class
     mov esi, dk_c_fold
     call obj_class
+    call sh_register            ; Shadow (2.6-shadows)
     cmp byte [fs_mounted], 0
     je .builtin
     mov esi, dk_dir             ; the first time: write the defaults (1.8.3)

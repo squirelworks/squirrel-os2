@@ -33,13 +33,13 @@ files need coordinated rebases; do not race edits. Suite-wide checklist:
 
 ### Progress notes `-2eaf`
 
-- **Landed:** `W.2-templates-2eaf` (#191); `W.5-openas-2eaf` (#192). **This PR:** `W.3-launchpad-2eaf` (#183).
+- **Landed:** `W.2-templates-2eaf` (#191); `W.5-openas-2eaf` (#192); `W.3-launchpad-2eaf` (#183). **This PR:** `2.6-shadows-2eaf` (#188).
 
 ### Tasks `-2eaf` (other lane)
 
 - [x] `W.3-launchpad-2eaf` — PR #183
 - [ ] `2.6-icons-2eaf` / `2.6-drag-2eaf` — PR #184
-- [ ] `2.6-shadows-2eaf` — PR #188
+- [x] `2.6-shadows-2eaf` — PR #188
 - [x] `W.5-openas-2eaf` — PR #192
 - [ ] `W.6-startup-2eaf` / `W.6-syssetup-2eaf` — claimed; start after 2.6 icons/shadows on `main`
 
@@ -78,9 +78,9 @@ Used here, in `ROADMAP.md`, `TODO.md` and on the issues (as labels).
 - **Test gate:** `tools/regress.sh` and GitHub CI (`.github/workflows/ci.yml`:
   `build` and `regress`, on every PR). Wait for a green `regress` before
   calling a PR ready.
-- **Open PRs (2026-11-15):** #184 #188 (`*-2eaf` desktop/Warp). This PR
-  is #183 (`W.3-launchpad-2eaf`). Finish or rebase open feature PRs; do not
-  redo them. (#191, #192, #193, #195, and #196 are on `main`.)
+- **Open PRs (2026-11-15):** #188 (this PR, `2.6-shadows-2eaf`); #184
+  (`*-2eaf` desktop). Finish or rebase open feature PRs; do not redo them.
+  (#183, #191, #192, #193, #195, #196, and #203 are on `main`.)
 
 ## Rules (Squirrel's; do not break)
 
@@ -124,7 +124,7 @@ Lanes run in parallel (see **Agent ownership**). Within a lane, keep the order.
    (#181); ~~`W.3-launchpad-2eaf`~~ done (#183); `2.6-icons-2eaf` →
    `2.6-drag-2eaf` *(#184)*; ~~**2.6-context → 2.6-notebook**~~ done (#186);
    ~~`W.2-templates-2eaf`~~ done (#191); ~~**W.4-views**~~ done (#190);
-   `2.6-shadows-2eaf` *(#188)* → ~~`W.5-openas-2eaf`~~ done (#192); then
+   ~~`2.6-shadows-2eaf`~~ done (#188) → ~~`W.5-openas-2eaf`~~ done (#192); then
    `W.6-startup-2eaf` → `W.6-syssetup-2eaf`.
 4. **2.9 path `-b55f`:** ~~**2.8-pae**~~ done (#180); ~~IDT/TSS stay~~ done
    (#189); ~~`2.9-lm-paging-b55f`~~ done (#193); `2.9-lm-stay-thunks-b55f`
@@ -166,7 +166,7 @@ host `fatimg.py check`, and `fattest` on the formatted images.
 ### 2.5 / W.3 — WarpCenter, Squirrel menu, tray clock, LaunchPad  `status: done` (`-2eaf`)
 - **Done on `main`:** **2.5-bar**, **2.5-menu**, **2.5-clock**
   (`kernel/warpcenter.asm`, `wcbar` / `wcmenu` / `wcclock` / `warpcenter`).
-- **Done on this PR (`W.3-launchpad-2eaf`, #183):** LaunchPad pads on the
+- **Done on `main` (`W.3-launchpad-2eaf`, #183):** LaunchPad pads on the
   shared WarpCenter top chrome; pads persist and launch → `wclp: PASS`.
 - **Files:** `kernel/warpcenter.asm`, `kernel/launchpad.asm`, `kernel/progman.asm`,
   `kernel/wm.asm`, `documentation/apps/desktop.md`.
@@ -181,19 +181,22 @@ host `fatimg.py check`, and `fattest` on the formatted images.
   settings notebook; `wpstmpl` / `wps-tmpl`, #191). **W.5-openas** — context
   menu Open as → Icon / Tree / Details / Settings on File Manager folders and
   on Program Manager objects (`fm_openas_*` / `pm_openas_*`); self-check
-  `openas` → `openas: PASS`.
+  `openas` → `openas: PASS`. **2.6-shadows** (`kernel/shadow.asm`, object-file
+  links under `/desktop`; rename/move of the original updates Shadow `target` /
+  `at`; `dkshadow` → `dk-shadow: PASS`).
 - **In progress (do not stack / redo):** `2.6-icons-2eaf` + `2.6-drag-2eaf`
-  (#184), `2.6-shadows-2eaf` (#188).
+  (#184).
 - **Files:** `kernel/progman.asm`, `kernel/deskicons.asm`, `kernel/desktop.asm`,
-  `kernel/shadow.asm`, `kernel/wps.asm`, `kernel/widget.asm`, `kernel/wm.asm`,
-  `kernel/filemgr.asm`, `kernel/pm.asm`, `documentation/apps/desktop.md`,
-  `documentation/apps/progman.md`, `documentation/apps/filemgr.md`,
-  `documentation/kernel/widgets.md`.
+  `kernel/shadow.asm`, `kernel/object.asm`, `kernel/wps.asm`, `kernel/widget.asm`,
+  `kernel/wm.asm`, `kernel/filemgr.asm`, `kernel/pm.asm`,
+  `documentation/apps/desktop.md`, `documentation/apps/progman.md`,
+  `documentation/apps/filemgr.md`, `documentation/kernel/widgets.md`,
+  `documentation/kernel/objects.md`.
 - **Acceptance (done):** right-click menu `dk-ctx: PASS`; notebook tabs
   `nbtest: PASS`; folder Icon/Tree/Details `foldview: PASS`; templates create
-  objects `wps: PASS`; "Open as → …" `openas: PASS`. **Still open:** icon
-  pixel probe `dk-icons: PASS`; file-on-program drag `dk-drag: PASS`; shadow
-  follows rename across reboot `dk-shadow: PASS`.
+  objects `wps: PASS`; "Open as → …" `openas: PASS`; shadow follows rename
+  across reboot `dk-shadow: PASS`. **Still open:** icon pixel probe
+  `dk-icons: PASS`; file-on-program drag `dk-drag: PASS`.
 
 ### W.6 — Startup and System Setup (with 2.6 + 2.7-objects)  `-2eaf` (claimed)
 - **Split done:** `TODO.md` boxes `W.6-startup-2eaf`, `W.6-syssetup-2eaf`.
