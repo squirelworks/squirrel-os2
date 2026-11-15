@@ -87,6 +87,11 @@ Font: lowercase `q` now has a straight stem with a right-hand tail on its descen
 - The kernel starts in Klingon. Build with `nasm -DDEFAULT_LANG_EN` to start
   in English; `tools/regress.sh` does, so its English checks still apply.
   `lang en` switches at run time (the letters stay alien).
+- **Future ASCII exit (scaffold only):** leftover English `db` chrome and the
+  intentional COM1 Latin leak (BIOS joke keeps serial ASCII so smokes pass)
+  are inventoried in `documentation/klingon-ascii-exit.md` and
+  `documentation/klingon-ascii-exit-checklist.md`. **Do not convert COM1
+  until that checklist's Phase 3 gate is signed off.**
 
 ### Refreshing the branch later
 

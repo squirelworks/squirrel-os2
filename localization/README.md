@@ -83,3 +83,7 @@ See `documentation/kernel/localization.md`.
 - Kernel and applications look up strings by key.
 - Fallback is English if a translation is missing (a key left out of a file).
 - Values are printable ASCII; the generator refuses anything else.
+
+On the `klingon-font` joke line, finishing the remaining English literals (and
+later COM1) is scaffolded in `documentation/klingon-ascii-exit.md` — docs and
+checklists first; no COM1 code until that plan's Phase 3 gate.
