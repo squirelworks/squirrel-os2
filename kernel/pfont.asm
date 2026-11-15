@@ -150,7 +150,8 @@ cmd_pfont_run:
     call gfx_fillrect
     mov byte [gfx_colour], 0x0F
     mov byte [gfx_bg], 0x01
-    mov esi, pft_s9             ; 'Wg' leads: W is #...# on top, g's tail is ...# / .##.
+    ; klingon-font: prop faces are pIqaD (7-wide letters). 'Wg' is 7+1+7+1.
+    mov esi, pft_s9
     mov eax, PFT_X
     mov ebx, PFT_Y
     xor ecx, ecx                ; FONT_9
@@ -160,13 +161,13 @@ cmd_pfont_run:
     call gfx_strwidth_p
     cmp eax, edx
     jne .bad
-    mov esi, pft_wg             ; 'Wg' alone: 5 + 1 + 4 + 1
+    mov esi, pft_wg             ; 'Wg' alone: 7 + 1 + 7 + 1
     call gfx_strwidth_p
-    cmp eax, 11
+    cmp eax, 16
     jne .bad
-    mov ecx, FONT_12            ; bold: 6 + 1 + 5 + 1
+    mov ecx, FONT_12            ; same 7-col pIqaD art
     call gfx_strwidth_p
-    cmp eax, 13
+    cmp eax, 16
     jne .bad
     mov esi, pft_s12
     mov eax, PFT_X
@@ -177,14 +178,14 @@ cmd_pfont_run:
     call gfx_strwidth_p
     cmp eax, edx
     jne .bad
-    mov byte [gfx_colour], 0x0E ; transparent: 'i' over the yellow-free band
+    mov byte [gfx_colour], 0x0E ; transparent: 'i' over the band
     mov byte [gfx_bg], 0xFF
     mov esi, pft_i
     mov eax, PFT_X + 260
     mov ebx, PFT_Y
     xor ecx, ecx
     call gfx_drawstr_p
-    cmp eax, PFT_X + 262
+    cmp eax, PFT_X + 268        ; i is 7 wide + 1 spacing
     jne .bad
     mov byte [gfx_bg], 0
     mov esi, pft_expect
@@ -203,31 +204,32 @@ cmd_pfont_run:
     jmp puts
 
 ; x (dd), y (dd), expected colour (db); x = -1 ends the list
+; Probes match pIqaD prop glyphs from tools/mkklingon5x7.py (7-wide W/g/i).
 pft_expect:
     dd PFT_X, PFT_Y
-    db 0x0F                     ; W: top left is ink
-    dd PFT_X + 1, PFT_Y
-    db 0x01                     ; W: then clear
-    dd PFT_X + 5, PFT_Y
+    db 0x0F                     ; W: top row is all ink
+    dd PFT_X + 1, PFT_Y + 1
+    db 0x0F                     ; W: second row still ink in col 1
+    dd PFT_X + 7, PFT_Y
     db 0x01                     ; W's spacing column
-    dd PFT_X + 6 + 3, PFT_Y + 7
-    db 0x0F                     ; g's descender, below the baseline
-    dd PFT_X + 6 + 1, PFT_Y + 8
-    db 0x0F                     ; g's tail
-    dd PFT_X + 6, PFT_Y + 8
-    db 0x01                     ; left of the tail
+    dd PFT_X + 8 + 1, PFT_Y + 7
+    db 0x0F                     ; g: descender (row 7, col 1)
+    dd PFT_X + 8, PFT_Y + 8
+    db 0x0F                     ; g: bottom bar left
+    dd PFT_X + 8, PFT_Y + 1
+    db 0x01                     ; g: clear under the top bar (col 0)
     dd PFT_X - 1, PFT_Y
     db 0x01                     ; left of the string: the band, untouched
+    dd PFT_X + 260 + 3, PFT_Y
+    db 0x0E                     ; transparent 'i': top bar ink (col 3)
     dd PFT_X + 260, PFT_Y
-    db 0x0E                     ; transparent 'i': its dot
-    dd PFT_X + 260, PFT_Y + 1
-    db 0x01                     ; the gap under the dot shows the band
-    dd PFT_X + 261, PFT_Y
-    db 0x01                     ; and so does its spacing column
-    dd PFT_X + 1, PFT_Y + 16 + 2
-    db 0x0F                     ; FONT_12 W: bold, two columns of ink
+    db 0x01                     ; 'i' leftmost column clear on row 0
+    dd PFT_X + 267, PFT_Y
+    db 0x01                     ; spacing column after 'i'
     dd PFT_X, PFT_Y + 16
-    db 0x01                     ; FONT_12: the blank top row
+    db 0x0F                     ; FONT_12 W: top row ink
+    dd PFT_X + 7, PFT_Y + 16
+    db 0x01                     ; FONT_12 W spacing
     dd -1
 
 pft_s9 db 'Wg Squirrel window face', 0
