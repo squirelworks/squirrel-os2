@@ -344,8 +344,8 @@ From the 2.5 milestone in `ROADMAP.md` and W.3 in epic #117. Start after **2.3-b
 
 From the 2.6 milestone in `ROADMAP.md` and W.2 / W.4 / W.5 in epic #117. Start after **2.5-bar** is on `main` (the bar reserves the top strip). W.2, W.4 and W.5 belong with these boxes. Design notes in `documentation/apps/desktop.md` and `documentation/kernel/widgets.md` (notebook tabs). Drive and shredder object classes already exist (**2.7-objects**); this section is the Generation-2 GUI over the object desktop.
 
-- [ ] **2.6-icons** *(in progress #184, lane `-2eaf`)* — Desktop objects drawn with 32×32 icons and captions on the desktop surface (not only as Program Manager list rows); existing `mkicon` icons for programs, folders and files. Pixel probe of an icon glyph → `dk-icons: PASS`.
-- [ ] **2.6-drag** *(in progress #184, lane `-2eaf`)* — Mouse drag and drop between folders and onto programs: dropping a file on a program opens that program with the file; moves persist across reboot (object files under `/desktop`). Check `dk-drag` → `dk-drag: PASS`.
+- [x] **2.6-icons** *(lane `-2eaf`)* — Desktop objects drawn with 32×32 icons and captions on the desktop surface (not only as Program Manager list rows); existing `mkicon` icons for programs, folders and files. Pixel probe of an icon glyph → `dk-icons: PASS`.
+- [x] **2.6-drag** *(lane `-2eaf`)* — Mouse drag and drop between folders and onto programs: dropping a file on a program opens that program with the file; moves persist across reboot (object files under `/desktop`). Check `dk-drag` → `dk-drag: PASS`.
 - [x] **2.6-context** — Right-button context menu on a desktop object (Open, Settings, Delete, and the usual arrange items), built on `wg_menu`. Check `dk-ctx` → `dk-ctx: PASS`.
 - [x] **2.6-notebook** — A Warp-style settings notebook widget with tabs (`wg_notebook` in `widget.asm`): tab strip, page body, switching pages by click. Self-check reads tab and page pixels → `nbtest: PASS`.
 - [x] **2.6-shadows** — Shadow (shortcut) objects that point at an original; renaming or moving the original updates the shadow's target, and the link survives a reboot. Check `dk-shadow` → `dk-shadow: PASS`.
