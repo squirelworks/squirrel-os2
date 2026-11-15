@@ -346,8 +346,8 @@ From the 2.6 milestone in `ROADMAP.md` and W.2 / W.4 / W.5 in epic #117. Start a
 
 - [ ] **2.6-icons** — Desktop objects drawn with 32×32 icons and captions on the desktop surface (not only as Program Manager list rows); existing `mkicon` icons for programs, folders and files. Pixel probe of an icon glyph → `dk-icons: PASS`.
 - [ ] **2.6-drag** — Mouse drag and drop between folders and onto programs: dropping a file on a program opens that program with the file; moves persist across reboot (object files under `/desktop`). Check `dk-drag` → `dk-drag: PASS`.
-- [ ] **2.6-context** — Right-button context menu on a desktop object (Open, Settings, Delete, and the usual arrange items), built on `wg_menu`. Check `dk-ctx` → `dk-ctx: PASS`.
-- [ ] **2.6-notebook** — A Warp-style settings notebook widget with tabs (`wg_notebook` in `widget.asm`): tab strip, page body, switching pages by click. Self-check reads tab and page pixels → `nbtest: PASS`.
+- [x] **2.6-context** — Right-button context menu on a desktop object (Open, Settings, Delete, and the usual arrange items), built on `wg_menu`. Check `dk-ctx` → `dk-ctx: PASS`.
+- [x] **2.6-notebook** — A Warp-style settings notebook widget with tabs (`wg_notebook` in `widget.asm`): tab strip, page body, switching pages by click. Self-check reads tab and page pixels → `nbtest: PASS`.
 - [ ] **2.6-shadows** — Shadow (shortcut) objects that point at an original; renaming or moving the original updates the shadow's target, and the link survives a reboot. Check `dk-shadow` → `dk-shadow: PASS`.
 - [ ] **W.2-templates** — Workplace Shell object model in the GUI: every desktop object opens a settings notebook (**2.6-notebook**); a Templates folder; dragging a template onto the desktop (or into a folder) creates a new object of that class. Check `wps-tmpl` → `wps: PASS`.
 - [ ] **W.4-views** — Folder views: Icon, Tree and Details (switchable per folder window). Check `fold-views` → `foldview: PASS`.

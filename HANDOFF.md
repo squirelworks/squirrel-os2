@@ -72,9 +72,10 @@ qemu-system-i386 -drive file=build/os.img,format=raw -drive file=build/data.img,
 
 1. ~~Merge `int/os2-control`, **2.3-bevel-default**, then **2.3.0 release notes**.~~ Done (#168, #172, and the 2.3.0 prep PR). Owner publishes `v2.3.0`.
 2. ~~**2.7-diskutil** remainder (in-OS FAT format; #171 shipped view/check without ticking the box).~~ Done (format FAT12/16/32 from `diskutil`).
-3. **Generation 2 desktop** from the split boxes in `TODO.md`: **2.5-bar →
-   2.5-menu → 2.5-clock → W.3-launchpad**, then **2.6-icons → 2.6-drag →
-   2.6-context → 2.6-notebook → 2.6-shadows → W.2-templates → W.4-views →
+3. **Generation 2 desktop** from the split boxes in `TODO.md`: ~~**2.5-bar →
+   2.5-menu → 2.5-clock**~~ done, **W.3-launchpad** still open; then
+   **2.6-icons → 2.6-drag** (open / in progress elsewhere), ~~**2.6-context →
+   2.6-notebook**~~ done, then **2.6-shadows → W.2-templates → W.4-views →
    W.5-openas**, then **W.6-startup → W.6-syssetup** (W.6 needs 2.6 + 2.7-objects).
 4. ~~**2.8-pae**~~ → **2.9-lm-kernel → 2.9-syscall64** (the 64-bit kernel; largest risk).
 5. **3.0** remainder (accounts, permissions, services, event log, task manager, themes).
@@ -121,17 +122,20 @@ host `fatimg.py check`, and `fattest` on the formatted images.
   `wc-menu: PASS`; tray clock ticks after an RTC step `wc-clock: PASS`.
 
 ### 2.6 / W.2 / W.4 / W.5 — Icons, drag/drop, menus, notebooks, shadows, views  `cursor-codex`
-- **Split done:** `TODO.md` boxes **2.6-icons**, **2.6-drag**, **2.6-context**,
-  **2.6-notebook**, **2.6-shadows**, **W.2-templates**, **W.4-views**,
-  **W.5-openas**. Start after **2.5-bar**.
-- **Files:** `kernel/desktop.asm`, `kernel/progman.asm`, `kernel/object.asm`,
-  `kernel/wm.asm`, `kernel/widget.asm` (notebook tabs are a new widget),
-  `documentation/apps/desktop.md`, `documentation/kernel/widgets.md`.
-- **Acceptance:** icon pixel probe `dk-icons: PASS`; file-on-program drag
-  `dk-drag: PASS`; right-click menu `dk-ctx: PASS`; notebook tabs `nbtest: PASS`;
-  shadow follows rename across reboot `dk-shadow: PASS`; templates create
-  objects `wps: PASS`; folder Icon/Tree/Details `foldview: PASS`;
-  "Open as → …" `openas: PASS`.
+- **Done on this work:** **2.6-context**, **2.6-notebook** (`kernel/progman.asm`
+  context menu on Program Manager icons via `wg_menu` / `wm_popup`;
+  `wg_notebook` in `kernel/widget.asm`; `dkctx` / `nbtest`).
+- **Still open:** **2.6-icons**, **2.6-drag** (may be in progress on another
+  branch — do not stack), **2.6-shadows**, **W.2-templates**, **W.4-views**,
+  **W.5-openas**.
+- **Files:** `kernel/progman.asm`, `kernel/widget.asm`, `kernel/wm.asm`,
+  `documentation/apps/desktop.md`, `documentation/apps/progman.md`,
+  `documentation/kernel/widgets.md`.
+- **Acceptance (done):** right-click menu `dk-ctx: PASS`; notebook tabs
+  `nbtest: PASS`. **Still open:** icon pixel probe `dk-icons: PASS`;
+  file-on-program drag `dk-drag: PASS`; shadow follows rename across reboot
+  `dk-shadow: PASS`; templates create objects `wps: PASS`; folder
+  Icon/Tree/Details `foldview: PASS`; "Open as → …" `openas: PASS`.
 
 ### W.6 — Startup and System Setup (with 2.6 + 2.7-objects)  `cursor-codex`
 - **Split done:** `TODO.md` boxes **W.6-startup**, **W.6-syssetup**. Drive and

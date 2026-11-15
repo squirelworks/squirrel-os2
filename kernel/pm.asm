@@ -464,6 +464,12 @@ run_simple:
     mov edi, cmd_bevwidgets     ; 2.3-bevel-default
     call streq
     je .bevwidgets
+    mov edi, cmd_nbtest         ; 2.6-notebook
+    call streq
+    je .nbtest
+    mov edi, cmd_dkctx          ; 2.6-context
+    call streq
+    je .dkctx
     mov edi, cmd_winvbe         ; 2.2-vbe-wm
     call streq
     je .winvbe
@@ -783,6 +789,12 @@ run_simple:
     jmp .empty
 .bevwidgets:
     call cmd_bevwidgets_run
+    jmp .empty
+.nbtest:
+    call cmd_nbtest_run
+    jmp .empty
+.dkctx:
+    call cmd_dkctx_run
     jmp .empty
 .winvbe:
     call cmd_winvbe_run
@@ -1385,6 +1397,8 @@ cmd_vbetest db 'vbetest', 0
 cmd_cliptest db 'cliptest', 0
 cmd_bevtest db 'bevtest', 0
 cmd_bevwidgets db 'bevwidgets', 0
+cmd_nbtest db 'nbtest', 0
+cmd_dkctx db 'dkctx', 0
 cmd_winvbe db 'winvbe', 0
 cmd_winclip db 'winclip', 0
 cmd_winhit db 'winhit', 0

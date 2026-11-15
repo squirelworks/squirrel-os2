@@ -9,13 +9,13 @@ The kernel keeps a table of up to 16 widgets (`WG_MAX`), shared by all windows. 
 | Field | Meaning |
 |-------|---------|
 | `WG_USED` | 1 while the widget exists |
-| `WG_KIND` | what it is: `WGK_LABEL`, `WGK_BUTTON`, `WGK_FIELD`, `WGK_LIST`, `WGK_CONSOLE` or `WGK_GROUP` |
+| `WG_KIND` | what it is: `WGK_LABEL`, `WGK_BUTTON`, `WGK_FIELD`, `WGK_LIST`, `WGK_CONSOLE`, `WGK_GROUP` or `WGK_NOTEBOOK` |
 | `WG_WIN` | the window it belongs to |
 | `WG_X`, `WG_Y` | its place in the client area, in pixels |
 | `WG_TEXT` | address of a zero-terminated string |
-| `WG_PID`, `WG_CODE` | button: the process its events go to, and its code; field: `WG_CODE` is the most characters; list: `WG_CODE` is how many items; group: `WG_CODE` is the width |
-| `WG_SEL` | list: the selected item, from 0; button: 1 while drawn pressed (2.3-bevel-default) |
-| `WG_TOP` | list: the first item shown (2.0.2); group: the height |
+| `WG_PID`, `WG_CODE` | button: the process its events go to, and its code; field: `WG_CODE` is the most characters; list: `WG_CODE` is how many items; group: `WG_CODE` is the width; notebook: `WG_CODE` is how many tabs and `WG_PID` is the width |
+| `WG_SEL` | list: the selected item, from 0; button: 1 while drawn pressed (2.3-bevel-default); notebook: the current tab |
+| `WG_TOP` | list: the first item shown (2.0.2); group / notebook: the height |
 | `WG_ROWS` | list: how many rows fit, from the last draw (2.0.2) |
 
 A widget is cut to its window's client area. A label whose text row does not fit below is not drawn; a label that runs past the right edge loses the characters that do not fit.
@@ -81,14 +81,28 @@ A console shows part of an 80 × 25 text buffer laid out as at `0xB8000` (charac
 |---------|----|-----|
 | `wg_console` | eax = window id, ebx = x, ecx = y, esi = buffer, edx = rows shown | eax = widget id, or −1 |
 
+## Notebook (2.6-notebook)
+
+A Warp-style settings notebook is a tab strip on top of a sunken page body. `WG_TEXT` is an array of tab-label string pointers; the selected tab's label is also drawn in the page body. The selected tab is a raised face; the others are a darker sunken face. Left/Right (or `wg_nbclick` on a tab) switches pages. `wg_menu` is an alias for `wm_popup` (the reusable pop-up used by system menus and desktop context menus).
+
+| Routine | In | Out |
+|---------|----|-----|
+| `wg_notebook` | eax = window id, ebx = x, ecx = y, esi = tab labels, edx = how many, edi = width, ebp = height | eax = widget id, or −1 |
+| `wg_nbsel` | eax = notebook id, ebx = tab index | selects that tab if in range |
+| `wg_nbclick` | eax = notebook id, ebx = x, ecx = y relative to the widget | CF clear if a tab was hit and selected |
+| `wg_menu` | same as `wm_popup` | opens a pop-up menu |
+
+`nbtest` opens a three-tab notebook, probes the selected tab's raised light and face, the page well, clicks tab 1, checks the new face / idle face, and moves with Right. Prints `nbtest: PASS` or `nbtest: FAIL at N`. Checks `nbtest` and `nbtest-text`.
+
 ## Keys
 
-`wg_key` (al = ASCII, 8 for Backspace, 9 for Tab, `WK_UP` 0x18 and `WK_DOWN` 0x19 for the arrows) gives a key to the focused widget of the focused window (`wm_focus`) if that widget takes keys; otherwise the first that does: a button, a field or a list. Labels, consoles and groups never take keys. It returns CF clear if the widget used the key, CF set if not, so the caller can use it.
+`wg_key` (al = ASCII, 8 for Backspace, 9 for Tab, `WK_UP` 0x18 and `WK_DOWN` 0x19 for the arrows) gives a key to the focused widget of the focused window (`wm_focus`) if that widget takes keys; otherwise the first that does: a button, a field, a list or a notebook. Labels, consoles and groups never take keys. It returns CF clear if the widget used the key, CF set if not, so the caller can use it.
 
 - Button: Enter (10 or 13) or Space posts its event.
 - Field: a printable character (0x20 to 0x7E) is appended if there is room; when the field is full the key is used and dropped. Backspace deletes the last character. Enter and Esc are not used.
 - List: `WK_DOWN` and `WK_UP` move the selection and stop at the first and last item. Other keys are not used.
-- Tab (9): `wg_tab` moves the focus to the next button, field or list in the same window (wraps); groups are skipped.
+- Notebook: `WK_LEFT` and `WK_RIGHT` move the current tab.
+- Tab (9): `wg_tab` moves the focus to the next button, field, list or notebook in the same window (wraps); groups are skipped.
 
 The caller turns keys into these codes; the scancodes for the arrows are 0x48 (Up) and 0x50 (Down).
 
@@ -113,4 +127,4 @@ The test windows put a label at (4, `2 + TH_BEVEL_W + WG_BTN_PAD`) and the box b
 
 ## Next
 
-The desktop shell (1.6) hosts the applications as windows (`../../ROADMAP.md`).
+Workplace Shell shadows, templates and folder views (`TODO.md` **2.6-shadows**, **W.2**, **W.4**, **W.5**) build on the notebook and context menu.

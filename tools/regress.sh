@@ -630,6 +630,11 @@ check wc-menu       'wc-menu: PASS'         wcmenu '<ret>' '<pause>'
 check wc-clock      'wc-clock: PASS'        wcclock '<ret>' '<pause>'
 check_all wc-bar-gfx 'gfx: Squirrel|gfx: calc' warpcenter '<ret>' '<pause>' '<gfx>' '<esc>' '<pause>'
 check wc-text       'systest: PASS'         wcbar '<ret>' systest '<ret>'
+# 2.6-context / 2.6-notebook: object context menu and settings notebook widget
+check dk-ctx        'dk-ctx: PASS'          dkctx '<ret>' '<pause>'
+check dk-ctx-text   'systest: PASS'         dkctx '<ret>' '<pause>' systest '<ret>'
+check nbtest        'nbtest: PASS'          nbtest '<ret>'
+check nbtest-text   'systest: PASS'         nbtest '<ret>' systest '<ret>'
 # 2.3-filemgr: the File Manager on a disk of its own: /w holds a.txt and sub
 python3 "$root/tools/sqfs.py" "$out/fm.img" format 1024 >/dev/null
 disk=$out/fm.img
