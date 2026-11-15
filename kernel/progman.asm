@@ -595,13 +595,15 @@ pm_caption:
     ret
 
 ; eax = object -> esi = its icon: a Folder's, the program's own (named as
-; its entry), or the generic program icon
+; its entry), a Template's (by of), or the generic program icon
 pm_icon:
     push eax
     push ebx
     mov esi, icon_folder
     cmp dword [eax+OBJ_CLASS], dk_c_fold
     je .r
+    cmp dword [eax+OBJ_CLASS], wps_c_tmpl
+    je .tmpl
     mov esi, icon_program
     cmp dword [eax+OBJ_CLASS], dk_c_prog
     jne .r
@@ -617,6 +619,21 @@ pm_icon:
     pop ebx
     pop eax
     ret
+.tmpl:
+    mov ebx, 2
+    call obj_get                ; of
+    mov esi, icon_folder
+    test eax, eax
+    jz .r
+    push edi
+    mov esi, eax
+    mov edi, wps_nm_folder
+    call streq
+    pop edi
+    mov esi, icon_folder
+    je .r
+    mov esi, icon_program
+    jmp .r
 
 ; eax, ebx, ecx, edx = a rectangle: the clip becomes its overlap with the
 ; clip already set (saved for pm_clipout)
@@ -837,7 +854,8 @@ pm_press:
 
 ; ecx, edx = how far the pointer went since the press: a drag of at
 ; least PM_DRAG pixels moves the icon (and saves the places); less is
-; a click and changes nothing.
+; a click and changes nothing. A Template (W.2) creates a new object in
+; the group under the pointer instead of moving.
 pm_release:
     pushad
     mov edi, [pm_drag]
@@ -856,12 +874,107 @@ pm_release:
     add eax, ebx
     cmp eax, PM_DRAG
     jb .r
+    mov eax, [pm_gobj+edi*4]
+    mov eax, [dk_objs+eax*4]
+    cmp dword [eax+OBJ_CLASS], wps_c_tmpl
+    je .tmpl
     mov edx, [esp+20]
     call pm_moveby
     mov dword [pm_last], -1     ; a drag is not half of a double-click
     call pm_save
 .r:
     popad
+    ret
+.tmpl:
+    mov dword [pm_last], -1
+    mov [wps_src], eax
+    mov eax, [dk_lmx]
+    mov ebx, [dk_lmy]
+    call pm_group_at            ; ebp = group under the pointer
+    jnc .tdrop
+    call pm_focus
+    jnc .tdrop
+    xor ebp, ebp                ; Main
+.tdrop:
+    mov esi, [pm_gfold+ebp*4]
+    mov eax, [wps_src]
+    call wps_create_from
+    jc .r
+    call pm_rebuild             ; new Folder needs a group; else refresh
+    mov byte [pm_dirty], 1
+    jmp .r
+
+; Close group windows and rebuild from dk_objs (after a template create).
+pm_rebuild:
+    pushad
+    xor ebp, ebp
+.c:
+    mov eax, [pm_gwin+ebp*4]
+    cmp eax, -1
+    je .n
+    call wm_close
+.n:
+    inc ebp
+    cmp ebp, PM_GMAX
+    jb .c
+    call pm_build
+    call pm_load
+    popad
+    ret
+
+; eax, ebx = screen point -> ebp = group whose window contains it, CF clear;
+; CF set if none.
+pm_group_at:
+    push eax
+    push ebx
+    push ecx
+    push edx
+    push esi
+    push edi
+    mov [pm_atx], eax
+    mov [pm_aty], ebx
+    xor ebp, ebp
+.g:
+    cmp ebp, [pm_ng]
+    jae .no
+    mov eax, [pm_gwin+ebp*4]
+    cmp eax, -1
+    je .n
+    call wm_record             ; edi = window record
+    jc .n
+    mov eax, [pm_atx]
+    mov ebx, [pm_aty]
+    cmp eax, [edi+WIN_X]
+    jl .n
+    mov ecx, [edi+WIN_X]
+    add ecx, [edi+WIN_W]
+    cmp eax, ecx
+    jge .n
+    cmp ebx, [edi+WIN_Y]
+    jl .n
+    mov edx, [edi+WIN_Y]
+    add edx, [edi+WIN_H]
+    cmp ebx, edx
+    jge .n
+    pop edi
+    pop esi
+    pop edx
+    pop ecx
+    pop ebx
+    pop eax
+    clc
+    ret
+.n:
+    inc ebp
+    jmp .g
+.no:
+    pop edi
+    pop esi
+    pop edx
+    pop ecx
+    pop ebx
+    pop eax
+    stc
     ret
 
 ; ---------- places file ----------
@@ -1159,24 +1272,7 @@ pm_settings:
     jc .r
     cmp dword [pm_gn+ebp*4], 0
     je .r
-    mov eax, 80
-    mov ebx, 60
-    mov ecx, 280
-    mov edx, 160
-    mov esi, pm_set_title
-    call wm_create
-    cmp eax, -1
-    je .r
-    mov [pm_set_win], eax
-    mov ebx, 8
-    mov ecx, 8
-    mov esi, pm_set_tabs
-    mov edx, 2
-    mov edi, 260
-    mov ebp, 120
-    call wg_notebook
-    mov [pm_set_nb], eax
-    call wm_redraw
+    call wps_settings           ; W.2: same notebook path for every object
 .r:
     popad
     ret
@@ -1518,6 +1614,8 @@ pm_tslot dd 0
 pm_ticon dd 0
 pm_tx dd 0
 pm_ty dd 0
+pm_atx dd 0
+pm_aty dd 0
 pm_kmove db 0
 pm_dirty db 0
 pm_open db 0

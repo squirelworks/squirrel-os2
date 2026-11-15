@@ -39,3 +39,5 @@ Each group window's record has `WIN_PAINT = pm_paint` (2.3-groups adds the field
 On a disk of their own (`pm.img`): `pmtest`, `pm-groups` (the group titles and captions read off the screen), `pm-launch` (calc opened with Enter computes 2 + 2), `pm-move` (m and arrows: `calc 88 12` in the file), `pm-move-reboot` (the next run starts from that place: one more step right gives `calc 96 12`), `pm-arrange` (`calc 72 4` again) and `pm-text`.
 
 `dkctx` (2.6-context) builds the groups, opens the context menu on `calc`, chooses Open / Settings / Arrange / Delete through `wm_menuchoose`, and probes a Settings notebook tab face. Prints `dk-ctx: PASS` or `dk-ctx: FAIL`. Checks `dk-ctx` and `dk-ctx-text`.
+
+Dragging a Template icon onto another group creates an object there (W.2-templates; `documentation/apps/desktop.md`). Settings on any icon uses the same notebook path as `wps_settings`.

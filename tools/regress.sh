@@ -638,6 +638,11 @@ check dk-ctx        'dk-ctx: PASS'          dkctx '<ret>' '<pause>'
 check dk-ctx-text   'systest: PASS'         dkctx '<ret>' '<pause>' systest '<ret>'
 check nbtest        'nbtest: PASS'          nbtest '<ret>'
 check nbtest-text   'systest: PASS'         nbtest '<ret>' systest '<ret>'
+# W.2-templates: Templates folder; drag/create from template; settings notebook
+python3 "$root/tools/sqfs.py" "$out/wps.img" format 1024 >/dev/null
+disk=$out/wps.img
+check wps-tmpl      'wps: PASS'             wpstmpl '<ret>' '<pause>'
+check wps-tmpl-text 'systest: PASS'         wpstmpl '<ret>' '<pause>' systest '<ret>'
 # 2.3-filemgr: the File Manager on a disk of its own: /w holds a.txt and sub
 python3 "$root/tools/sqfs.py" "$out/fm.img" format 1024 >/dev/null
 disk=$out/fm.img
