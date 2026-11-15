@@ -11,7 +11,9 @@ leftmost column. The table covers codes 0x20 to 0x83 with no gaps
 
 The proportional faces (2.2-propfont) are up to eight pixels wide: each
 glyph is a width byte (in the face's width table) and one byte per row,
-bit 7 the leftmost column. Prop faces cover 0x20 to 0x7E only.
+bit 7 the leftmost column. Prop faces cover 0x20 to 0x83 (0x7F blank;
+0x80-0x83 Klingon digraphs), matching the 5 x 7 range so window text can
+draw digraph code points from localization/tlh.
 """
 import os
 import sys
@@ -22,7 +24,7 @@ OUT = os.path.join(ROOT, 'kernel', 'font.inc')
 OUTP = os.path.join(ROOT, 'kernel', 'fontp.inc')
 FACES = [('FONT_9', 'fontp9', 9), ('FONT_12', 'fontp12', 12)]
 FIRST, LAST = 0x20, 0x83          # 5x7 includes Klingon digraphs
-PROP_FIRST, PROP_LAST = 0x20, 0x7E
+PROP_FIRST, PROP_LAST = 0x20, 0x83  # same range: digraphs in title bars too
 
 
 def read():
