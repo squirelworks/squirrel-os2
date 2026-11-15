@@ -9,11 +9,11 @@ The kernel can switch from 32-bit protected mode with paging into long mode, run
 and come back:
 
 - `lm_supported`: CPUID `0x80000001`, EDX bit 29.
-- `lm_init` (once): 4-level tables from the page allocator. A PML4 and a PDPT, then four page
-  directories of 2 MB pages that identity-map the first 4 GB (`LM_MAP_GB`), so every kernel
-  address means the same in both modes.
+- `lm_init`: resolves a 4-level root through `as_lm_cr3` (kernel or the current process; optional
+  `lm_as_override` picks an address-space record). Everyday paging stays the PAE PDPT; the PML4
+  is only loaded while in long mode.
 - `lm_call(eax = 64-bit routine)`: with interrupts off, turns paging off (the kernel runs
-  identity-mapped), keeps CR4.PAE (on since 2.8-pae), loads CR3 with the PML4, sets EFER.LME, turns
+  identity-mapped), keeps CR4.PAE (on since 2.8-pae), loads CR3 with that PML4, sets EFER.LME, turns
   paging on (the CPU is now in IA-32e compatibility mode) and far-jumps to the 64-bit kernel code
   segment `0x40` (`gdt_cs64`: L = 1, D = 0). The routine is called on the same stack, aligned to 16
   bytes. On its `ret` a `retfq` goes back to the 32-bit segment `0x08`, and the way out mirrors the
@@ -33,11 +33,12 @@ mode` on a CPU without it (`qemu-system-i386`'s default CPU). Regress runs it un
 `qemu-system-x86_64` (`QEMU_BIN` in `tools/qemu_screen.py`): checks `lm-test`, `lm-again`,
 `lm-nolm`.
 
-## 2.9-lm-kernel (in progress): 64-bit IDT and TSS first
+## 2.9-lm-kernel (in progress): 64-bit IDT, then 4-level per-process paging
 
 The full box keeps the kernel in long mode for good (4-level per-process spaces, compatibility
-thunks for the remaining 32-bit kernel, 32-bit programs in compatibility mode). This first piece
-only proves the interrupt side:
+thunks for the remaining 32-bit kernel, 32-bit programs in compatibility mode). Landed so far:
+
+### IDT / TSS (`lmstay`)
 
 - `lm_idt_init`: a 256-entry 64-bit IDT (16-byte gates to `gdt_cs64`), a 64-bit TSS at selector
   `0xC8` (`gdt_tss64`) with IST1 on a dedicated page for vector 8, and interrupt gates for the
@@ -46,10 +47,19 @@ only proves the interrupt side:
   the PIC to IRQ0 only, enable interrupts until three timer IRQs have run through the 64-bit
   gate, restore the PIC masks, then leave long mode and restore the 32-bit IDT and
   `SEL_TSS_MAIN`. (Other IRQ lines are masked for the stay so a 64-bit stub cannot EOI them
-  without draining the device.) Everyday paging stays the PAE PDPT; CR3 is the 4-level
-  identity map only for the stay.
+  without draining the device.) Everyday paging stays the PAE PDPT; CR3 while staying is the
+  4-level wrapper from `as_lm_cr3`.
 - Checks: `lm-stay`, `lm-stay-again` (under `qemu-system-x86_64`), `lm-stay-nolm` (32-bit QEMU).
 
-Later steps (still this TODO box): 4-level per-process address spaces, stay permanently with
-compatibility-mode thunks into the 32-bit kernel, and run the whole suite under
-`qemu-system-x86_64` as a second build flavour.
+### 4-level per-process paging (`lmpage`)
+
+- `as_lm_sync` / `as_lm_cr3` (`vm.asm`): each address space (and the kernel) gets a PML4 whose
+  `PML4[0]` points at a long-mode PDPT that mirrors the PAE PDPT's present entries with `P|W`
+  and the same page-directory pointers. PAE PDPTE.W stays clear (reserved in PAE). The wrapper
+  is built on demand and refreshed before every long-mode entry so late PDPTEs (heap, MMIO) are
+  visible. `AS_PML4` holds the root; teardown frees the PML4 and LM PDPT only.
+- `lmpage`: two address spaces, different bytes at `0x30000`, enter long mode with each PML4;
+  private bytes differ, a kernel mark matches. Checks: `lm-page`, `lm-page-again`, `lm-page-nolm`.
+
+Later steps (still this TODO box): stay permanently with compatibility-mode thunks into the
+32-bit kernel, and run the whole suite under `qemu-system-x86_64` as a second build flavour.

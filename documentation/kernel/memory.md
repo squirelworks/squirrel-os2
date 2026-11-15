@@ -74,9 +74,17 @@ The records live in `as_table` (one per process slot):
 
 | Field | Meaning |
 |-------|---------|
-| `AS_PD` | Physical address of the PDPT (what CR3 is set to) |
+| `AS_PD` | Physical address of the PDPT (what CR3 is set to in PAE) |
 | `AS_REFS` | Processes using it; the last `as_release` frees every page |
 | `AS_PAGES` | Pages owned, shown by `ps` as memory in KB |
+| `AS_PML4` | 4-level root for long mode (2.9), or 0 until `as_lm_sync` builds it |
+
+### 4-level wrappers for long mode (2.9)
+
+Long mode needs a PML4 in CR3, and long-mode PDPTEs may set the writable bit (PAE PDPTE.W is
+reserved). `as_lm_sync` builds a PML4 and a separate long-mode PDPT that mirrors the PAE PDPT's
+present entries with `P|W` and the same page-directory pointers. Everyday CR3 stays the PAE PDPT;
+`lm_call` loads the PML4 only for the round trip. See `long-mode.md` (`lmpage`).
 
 Each PCB has a `PCB_AS` field (0 means the kernel's directory):
 
