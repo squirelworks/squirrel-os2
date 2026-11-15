@@ -6,7 +6,7 @@ summaries are in [ROADMAP.md](ROADMAP.md). History is in
 
 ## How to take a task
 
-**Hand-off (2026-11-14):** the open boxes below are left for Cursor / Codex. [HANDOFF.md](HANDOFF.md) has a card per open item (files, acceptance, test) and the order to take them in; *(in progress)* items have a branch already.
+**Hand-off (2026-11-14; ownership 2026-11-15):** the open boxes below are left for Cursor / Codex. [HANDOFF.md](HANDOFF.md) has a card per open item (files, acceptance, test), the order, and **Agent ownership** (`*-b55f` = 2.9 long-mode; `*-2eaf` = desktop/Warp). *(in progress)* items have a branch already — finish or rebase; do not redo.
 
 - Work top to bottom. A task lower on this list waits until the open tasks above it are on `main`, except where a task says it is independent.
 - One task, one PR. Branch from current `main`. Do not stack a PR on another feature branch.
@@ -338,27 +338,27 @@ From the 2.5 milestone in `ROADMAP.md` and W.3 in epic #117. Start after **2.3-b
 - [x] **2.5-bar** — A WarpCenter-style bar along the top of the screen (the default; a taskbar layout is a Control Panel / settings choice), with the desktop and program windows laid out below it. Pixel probe of the bar face and bevel → `wc-bar: PASS`.
 - [x] **2.5-menu** — A Squirrel menu from the bar that lists programs (and folders) and launches the chosen one into a real window. Scripted open of `calc` (or another built-in) → `wc-menu: PASS`.
 - [x] **2.5-clock** — A tray clock on the bar that shows the RTC time and ticks (a pixel or glyph probe sees the display change across a second, or after a scripted RTC step). Check `wc-clock` → `wc-clock: PASS`.
-- [ ] **W.3-launchpad** — LaunchPad pads on the WarpCenter: drop a program onto a pad, click the pad to launch; pads persist across reboot. Check `wclp` → `wclp: PASS`.
+- [ ] **W.3-launchpad** *(in progress #183, lane `-2eaf`)* — LaunchPad pads on the WarpCenter: drop a program onto a pad, click the pad to launch; pads persist across reboot. Check `wclp` → `wclp: PASS`.
 
 ## 2.6 — Workplace Shell desktop (includes W.2, W.4, W.5)
 
 From the 2.6 milestone in `ROADMAP.md` and W.2 / W.4 / W.5 in epic #117. Start after **2.5-bar** is on `main` (the bar reserves the top strip). W.2, W.4 and W.5 belong with these boxes. Design notes in `documentation/apps/desktop.md` and `documentation/kernel/widgets.md` (notebook tabs). Drive and shredder object classes already exist (**2.7-objects**); this section is the Generation-2 GUI over the object desktop.
 
-- [ ] **2.6-icons** — Desktop objects drawn with 32×32 icons and captions on the desktop surface (not only as Program Manager list rows); existing `mkicon` icons for programs, folders and files. Pixel probe of an icon glyph → `dk-icons: PASS`.
-- [ ] **2.6-drag** — Mouse drag and drop between folders and onto programs: dropping a file on a program opens that program with the file; moves persist across reboot (object files under `/desktop`). Check `dk-drag` → `dk-drag: PASS`.
+- [ ] **2.6-icons** *(in progress #184, lane `-2eaf`)* — Desktop objects drawn with 32×32 icons and captions on the desktop surface (not only as Program Manager list rows); existing `mkicon` icons for programs, folders and files. Pixel probe of an icon glyph → `dk-icons: PASS`.
+- [ ] **2.6-drag** *(in progress #184, lane `-2eaf`)* — Mouse drag and drop between folders and onto programs: dropping a file on a program opens that program with the file; moves persist across reboot (object files under `/desktop`). Check `dk-drag` → `dk-drag: PASS`.
 - [x] **2.6-context** — Right-button context menu on a desktop object (Open, Settings, Delete, and the usual arrange items), built on `wg_menu`. Check `dk-ctx` → `dk-ctx: PASS`.
 - [x] **2.6-notebook** — A Warp-style settings notebook widget with tabs (`wg_notebook` in `widget.asm`): tab strip, page body, switching pages by click. Self-check reads tab and page pixels → `nbtest: PASS`.
-- [ ] **2.6-shadows** — Shadow (shortcut) objects that point at an original; renaming or moving the original updates the shadow's target, and the link survives a reboot. Check `dk-shadow` → `dk-shadow: PASS`.
+- [ ] **2.6-shadows** *(in progress #188, lane `-2eaf`)* — Shadow (shortcut) objects that point at an original; renaming or moving the original updates the shadow's target, and the link survives a reboot. Check `dk-shadow` → `dk-shadow: PASS`.
 - [x] **W.2-templates** — Workplace Shell object model in the GUI: every desktop object opens a settings notebook (**2.6-notebook**); a Templates folder; dragging a template onto the desktop (or into a folder) creates a new object of that class. Check `wps-tmpl` → `wps: PASS`.
 - [x] **W.4-views** — Folder views: Icon, Tree and Details (switchable per folder window). Check `fold-views` → `foldview: PASS`.
-- [ ] **W.5-openas** — Context menu "Open as → Icon / Tree / Details / Settings" on a folder (and Settings on any object), using **2.6-context**, **W.4-views** and **2.6-notebook**. Check `openas` → `openas: PASS`.
+- [ ] **W.5-openas** *(in progress #192, lane `-2eaf`)* — Context menu "Open as → Icon / Tree / Details / Settings" on a folder (and Settings on any object), using **2.6-context**, **W.4-views** and **2.6-notebook**. Check `openas` → `openas: PASS`.
 
 ## W.6 — System objects (needs 2.6 + 2.7-objects)
 
 From W.6 in `ROADMAP.md` / epic #117. Start after **2.6-icons** and **2.6-context** are on `main`. Drive and Shredder object classes are already on `main` (**2.7-objects** in `kernel/fsobj.asm`); these boxes put Startup and System Setup beside them on the Generation-2 desktop and wire all four through icons, context menus and notebooks.
 
-- [ ] **W.6-startup** — A Startup folder: objects (or shadows) placed in it are opened when the desktop starts; removing one stops that. Check `w6-startup` → `startup: PASS`.
-- [ ] **W.6-syssetup** — A System Setup object that opens the system setup folder / Control Panel entry points; together with Drive and Shredder icons on the desktop, right-click and Settings notebook work like any other object. Check `w6-setup` → `syssetup: PASS`.
+- [ ] **W.6-startup** *(claimed lane `-2eaf`; start after 2.6 icons/shadows on `main`)* — A Startup folder: objects (or shadows) placed in it are opened when the desktop starts; removing one stops that. Check `w6-startup` → `startup: PASS`.
+- [ ] **W.6-syssetup** *(claimed lane `-2eaf`; start after 2.6 icons/shadows on `main`)* — A System Setup object that opens the system setup folder / Control Panel entry points; together with Drive and Shredder icons on the desktop, right-click and Settings notebook work like any other object. Check `w6-setup` → `syssetup: PASS`.
 
 ## Later milestones
 
@@ -451,8 +451,8 @@ From the 2.8–2.9 bridge in `ROADMAP.md` (the hardware drivers H.1–H.6 are th
 - [x] **2.8-smp-ap** — Find the CPUs (ACPI MADT), start the application processors (INIT-SIPI-SIPI through a real-mode trampoline) into the kernel's protected mode and paging with a stack and per-CPU data each, and park them. `cpus` lists them; a check under `-smp 4` sees four CPUs online.
 - [x] **2.8-smp-sched** — Per-CPU run queues: the APs run ring-3 threads, the kernel is entered under one lock, IPIs wake idle CPUs. A check runs four spinning threads at once on four CPUs.
 - [x] **2.8-pae** — The 32-bit kernel's paging on PAE (64-bit entries), the format long mode shares; NX on the heap and stacks. Checks `nx-heap`, `nx-stack`, `cpu-pentium3`.
-- [ ] **2.9-lm-kernel** — The kernel stays in long mode: 64-bit IDT and TSS (IST for double faults), 4-level per-process address spaces, the 32-bit kernel code reached through compatibility-mode thunks until it is ported, and 32-bit programs in compatibility mode. The whole regression suite passes under `qemu-system-x86_64`.
-- [ ] **2.9-syscall64** — 64-bit programs: an ELF64 loader and the `syscall`/`sysret` ABI (STAR/LSTAR, 64-bit call table, pointer checks), with `int 0x80` unchanged for 32-bit programs. A `hello64` check.
+- [ ] **2.9-lm-kernel** *(IDT stay #189 + paging #193 on `main`; next stay-thunks lane `-b55f` — do not tick until permanent stay + thunks)* — The kernel stays in long mode: 64-bit IDT and TSS (IST for double faults), 4-level per-process address spaces, the 32-bit kernel code reached through compatibility-mode thunks until it is ported, and 32-bit programs in compatibility mode. The whole regression suite passes under `qemu-system-x86_64`.
+- [ ] **2.9-syscall64** *(claimed lane `-b55f` — after 2.9-lm-kernel)* — 64-bit programs: an ELF64 loader and the `syscall`/`sysret` ABI (STAR/LSTAR, 64-bit call table, pointer checks), with `int 0x80` unchanged for 32-bit programs. A `hello64` check.
 
 ## Modern hardware (2.8–2.9)
 
