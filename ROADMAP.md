@@ -37,20 +37,24 @@ Every change follows these:
 
 Also already true of this project: document hardware assumptions, keep accepted limits in `documentation/specifications.md`, and follow `documentation/releases/PROCESS.md`.
 
-## Hand-off status (2026-11-14)
+## Hand-off status (2026-11-14; ownership 2026-11-15)
 
 The remaining work is left for Cursor / Codex. **[HANDOFF.md](HANDOFF.md)** has a card for every open
-item (files, acceptance, how to test) and the suggested order. In this file: `- [x]` is done on `main`;
-`- [ ]` is **open for Cursor/Codex**; *(in progress)* means a branch exists, finish it rather than redo it;
-*(Squirrel)* means only the owner can do it. The same states are labels on the GitHub issues
-(`status: done`, `status: in progress`, `cursor-codex`, `needs: squirrel`). The suite-wide continuation
-plan is `docs/CONTINUANCE.md` in squirrelsoft.
+item (files, acceptance, how to test), the suggested order, and **Agent ownership** for the two
+parallel Cursor lanes (`*-b55f` = 2.9 long-mode; `*-2eaf` = desktop/Warp). In this file: `- [x]` is
+done on `main`; `- [ ]` is **open for Cursor/Codex** (respect ownership); *(in progress)* means a
+branch exists, finish it rather than redo it; *(Squirrel)* means only the owner can do it. The same
+states are labels on the GitHub issues (`status: done`, `status: in progress`, `cursor-codex`,
+`needs: squirrel`). The suite-wide continuation plan is `docs/CONTINUANCE.md` in squirrelsoft.
 
 **`main` has finished 2.2 and 2.3** (as of #172): Program Manager desktop, clipboard, Control Panel,
 bevelled widgets, plus 2.7 (long names, FAT, drive objects; diskutil view/check/format), 2.8
-long-mode entry and SMP, H.1–H.6, the 3.0 networking and sound half, A.1–A.7, every game,
-the whole calculator suite, and foreign programs P.1, P.2, P.5, P.6 (all but windows), P.8 (all but
-windows), P.9 (32-bit LX) and P.10 (FreeBSD). **2.3.0** release notes are ready for Squirrel to publish.
+long-mode entry, SMP and PAE/NX, H.1–H.6, the 3.0 networking and sound half, A.1–A.7, every game,
+the whole calculator suite, foreign programs P.1, P.2, P.5, P.6 (including Win32 windows), P.8
+(including DOS window), P.9 (32-bit LX) and P.10 (FreeBSD), 2.5 WarpCenter, 2.6-context/notebook,
+W.2-templates (#191), W.4-views, and the 2.9 IDT/TSS stay + paging slices (#189, #193).
+**2.3.0** release notes are ready for Squirrel to publish. Open feature PRs: #183 #184 #188 #192
+(2eaf desktop/Warp). Docs: #195 (b55f ownership) / #194 (2eaf lane tags).
 
 ## Where things were at the 2.1.0 release
 
@@ -146,12 +150,12 @@ The GUI grows in generations, and each generation is a shippable milestone (epic
 
 - [x] **2.5** — A WarpCenter-style bar (the default; a taskbar layout is a setting), a Squirrel menu, a tray clock. PR-sized boxes: `TODO.md` **2.5-bar**, **2.5-menu**, **2.5-clock** (W.3 LaunchPad is **W.3-launchpad** with them).
   - [x] **2.5-bar**, **2.5-menu**, **2.5-clock** (`warpcenter` / `wcbar` / `wcmenu` / `wcclock`)
-  - [ ] **W.3-launchpad**
+  - [ ] **W.3-launchpad** *(in progress #183, lane `-2eaf`)*
 - [ ] **2.6** — Desktop objects with icons, drag and drop between folders and onto programs, context menus on the right button, Warp-style settings notebooks with tabs, shadows (shortcuts). PR-sized boxes: `TODO.md` **2.6-icons** … **2.6-shadows**, plus **W.2-templates**, **W.4-views**, **W.5-openas**.
   - [x] **2.6-context**, **2.6-notebook** (`dkctx` / `nbtest`)
   - [x] **W.2-templates** (`wpstmpl` / `wps-tmpl`)
   - [x] **W.4-views** (`foldview` / `fold-views`)
-  - [ ] **2.6-icons**, **2.6-drag**, **2.6-shadows**, **W.5-openas**
+  - [ ] **2.6-icons**, **2.6-drag** *(#184)*, **2.6-shadows** *(#188)*, **W.5-openas** *(#192)* — all lane `-2eaf`
 - [x] **2.7** — Long file names, FAT12/16/32 read and write for exchanging media, drive objects, a shredder object.
   - [x] Long names, FAT12/16/32 read and write, drive and shredder objects (#162)
   - [x] `diskutil` on FAT volumes (2.7-diskutil; view/check #171, format FAT from the OS)
@@ -166,16 +170,16 @@ in `documentation/architecture/overview.md` (cite squirrelsoft
 `docs/CONTINUANCE.md` decision 3a). Docs only until a later PR wires the
 compiler into `tools/build.sh`.
 
-- [ ] x86-64 long-mode kernel and 64-bit paging (long-mode entry is on `main`, #154; the kernel staying in long mode is 2.9-lm-kernel)
+- [ ] x86-64 long-mode kernel and 64-bit paging (entry #154; IDT stay #189; paging #193 landed; stay-thunks still open lane `-b55f` — do not tick until 2.9-lm-kernel finishes)
 - [x] SMP scheduler (2.8-smp-ap, 2.8-smp-sched, #154)
-- [x] PAE and NX (2.8-pae)
+- [x] PAE and NX (2.8-pae, #180)
 - [x] H.1 UEFI loader
 - [x] H.2 GOP text console
 - [x] H.3 AHCI
 - [x] H.4 NVMe
 - [x] H.5 USB keyboard (xHCI)
 - [x] H.6 USB storage
-- [ ] 64-bit syscall ABI
+- [ ] 64-bit syscall ABI *(2.9-syscall64, lane `-b55f` after lm-kernel)*
 
 ### 3.0 — Generation 3: "NT / XP class" (3.0.0 is the 64-bit Warp)
 
@@ -234,10 +238,10 @@ Each has its rules core with unit tests in squirrelsoft first; card and board gr
 
 - [x] **W.1** — Warp 4 colour scheme, bevels and fonts (original bitmaps that give the feel, not copies).
 - [x] **W.2** — The Workplace Shell object model in the GUI: everything is an object with a settings notebook; a templates folder; drag a template to create an object. Box: `TODO.md` **W.2-templates** (with 2.6).
-- [ ] **W.3** — WarpCenter / LaunchPad bar. Box: `TODO.md` **W.3-launchpad** (with 2.5). WarpCenter bar, Squirrel menu and tray clock are on `main` (**2.5-bar** / **2.5-menu** / **2.5-clock**); LaunchPad pads remain.
+- [ ] **W.3** *(in progress #183, lane `-2eaf`)* — WarpCenter / LaunchPad bar. Box: `TODO.md` **W.3-launchpad** (with 2.5). WarpCenter bar, Squirrel menu and tray clock are on `main` (**2.5-bar** / **2.5-menu** / **2.5-clock**); LaunchPad pads remain.
 - [x] **W.4** — Folder views: icon, tree, details. Box: `TODO.md` **W.4-views** (with 2.6).
-- [ ] **W.5** — Context menu "Open as → Icon / Tree / Details / Settings". Box: `TODO.md` **W.5-openas** (with 2.6).
-- [ ] **W.6** — Startup folder, Shredder, Drives and System Setup objects. Boxes: `TODO.md` **W.6-startup**, **W.6-syssetup** (after 2.6; Drive/Shredder classes from **2.7-objects**).
+- [ ] **W.5** *(in progress #192, lane `-2eaf`)* — Context menu "Open as → Icon / Tree / Details / Settings". Box: `TODO.md` **W.5-openas** (with 2.6).
+- [ ] **W.6** *(claimed lane `-2eaf`)* — Startup folder, Shredder, Drives and System Setup objects. Boxes: `TODO.md` **W.6-startup**, **W.6-syssetup** (after 2.6; Drive/Shredder classes from **2.7-objects**).
 
 ### Running other systems' programs (P.1–P.12, extends F.1–F.10, epic #118)
 
