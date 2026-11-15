@@ -70,7 +70,7 @@ The graphics font is a 5 × 7 bitmap for codes 0x20–0x83 (0x7F blank; 0x80–0
 
 Each character fills a 6 × 8 cell: the glyph, then one column and one row of background, so a string reads as words on a solid band.
 
-Since 2.2 there are also two proportional faces (`FONT_9`, `FONT_12`, `tools/fontp*.txt`, `gfx_drawstr_p`); window text uses them. See `windows.md`, *Proportional fonts*.
+Since 2.2 there are also two proportional faces (`FONT_9`, `FONT_12`, `tools/fontp*.txt`, `gfx_drawstr_p`); window text uses them. On the `klingon-font` joke branch those faces cover the same 0x20–0x83 range (digraphs included) and `tools/mkklingon5x7.py` rewrites their letters, digits, apostrophe and digraphs to pIqaD as well — otherwise title bars and WarpCenter stayed Latin while the VGA/5×7 paths already showed Klingon. See `windows.md`, *Proportional fonts*.
 
 ## Test
 

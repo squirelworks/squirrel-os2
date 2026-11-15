@@ -67,6 +67,12 @@ Font: lowercase `q` now has a straight stem with a right-hand tail on its descen
   digits and `'` only; punctuation and box drawing keep the BIOS font.
   Latin letters map to the nearest Klingon letter (`d`→`D`, `k`/`c`→`q`,
   `x`→`Q`, `f`→`v`, `z`→`S`), so English text shows in pIqaD too.
+- `tools/mkklingon5x7.py` also rewrites the proportional faces
+  (`tools/fontp9.txt`, `tools/fontp12.txt`, codes 0x20–0x83) so VBE
+  title bars, WarpCenter and widgets show pIqaD — not only VGA text and
+  the 5×7 gfx font. Digraphs must live in those faces: otherwise
+  `gfx_drawstr_p` indexed past the old 0x20–0x7E tables (e.g. `ghunmey`
+  drew as `unmey`).
 - `tools/mkstrings.py` turns `tlh`, `ch`, `gh` and `ng` in the Klingon
   strings into one glyph each (0x80-0x83). Text in `{braces}` (command
   names such as `{echo}`) keeps its Latin letters.
