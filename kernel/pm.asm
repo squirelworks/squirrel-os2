@@ -217,6 +217,11 @@ pm:
     mov al, ah
     out 0x40, al
 
+%ifdef LM_BOOT64
+    ; 2.9-lm-boot64: stay in IA-32e for the whole run (compat CS, 64-bit IDT)
+    call lm_boot_enter
+%endif
+
     xor eax, eax                ; English until "lang" says otherwise
     call lang_select
     call cls
@@ -466,6 +471,9 @@ run_simple:
     mov edi, cmd_lmthunk        ; 2.9-lm-kernel: permanent stay + compat thunks
     call streq
     je .lmthunk
+    mov edi, cmd_lmboot         ; 2.9-lm-kernel: everyday / boot stay
+    call streq
+    je .lmboot
     mov edi, cmd_cliptest       ; 2.1-blit-clip
     call streq
     je .cliptest
@@ -921,6 +929,9 @@ run_simple:
 .lmthunk:
     call cmd_lmthunk_run
     jmp .empty
+.lmboot:
+    call cmd_lmboot_run
+    jmp .empty
 .desktop:
     call cmd_desktop_run
     jmp .empty
@@ -1152,8 +1163,19 @@ cursor_sync:
     ret
 
 ; ---------- ISRs ----------
+; Bodies end with ret so the 64-bit IDT (2.9 lm_boot / everyday stay) can
+; call them through lm64_call32. lm_irq_cs is the interrupted CS (set by
+; the 32-bit or 64-bit stub before the body runs).
 timer_isr:
     KSEGS
+    push eax
+    mov eax, [esp+8]            ; CS from the 32-bit interrupt frame
+    mov [lm_irq_cs], eax
+    pop eax
+    call timer_isr_body
+    iretd
+
+timer_isr_body:
     push eax
     inc dword [ticks]
     call sysinfo_tick           ; CPU time (A.5)
@@ -1168,17 +1190,21 @@ timer_isr:
     ; reentrant), so the check waits for the next tick instead.
     dec dword [sched_left]
     jg .out
-    test byte [esp+8], 3        ; interrupted CS: only ring-3 code (2.4)
+    test byte [lm_irq_cs], 3    ; interrupted CS: only ring-3 code (2.4)
     jz .out
     call proc_preempt
 .out:
     pop eax
-    iretd
+    ret
 
 ; IRQ1: queue the raw scancode (dropped if the ring is full), and post
 ; a key event if a process asked for them (msg.asm)
 kbd_isr:
     KSEGS
+    call kbd_isr_body
+    iretd
+
+kbd_isr_body:
     push eax
     push ebx
     push ecx
@@ -1205,7 +1231,7 @@ kbd_isr:
     pop ecx
     pop ebx
     pop eax
-    iretd
+    ret
 .aux:
     in al, 0x60
     test byte [mouse_up], 1

@@ -1,6 +1,7 @@
 #!/bin/sh
 # Builds a release into build/ (0.9.3):
 #   os.img       boot sector + kernel, boot it as the first hard disk
+#   os-lm64.img  the same kernel built with -DLM_BOOT64 (2.9 everyday long-mode stay)
 #   floppy.img   the same on a 1.44 MB floppy image
 #   cd.iso       a bootable CD image around floppy.img (installer I.6)
 #   uefi.img     an 8 MB disk with an EFI system partition: \EFI\BOOT\BOOTX64.EFI and
@@ -8,14 +9,26 @@
 #   data.img     a 4 MB SQFS data disk with the sample programs (made only
 #                if missing, so your files survive a rebuild; --fresh remakes it)
 # Needs nasm and python3. Run it from anywhere.
+# Optional: LM_BOOT64=1 builds only the long-mode flavour into os.img (CI / regress
+# always build both images).
 set -e
 root=$(cd "$(dirname "$0")/.." && pwd)
 out=$root/build
 mkdir -p "$out"
 python3 "$root/tools/mkstrings.py" --check
+lm64_def=
+[ "$LM_BOOT64" = 1 ] && lm64_def=-DLM_BOOT64
 (cd "$root/kernel" && nasm -f bin boot.asm -o "$out/boot.bin" \
-    && nasm -f bin pm.asm -o "$out/pm.bin")
+    && nasm -f bin $lm64_def pm.asm -o "$out/pm.bin")
 cat "$out/boot.bin" "$out/pm.bin" > "$out/os.img"
+# Second flavour: boot stays in long mode (unless this run already is that build)
+if [ "$LM_BOOT64" != 1 ]; then
+    (cd "$root/kernel" && nasm -f bin -DLM_BOOT64 pm.asm -o "$out/pm-lm64.bin")
+    cat "$out/boot.bin" "$out/pm-lm64.bin" > "$out/os-lm64.img"
+    rm -f "$out/pm-lm64.bin"
+else
+    cp "$out/os.img" "$out/os-lm64.img"
+fi
 dd if=/dev/zero of="$out/floppy.img" bs=1024 count=1440 2>/dev/null
 dd if="$out/os.img" of="$out/floppy.img" conv=notrunc 2>/dev/null
 python3 "$root/tools/mkiso.py" "$out/floppy.img" "$out/cd.iso"
@@ -44,4 +57,4 @@ if [ "$1" = "--fresh" ] || [ ! -f "$out/data.img" ]; then
     [ -z "$skipped" ] || echo "data.img: full, left off:$skipped"
 fi
 rm -f "$out/boot.bin" "$out/pm.bin"
-echo "built $out/os.img, $out/floppy.img, $out/cd.iso and $out/uefi.img; run with tools/run.sh"
+echo "built $out/os.img, $out/os-lm64.img, $out/floppy.img, $out/cd.iso and $out/uefi.img; run with tools/run.sh"

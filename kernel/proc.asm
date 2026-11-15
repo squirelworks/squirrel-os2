@@ -538,7 +538,8 @@ proc_any_aprun:
     ret
 
 ; edi = PCB: TSS.ESP0 = the top of its kernel stack, where ring-3 code
-; enters the kernel (2.4). Clobbers eax.
+; enters the kernel (2.4). Also keeps the 64-bit TSS RSP0 in sync while
+; a permanent long-mode stay is active (2.9). Clobbers eax.
 proc_set_esp0:
     mov eax, edi
     sub eax, proc_table
@@ -547,10 +548,10 @@ proc_set_esp0:
     imul eax, PROC_STACK_SIZE
     add eax, PROC_STACK_BASE
     mov [tss_main+TSS_ESP0], eax
-    ret
+    jmp lm_sync_rsp0
 .shell:
     mov dword [tss_main+TSS_ESP0], SHELL_STACK
-    ret
+    jmp lm_sync_rsp0
 
 ; Priority aging (2.0.2). Each slot keeps the tick at which it last got
 ; or gave up the CPU (proc_since). A READY process that has waited

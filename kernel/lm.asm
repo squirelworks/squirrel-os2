@@ -7,8 +7,9 @@
 ; mode is a 4-level root from as_lm_cr3 (kernel or per-process): a PML4
 ; whose PDPT mirrors the everyday PAE tables, so program-area pages and
 ; the kernel identity map mean the same in both modes. lm_enter_perm stays
-; in IA-32e with compatibility-mode thunks into the 32-bit kernel (2.9).
-; See documentation/kernel/long-mode.md.
+; in IA-32e with compatibility-mode thunks into the 32-bit kernel (2.9);
+; LM_BOOT64 / lm_boot_enter keeps that stay for the whole run. See
+; documentation/kernel/long-mode.md.
 ;
 ; Sequence (Intel SDM vol. 3, 9.8.5, and AMD APM vol. 2, 14.6):
 ;   in:  paging off, CR4.PAE on (already on since 2.8-pae), CR3 = PML4,
@@ -79,11 +80,15 @@ lm_init:
 ; rsp) -> runs it in long mode with interrupts off and comes back. CF if
 ; long mode is not available. The 32-bit registers are kept. Uses the
 ; 4-level root from lm_init (per-process or kernel via as_lm_cr3).
+; While a permanent stay is active, switches CR3 to that PML4 and uses
+; lm_thunk64 instead of entering and leaving.
 lm_call:
     call lm_init
     jnc .go
     ret
 .go:
+    cmp dword [lm_perm], 0
+    jne lm_call_via_thunk
     pushad
     pushfd
     cli
@@ -108,6 +113,25 @@ lm_call:
     or eax, 0x80000000          ; paging on: IA-32e mode is active
     mov cr0, eax
     jmp LM_CS64:lm_in64
+
+; Already in IA-32e: load the requested PML4 and thunk to the routine.
+lm_call_via_thunk:
+    pushad
+    pushfd
+    cli
+    mov [lm_target], eax
+    mov eax, cr3
+    mov [lm_cr3_tmp], eax
+    mov eax, [lm_pml4]
+    mov cr3, eax
+    mov eax, [lm_target]
+    call lm_thunk64
+    mov eax, [lm_cr3_tmp]
+    mov cr3, eax
+    popfd
+    popad
+    clc
+    ret
 
 lm_back32:                      ; 32-bit again, still IA-32e compatibility mode
     mov ax, 0x10
@@ -233,9 +257,12 @@ lm_probe_addr  dd 0             ; VA for lm_probe64 / lmpage
 
 SEL_TSS64     equ 0xC8              ; gdt_tss64 in pm.asm (16-byte descriptor)
 LM64_TSS_SIZE equ 104
+LM64_RSP0     equ 4                 ; RSP0 in a 64-bit TSS (qword)
 LM64_IST1_OFF equ 36                ; IST1 pointer in a 64-bit TSS
 LM64_IOMAP    equ 102
 LM64_IDT_BYTES equ 256*16
+LM_NEST_MAX   equ 8                 ; nestable thunk / call32 frames
+LM_NEST_SIZE  equ 32                ; bytes per nest frame
 
 ; Build the 64-bit IDT and TSS once (needs the page allocator). CF on failure.
 lm_idt_init:
@@ -270,6 +297,10 @@ lm_idt_init:
     mov [edi+7], ah
     mov dword [edi+8], 0            ; base 63:32
     mov dword [edi+12], 0
+    ; RSP0: ring-3 entries use the same kernel stack top as the 32-bit TSS
+    mov eax, [tss_main+TSS_ESP0]
+    mov [lm64_tss+LM64_RSP0], eax
+    mov dword [lm64_tss+LM64_RSP0+4], 0
     ; fill every vector with the default 64-bit stub, then override a few
     mov edi, lm64_idt
     mov ecx, 256
@@ -278,9 +309,7 @@ lm_idt_init:
     call lm_set_gate64
     add edi, 16
     loop .fill
-    mov edi, lm64_idt+0x20*16       ; IRQ0 timer
-    mov eax, lm64_timer_isr
-    call lm_set_gate64
+    call lm_idt_everyday            ; timer, kbd, mouse, int 0x80
     mov edi, lm64_idt+8*16          ; #DF uses IST1
     mov eax, lm64_df_isr
     mov ebx, 1                      ; IST index
@@ -299,6 +328,31 @@ lm_idt_init:
     stc
     ret
 
+; Install 64-bit gates used for everyday stay (IRQ0/1/12 and int 0x80).
+; Safe to call more than once. Clobbers eax, ebx, edi.
+lm_idt_everyday:
+    mov edi, lm64_idt+0x20*16       ; IRQ0 timer
+    mov eax, lm64_timer_isr
+    call lm_set_gate64
+    mov edi, lm64_idt+0x21*16       ; IRQ1 keyboard
+    mov eax, lm64_kbd_isr
+    call lm_set_gate64
+    mov edi, lm64_idt+0x2C*16       ; IRQ12 mouse
+    mov eax, lm64_mouse_isr
+    call lm_set_gate64
+    mov edi, lm64_idt+SYSCALL_VEC*16
+    mov eax, lm64_syscall_isr
+    call lm_set_gate64
+    mov byte [edi+5], 0xEF          ; trap gate, DPL 3 (same as 32-bit)
+    ret
+
+; Keep 64-bit TSS.RSP0 equal to tss_main.ESP0 (proc_set_esp0 calls this).
+lm_sync_rsp0:
+    mov eax, [tss_main+TSS_ESP0]
+    mov [lm64_tss+LM64_RSP0], eax
+    mov dword [lm64_tss+LM64_RSP0+4], 0
+    ret
+
 ; edi = gate, eax = 64-bit handler, IST = 0
 lm_set_gate64:
     xor ebx, ebx
@@ -315,7 +369,8 @@ lm_set_gate64_ist:
     ret
 
 ; Like lm_call, but after the 64-bit routine returns the 32-bit IDT and
-; TSS are restored (the stay test loads the 64-bit ones).
+; TSS are restored (the stay test loads the 64-bit ones). While a
+; permanent stay is already active, just thunks (IDT/TSS stay put).
 lm_call_stay:
     call lm_idt_init
     jc .r
@@ -324,6 +379,8 @@ lm_call_stay:
 .r:
     ret
 .go:
+    cmp dword [lm_perm], 0
+    jne lm_call_via_thunk
     pushad
     pushfd
     cli
@@ -442,13 +499,78 @@ lm_stay64:
     mov [rel lm_res+4], eax
     ret
 
+; Everyday 64-bit IRQ0: count stay-test ticks, then the shared timer body.
 lm64_timer_isr:
     push rax
+    mov eax, [rsp+16]               ; CS (RIP at +8 after push rax)
+    mov [rel lm_irq_cs], eax
     inc dword [rel lm_ticks64]
-    mov al, 0x20
-    out 0x20, al
+    mov eax, timer_isr_body
+    call lm64_call32
     pop rax
     iretq
+
+lm64_kbd_isr:
+    push rax
+    mov eax, kbd_isr_body
+    call lm64_call32
+    pop rax
+    iretq
+
+lm64_mouse_isr:
+    push rax
+    mov eax, mouse_isr_body
+    call lm64_call32
+    pop rax
+    iretq
+
+; int 0x80 from compat / ring 3 while LMA=1.
+lm64_syscall_isr:
+    push rax
+    push rbx
+    push rcx
+    push rdx
+    push rsi
+    push rdi
+    push rbp
+    mov eax, [rsp+64]               ; CS (7 pushes + RIP)
+    mov [rel lm_irq_cs], eax
+    mov eax, [rsp+48]               ; saved rax = call number
+    mov [rel lm_sys_eax], eax
+    mov eax, [rsp+40]
+    mov [rel lm_sys_ebx], eax
+    mov eax, [rsp+32]
+    mov [rel lm_sys_ecx], eax
+    mov eax, [rsp+24]
+    mov [rel lm_sys_edx], eax
+    ; Linux personality: refuse under permanent stay (32-bit lx_isr uses iretd)
+    mov esi, [rel proc_cur]
+    cmp dword [esi+PCB_LINUX], 0
+    jne .enosys
+    mov eax, lm64_syscall_body
+    call lm64_call32
+    mov eax, [rel lm_sysret]
+    mov [rsp+48], rax               ; return value in saved rax
+    jmp .out
+.enosys:
+    mov qword [rsp+48], -1
+.out:
+    pop rbp
+    pop rdi
+    pop rsi
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
+    iretq
+BITS 32
+lm64_syscall_body:
+    mov eax, [lm_sys_eax]
+    mov ebx, [lm_sys_ebx]
+    mov ecx, [lm_sys_ecx]
+    mov edx, [lm_sys_edx]
+    jmp syscall_isr_body
+BITS 64
 
 ; Drain the keyboard/mouse data port so a masked line does not stay high.
 lm64_default_isr:
@@ -470,6 +592,68 @@ lm64_df_isr:
 .hang:
     hlt
     jmp .hang
+
+; eax = 32-bit near routine -> call it in compatibility mode and return
+; here in 64-bit. Nestable (separate frame stack from the caller's stack).
+; Used by 64-bit IRQ and syscall gates so they do not share lm_thunk* slots.
+lm64_call32:
+    push rbx
+    mov ebx, [rel lm_nest_sp]
+    cmp ebx, LM_NEST_MAX
+    jae .fail
+    push rax                        ; target
+    mov eax, ebx
+    inc dword [rel lm_nest_sp]
+    imul eax, LM_NEST_SIZE
+    lea rbx, [rel lm_nest_pool]
+    add rbx, rax
+    pop rax
+    mov [rbx], eax                  ; frame.target
+    mov [rbx+8], rsp                ; frame.rsp64
+    mov [rel lm_nest_cur], rbx
+    push qword 0x08
+    lea rax, [rel lm64_call32_run]
+    push rax
+    retfq
+.fail:
+    pop rbx
+    ret
+
+BITS 32
+lm64_call32_run:
+    mov ax, 0x10
+    mov ss, ax
+    mov ebx, [lm_nest_cur]
+    mov esp, [ebx+8]                ; low half of saved rsp64
+    mov ax, USER_DS
+    mov ds, ax
+    mov es, ax
+    call [ebx]                      ; frame.target
+    jmp LM_CS64:lm64_call32_ret
+
+BITS 64
+lm64_call32_ret:
+    mov ax, 0x10
+    mov ss, ax
+    mov ds, ax
+    mov es, ax
+    mov rbx, [rel lm_nest_cur]
+    mov rsp, [rbx+8]
+    dec dword [rel lm_nest_sp]
+    mov eax, [rel lm_nest_sp]
+    test eax, eax
+    jz .nocur
+    dec eax
+    imul eax, LM_NEST_SIZE
+    lea rbx, [rel lm_nest_pool]
+    add rbx, rax
+    mov [rel lm_nest_cur], rbx
+    jmp .done
+.nocur:
+    mov qword [rel lm_nest_cur], 0
+.done:
+    pop rbx
+    ret
 BITS 32
 
 ; "lmstay: PASS" when long mode stayed up and the 64-bit timer ISR ran.
@@ -714,8 +898,12 @@ lm_enter_compat:
     ret
 
 ; Leave a permanent stay: restore PIC, drop LME, put the PAE CR3 and the
-; 32-bit IDT/TSS back. No-op if not staying. Keeps the general registers.
+; 32-bit IDT/TSS back. No-op if not staying, and refused when the boot
+; flavour asked to stay for the whole run (lm_boot). Keeps the general
+; registers.
 lm_leave_perm:
+    cmp dword [lm_boot], 0
+    jne .r
     cmp dword [lm_perm], 0
     je .r
     pushad
@@ -777,9 +965,39 @@ lm_leave_compat:
 .tr:
     mov byte [gdt_tss_main+5], 0x89
     ltr ax
+    mov dword [lm_everyday], 0
     popfd
     popad
     clc
+    ret
+
+; Enter permanent stay and restore the PIC masks saved during entry so
+; keyboard / mouse IRQs keep working through the 64-bit gates. Used by
+; lmboot and by the LM_BOOT64 build flavour.
+lm_enter_everyday:
+    call lm_enter_perm
+    jc .r
+    push eax
+    mov al, [lm_pic1]
+    out 0x21, al
+    mov al, [lm_pic2]
+    out 0xA1, al
+    mov dword [lm_everyday], 1
+    pop eax
+    clc
+.r:
+    ret
+
+; Boot-time stay (assembled with -DLM_BOOT64): enter everyday and latch
+; lm_boot so lm_leave_perm will not drop LME for the rest of the run.
+lm_boot_enter:
+    call lm_supported
+    jc .r
+    call lm_enter_everyday
+    jc .r
+    mov dword [lm_boot], 1
+    clc
+.r:
     ret
 
 ; From compatibility mode (lm_perm=1): eax = 64-bit routine -> call it and
@@ -932,6 +1150,85 @@ lmthunk_m_fail db 'lmthunk: FAIL', 10, 0
 lmthunk_m_nolm db 'lmthunk: no long mode', 10, 0
 cmd_lmthunk db 'lmthunk', 0
 
+; ---------- 2.9-lm-kernel (boot64): everyday stay for the run ----------
+; lmboot enters with everyday IRQs (or checks a boot-time stay), proves
+; LMA + timer ticks through the 64-bit gates, and leaves only when the
+; stay was not latched by LM_BOOT64.
+BITS 64
+lm_boot_body64:
+    mov ecx, LM_EFER
+    rdmsr
+    and eax, LM_EFER_LMA
+    mov [rel lm_res], eax
+    mov dword [rel lm_ticks64], 0
+    sti
+.wait:
+    pause
+    cmp dword [rel lm_ticks64], 3
+    jb .wait
+    cli
+    mov eax, [rel lm_ticks64]
+    mov [rel lm_res+4], eax
+    ret
+BITS 32
+
+cmd_lmboot_run:
+    mov dword [lm_res], 0
+    mov dword [lm_res+4], 0
+    mov dword [lm_mark_a], 0
+    mov dword [lm_ticks64], 0
+    mov dword [lm_df_hit], 0
+    call lm_supported
+    jc .nolm
+    cmp dword [lm_boot], 0
+    jne .check                  ; already stayed from boot
+    call lm_enter_everyday
+    jc .nolm
+.check:
+    call lm_compat_mark_a
+    mov eax, lm_boot_body64
+    call lm_thunk64
+    jc .fail_leave
+    cmp dword [lm_boot], 0
+    jne .kept                   ; boot flavour: must still be in IA-32e
+    call lm_leave_perm
+.kept:
+    mov esi, lmboot_m_fail
+    cmp dword [lm_mark_a], 0xA1
+    jne .say
+    cmp dword [lm_res], LM_EFER_LMA
+    jne .say
+    cmp dword [lm_res+4], 3
+    jb .say
+    cmp dword [lm_df_hit], 0
+    jne .say
+    cmp dword [lm_boot], 0
+    je .pass
+    ; Boot stay: LMA must still be set after the check (leave was refused)
+    mov ecx, LM_EFER
+    rdmsr
+    test eax, LM_EFER_LMA
+    jz .say
+.pass:
+    mov esi, lmboot_m_pass
+.say:
+    jmp puts
+.fail_leave:
+    cmp dword [lm_boot], 0
+    jne .fail_msg
+    call lm_leave_perm
+.fail_msg:
+    mov esi, lmboot_m_fail
+    jmp puts
+.nolm:
+    mov esi, lmboot_m_nolm
+    jmp puts
+
+lmboot_m_pass db 'lmboot: PASS', 10, 0
+lmboot_m_fail db 'lmboot: FAIL', 10, 0
+lmboot_m_nolm db 'lmboot: no long mode', 10, 0
+cmd_lmboot db 'lmboot', 0
+
 align 4
 lm_idt_ready  dd 0
 lm_ist1_page  dd 0
@@ -939,16 +1236,29 @@ lm_ist1_top   dd 0
 lm_ticks64    dd 0
 lm_df_hit     dd 0
 lm_perm       dd 0             ; 1 while lm_enter_perm has not been left
+lm_boot       dd 0             ; 1: boot flavour stays for the whole run
+lm_everyday   dd 0             ; 1: PIC masks restored for everyday IRQs
 lm_thunk_esp  dd 0             ; 32-bit frame for lm_thunk64
 lm_target32   dd 0             ; 32-bit routine for lm_thunk32
 lm_mark_a     dd 0
 lm_mark_b     dd 0
+lm_irq_cs     dd 0             ; interrupted CS for shared ISR bodies
+lm_sysret     dd 0             ; return value from syscall_isr_body
+lm_sys_eax    dd 0
+lm_sys_ebx    dd 0
+lm_sys_ecx    dd 0
+lm_sys_edx    dd 0
+lm_cr3_tmp    dd 0             ; CR3 saved around lm_call_via_thunk
+lm_nest_sp    dd 0             ; lm64_call32 nest depth
 align 8
+lm_nest_cur   dq 0             ; current nest frame
 lm_thunk64_rsp dq 0            ; RSP saved across lm_thunk32
 lm_pic1       db 0
 lm_pic2       db 0
 lm_tr_save    dw 0
               dw 0
+align 16
+lm_nest_pool  times LM_NEST_MAX*LM_NEST_SIZE db 0
 align 16
 lm64_tss      times LM64_TSS_SIZE db 0
 align 16
