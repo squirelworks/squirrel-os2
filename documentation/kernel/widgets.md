@@ -127,4 +127,4 @@ The test windows put a label at (4, `2 + TH_BEVEL_W + WG_BTN_PAD`) and the box b
 
 ## Next
 
-Workplace Shell shadows and folder views (`TODO.md` **2.6-shadows**, **W.4**, **W.5**) build on the notebook and context menu. Templates (**W.2-templates**) are in `documentation/apps/desktop.md` and `kernel/wps.asm`.
+Workplace Shell shadows (`TODO.md` **2.6-shadows**) build on the notebook and context menu. Templates (**W.2-templates**) are in `documentation/apps/desktop.md` and `kernel/wps.asm`. Folder views (**W.4**) and Open as (**W.5**) are on this branch / landing on `main`.

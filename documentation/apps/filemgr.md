@@ -1,10 +1,10 @@
-# File Manager (2.3-filemgr) and folder views (W.4-views)
+# File Manager (2.3-filemgr), folder views (W.4-views), Open as (W.5-openas)
 
 `filemgr` is a File Manager on the window manager's screen. It needs a data disk (without one it says so and stays in text mode). It starts in the shell's current directory.
 
 ## Views (W.4)
 
-`i`, `t` and `d` switch the folder view for this window (`fm_setview`; **W.5-openas** will open a folder in a chosen view the same way):
+`i`, `t` and `d` switch the folder view for this window (`fm_setview`). **Open as** (W.5) opens a folder in a chosen view the same way:
 
 | View | Key | What it shows |
 |------|-----|----------------|
@@ -39,7 +39,7 @@ A target is a name in the shown directory, or a path starting with `/`. When it 
 
 ## Mouse
 
-The right button opens the File menu at the pointer. A press on a row chooses it and gives its pane the focus; a tree row shows that directory. A second press on the same list row within the Control Panel's double-click time (`cp_dbl`, half a second unless changed) opens a directory. Drag a list row onto a tree row to move the entry into that directory; hold Ctrl to copy it instead. Dropping on its own directory does nothing.
+The right button on a **directory** (tree row, or a directory in the list / Icon view) opens **Open as** (W.5): Icon / Tree / Details / Settings. Settings opens a General / View notebook for the folder. On a file (or empty space) the right button still opens the File menu. A press on a row chooses it and gives its pane the focus; a tree row shows that directory. A second press on the same list row within the Control Panel's double-click time (`cp_dbl`, half a second unless changed) opens a directory. Drag a list row onto a tree row to move the entry into that directory; hold Ctrl to copy it instead. Dropping on its own directory does nothing.
 
 ## Code
 
@@ -62,6 +62,8 @@ Then it removes them. It prints `fm: PASS` or `fm: FAIL at N`.
 - switching back with `d` restores Details.
 
 Then it removes `/fv` and prints `foldview: PASS` or `foldview: FAIL at N`. Check `fold-views`.
+
+`openas` (W.5) makes `/oa` with `sub/` and `a.txt`, opens File Manager on `/oa`, and drives Open as → Icon / Tree / Details / Settings through `wm_menuchoose` (checks each `fm_view` and a Settings notebook tab face). It then opens Open as → Settings on Program Manager's `calc` (Settings on any object). Removes `/oa` and prints `openas: PASS` or `openas: FAIL at N`. Check `openas`.
 
 On a disk of their own (`fm.img`), with `/w` holding `a.txt` and `sub`:
 - `fm-setup`

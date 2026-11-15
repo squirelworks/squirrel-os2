@@ -649,6 +649,9 @@ disk=$out/fm.img
 check fmtest        'fm: PASS'              fmtest '<ret>'
 # W.4-views: Icon / Tree / Details switchable on the File Manager window
 check fold-views    'foldview: PASS'        foldview '<ret>'
+# W.5-openas: Open as → Icon / Tree / Details / Settings on a folder; Settings on objects
+check openas        'openas: PASS'          openas '<ret>' '<pause>'
+check openas-text   'systest: PASS'         openas '<ret>' '<pause>' systest '<ret>'
 check fm-setup      'sub/'                  'mkdir w' '<ret>' 'put w/a.txt hello' '<ret>' 'mkdir w/sub' '<ret>' 'ls w' '<ret>'
 check_all fm-panes  'gfx: File Manager|gfx: sub|gfx: <dir>|gfx: a.txt' 'cd w' '<ret>' filemgr '<ret>' '<pause>' '<gfx>'
 check fm-copy       'hello'                 'cd w' '<ret>' filemgr '<ret>' '<pause>' '<down>' c sub '<ret>' '<esc>' 'cat sub/a.txt' '<ret>'

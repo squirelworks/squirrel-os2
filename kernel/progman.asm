@@ -1,4 +1,5 @@
-; Squirrel-OS/2 — Program Manager (2.3-groups / 2.6-context). Original code.
+; Squirrel-OS/2 — Program Manager (2.3-groups / 2.6-context / W.5-openas).
+; Original code.
 ;
 ; progman: the desktop as group windows full of icons. Main holds the
 ; top-level programs; each top-level Folder is a group of its own holding
@@ -9,13 +10,14 @@
 ; the chosen icon with the arrows until Enter or Esc, a arranges the focused
 ; group's icons in rows, Esc quits. Mouse: a press on an icon chooses it, a
 ; second press on it soon after opens it, dragging moves it; the right
-; button opens a context menu (Open, Settings, Delete, Arrange) on the
-; icon under the pointer (2.6-context, wg_menu / wm_popup). A group's close
-; box minimises it (double-click its icon to restore); Main's close quits.
-; Icon places are kept in /desktop/progman.pos, one line per moved or
+; button opens a context menu (Open, Open as..., Settings, Delete, Arrange)
+; on the icon under the pointer (2.6-context / W.5-openas, wg_menu /
+; wm_popup). Open as cascades to Icon / Tree / Details / Settings. A group's
+; close box minimises it (double-click its icon to restore); Main's close
+; quits. Icon places are kept in /desktop/progman.pos, one line per moved or
 ; arranged icon: "name x y". See documentation/apps/progman.md.
 ;
-; Self-check: dkctx -> dk-ctx: PASS.
+; Self-check: dkctx -> dk-ctx: PASS; openas (filemgr) -> openas: PASS.
 
 PM_GMAX     equ 4               ; groups: Main and up to three folders
 PM_IMAX     equ 8               ; icons in a group
@@ -27,10 +29,17 @@ PM_DRAG     equ 4               ; a press that moves less than this is a click
 PM_DBL      equ 50              ; ticks between the presses of a double-click
 
 PM_CTX_OPEN     equ 0
-PM_CTX_SETTINGS equ 1
-PM_CTX_DELETE   equ 2
-PM_CTX_ARRANGE  equ 3
-PM_CTX_N        equ 4
+PM_CTX_OPENAS   equ 1           ; W.5: cascades to Icon/Tree/Details/Settings
+PM_CTX_SETTINGS equ 2
+PM_CTX_DELETE   equ 3
+PM_CTX_ARRANGE  equ 4
+PM_CTX_N        equ 5
+
+PM_OA_ICON      equ 0
+PM_OA_TREE      equ 1
+PM_OA_DETAILS   equ 2
+PM_OA_SETTINGS  equ 3
+PM_OA_N         equ 4
 
 cmd_progman_run:
     call wm_screen              ; 640 x 480 x 8 VBE, or mode 13h
@@ -72,12 +81,18 @@ cmd_progman_run:
     je .menu
     mov byte [pm_dirty], 0
     jmp .draw
-.menu:                          ; context menu choice (2.6-context)
+.menu:                          ; context menu / Open as (2.6 / W.5)
     mov eax, [dk_menu]
     test eax, eax
     jz .k
     mov dword [dk_menu], 0
     dec eax                     ; item index
+    cmp byte [pm_oa_pend], 0
+    je .top
+    mov byte [pm_oa_pend], 0
+    call pm_openas_do
+    jmp .draw
+.top:
     call pm_ctx_do
     jmp .draw
 .k:
@@ -1231,12 +1246,14 @@ pm_ctx_popup:
     popad
     ret
 
-; eax = menu item index: Open / Settings / Delete / Arrange.
+; eax = menu item index: Open / Open as... / Settings / Delete / Arrange.
 pm_ctx_do:
     pushad
     mov [pm_ctx_last], eax
     cmp eax, PM_CTX_OPEN
     je .open
+    cmp eax, PM_CTX_OPENAS
+    je .openas
     cmp eax, PM_CTX_SETTINGS
     je .settings
     cmp eax, PM_CTX_DELETE
@@ -1246,6 +1263,10 @@ pm_ctx_do:
     jmp .r
 .open:
     call pm_launch
+    jmp .r
+.openas:
+    call pm_openas_popup
+    mov byte [pm_oa_pend], 1
     jmp .r
 .settings:
     call pm_settings
@@ -1265,6 +1286,65 @@ pm_ctx_do:
     popad
     ret
 
+; Open as submenu (W.5): Icon / Tree / Details / Settings.
+pm_openas_popup:
+    pushad
+    mov eax, [dk_lmx]
+    mov ebx, [dk_lmy]
+    add eax, 8
+    add ebx, 8
+    mov esi, pm_oaitems
+    mov edx, PM_OA_N
+    mov ecx, -1
+    call wg_menu
+    mov byte [pm_dirty], 1
+    popad
+    ret
+
+; eax = PM_OA_*: open File Manager in that view, or Settings on the object.
+pm_openas_do:
+    pushad
+    mov [pm_oa_last], eax
+    cmp eax, PM_OA_SETTINGS
+    je .set
+    cmp eax, PM_OA_DETAILS
+    ja .r
+    ; Icon / Tree / Details: open the folder view through File Manager.
+    mov ebx, eax                ; keep FMV_* across fm_scan
+    call fm_scan                ; refresh from fm_cur (cwd / last dir)
+    mov eax, ebx
+    call fm_setview
+    cmp dword [fm_win], -1
+    jne .drawn
+    cmp dword [gfx_width], 640
+    jb .small
+    mov eax, 40
+    mov ebx, 40
+    mov ecx, 560
+    mov edx, 400
+    jmp .mk
+.small:
+    xor eax, eax
+    xor ebx, ebx
+    mov ecx, GFX_W
+    mov edx, GFX_H
+.mk:
+    mov esi, fm_title
+    call wm_create
+    cmp eax, -1
+    je .r
+    mov [fm_win], eax
+    imul edi, eax, WIN_SIZE
+    mov dword [wm_table+edi+WIN_PAINT], fm_paint
+.drawn:
+    call wm_redraw
+    jmp .r
+.set:
+    call pm_settings
+.r:
+    popad
+    ret
+
 ; Opens a small settings notebook for the chosen icon (General / View).
 pm_settings:
     pushad
@@ -1279,8 +1359,9 @@ pm_settings:
 
 ; ---------- dkctx (2.6-context) ----------
 ; Builds Program Manager groups, opens the context menu on calc, chooses
-; Open / Settings / Arrange / Delete through wm_menuchoose, and checks a
-; settings notebook tab pixel. Prints `dk-ctx: PASS` or `dk-ctx: FAIL`.
+; Open / Settings / Arrange / Delete through wm_menuchoose (Open as is on
+; the menu too; W.5 exercises it in openas), and checks a settings
+; notebook tab pixel. Prints `dk-ctx: PASS` or `dk-ctx: FAIL`.
 cmd_dkctx_run:
     call wm_screen
     mov esi, dkctx_fail
@@ -1382,6 +1463,11 @@ cmd_dkctx_run:
     jne .bad
     cmp byte [pm_ctx_del], 1
     jne .bad
+    ; Open as is present (W.5); openas self-check drives the cascade
+    call pm_ctx_popup
+    cmp dword [wm_mn], PM_CTX_N
+    jne .bad
+    call wm_menuclose
     jmp .end
 .probe:                         ; dl = expected at (eax, ebx); CF set on miss
     push edx
@@ -1633,11 +1719,18 @@ pm_t_calc db 'calc', 0
 pm_bye db 'Program Manager closed.', 10, 0
 pm_pass db 'pm: PASS', 10, 0
 pm_fail db 'pm: FAIL at ', 0
-pm_ctx_items dd pm_ctx_open, pm_ctx_set, pm_ctx_del_s, pm_ctx_arr
+pm_ctx_items dd pm_ctx_open, pm_ctx_oas, pm_ctx_set, pm_ctx_del_s, pm_ctx_arr
 pm_ctx_open db 'Open', 0
+pm_ctx_oas db 'Open as...', 0
 pm_ctx_set db 'Settings', 0
 pm_ctx_del_s db 'Delete', 0
 pm_ctx_arr db 'Arrange', 0
+align 4
+pm_oaitems dd pm_oa_icon, pm_oa_tree, pm_oa_det, pm_oa_set
+pm_oa_icon db 'Icon', 0
+pm_oa_tree db 'Tree', 0
+pm_oa_det db 'Details', 0
+pm_oa_set db 'Settings', 0
 pm_set_title db 'Settings', 0
 pm_set_t0 db 'General', 0
 pm_set_t1 db 'View', 0
@@ -1646,7 +1739,9 @@ dkctx_pass db 'dk-ctx: PASS', 10, 0
 dkctx_fail db 'dk-ctx: FAIL', 10, 0
 align 4
 pm_ctx_last dd -1
+pm_oa_last dd -1
 pm_set_win dd -1
 pm_set_nb dd -1
 pm_rbtn db 0
 pm_ctx_del db 0
+pm_oa_pend db 0

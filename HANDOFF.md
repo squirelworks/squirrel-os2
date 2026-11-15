@@ -31,14 +31,14 @@ files need coordinated rebases; do not race edits. Suite-wide checklist:
 
 ### Progress notes `-2eaf`
 
-- **Landed:** `W.2-templates-2eaf` (#191).
+- **Landed:** `W.2-templates-2eaf` (#191). **This PR:** `W.5-openas-2eaf` (#192).
 
 ### Tasks `-2eaf` (other lane)
 
 - [ ] `W.3-launchpad-2eaf` — PR #183
 - [ ] `2.6-icons-2eaf` / `2.6-drag-2eaf` — PR #184
 - [ ] `2.6-shadows-2eaf` — PR #188
-- [ ] `W.5-openas-2eaf` — PR #192
+- [x] `W.5-openas-2eaf` — PR #192
 - [ ] `W.6-startup-2eaf` / `W.6-syssetup-2eaf` — claimed; start after 2.6 icons/shadows on `main`
 
 **`-b55f` does not take** desktop/Warp boxes while `-2eaf` owns them.  
@@ -122,7 +122,7 @@ Lanes run in parallel (see **Agent ownership**). Within a lane, keep the order.
    (#181); `W.3-launchpad-2eaf` *(#183)*; `2.6-icons-2eaf` → `2.6-drag-2eaf`
    *(#184)*; ~~**2.6-context → 2.6-notebook**~~ done (#186);
    ~~`W.2-templates-2eaf`~~ done (#191); ~~**W.4-views**~~ done (#190);
-   `2.6-shadows-2eaf` *(#188)* → `W.5-openas-2eaf` *(#192)*; then
+   `2.6-shadows-2eaf` *(#188)* → ~~`W.5-openas-2eaf`~~ done (#192); then
    `W.6-startup-2eaf` → `W.6-syssetup-2eaf`.
 4. **2.9 path `-b55f`:** ~~**2.8-pae**~~ done (#180); ~~IDT/TSS stay~~ done
    (#189); ~~`2.9-lm-paging-b55f`~~ done (#193); next
@@ -176,9 +176,12 @@ host `fatimg.py check`, and `fattest` on the formatted images.
 - **Done on `main`:** **2.6-context**, **2.6-notebook** (`dkctx` / `nbtest`);
   **W.4-views** (`foldview` / `fold-views`, #190); **W.2-templates**
   (`kernel/wps.asm`: Templates folder, Template class, drag/drop create,
-  settings notebook; `wpstmpl` / `wps-tmpl`, #191).
+  settings notebook; `wpstmpl` / `wps-tmpl`, #191). **W.5-openas** — context
+  menu Open as → Icon / Tree / Details / Settings on File Manager folders and
+  on Program Manager objects (`fm_openas_*` / `pm_openas_*`); self-check
+  `openas` → `openas: PASS`.
 - **In progress (do not stack / redo):** `2.6-icons-2eaf` + `2.6-drag-2eaf`
-  (#184), `2.6-shadows-2eaf` (#188), `W.5-openas-2eaf` (#192).
+  (#184), `2.6-shadows-2eaf` (#188).
 - **Files:** `kernel/progman.asm`, `kernel/deskicons.asm`, `kernel/desktop.asm`,
   `kernel/shadow.asm`, `kernel/wps.asm`, `kernel/widget.asm`, `kernel/wm.asm`,
   `kernel/filemgr.asm`, `kernel/pm.asm`, `documentation/apps/desktop.md`,
@@ -186,9 +189,9 @@ host `fatimg.py check`, and `fattest` on the formatted images.
   `documentation/kernel/widgets.md`.
 - **Acceptance (done):** right-click menu `dk-ctx: PASS`; notebook tabs
   `nbtest: PASS`; folder Icon/Tree/Details `foldview: PASS`; templates create
-  objects `wps: PASS`. **Still open:** icon pixel probe `dk-icons: PASS`;
-  file-on-program drag `dk-drag: PASS`; shadow follows rename across reboot
-  `dk-shadow: PASS`; "Open as → …" `openas: PASS`.
+  objects `wps: PASS`; "Open as → …" `openas: PASS`. **Still open:** icon
+  pixel probe `dk-icons: PASS`; file-on-program drag `dk-drag: PASS`; shadow
+  follows rename across reboot `dk-shadow: PASS`.
 
 ### W.6 — Startup and System Setup (with 2.6 + 2.7-objects)  `-2eaf` (claimed)
 - **Split done:** `TODO.md` boxes `W.6-startup-2eaf`, `W.6-syssetup-2eaf`.
