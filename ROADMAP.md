@@ -146,11 +146,11 @@ The GUI grows in generations, and each generation is a shippable milestone (epic
 
 - [x] **2.5** — A WarpCenter-style bar (the default; a taskbar layout is a setting), a Squirrel menu, a tray clock. PR-sized boxes: `TODO.md` **2.5-bar**, **2.5-menu**, **2.5-clock** (W.3 LaunchPad is **W.3-launchpad** with them).
   - [x] **2.5-bar**, **2.5-menu**, **2.5-clock** (`warpcenter` / `wcbar` / `wcmenu` / `wcclock`)
-  - [ ] **W.3-launchpad**
+  - [ ] **W.3-launchpad** *(in progress #183, lane `-2eaf`)*
 - [ ] **2.6** — Desktop objects with icons, drag and drop between folders and onto programs, context menus on the right button, Warp-style settings notebooks with tabs, shadows (shortcuts). PR-sized boxes: `TODO.md` **2.6-icons** … **2.6-shadows**, plus **W.2-templates**, **W.4-views**, **W.5-openas**.
   - [x] **2.6-context**, **2.6-notebook** (`dkctx` / `nbtest`)
   - [x] **W.4-views** (`foldview` / `fold-views`)
-  - [ ] **2.6-icons**, **2.6-drag**, **2.6-shadows**, **W.2-templates**, **W.5-openas**
+  - [ ] **2.6-icons**, **2.6-drag**, **2.6-shadows**, **W.2-templates**, **W.5-openas** *(in progress #184/#188/#191/#192, lane `-2eaf`)*
 - [x] **2.7** — Long file names, FAT12/16/32 read and write for exchanging media, drive objects, a shredder object.
   - [x] Long names, FAT12/16/32 read and write, drive and shredder objects (#162)
   - [x] `diskutil` on FAT volumes (2.7-diskutil; view/check #171, format FAT from the OS)
@@ -165,7 +165,7 @@ in `documentation/architecture/overview.md` (cite squirrelsoft
 `docs/CONTINUANCE.md` decision 3a). Docs only until a later PR wires the
 compiler into `tools/build.sh`.
 
-- [ ] x86-64 long-mode kernel and 64-bit paging (long-mode entry is on `main`, #154; the kernel staying in long mode is 2.9-lm-kernel)
+- [ ] x86-64 long-mode kernel and 64-bit paging *(in progress #193, lane `-b55f` — not `-2eaf`)* (long-mode entry is on `main`, #154; staying in long mode is 2.9-lm-kernel)
 - [x] SMP scheduler (2.8-smp-ap, 2.8-smp-sched, #154)
 - [x] PAE and NX (2.8-pae)
 - [x] H.1 UEFI loader
@@ -233,10 +233,10 @@ Each has its rules core with unit tests in squirrelsoft first; card and board gr
 
 - [x] **W.1** — Warp 4 colour scheme, bevels and fonts (original bitmaps that give the feel, not copies).
 - [ ] **W.2** — The Workplace Shell object model in the GUI: everything is an object with a settings notebook; a templates folder; drag a template to create an object. Box: `TODO.md` **W.2-templates** (with 2.6).
-- [ ] **W.3** — WarpCenter / LaunchPad bar. Box: `TODO.md` **W.3-launchpad** (with 2.5). WarpCenter bar, Squirrel menu and tray clock are on `main` (**2.5-bar** / **2.5-menu** / **2.5-clock**); LaunchPad pads remain.
+- [ ] **W.3** *(in progress #183, lane `-2eaf`)* — WarpCenter / LaunchPad bar. Box: `TODO.md` **W.3-launchpad** (with 2.5). WarpCenter bar, Squirrel menu and tray clock are on `main` (**2.5-bar** / **2.5-menu** / **2.5-clock**); LaunchPad pads remain.
 - [x] **W.4** — Folder views: icon, tree, details. Box: `TODO.md` **W.4-views** (with 2.6).
-- [ ] **W.5** — Context menu "Open as → Icon / Tree / Details / Settings". Box: `TODO.md` **W.5-openas** (with 2.6).
-- [ ] **W.6** — Startup folder, Shredder, Drives and System Setup objects. Boxes: `TODO.md` **W.6-startup**, **W.6-syssetup** (after 2.6; Drive/Shredder classes from **2.7-objects**).
+- [ ] **W.5** *(in progress #192, lane `-2eaf`)* — Context menu "Open as → Icon / Tree / Details / Settings". Box: `TODO.md` **W.5-openas** (with 2.6).
+- [ ] **W.6** *(claimed lane `-2eaf`)* — Startup folder, Shredder, Drives and System Setup objects. Boxes: `TODO.md` **W.6-startup**, **W.6-syssetup** (after 2.6; Drive/Shredder classes from **2.7-objects**).
 
 ### Running other systems' programs (P.1–P.12, extends F.1–F.10, epic #118)
 

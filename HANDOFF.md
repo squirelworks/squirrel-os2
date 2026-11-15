@@ -33,8 +33,21 @@ Used here, in `ROADMAP.md`, `TODO.md` and on the issues (as labels).
 - **Test gate:** `tools/regress.sh` (558 `check` lines at 2.3.0) and GitHub CI
   (`.github/workflows/ci.yml`: `build` and `regress`, on every PR). Wait for
   a green `regress` before calling a PR ready.
-- **Open PRs:** none at the 2.3.0 prep. Take the next free box in the order
-  below; if a competing PR appears, stand down.
+- **Open PRs:** see **Agent lanes** below. Take only a free box in your lane;
+  if a competing PR appears, stand down.
+
+## Agent lanes (2026-11-15)
+
+Two Cursor agents share this repo. Branch suffix = ownership. Full checklist:
+[squirrelsoft `docs/AGENT_LANES.md`](https://github.com/squirelworks/squirrelsoft/blob/main/docs/AGENT_LANES.md).
+
+| Lane | Suffix | Owns |
+|------|--------|------|
+| **A** | `-2eaf` | Gen2 desktop: W.3, 2.6-icons/drag/shadows, W.2-templates, W.5-openas, then W.6 |
+| **B** | `-b55f` | **2.9-lm-kernel** + **2.9-syscall64** only |
+
+Lane A open PRs: #183 W.3, #184 icons/drag, #188 shadows, #191 templates, #192 openas.
+Lane B open PR: #193 lm-paging. Do not redo the other lane's boxes.
 
 ## Rules (Squirrel's; do not break)
 
@@ -72,12 +85,13 @@ qemu-system-i386 -drive file=build/os.img,format=raw -drive file=build/data.img,
 
 1. ~~Merge `int/os2-control`, **2.3-bevel-default**, then **2.3.0 release notes**.~~ Done (#168, #172, and the 2.3.0 prep PR). Owner publishes `v2.3.0`.
 2. ~~**2.7-diskutil** remainder (in-OS FAT format; #171 shipped view/check without ticking the box).~~ Done (format FAT12/16/32 from `diskutil`).
-3. **Generation 2 desktop** from the split boxes in `TODO.md`: ~~**2.5-bar →
-   2.5-menu → 2.5-clock**~~ done, **W.3-launchpad** still open; then
-   **2.6-icons → 2.6-drag** (open / in progress elsewhere), ~~**2.6-context →
-   2.6-notebook**~~ done, then **2.6-shadows → W.2-templates → W.4-views →
-   W.5-openas**, then **W.6-startup → W.6-syssetup** (W.6 needs 2.6 + 2.7-objects).
-4. ~~**2.8-pae**~~ → **2.9-lm-kernel → 2.9-syscall64** (the 64-bit kernel; largest risk).
+3. **Generation 2 desktop** *(lane `-2eaf`)* from the split boxes in `TODO.md`:
+   ~~**2.5-bar → 2.5-menu → 2.5-clock**~~ done, **W.3-launchpad** #183; then
+   **2.6-icons → 2.6-drag** #184, ~~**2.6-context → 2.6-notebook**~~ done,
+   ~~**W.4-views**~~ done, **2.6-shadows** #188 → **W.2-templates** #191 →
+   **W.5-openas** #192, then **W.6-startup → W.6-syssetup** (after icons/shadows
+   on `main`).
+4. ~~**2.8-pae**~~ → **2.9-lm-kernel → 2.9-syscall64** *(lane `-b55f`)* (largest risk).
 5. **3.0** remainder (accounts, permissions, services, event log, task manager, themes).
 6. **P.3, P.4, P.7, P.11, P.12**, then 3.x and 4.x.
 
@@ -112,35 +126,27 @@ host `fatimg.py check`, and `fattest` on the formatted images.
 - Follow-up after #177: 1x/2x `WD_SBLIT`, text window (`win`), cursor/flush
   fix; checks `dos-win`, `dos-win-2x`, `dos-win-text`.
 
-### 2.5 / W.3 — WarpCenter, Squirrel menu, tray clock, LaunchPad  `cursor-codex`
-- **Done on this work:** **2.5-bar**, **2.5-menu**, **2.5-clock**
+### 2.5 / W.3 — WarpCenter, Squirrel menu, tray clock, LaunchPad  `status: in progress` lane `-2eaf`
+- **Done on `main`:** **2.5-bar**, **2.5-menu**, **2.5-clock**
   (`kernel/warpcenter.asm`, `wcbar` / `wcmenu` / `wcclock` / `warpcenter`).
-- **Still open:** **W.3-launchpad** (pads that persist and launch → `wclp: PASS`).
+- **In progress (`-2eaf`):** **W.3-launchpad** PR #183 → `wclp: PASS`.
 - **Files:** `kernel/warpcenter.asm`, `kernel/progman.asm`, `kernel/wm.asm`,
   `documentation/apps/desktop.md`.
 - **Acceptance (done):** bar pixel probe `wc-bar: PASS`; menu maps to `calc`
   `wc-menu: PASS`; tray clock ticks after an RTC step `wc-clock: PASS`.
 
-### 2.6 / W.2 / W.4 / W.5 — Icons, drag/drop, menus, notebooks, shadows, views  `cursor-codex`
-- **Done on this work:** **2.6-context**, **2.6-notebook** (`kernel/progman.asm`
-  context menu on Program Manager icons via `wg_menu` / `wm_popup`;
-  `wg_notebook` in `kernel/widget.asm`; `dkctx` / `nbtest`). **W.4-views** —
-  File Manager folder views Icon / Tree / Details (`i`/`t`/`d`, `fm_setview`);
-  self-check `foldview` → `foldview: PASS` (regress `fold-views`). Independent
-  of open 2.6 icon/drag PRs (extends `filemgr.asm`).
-- **Still open:** **2.6-icons**, **2.6-drag** (may be in progress on another
-  branch — do not stack), **2.6-shadows**, **W.2-templates**, **W.5-openas**.
+### 2.6 / W.2 / W.4 / W.5 — Icons, drag/drop, menus, notebooks, shadows, views  `status: in progress` lane `-2eaf`
+- **Done on `main`:** **2.6-context**, **2.6-notebook**, **W.4-views**.
+- **In progress (`-2eaf`):** **2.6-icons**/**2.6-drag** #184, **2.6-shadows** #188,
+  **W.2-templates** #191, **W.5-openas** #192. Do not stack or redo.
 - **Files:** `kernel/progman.asm`, `kernel/widget.asm`, `kernel/wm.asm`,
   `kernel/filemgr.asm`, `kernel/pm.asm`, `documentation/apps/desktop.md`,
   `documentation/apps/progman.md`, `documentation/apps/filemgr.md`,
   `documentation/kernel/widgets.md`.
-- **Acceptance (done):** right-click menu `dk-ctx: PASS`; notebook tabs
-  `nbtest: PASS`; folder Icon/Tree/Details `foldview: PASS`. **Still open:**
-  icon pixel probe `dk-icons: PASS`; file-on-program drag `dk-drag: PASS`;
-  shadow follows rename across reboot `dk-shadow: PASS`; templates create
-  objects `wps: PASS`; "Open as → …" `openas: PASS`.
+- **Acceptance (done):** `dk-ctx`, `nbtest`, `foldview`. **Still open on PRs:**
+  `dk-icons`, `dk-drag`, `dk-shadow`, `wps`, `openas`.
 
-### W.6 — Startup and System Setup (with 2.6 + 2.7-objects)  `cursor-codex`
+### W.6 — Startup and System Setup (with 2.6 + 2.7-objects)  `cursor-codex` claimed lane `-2eaf`
 - **Split done:** `TODO.md` boxes **W.6-startup**, **W.6-syssetup**. Drive and
   Shredder classes are already on `main` (**2.7-objects**); this card wires
   Startup and System Setup (and those two) into the Generation-2 desktop.
@@ -153,26 +159,21 @@ host `fatimg.py check`, and `fattest` on the formatted images.
 ### 2.8-pae — PAE paging and NX  `status: done`
 PAE + NX on `main` (this branch). Checks `nx-heap`, `nx-stack`, `cpu-pentium3`.
 
-### 2.9-lm-kernel — stay in long mode  `cursor-codex` (IDT step in flight)
-- **Depends on:** 2.8-pae (done on `main`).
+### 2.9-lm-kernel — stay in long mode  `status: in progress` lane `-b55f` (not `-2eaf`)
+- **Depends on:** 2.8-pae (done on `main`). IDT/`lmstay` already on `main` (#189).
+- **In progress (`-b55f`):** 4-level per-process paging PR #193
+  (`cursor/2.9-lm-paging-b55f`). Finish there; do not redo on `-2eaf`.
 - **What:** 64-bit IDT/TSS with IST for double faults, 4-level per-process
   address spaces, the 32-bit kernel reached through compatibility-mode
   thunks, 32-bit programs in compatibility mode.
 - **Acceptance:** the whole `regress.sh` passes under `qemu-system-x86_64`
   with the long-mode kernel; the BIOS boot path still boots under `qemu-system-i386`
   with the 32-bit kernel (two build flavours, both in CI).
-- **IDT first (this PR / `lmstay`):** 64-bit IDT + TSS with IST1, timer IRQs
-  while briefly staying in long mode, then restore the 32-bit IDT/TSS.
-  Checks `lm-stay`, `lm-stay-again`, `lm-stay-nolm`. Do not tick the TODO box
-  until paging and thunks land. Finish on the open branch rather than redo.
-- **Advice:** next green steps are 4-level per-process paging, then permanent
-  stay with compatibility thunks. **CONTINUANCE 3a (recorded):** new 2.9+
-  subsystems may use freestanding C (`-ffreestanding -mno-red-zone -fno-pic`)
-  linked into the flat image; keep NASM for boot/entry stubs and existing code.
-  See `documentation/architecture/overview.md` (Language for new kernel
-  subsystems) and squirrelsoft `docs/CONTINUANCE.md` decision 3a.
+- **Advice:** after paging, permanent stay with compatibility thunks.
+  **CONTINUANCE 3a (recorded):** freestanding C allowed for new 2.9+
+  subsystems; see squirrelsoft `docs/CONTINUANCE.md` decision 3a.
 
-### 2.9-syscall64 — ELF64 programs  `cursor-codex`
+### 2.9-syscall64 — ELF64 programs  `cursor-codex` claimed lane `-b55f` (not `-2eaf`)
 - **Depends on:** 2.9-lm-kernel.
 - **Acceptance:** `run hello64` prints `hello64: PASS` through
   `syscall`/`sysret`; `int 0x80` 32-bit programs are unchanged; pointer
