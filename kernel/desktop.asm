@@ -151,7 +151,7 @@ cmd_desktop_run:
     mov eax, [dk_oy]
     sub [mouse_y], eax
     call gfx_text
-    mov esi, dk_bye
+    mov esi, [lstr+LS_DESKTOP_BYE*4]
     jmp puts
 
 ; List the objects whose `in` is the folder shown ([dk_cur], 0 for the
@@ -1157,7 +1157,6 @@ dk_a3 db 'vedit', 0
 dk_a4 db 'draw', 0
 dk_a5 db 'Tools', 0
 dk_empty db 0
-dk_bye db 'Desktop closed.', 10, 0
 dk_cn_dobj db 'DesktopObject', 0
 dk_cn_prog db 'Program', 0
 dk_cn_fold db 'Folder', 0

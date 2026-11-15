@@ -426,7 +426,7 @@ dd if=/dev/zero of="$target" bs=1024 count=16384 2>/dev/null
 check_all inst-esc  'Target disk: 2 (16 MiB)|Cancelled. Nothing was written.'  'run install' '<ret>' '<pause>' '<esc>'
 mbr   inst-esc-blank 'blank'
 check inst-la       'Sciurus-OS/2: Installatio'  'lang la' '<ret>' 'run install' '<ret>' '<pause>' '<esc>'
-check inst-tlh      "Squirrel-OS/2 jomwI'"  'lang tlh' '<ret>' 'run install' '<ret>' '<pause>' '<esc>'
+check inst-tlh      "may'Duj jomwI'"  'lang tlh' '<ret>' 'run install' '<ret>' '<pause>' '<esc>'
 check_all inst-run  'Partition table ... done|File system ... done|Copying the system ... done|Boot code ... done|Installed.' \
                     'put inst.bat run install' '<ret>' 'run inst.bat' '<ret>' '<pause>' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>'
 saved_disk=$disk; boot=$target; disk=; target=

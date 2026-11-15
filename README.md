@@ -77,6 +77,13 @@ Font: lowercase `q` now has a straight stem with a right-hand tail on its descen
   words (`q`, `clear`, `det`, `y/n`) stay as they are. Latin has no
   translations for these yet and falls back to English. The built-in
   `help`, `calc`, `sci` and `matrix` files keep their English text.
+- **Product name in tlh:** `may'Duj` ("battlecruiser") — the OS as a Klingon
+  starship's bridge computer. Desktop title `may'Duj DeSwI'`, WarpCenter
+  button `may'`, bar `may'jo'`, LaunchPad `ghunpa'`. Banner help uses
+  `ra'mey:` / `chovmey:` / `ghunmey:` with `{command}` braces so Latin
+  command spellings stay readable under the digraph pass.
+- Theme on this branch: blood-red desktop and title bars (`kernel/theme.inc`)
+  for a starship-bridge vibe. Do not merge that palette onto `main`.
 - The kernel starts in Klingon. Build with `nasm -DDEFAULT_LANG_EN` to start
   in English; `tools/regress.sh` does, so its English checks still apply.
   `lang en` switches at run time (the letters stay alien).
