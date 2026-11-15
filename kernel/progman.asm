@@ -293,7 +293,8 @@ pm_place:
     shr ebx, 1
     imul ebx, ebx, 200
     add ebx, 16
-    add ebx, [wc_top]          ; below the WarpCenter when it is live (2.5)
+    add ebx, [wc_top]          ; shared top chrome (WarpCenter and/or LaunchPad)
+    add ebx, [lp_top]
     mov ecx, 296
     mov edx, 180
     ret
@@ -302,7 +303,8 @@ pm_place:
     add eax, 4
     imul ebx, ebp, 12
     add ebx, 4
-    add ebx, [wc_top]
+    add ebx, [wc_top]          ; shared top chrome (WarpCenter and/or LaunchPad)
+    add ebx, [lp_top]
     mov ecx, 220
     mov edx, 120
     ret

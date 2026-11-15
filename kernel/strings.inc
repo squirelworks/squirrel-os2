@@ -59,7 +59,8 @@ LS_FE_NODRIVE equ 54
 LS_FE_XDEV equ 55
 LS_WC_BTN equ 56
 LS_WC_BYE equ 57
-LS_COUNT equ 58
+LS_LP_BYE equ 58
+LS_COUNT equ 59
 LANG_COUNT equ 3
 
 align 4
@@ -127,6 +128,7 @@ ls_en:
     dd ls_en_fe_xdev
     dd ls_en_wc_btn
     dd ls_en_wc_bye
+    dd ls_en_lp_bye
 ls_la:
     dd ls_la_banner
     dd ls_la_prompt
@@ -186,6 +188,7 @@ ls_la:
     dd ls_la_fe_xdev
     dd ls_la_wc_btn
     dd ls_la_wc_bye
+    dd ls_la_lp_bye
 ls_tlh:
     dd ls_tlh_banner
     dd ls_tlh_prompt
@@ -245,6 +248,7 @@ ls_tlh:
     dd ls_tlh_fe_xdev
     dd ls_tlh_wc_btn
     dd ls_tlh_wc_bye
+    dd ls_tlh_lp_bye
 ls_en_banner db 'Squirrel-OS/2', 0
 ls_en_prompt db '> ', 0
 ls_en_files db 'Files:', 0
@@ -303,6 +307,7 @@ ls_en_fe_nodrive db 'No such drive (see mount)', 0
 ls_en_fe_xdev db 'Cannot move between drives', 0
 ls_en_wc_btn db 'Squirrel', 0
 ls_en_wc_bye db 'WarpCenter closed.', 0
+ls_en_lp_bye db 'LaunchPad closed.', 0
 ls_la_banner db 'Sciurus-OS/2', 0
 ls_la_prompt db '> ', 0
 ls_la_files db 'Tabulae:', 0
@@ -361,6 +366,7 @@ ls_la_fe_nodrive db 'Nullus talis discus (vide mount)', 0
 ls_la_fe_xdev db 'Inter discos moveri non potest', 0
 ls_la_wc_btn db 'Sciurus', 0
 ls_la_wc_bye db 'Centrum Sciuri clausum.', 0
+ls_la_lp_bye db 'LaunchPad clausum.', 0
 ls_tlh_banner db 'Squirrel-OS/2', 0
 ls_tlh_prompt db '> ', 0
 ls_tlh_files db "tebwI':", 0
@@ -419,3 +425,4 @@ ls_tlh_fe_nodrive db "Hew tu'lu'be' (mount yIlegh)", 0
 ls_tlh_fe_xdev db "Hew latlh Daq vIHlaHbe'", 0
 ls_tlh_wc_btn db 'Squirrel', 0
 ls_tlh_wc_bye db "WarpCenter SoQlu'pu'.", 0
+ls_tlh_lp_bye db "LaunchPad SoQlu'pu'.", 0

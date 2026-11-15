@@ -643,15 +643,23 @@ python3 "$root/tools/sqfs.py" "$out/wps.img" format 1024 >/dev/null
 disk=$out/wps.img
 check wps-tmpl      'wps: PASS'             wpstmpl '<ret>' '<pause>'
 check wps-tmpl-text 'systest: PASS'         wpstmpl '<ret>' '<pause>' systest '<ret>'
-# 2.3-filemgr: the File Manager on a disk of its own: /w holds a.txt and sub
-python3 "$root/tools/sqfs.py" "$out/fm.img" format 1024 >/dev/null
-disk=$out/fm.img
-check fmtest        'fm: PASS'              fmtest '<ret>'
+# W.3-launchpad: pads on a top strip; assign/save/load/launch self-check
+python3 "$root/tools/sqfs.py" "$out/lp.img" format 1024 >/dev/null
+disk=$out/lp.img
+check wclp          'wclp: PASS'            wclp '<ret>' '<pause>'
+check wclp-cfg      '0 calc'                'cat /desktop/launchpad.cfg' '<ret>'
+check_all wclp-gfx  'gfx: calc|gfx: files'  launchpad '<ret>' '<pause>' '<gfx>' '<esc>' '<pause>'
+check wclp-digit    '1 calc'                launchpad '<ret>' '<pause>' '<right>' '2' '<esc>' '<pause>' 'cat /desktop/launchpad.cfg' '<ret>'
+check wclp-text     'systest: PASS'         wclp '<ret>' '<pause>' systest '<ret>'
 # W.4-views: Icon / Tree / Details switchable on the File Manager window
 check fold-views    'foldview: PASS'        foldview '<ret>'
 # W.5-openas: Open as → Icon / Tree / Details / Settings on a folder; Settings on objects
 check openas        'openas: PASS'          openas '<ret>' '<pause>'
 check openas-text   'systest: PASS'         openas '<ret>' '<pause>' systest '<ret>'
+# 2.3-filemgr: the File Manager on a disk of its own: /w holds a.txt and sub
+python3 "$root/tools/sqfs.py" "$out/fm.img" format 1024 >/dev/null
+disk=$out/fm.img
+check fmtest        'fm: PASS'              fmtest '<ret>'
 check fm-setup      'sub/'                  'mkdir w' '<ret>' 'put w/a.txt hello' '<ret>' 'mkdir w/sub' '<ret>' 'ls w' '<ret>'
 check_all fm-panes  'gfx: File Manager|gfx: sub|gfx: <dir>|gfx: a.txt' 'cd w' '<ret>' filemgr '<ret>' '<pause>' '<gfx>'
 check fm-copy       'hello'                 'cd w' '<ret>' filemgr '<ret>' '<pause>' '<down>' c sub '<ret>' '<esc>' 'cat sub/a.txt' '<ret>'

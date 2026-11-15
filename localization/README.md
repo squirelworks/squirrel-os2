@@ -59,6 +59,7 @@ localization/
 | fe_nofd | Too many open files | Nimis multae tabulae apertae | teywI'mey poSmoHlu'bogh law'qu' | file-system errors (shell, editors, `draw`, `SYS_FSERROR`) (1.0.5) |
 | fe_nodrive | No such drive (see mount) | Nullus talis discus (vide mount) | Hew tu'lu'be' (mount yIlegh) | file-system errors: a path `d:/...` on a drive letter with nothing mounted (2.7) |
 | fe_xdev | Cannot move between drives | Inter discos moveri non potest | Hew latlh Daq vIHlaHbe' | file-system errors: `mv` from one drive to another (2.7) |
+| lp_bye | LaunchPad closed. | LaunchPad clausum. | LaunchPad SoQlu'pu'. | `launchpad` on quit (W.3-launchpad) |
 | net_noreply | No reply | Nullum responsum | jang tu'lu'be' | `arp` when nobody answers (1.9.5) |
 | net_badaddr | Bad address | Inscriptio mala | ngoq QIH | `arp` when the text is not an address (1.9.5) |
 | net_of4 |  of 4 |  ex 4 |  vo' 4 | `ping` reply count (1.9.6) |
