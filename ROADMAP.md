@@ -156,6 +156,12 @@ The GUI grows in generations, and each generation is a shippable milestone (epic
 
 The old 2.1–2.9 bridge plan in `documentation/plannedmilestones.md`, renumbered here. 32-bit programs keep running in compatibility mode. The H boxes (with acceptance) are in `TODO.md`. The BIOS boot path keeps working throughout.
 
+**CONTINUANCE 3a (before 2.9-lm-kernel):** new 2.9+ kernel subsystems may use
+freestanding C; NASM remains for boot/entry stubs and existing code. Recorded
+in `documentation/architecture/overview.md` (cite squirrelsoft
+`docs/CONTINUANCE.md` decision 3a). Docs only until a later PR wires the
+compiler into `tools/build.sh`.
+
 - [ ] x86-64 long-mode kernel and 64-bit paging (long-mode entry is on `main`, #154; the kernel staying in long mode is 2.9-lm-kernel)
 - [x] SMP scheduler (2.8-smp-ap, 2.8-smp-sched, #154)
 - [x] PAE and NX (2.8-pae)

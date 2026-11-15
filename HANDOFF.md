@@ -155,9 +155,11 @@ PAE + NX on `main` (this branch). Checks `nx-heap`, `nx-stack`, `cpu-pentium3`.
   with the long-mode kernel; the BIOS boot path still boots under `qemu-system-i386`
   with the 32-bit kernel (two build flavours, both in CI).
 - **Advice:** do it in steps that each keep CI green (IDT first, then paging,
-  then thunks). Consider writing new 64-bit code in freestanding C compiled
-  with `-ffreestanding -mno-red-zone` and linked as a flat binary; see
-  `docs/CONTINUANCE.md` in squirrelsoft on the C question.
+  then thunks). **CONTINUANCE 3a (recorded):** new 2.9+ subsystems may use
+  freestanding C (`-ffreestanding -mno-red-zone -fno-pic`) linked into the
+  flat image; keep NASM for boot/entry stubs and existing code. See
+  `documentation/architecture/overview.md` (Language for new kernel
+  subsystems) and squirrelsoft `docs/CONTINUANCE.md` decision 3a.
 
 ### 2.9-syscall64 — ELF64 programs  `cursor-codex`
 - **Depends on:** 2.9-lm-kernel.
