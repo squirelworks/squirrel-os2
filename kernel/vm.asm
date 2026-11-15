@@ -900,6 +900,6 @@ kernel_pd dd 0                  ; PDPT (CR3 in PAE)
 kernel_pd0 dd 0                 ; page directory for 0-1 GB
 kernel_pt dd 0                  ; 0-2 MB page table
 kernel_pt_hi dd 0               ; 2-4 MB page table
-kernel_pml4 dd 0                ; 4-level root for long mode (2.9)
+kernel_pml4 dd 0                ; 4-level root for long mode (2.9); never freed (boot-lifetime)
 vm_nx db 0                      ; 1: NX is available and EFER.NXE is on
 as_table times AS_MAX*AS_SIZE db 0
