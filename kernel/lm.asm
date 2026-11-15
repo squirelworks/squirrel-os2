@@ -115,18 +115,20 @@ lm_call:
     jmp LM_CS64:lm_in64
 
 ; Already in IA-32e: load the requested PML4 and thunk to the routine.
+; Saved CR3 lives on this stack frame (nestable); lm_thunk64 nests its
+; own globals the same way, so a re-entrant lm_call during a thunk is safe.
 lm_call_via_thunk:
     pushad
     pushfd
     cli
-    mov [lm_target], eax
+    mov ebx, eax                ; target
     mov eax, cr3
-    mov [lm_cr3_tmp], eax
+    push eax                    ; nestable saved CR3
     mov eax, [lm_pml4]
     mov cr3, eax
-    mov eax, [lm_target]
+    mov eax, ebx
     call lm_thunk64
-    mov eax, [lm_cr3_tmp]
+    pop eax                     ; saved CR3
     mov cr3, eax
     popfd
     popad
@@ -261,8 +263,9 @@ LM64_RSP0     equ 4                 ; RSP0 in a 64-bit TSS (qword)
 LM64_IST1_OFF equ 36                ; IST1 pointer in a 64-bit TSS
 LM64_IOMAP    equ 102
 LM64_IDT_BYTES equ 256*16
-LM_NEST_MAX   equ 8                 ; nestable thunk / call32 frames
+LM_NEST_MAX   equ 8                 ; nestable call32 frames (IRQ / syscall)
 LM_NEST_SIZE  equ 32                ; bytes per nest frame
+; frame: +0 target, +4 in_use, +8 rsp64 (qword), +16 reserved
 
 ; Build the 64-bit IDT and TSS once (needs the page allocator). CF on failure.
 lm_idt_init:
@@ -525,6 +528,13 @@ lm64_mouse_isr:
     iretq
 
 ; int 0x80 from compat / ring 3 while LMA=1.
+; Native path: args in lm_sys_*; body returns the result in eax through
+; lm64_call32 (not lm_sysret), so a yield/switch inside syscall_isr_body
+; cannot race another process's return value. Nest frames are free-list
+; allocated and the frame pointer rides the process stack across a switch.
+; Linux personality: lx_isr still uses iretd (32-bit frame). Under a
+; permanent stay return -ENOSYS here until 2.9-syscall64 (and ring-3 under
+; stay) wire a 64-bit-safe Linux body — see TODO.md / #221.
 lm64_syscall_isr:
     push rax
     push rbx
@@ -543,17 +553,27 @@ lm64_syscall_isr:
     mov [rel lm_sys_ecx], eax
     mov eax, [rsp+24]
     mov [rel lm_sys_edx], eax
-    ; Linux personality: refuse under permanent stay (32-bit lx_isr uses iretd)
+    mov eax, [rsp+16]
+    mov [rel lm_sys_esi], eax
+    mov eax, [rsp+8]
+    mov [rel lm_sys_edi], eax
+    mov eax, [rsp]
+    mov [rel lm_sys_ebp], eax
+    ; TODO(2.9-syscall64): Linux/BSD int 0x80 under stay needs a body that
+    ; returns (no iretd) and runs through lm64_call32; until then ENOSYS.
     mov esi, [rel proc_cur]
     cmp dword [esi+PCB_LINUX], 0
     jne .enosys
     mov eax, lm64_syscall_body
     call lm64_call32
-    mov eax, [rel lm_sysret]
-    mov [rsp+48], rax               ; return value in saved rax
+    jc .nosys_ret                   ; nest overflow: treat as ENOSYS
+    mov [rsp+48], rax               ; result from body (eax), not lm_sysret
     jmp .out
 .enosys:
-    mov qword [rsp+48], -1
+    mov qword [rsp+48], -38         ; LX_ENOSYS (linux.asm); not SYS_ENOSYS
+    jmp .out
+.nosys_ret:
+    mov qword [rsp+48], -1          ; SYS_ENOSYS
 .out:
     pop rbp
     pop rdi
@@ -569,6 +589,9 @@ lm64_syscall_body:
     mov ebx, [lm_sys_ebx]
     mov ecx, [lm_sys_ecx]
     mov edx, [lm_sys_edx]
+    mov esi, [lm_sys_esi]
+    mov edi, [lm_sys_edi]
+    mov ebp, [lm_sys_ebp]
     jmp syscall_isr_body
 BITS 64
 
@@ -594,20 +617,26 @@ lm64_df_isr:
     jmp .hang
 
 ; eax = 32-bit near routine -> call it in compatibility mode and return
-; here in 64-bit. Nestable (separate frame stack from the caller's stack).
-; Used by 64-bit IRQ and syscall gates so they do not share lm_thunk* slots.
+; here in 64-bit. Nestable free-list frames (separate from lm_thunk* slots).
+; Used by 64-bit IRQ and syscall gates. A yield/switch inside the 32-bit
+; body is safe: the frame pointer is pushed on the process stack and
+; returned in ebx across the far jump, so lm_nest_cur is not consulted
+; after the body runs. CF set if every frame is busy (caller should EOI).
 lm64_call32:
     push rbx
-    mov ebx, [rel lm_nest_sp]
-    cmp ebx, LM_NEST_MAX
+    cmp dword [rel lm_nest_sp], LM_NEST_MAX
     jae .fail
-    push rax                        ; target
-    mov eax, ebx
-    inc dword [rel lm_nest_sp]
-    imul eax, LM_NEST_SIZE
     lea rbx, [rel lm_nest_pool]
-    add rbx, rax
-    pop rax
+    mov ecx, LM_NEST_MAX
+.find:
+    cmp dword [rbx+4], 0            ; in_use?
+    je .got
+    add rbx, LM_NEST_SIZE
+    loop .find
+    jmp .fail
+.got:
+    mov dword [rbx+4], 1
+    inc dword [rel lm_nest_sp]
     mov [rbx], eax                  ; frame.target
     mov [rbx+8], rsp                ; frame.rsp64
     mov [rel lm_nest_cur], rbx
@@ -616,6 +645,13 @@ lm64_call32:
     push rax
     retfq
 .fail:
+    inc dword [rel lm_nest_overflow]
+    ; IRQ bodies never ran: ack both PICs so a burst cannot wedge the line
+    ; (timer/keyboard). Harmless if the caller was a syscall gate.
+    mov al, 0x20
+    out 0xA0, al
+    out 0x20, al
+    stc
     pop rbx
     ret
 
@@ -628,30 +664,25 @@ lm64_call32_run:
     mov ax, USER_DS
     mov ds, ax
     mov es, ax
-    call [ebx]                      ; frame.target
+    mov eax, [ebx]                  ; target
+    push ebx                        ; frame ptr rides this stack across yield
+    call eax
+    pop ebx                         ; frame (ebx -> rbx after far jump)
     jmp LM_CS64:lm64_call32_ret
 
 BITS 64
 lm64_call32_ret:
+    mov ecx, eax                    ; preserve 32-bit result (syscall path)
     mov ax, 0x10
     mov ss, ax
     mov ds, ax
     mov es, ax
-    mov rbx, [rel lm_nest_cur]
+    ; rbx = nest frame from the 32-bit side (not the global lm_nest_cur)
     mov rsp, [rbx+8]
+    mov dword [rbx+4], 0            ; free the slot
     dec dword [rel lm_nest_sp]
-    mov eax, [rel lm_nest_sp]
-    test eax, eax
-    jz .nocur
-    dec eax
-    imul eax, LM_NEST_SIZE
-    lea rbx, [rel lm_nest_pool]
-    add rbx, rax
-    mov [rel lm_nest_cur], rbx
-    jmp .done
-.nocur:
-    mov qword [rel lm_nest_cur], 0
-.done:
+    mov eax, ecx
+    clc
     pop rbx
     ret
 BITS 32
@@ -1002,6 +1033,8 @@ lm_boot_enter:
 
 ; From compatibility mode (lm_perm=1): eax = 64-bit routine -> call it and
 ; return here in compat. CF if not staying. Keeps the 32-bit registers.
+; Nests prior lm_target / lm_thunk_esp on the stack so a re-entrant
+; lm_call_via_thunk (or nested thunk) cannot overwrite the outer save.
 lm_thunk64:
     cmp dword [lm_perm], 0
     jne .go
@@ -1011,6 +1044,8 @@ lm_thunk64:
     pushad
     pushfd
     cli
+    push dword [lm_target]          ; nest outer target
+    push dword [lm_thunk_esp]       ; nest outer esp
     mov [lm_target], eax
     mov [lm_thunk_esp], esp
     jmp LM_CS64:lm_thunk64_in
@@ -1036,6 +1071,8 @@ lm_thunk64_back:
     mov ax, 0x10
     mov ss, ax
     mov esp, [lm_thunk_esp]
+    pop dword [lm_thunk_esp]        ; restore outer
+    pop dword [lm_target]
     mov ax, USER_DS
     mov ds, ax
     mov es, ax
@@ -1046,10 +1083,17 @@ lm_thunk64_back:
 
 ; From 64-bit code (while staying): eax = 32-bit routine -> call it in
 ; compatibility mode and return here in 64-bit. The routine may use the
-; 32-bit calling convention on the shared stack.
+; 32-bit calling convention on the shared stack. Nests lm_target32 /
+; lm_thunk64_rsp on the 64-bit stack the same way.
 BITS 64
 lm_thunk32:
-    mov [rel lm_target32], eax
+    push rbx
+    mov ebx, eax                    ; new target
+    mov eax, [rel lm_target32]
+    push rax                        ; nest prior target32
+    mov rax, [rel lm_thunk64_rsp]
+    push rax                        ; nest prior rsp
+    mov [rel lm_target32], ebx
     mov [rel lm_thunk64_rsp], rsp
     push qword 0x08
     lea rax, [rel lm_thunk32_run]
@@ -1073,7 +1117,14 @@ lm_thunk32_ret:
     mov ss, ax
     mov ds, ax
     mov es, ax
+    mov ecx, eax                    ; preserve 32-bit result
     mov rsp, [rel lm_thunk64_rsp]
+    pop rax
+    mov [rel lm_thunk64_rsp], rax
+    pop rax
+    mov [rel lm_target32], eax
+    mov eax, ecx
+    pop rbx
     ret
 BITS 32
 
@@ -1243,15 +1294,18 @@ lm_target32   dd 0             ; 32-bit routine for lm_thunk32
 lm_mark_a     dd 0
 lm_mark_b     dd 0
 lm_irq_cs     dd 0             ; interrupted CS for shared ISR bodies
-lm_sysret     dd 0             ; return value from syscall_isr_body
+lm_sysret     dd 0             ; return value from syscall_isr_body (32-bit path)
 lm_sys_eax    dd 0
 lm_sys_ebx    dd 0
 lm_sys_ecx    dd 0
 lm_sys_edx    dd 0
-lm_cr3_tmp    dd 0             ; CR3 saved around lm_call_via_thunk
-lm_nest_sp    dd 0             ; lm64_call32 nest depth
+lm_sys_esi    dd 0
+lm_sys_edi    dd 0
+lm_sys_ebp    dd 0
+lm_nest_sp    dd 0             ; lm64_call32 in-use count
+lm_nest_overflow dd 0          ; times LM_NEST_MAX blocked a call32
 align 8
-lm_nest_cur   dq 0             ; current nest frame
+lm_nest_cur   dq 0             ; frame chosen for the current lm64_call32 entry
 lm_thunk64_rsp dq 0            ; RSP saved across lm_thunk32
 lm_pic1       db 0
 lm_pic2       db 0

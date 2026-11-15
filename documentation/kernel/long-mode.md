@@ -79,13 +79,20 @@ thunks for the remaining 32-bit kernel, 32-bit programs in compatibility mode). 
 
 - The 64-bit IDT installs everyday gates for IRQ0 (timer), IRQ1 (keyboard), IRQ12 (mouse) and
   `int 0x80` (trap gate, DPL 3). Those stubs call the shared 32-bit ISR / syscall bodies through
-  nestable `lm64_call32` (separate from `lm_thunk*` slots, so a timer IRQ during a thunk is safe).
+  nestable `lm64_call32` (free-list frames, separate from `lm_thunk*` slots, so a timer IRQ
+  during a thunk is safe; overflow EOIs both PICs and counts `lm_nest_overflow`). The nest
+  frame pointer rides the process stack so a yield inside `syscall_isr_body` still returns
+  through `lm64_call32_ret`. Native `int 0x80` result comes back in `eax` (not a global).
+- Linux/BSD personalities under a permanent stay still return `-ENOSYS` (`-38`) from the
+  64-bit gate: `lx_isr` uses `iretd` and is not stay-safe yet. Wire a returnable personality
+  body in **`2.9-syscall64`** (after ring-3 under stay); see TODO.md and issue #221.
 - `lm_enter_everyday`: `lm_enter_perm` then restores the saved PIC masks so keyboard and mouse
   keep working. `lm_boot_enter` does that and latches `lm_boot` so leave is refused.
 - Build flavours: default `os.img` still boots in 32-bit protected mode; `os-lm64.img` is the
   same sources assembled with `-DLM_BOOT64` and calls `lm_boot_enter` after the PIC is programmed.
   `tools/build.sh` and `tools/regress.sh` build both. While staying, `lm_call` / `lm_call_stay`
-  switch CR3 to the requested PML4 and use `lm_thunk64` instead of entering and leaving.
+  switch CR3 to the requested PML4 and use `lm_thunk64` instead of entering and leaving
+  (saved CR3 and thunk globals nest on the stack).
 - `lmboot`: on the default image, enter everyday, prove LMA + three timer ticks, leave; on the
   boot64 image, prove the same without leaving (LMA still set). Checks: `lm-boot`,
   `lm-boot-again`, `lm-boot64`, `lm-boot64-again`, and the `-nolm` pair under `qemu-system-i386`.

@@ -251,6 +251,8 @@ PAE + NX on `main`. Checks `nx-heap`, `nx-stack`, `cpu-pentium3`.
 - **Acceptance:** `run hello64` prints `hello64: PASS` through
   `syscall`/`sysret`; `int 0x80` 32-bit programs are unchanged; pointer
   checks refuse kernel addresses (`hello64-badptr`).
+- **Also (#221):** Linux/BSD under permanent stay still get `-ENOSYS` from
+  `lm64_syscall_isr` (`lx_isr` is `iretd`-only); teach a returnable body.
 
 ### 3.0 remainder — accounts, permissions, services, event log, task manager, themes  `cursor-codex`
 - Networking (DHCP, DNS, HTTP, netcfg) and audio (AC'97, HDA, mixer, A.6 apps)

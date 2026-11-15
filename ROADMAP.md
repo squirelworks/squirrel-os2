@@ -182,7 +182,7 @@ compiler into `tools/build.sh`.
 - [x] H.4 NVMe
 - [x] H.5 USB keyboard (xHCI)
 - [x] H.6 USB storage
-- [ ] 64-bit syscall ABI *(2.9-syscall64, lane `-b55f` after lm-kernel)*
+- [ ] 64-bit syscall ABI *(2.9-syscall64, lane `-b55f` after lm-kernel; Linux/BSD under LM stay still `-ENOSYS` until this box — #221)*
 
 ### 3.0 — Generation 3: "NT / XP class" (3.0.0 is the 64-bit Warp)
 
