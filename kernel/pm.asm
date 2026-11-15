@@ -118,6 +118,8 @@ gdt_cs64:                       ; 0x40: 64-bit kernel code, long mode (2.8, lm.a
     dw 0xFFFF,0,0x9A00,0x00AF
 gdt_tss_cpu:                    ; 0x48 on: one TSS per CPU record (2.8, smp.asm)
     times 16 dq 0               ; SMP_MAX
+gdt_tss64:                      ; 0xC8: 64-bit TSS (16-byte system descriptor; 2.9)
+    times 2 dq 0
 gdt_desc:
     dw $-gdt-1
     dd gdt
@@ -455,6 +457,9 @@ run_simple:
     mov edi, cmd_lmtest         ; 2.8-lm-entry
     call streq
     je .lmtest
+    mov edi, cmd_lmstay         ; 2.9-lm-kernel: 64-bit IDT stay
+    call streq
+    je .lmstay
     mov edi, cmd_cliptest       ; 2.1-blit-clip
     call streq
     je .cliptest
@@ -852,6 +857,9 @@ run_simple:
     jmp .empty
 .lmtest:
     call cmd_lmtest_run
+    jmp .empty
+.lmstay:
+    call cmd_lmstay_run
     jmp .empty
 .desktop:
     call cmd_desktop_run

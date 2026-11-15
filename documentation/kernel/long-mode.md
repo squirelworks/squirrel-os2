@@ -32,3 +32,24 @@ will keep. See `memory.md`. Checks: `nx-heap`, `nx-stack`, `cpu-pentium3`.
 mode` on a CPU without it (`qemu-system-i386`'s default CPU). Regress runs it under
 `qemu-system-x86_64` (`QEMU_BIN` in `tools/qemu_screen.py`): checks `lm-test`, `lm-again`,
 `lm-nolm`.
+
+## 2.9-lm-kernel (in progress): 64-bit IDT and TSS first
+
+The full box keeps the kernel in long mode for good (4-level per-process spaces, compatibility
+thunks for the remaining 32-bit kernel, 32-bit programs in compatibility mode). This first piece
+only proves the interrupt side:
+
+- `lm_idt_init`: a 256-entry 64-bit IDT (16-byte gates to `gdt_cs64`), a 64-bit TSS at selector
+  `0xC8` (`gdt_tss64`) with IST1 on a dedicated page for vector 8, and interrupt gates for the
+  timer (`lm64_timer_isr`) and a default EOI stub.
+- `lm_call_stay` / `lmstay`: enter long mode like `lm_call`, load the 64-bit IDT and TSS, mask
+  the PIC to IRQ0 only, enable interrupts until three timer IRQs have run through the 64-bit
+  gate, restore the PIC masks, then leave long mode and restore the 32-bit IDT and
+  `SEL_TSS_MAIN`. (Other IRQ lines are masked for the stay so a 64-bit stub cannot EOI them
+  without draining the device.) Everyday paging stays the PAE PDPT; CR3 is the 4-level
+  identity map only for the stay.
+- Checks: `lm-stay`, `lm-stay-again` (under `qemu-system-x86_64`), `lm-stay-nolm` (32-bit QEMU).
+
+Later steps (still this TODO box): 4-level per-process address spaces, stay permanently with
+compatibility-mode thunks into the 32-bit kernel, and run the whole suite under
+`qemu-system-x86_64` as a second build flavour.
