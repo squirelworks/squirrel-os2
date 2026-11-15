@@ -72,7 +72,7 @@ Used here, in `ROADMAP.md`, `TODO.md` and on the issues (as labels).
   (diskutil view/check/format), 2.8 long-mode entry, SMP and PAE/NX, H.1–H.6,
   3.0 networking and sound, A.1–A.7, C.1–C.9, G.1–G.9, P.1, P.2, P.5, P.6
   (including Win32 windows), P.8 (including DOS window), P.9 (32-bit LX),
-  P.10 (FreeBSD), 2.5 WarpCenter, 2.6-context/notebook, 2.6-shadows, W.2-templates,
+  P.10 (FreeBSD), 2.5 WarpCenter, 2.6-context/notebook, W.2-templates,
   W.3-launchpad, W.4-views, W.5-openas, and the 2.9 IDT/TSS stay + paging slices
   (`lmstay` #189, `lmpage` #193). Dual-agent ownership docs are on `main` (#195).
 - **Test gate:** `tools/regress.sh` and GitHub CI (`.github/workflows/ci.yml`:
@@ -80,7 +80,7 @@ Used here, in `ROADMAP.md`, `TODO.md` and on the issues (as labels).
   calling a PR ready.
 - **Open PRs (2026-11-15):** #188 (this PR, `2.6-shadows-2eaf`); #184
   (`*-2eaf` desktop). Finish or rebase open feature PRs; do not redo them.
-  (#183, #191, #192, #193, #195, and #196 are on `main`.)
+  (#183, #191, #192, #193, #195, #196, and #203 are on `main`.)
 
 ## Rules (Squirrel's; do not break)
 
