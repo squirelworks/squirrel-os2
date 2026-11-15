@@ -145,7 +145,15 @@ This avoids retargeting chains and confirmation steps.
 
 ## Next planned release
 
-**2.3.0** release notes are ready (`2.3.0.md`); the owner publishes. After that: **P.6-win32-windows** and **P.8-dos-window**, then Generation 2 desktop (2.5 / 2.6 / W.2–W.6) and the 2.8-pae → 2.9 long-mode kernel path. Boxes are in `../../TODO.md` and `../../HANDOFF.md`.
+**2.3.0** — **tip cut**, not prep-only `fc3ae21`. Land gate PRs #184 / #197 / #204 /
+#205, retarget `2.3.0.md` to that tip, then the owner publishes the tag. Agents
+never tag. Fine-grain ladder through **3.0.0** (including `+0.0.1` / `+0.0.25` /
+`+0.25.0`-style marks): [`TO_3.0.0.md`](TO_3.0.0.md). Checklist and handshake:
+`../../HANDOFF.md` (**Release coordination**). Boxes: `../../TODO.md`.
+
+**Version bump guide (tip → 3.0.0):** `+0.0.1` = one small box; `+0.0.25` = small
+multi-file / pair-closing slice; jump to `2.6.0` / `2.9.0` / `3.0.0` when a
+ROADMAP generation or bridge ships (see TO_3.0.0 scheme table).
 
 **2.1.0** is published (`2.1.0.md`). **2.0.2** is published (`2.0.2.md`). **2.0.1** is published (`v2.0.1`).
 

@@ -20,8 +20,7 @@ The code in this tree is project-native. Early releases are not described as OS/
 | **4.x** | The "Windows 10/11 class" generation: HiDPI, touch, accessibility, a package manager. |
 
 1.0.0 is released (2026-10-31, `documentation/releases/1.0.0.md`).
-**2.0.0** is released (2026-11-01, `documentation/releases/2.0.0.md`), and so are **2.0.1** and **2.0.2** (2026-11-04), which finish the 2.0.x clean-up. **2.1.0** (2.1 framebuffer graphics and 2.4 ring 3, plus apps, games and foreign programs) was released 2026-11-13 (`documentation/releases/2.1.0.md`). **2.3.0** (2.2 real windows, 2.3 Program Manager desktop, and the parallel tracks that landed with them) is prepared in `documentation/releases/2.3.0.md` for the owner to publish.
-**After 2.3.0:** P.6-win32-windows and P.8-dos-window, then Generation 2 desktop (2.5 / 2.6 / W.2–W.6) and the 2.8-pae → 2.9 long-mode path. Boxes are in `TODO.md` and `HANDOFF.md`.
+**2.0.0** is released (2026-11-01, `documentation/releases/2.0.0.md`), and so are **2.0.1** and **2.0.2** (2026-11-04), which finish the 2.0.x clean-up. **2.1.0** (2.1 framebuffer graphics and 2.4 ring 3, plus apps, games and foreign programs) was released 2026-11-13 (`documentation/releases/2.1.0.md`). **2.3.0** is the next owner-published tag: **finish open gate PRs, then tag the tip** (retargeted notes in `documentation/releases/2.3.0.md` — not prep-only `fc3ae21`). Fine-grain marks through **3.0.0**: [`documentation/releases/TO_3.0.0.md`](documentation/releases/TO_3.0.0.md). Boxes in `TODO.md` and `HANDOFF.md`.
 
 SquirrelBIOS (github.com/squirelworks/squirrelbios) is the firmware this system is meant to sit on; booting Squirrel-OS/2 is its main acceptance test. Squirrel-OS/2 keeps booting under SeaBIOS in QEMU as well. Many built-in applications are first built as desktop programs in squirrelsoft and then ported here.
 
@@ -51,11 +50,15 @@ states are labels on the GitHub issues (`status: done`, `status: in progress`, `
 bevelled widgets, plus 2.7 (long names, FAT, drive objects; diskutil view/check/format), 2.8
 long-mode entry, SMP and PAE/NX, H.1–H.6, the 3.0 networking and sound half, A.1–A.7, every game,
 the whole calculator suite, foreign programs P.1, P.2, P.5, P.6 (including Win32 windows), P.8
-(including DOS window), P.9 (32-bit LX) and P.10 (FreeBSD), 2.5 WarpCenter, 2.6-context/notebook,
-W.2-templates (#191), W.3-launchpad (#183), W.4-views, W.5-openas (#192), 2.6-shadows
-(#188), and the 2.9 IDT/TSS stay + paging + thunk slices (#189, #193, #196).
-**2.3.0** release notes are ready for Squirrel to publish. Open feature PRs: #204
-(`2.9-lm-boot64-b55f`); #184 (2eaf desktop). Ownership docs #195 are on `main`.
+(including DOS window), P.9 (32-bit LX) and P.10 (FreeBSD), 2.5 WarpCenter, 2.6-context/notebook/shadows,
+W.2-templates (#191), W.3-launchpad (#183), W.4-views, W.5-openas (#192), and the 2.9 IDT/TSS stay +
+paging + thunks + boot64 slices (#189, #193, #196, #204 / `lmboot` / `os-lm64.img`).
+**Release (2026-11-15 tip-cut plan):** last published tag is still `v2.1.0`; banner is `2.3.0`.
+**Cut rule:** land gate PRs #184 / #197 / #204 / #205, then owner publishes `v2.3.0` from **that tip**
+(retargeted notes). **Supersedes** tagging `fc3ae21` alone. ~~#184~~ / ~~#197~~ / ~~#204~~ are on
+`main`; remaining open gate: #205. Ladder to 3.0.0:
+[`documentation/releases/TO_3.0.0.md`](documentation/releases/TO_3.0.0.md). See `HANDOFF.md`
+**Release coordination**.
 
 ## Where things were at the 2.1.0 release
 
@@ -173,7 +176,7 @@ in `documentation/architecture/overview.md` (cite squirrelsoft
 `docs/CONTINUANCE.md` decision 3a). Docs only until a later PR wires the
 compiler into `tools/build.sh`.
 
-- [ ] x86-64 long-mode kernel and 64-bit paging (entry #154; IDT stay #189; paging #193; stay+thunks #196; boot64 `lmboot`/`os-lm64.img` landed lane `-b55f` — do not tick until ring-3 compat + full x86_64 suite flavour)
+- [ ] x86-64 long-mode kernel and 64-bit paging (entry #154; IDT stay #189; paging #193; stay+thunks #196; boot64 `lmboot`/`os-lm64.img` #204 on `main` — do not tick until ring-3 under stay + full x86_64 suite flavour → mark **`2.9.0`**)
 - [x] SMP scheduler (2.8-smp-ap, 2.8-smp-sched, #154)
 - [x] PAE and NX (2.8-pae, #180)
 - [x] H.1 UEFI loader
@@ -182,13 +185,37 @@ compiler into `tools/build.sh`.
 - [x] H.4 NVMe
 - [x] H.5 USB keyboard (xHCI)
 - [x] H.6 USB storage
-- [ ] 64-bit syscall ABI *(2.9-syscall64, lane `-b55f` after lm-kernel; Linux/BSD under LM stay still `-ENOSYS` until this box — #221)*
+- [ ] 64-bit syscall ABI *(2.9-syscall64 → mark **`2.9.1`**, lane `-b55f` after lm-kernel; Linux/BSD under LM stay still `-ENOSYS` until this box — #221 / #222)*
+
+### Path index: tip → 3.0.0
+
+Numbered marks, owners, acceptance, and depends-on live in
+[`documentation/releases/TO_3.0.0.md`](documentation/releases/TO_3.0.0.md). Summary:
+
+| Mark | Title | Lane |
+|------|-------|------|
+| **2.3.0** | Tip cut after #184/#197/#204/#205 | owner |
+| **2.3.1** | W.6-startup | `-2eaf` |
+| **2.3.2** | ring-3 under permanent stay | `-b55f` |
+| **2.3.25** | W.6-syssetup | `-2eaf` |
+| **2.6.0** | Generation 2 declared complete | shared / owner |
+| **2.9.0** | tick `2.9-lm-kernel` | `-b55f` |
+| **2.9.1** | `2.9-syscall64` / `hello64` | `-b55f` |
+| **2.9.25** | freestanding C in build | `-b55f` / shared |
+| **2.9.2–2.9.7** | 3.0-users … 3.0-themes | `-b55f` / `-2eaf` |
+| **3.0.0** | 64-bit Warp ship | owner |
 
 ### 3.0 — Generation 3: "NT / XP class" (3.0.0 is the 64-bit Warp)
 
 - [ ] **3.0** — User accounts and a login screen, file permissions, services, an event log, a task manager, a theme engine (Warp 4 by default, plus original "Classic" and "Luna-like" themes), audio (HDA / AC97 and a mixer), a network settings GUI, DHCP, DNS and an HTTP client.
   - [x] DHCP, DNS, HTTP client and `wget`, network settings program, AC'97, HDA, mixer (#160)
-  - [ ] User accounts and login, file permissions, services, event log, task manager, theme engine
+  - [ ] User accounts and login *(3.0-users, mark 2.9.2, `-b55f` / shared)*
+  - [ ] File permissions *(3.0-perms, 2.9.3, `-b55f`)*
+  - [ ] Services *(3.0-services, 2.9.4, `-b55f`)*
+  - [ ] Event log *(3.0-eventlog, 2.9.5, `-b55f`)*
+  - [ ] Task manager *(3.0-taskmgr, 2.9.6, `-2eaf`)*
+  - [ ] Theme engine *(3.0-themes, 2.9.7, `-2eaf`)*
+  - [ ] **3.0.0** ship tag *(owner, after 2.9.1 + remainder boxes)*
 
 ### 3.x — Generation 4: "Windows 7 / modern Unix desktops"
 
