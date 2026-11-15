@@ -16,7 +16,7 @@
 - **Right pane (Details): the chosen directory's entries.** Directories come first, then files, each with its size (`<dir>` for a directory).
 - **Status line.** Below the panes it shows the keys (or which view is on), a question being asked, or how the last operation went (`Done.`, or the file system's reason, as the shell words it).
 
-The chosen row of the pane with the focus is blue; the other pane's chosen row is grey. In Icon view the chosen icon has a blue band behind it.
+The chosen row of the pane with the focus is blue; the other pane's chosen row is grey. In Icon view the chosen icon has a blue band behind the icon and its caption; unselected captions use a transparent glyph background on the white pane (no grey box).
 
 ## Keys
 
@@ -58,7 +58,7 @@ Then it removes them. It prints `fm: PASS` or `fm: FAIL at N`.
 `foldview` (W.4) makes `/fv` with `sub/` and `a.txt`, opens a File Manager window on `/fv`, and checks:
 - **Details:** two panes, list has `sub` then `a.txt`, tree depth of `/fv` is 1, tree width is the left third;
 - **Tree:** one full-width pane, tree still names `/fv` at depth 1;
-- **Icon:** folder-icon yellow body and black outline pixels (as `icontest`);
+- **Icon:** folder-icon yellow body and black outline pixels (as `icontest`); the selection band covers the caption row; an unselected caption stays pane white; `fm_hit` on the second icon and Right arrow move the selection;
 - switching back with `d` restores Details.
 
 Then it removes `/fv` and prints `foldview: PASS` or `foldview: FAIL at N`. Check `fold-views`.

@@ -1762,6 +1762,7 @@ cmd_bevwidgets_run:
     jc .say
     mov byte [gfxt_ok], 1
     mov byte [fd_buf], 0
+    mov dword [bw_win2], -1
     mov eax, BW_X
     mov ebx, BW_Y
     mov ecx, BW_W
@@ -1904,6 +1905,34 @@ cmd_bevwidgets_run:
     mov eax, [wg_cur]
     cmp eax, [bw_bid]           ; wraps; never lands on the group
     jne .fail
+    ; a new top window clears wg_cur (Sarah #175); raising the other
+    ; window again also clears when focus changes
+    mov eax, [bw_bid]
+    call wg_setfocus
+    jc .fail
+    mov eax, BW_X + 140
+    mov ebx, BW_Y
+    mov ecx, 100
+    mov edx, 80
+    mov esi, bw_title
+    call wm_create
+    cmp eax, -1
+    je .fail
+    mov [bw_win2], eax
+    cmp dword [wg_cur], -1      ; create put it on top
+    jne .fail
+    mov eax, [lt_win]
+    call wm_raise               ; focus back to the first window
+    mov eax, [bw_bid]
+    call wg_setfocus
+    jc .fail
+    mov eax, [bw_win2]
+    call wm_raise               ; focus change: clear again
+    cmp dword [wg_cur], -1
+    jne .fail
+    mov eax, [bw_win2]
+    call wm_close
+    mov dword [bw_win2], -1
     ; edge chrome: a button flush with the client bottom still draws
     mov eax, [lt_win]
     call wm_close
@@ -1937,6 +1966,11 @@ cmd_bevwidgets_run:
     jmp .end
 .fail:
     mov byte [gfxt_ok], 0
+    mov eax, [bw_win2]
+    cmp eax, -1
+    je .nof2
+    call wm_close
+.nof2:
     mov eax, [lt_win]
     call wm_close
 .end:
@@ -1967,6 +2001,7 @@ bw_bid dd 0
 bw_fid dd 0
 bw_lid dd 0
 bw_gid dd 0
+bw_win2 dd -1
 
 ; nbtest (2.6-notebook): a window with a three-tab notebook; probes the
 ; selected tab's raised face, the page well, the page label ink, then
