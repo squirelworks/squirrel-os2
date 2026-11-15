@@ -1,0 +1,6 @@
+# Docs honesty allowlist (CONTINUANCE §3c).
+# One entry per line: <rule> <doc> <check>
+#   missing-check      checked box names a check that is not in tools/regress.sh
+#   unexpected-check   open box names a check that already exists
+# Use only for known historical mismatches that cannot be fixed without
+# reticking many boxes. Prefer fixing TODO/ROADMAP/HANDOFF in the same PR.
