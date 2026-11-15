@@ -61,5 +61,20 @@ thunks for the remaining 32-bit kernel, 32-bit programs in compatibility mode). 
 - `lmpage`: two address spaces, different bytes at `0x30000`, enter long mode with each PML4;
   private bytes differ, a kernel mark matches. Checks: `lm-page`, `lm-page-again`, `lm-page-nolm`.
 
-Later steps (still this TODO box): stay permanently with compatibility-mode thunks into the
-32-bit kernel, and run the whole suite under `qemu-system-x86_64` as a second build flavour.
+### Permanent stay + compatibility thunks (`lmthunk`)
+
+- `lm_enter_perm` / `lm_leave_perm`: enter IA-32e like the stay path (PML4, 64-bit IDT/TSS,
+  IRQ0-only PIC mask), then far-return to the 32-bit kernel segment `0x08` and **remain** with
+  EFER.LMA set. Everyday 32-bit kernel code runs in compatibility mode on the 4-level tables.
+  `lm_leave_perm` restores the PIC, clears LME, and puts the PAE CR3 and 32-bit IDT/TSS back
+  (tests leave after the check; boot still starts in 32-bit protected mode).
+- `lm_thunk64(eax = 64-bit routine)`: from compatibility mode, far-jump to `gdt_cs64`, call, and
+  return to compat. `lm_thunk32(eax = 32-bit routine)`: from 64-bit code, far-return to `0x08`,
+  call, and return to 64-bit.
+- `lmthunk`: enter permanently, set a marker from plain 32-bit code, thunk to 64-bit (read LMA,
+  thunk back to set a second marker, take three timer IRQs), leave, and print `lmthunk: PASS`.
+  Checks: `lm-thunk`, `lm-thunk-again`, `lm-thunk-nolm`.
+
+Still open for the full TODO box: boot (or a second build flavour) that stays in long mode for
+the whole run so the suite passes under `qemu-system-x86_64` as everyday mode, and 32-bit
+user programs in compatibility mode.

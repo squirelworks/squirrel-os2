@@ -463,6 +463,9 @@ run_simple:
     mov edi, cmd_lmpage         ; 2.9-lm-kernel: 4-level per-process paging
     call streq
     je .lmpage
+    mov edi, cmd_lmthunk        ; 2.9-lm-kernel: permanent stay + compat thunks
+    call streq
+    je .lmthunk
     mov edi, cmd_cliptest       ; 2.1-blit-clip
     call streq
     je .cliptest
@@ -890,6 +893,9 @@ run_simple:
     jmp .empty
 .lmpage:
     call cmd_lmpage_run
+    jmp .empty
+.lmthunk:
+    call cmd_lmthunk_run
     jmp .empty
 .desktop:
     call cmd_desktop_run

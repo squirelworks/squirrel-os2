@@ -794,10 +794,14 @@ check_all lm-stay-again 'lmstay: PASS|lm: PASS|systest: PASS' lmstay '<ret>' lmt
 # 2.9-lm-kernel (paging): 4-level per-process roots; private PROG_BASE, shared kernel mark
 check lm-page       'lmpage: PASS'          lmpage '<ret>'
 check_all lm-page-again 'lmpage: PASS|lmstay: PASS|lm: PASS|systest: PASS' lmpage '<ret>' lmstay '<ret>' lmtest '<ret>' systest '<ret>'
+# 2.9-lm-kernel (stay + thunks): permanent IA-32e + compatibility thunks into 32-bit code
+check lm-thunk      'lmthunk: PASS'         lmthunk '<ret>'
+check_all lm-thunk-again 'lmthunk: PASS|lmpage: PASS|lmstay: PASS|lm: PASS|systest: PASS' lmthunk '<ret>' lmpage '<ret>' lmstay '<ret>' lmtest '<ret>' systest '<ret>'
 unset QEMU_BIN
 check lm-nolm       'lm: no long mode'      lmtest '<ret>'
 check lm-stay-nolm  'lmstay: no long mode'  lmstay '<ret>'
 check lm-page-nolm  'lmpage: no long mode'  lmpage '<ret>'
+check lm-thunk-nolm 'lmthunk: no long mode' lmthunk '<ret>'
 export QEMU_EXTRA='-cpu 486,-pse'
 check cpu-nopae     'needs a Pentium Pro-class CPU'
 export QEMU_EXTRA='-cpu pentium3,-fpu'
