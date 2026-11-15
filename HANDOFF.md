@@ -10,6 +10,13 @@ Source of truth, in order: `ROADMAP.md` and `TODO.md` on `main`, then the
 GitHub issues (epics #114–#119, progress issue #132, hand-off tracker #169), then
 this file. If they disagree, `main`'s code wins; fix the docs in your PR.
 
+## MERGE-WAIT (both lanes — Sarah 2026-11-15)
+
+**No new implementation** (no ring-3 / syscall64 / W.6 / Soft). Keep gate PRs
+#184 / #204 / #205 mergeable; then idle until tip-cut. Post-cut ladder paused
+until Sarah/credits say go. Full freeze text lives on #205 `HANDOFF` when that
+lands.
+
 ## Agent ownership (dual Cursor agents)
 
 Two Cursor agents work this tree in parallel. Tag every owned task line with the
@@ -21,22 +28,20 @@ files need coordinated rebases; do not race edits. Suite-wide checklist:
 
 ### Progress notes `-b55f`
 
-- **Landed:** `2.9-lm-paging-b55f` (#193 / `lmpage`). **In progress:** `2.9-lm-stay-thunks-b55f` (#196 / `lmthunk`). **Next after merge:** `2.9-lm-kernel-tick-b55f` (only once boot stays / x86_64 suite flavour).
+- **Landed:** `2.9-lm-paging-b55f` (#193 / `lmpage`); `2.9-lm-stay-thunks-b55f` (#196 / `lmthunk`). **This PR / merge-wait:** `2.9-lm-boot64-b55f` (#204 / `lmboot` / `os-lm64.img`). **Paused after tip cut:** ring-3 under stay → `2.9-lm-kernel-tick-b55f` (only once everyday x86_64 suite flavour).
 
 ### Tasks `-b55f` (this lane)
 
-- [ ] `2.9-lm-stay-thunks-b55f` *(in progress #196)* — permanent long-mode stay + compatibility thunks into the 32-bit kernel
-- [ ] `2.9-lm-kernel-tick-b55f` — tick `2.9-lm-kernel` in TODO/ROADMAP/#132 only after stay + thunks are on `main` **and** boot stays / x86_64 suite flavour
+- [x] `2.9-lm-stay-thunks-b55f` — permanent long-mode stay + compatibility thunks (`lmthunk`, #196)
+- [ ] `2.9-lm-boot64-b55f` *(this PR #204 — merge-wait)* — boot-time / LM_BOOT64 image everyday stay; lmboot command
+- [ ] `2.9-lm-kernel-tick-b55f` — tick `2.9-lm-kernel` in TODO/ROADMAP/#132 only after boot stay **and** ring-3 compat programs + full x86_64 suite flavour
 - [ ] `2.9-syscall64-b55f` — ELF64 + `syscall`/`sysret` (`hello64`) after lm-kernel
 - [ ] `soft-followups-b55f` — Soft follow-ups only if Sarah leaves notes on Soft
 - [ ] `rebase-help-b55f` — when Sarah asks, rebase/CI-unblock open Sarah-held PRs (including `*-2eaf`); coordination only
 
 ### Progress notes `-2eaf`
 
-- **Landed:** `W.2-templates-2eaf` (#191); `W.5-openas-2eaf` (#192); `W.3-launchpad-2eaf` (#183); `2.6-shadows-2eaf` (#188).
-- **In flight / this PR:** Sarah Gen2 follow-ups (`cursor/followup-gen2-sarah-2eaf` / #197:
-  #186 context/settings, #190 icon captions/foldview, #175 `wg_cur` reset);
-  `2.6-icons`/`2.6-drag` (#184).
+- **Landed:** `W.2-templates-2eaf` (#191); `W.5-openas-2eaf` (#192); `W.3-launchpad-2eaf` (#183); `2.6-shadows-2eaf` (#188); Sarah Gen2 follow-ups (#197). **Open (merge-wait):** `2.6-icons-2eaf` / `2.6-drag-2eaf` (#184).
 
 ### Tasks `-2eaf` (other lane)
 
@@ -75,16 +80,16 @@ Used here, in `ROADMAP.md`, `TODO.md` and on the issues (as labels).
   (diskutil view/check/format), 2.8 long-mode entry, SMP and PAE/NX, H.1–H.6,
   3.0 networking and sound, A.1–A.7, C.1–C.9, G.1–G.9, P.1, P.2, P.5, P.6
   (including Win32 windows), P.8 (including DOS window), P.9 (32-bit LX),
-  P.10 (FreeBSD), 2.5 WarpCenter, 2.6-context/notebook, 2.6-shadows,
-  W.2-templates, W.3-launchpad, W.4-views, W.5-openas, and the 2.9 IDT/TSS
-  stay + paging slices (`lmstay` #189, `lmpage` #193). Dual-agent ownership
-  docs are on `main` (#195 / #203).
+  P.10 (FreeBSD), 2.5 WarpCenter, 2.6-context/notebook, 2.6-shadows, W.2-templates,
+  W.3-launchpad, W.4-views, W.5-openas, and the 2.9 IDT/TSS stay + paging +
+  thunk slices (`lmstay` #189, `lmpage` #193, `lmthunk` #196). Dual-agent
+  ownership docs are on `main` (#195).
 - **Test gate:** `tools/regress.sh` and GitHub CI (`.github/workflows/ci.yml`:
   `build` and `regress`, on every PR). Wait for a green `regress` before
   calling a PR ready.
-- **Open PRs (2026-11-15):** #197 (this PR, Sarah Gen2 follow-ups); #184
-  (`2.6-icons`/`2.6-drag`). Finish or rebase open feature PRs; do not redo them.
-  (#183, #188, #191, #192, #193, #195, #196, and #203 are on `main`.)
+- **Open PRs (2026-11-15, merge-wait):** #184 (`2.6-icons`/`drag`, `-2eaf`);
+  this PR #204 (`2.9-lm-boot64-b55f`); tip-cut docs #205 (`-b55f`).
+  (#183, #188, #191, #192, #193, #195, #196, #197, and #203 are on `main`.)
 
 ## Rules (Squirrel's; do not break)
 
@@ -131,8 +136,9 @@ Lanes run in parallel (see **Agent ownership**). Within a lane, keep the order.
    ~~`2.6-shadows-2eaf`~~ done (#188) → ~~`W.5-openas-2eaf`~~ done (#192); then
    `W.6-startup-2eaf` → `W.6-syssetup-2eaf`.
 4. **2.9 path `-b55f`:** ~~**2.8-pae**~~ done (#180); ~~IDT/TSS stay~~ done
-   (#189); ~~`2.9-lm-paging-b55f`~~ done (#193); `2.9-lm-stay-thunks-b55f`
-   *(in progress #196)* → `2.9-lm-kernel-tick-b55f` → `2.9-syscall64-b55f`.
+   (#189); ~~`2.9-lm-paging-b55f`~~ done (#193); ~~`2.9-lm-stay-thunks-b55f`~~
+   done (#196); ~~`2.9-lm-boot64-b55f`~~ done (`lmboot` / `os-lm64.img`) →
+   ring-3 compat under stay → `2.9-lm-kernel-tick-b55f` → `2.9-syscall64-b55f`.
 5. **3.0** remainder (accounts, permissions, services, event log, task manager, themes).
 6. **P.3, P.4, P.7, P.11, P.12**, then 3.x and 4.x.
 
@@ -215,7 +221,7 @@ host `fatimg.py check`, and `fattest` on the formatted images.
 ### 2.8-pae — PAE paging and NX  `status: done`
 PAE + NX on `main`. Checks `nx-heap`, `nx-stack`, `cpu-pentium3`.
 
-### 2.9-lm-kernel — stay in long mode  `-b55f` (stay+thunks in flight #196)
+### 2.9-lm-kernel — stay in long mode  `-b55f` (boot64 landed; box still open)
 - **Depends on:** 2.8-pae (done on `main`, #180).
 - **What:** 64-bit IDT/TSS with IST for double faults, 4-level per-process
   address spaces, the 32-bit kernel reached through compatibility-mode
@@ -223,22 +229,22 @@ PAE + NX on `main`. Checks `nx-heap`, `nx-stack`, `cpu-pentium3`.
 - **Acceptance:** the whole `regress.sh` passes under `qemu-system-x86_64`
   with the long-mode kernel; the BIOS boot path still boots under `qemu-system-i386`
   with the 32-bit kernel (two build flavours, both in CI).
-- **Done on `main`:** IDT/TSS stay (`lmstay`, #189); 4-level paging
-  (`lmpage`, #193 / `2.9-lm-paging-b55f`): `as_lm_sync` / `as_lm_cr3` —
-  per-process (and kernel) PML4 wrapping the PAE tables; `lm_call` uses that
-  root. Checks `lm-stay` / `lm-page` (and `-again` / `-nolm`).
-- **`2.9-lm-stay-thunks-b55f` (`lmthunk`, #196):** `lm_enter_perm` /
-  `lm_leave_perm` keep EFER.LMA with CS in compatibility mode; `lm_thunk64` /
-  `lm_thunk32` cross to 64-bit and back into 32-bit kernel code. Checks
-  `lm-thunk`, `lm-thunk-again`, `lm-thunk-nolm`. Does **not** tick the TODO
-  box: boot still starts in 32-bit and leaves after the test.
-- **Next `-b55f`:** boot-time / x86_64 build-flavour permanent stay, then
-  `2.9-lm-kernel-tick-b55f`. **CONTINUANCE 3a (recorded):** freestanding C for
-  new 2.9+ subsystems (`-ffreestanding -mno-red-zone -fno-pic`); NASM for
-  boot/entry stubs. See `documentation/architecture/overview.md` and
-  squirrelsoft `docs/CONTINUANCE.md` decision 3a. Non-blocking: clear busy on
-  the saved TR under SMP; separate exception stubs; `kernel_pml4` is
-  boot-lifetime.
+- **Done on `main` / this slice:** IDT/TSS stay (`lmstay`, #189); 4-level
+  paging (`lmpage`, #193); permanent stay + thunks (`lmthunk`, #196);
+  boot64 everyday stay (`lmboot` / `os-lm64.img`): nestable `lm64_call32`,
+  everyday IRQ0/1/12 + `int 0x80` gates, `lm_enter_everyday` / `lm_boot_enter`.
+  Regress names: lm-boot, lm-boot-again, lm-boot64, lm-boot64-again, and the
+  -nolm pair. `systest` + `lmtest` pass on the boot64 image under
+  `qemu-system-x86_64`.
+- **Still open before ticking:** 32-bit ring-3 programs under permanent stay
+  (exception trampolines / return paths — `run hello` on `os-lm64.img` is not
+  green); whole suite as the everyday x86_64 flavour. Then
+  `2.9-lm-kernel-tick-b55f`.
+- **CONTINUANCE 3a (recorded):** freestanding C for new 2.9+ subsystems
+  (`-ffreestanding -mno-red-zone -fno-pic`); NASM for boot/entry stubs. See
+  `documentation/architecture/overview.md` and squirrelsoft
+  `docs/CONTINUANCE.md` decision 3a. Non-blocking: clear busy on the saved TR
+  under SMP; `kernel_pml4` is boot-lifetime.
 
 ### 2.9-syscall64 — ELF64 programs  `2.9-syscall64-b55f` (after lm-kernel)
 - **Depends on:** 2.9-lm-kernel.

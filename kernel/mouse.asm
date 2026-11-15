@@ -125,8 +125,13 @@ mouse_poll:
     ret
 
 ; IRQ 12 (vector 0x2C): one auxiliary byte from the controller.
+; Body is shared with the 64-bit gate (2.9 lm_boot / everyday stay).
 mouse_isr:
     KSEGS
+    call mouse_isr_body
+    iretd
+
+mouse_isr_body:
     pushad
     in al, 0x64
     test al, 1
@@ -141,7 +146,7 @@ mouse_isr:
     out 0xA0, al                ; slave PIC
     out 0x20, al                ; master PIC (cascade)
     popad
-    iretd
+    ret
 
 ; al = one byte from the auxiliary device. Builds packets and updates
 ; position and buttons. Call with interrupts disabled. Keeps all registers.

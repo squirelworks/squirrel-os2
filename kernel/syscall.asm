@@ -84,25 +84,38 @@ syscall_isr:
     cmp dword [esi+PCB_LINUX], 0
     pop esi
     jne lx_isr
+    push eax
+    mov eax, [esp+8]            ; CS from the 32-bit interrupt frame
+    mov [lm_irq_cs], eax
+    pop eax
+    call syscall_isr_body
+    iretd
+
+; Shared with the 64-bit int 0x80 gate (2.9 everyday stay). Uses lm_irq_cs
+; for the ring-3 check; leaves the return value in lm_sysret and eax.
+; Native table only (Linux personality stays on the 32-bit lx_isr path).
+syscall_isr_body:
     cmp eax, SYS_COUNT
     jae .bad
     pushad
-    test byte [esp+36], 3   ; the caller's CS: from ring 3 (2.4) ...
+    test byte [lm_irq_cs], 3    ; from ring 3 (2.4) ...
     jz .call
-    call sys_uargs          ; ... its pointers must be its own memory
+    call sys_uargs              ; ... its pointers must be its own memory
     jc .efault
 .call:
     call [syscall_table+eax*4]
 .ret:
-    mov [esp+28], eax       ; overwrite saved eax so popad returns it
+    mov [esp+28], eax           ; overwrite saved eax so popad returns it
+    mov [lm_sysret], eax
     popad
-    iretd
+    ret
 .efault:
     mov eax, SYS_EFAULT
     jmp .ret
 .bad:
     mov eax, SYS_ENOSYS
-    iretd
+    mov [lm_sysret], eax
+    ret
 
 ; ---------- ring-3 pointer checks (2.4) ----------
 ; For a call from ring 3, every pointer argument must lie in memory that

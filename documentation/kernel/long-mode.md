@@ -67,7 +67,7 @@ thunks for the remaining 32-bit kernel, 32-bit programs in compatibility mode). 
   IRQ0-only PIC mask), then far-return to the 32-bit kernel segment `0x08` and **remain** with
   EFER.LMA set. Everyday 32-bit kernel code runs in compatibility mode on the 4-level tables.
   `lm_leave_perm` restores the PIC, clears LME, and puts the PAE CR3 and 32-bit IDT/TSS back
-  (tests leave after the check; boot still starts in 32-bit protected mode).
+  (tests leave after the check; refused when `lm_boot` is set).
 - `lm_thunk64(eax = 64-bit routine)`: from compatibility mode, far-jump to `gdt_cs64`, call, and
   return to compat. `lm_thunk32(eax = 32-bit routine)`: from 64-bit code, far-return to `0x08`,
   call, and return to 64-bit.
@@ -75,6 +75,23 @@ thunks for the remaining 32-bit kernel, 32-bit programs in compatibility mode). 
   thunk back to set a second marker, take three timer IRQs), leave, and print `lmthunk: PASS`.
   Checks: `lm-thunk`, `lm-thunk-again`, `lm-thunk-nolm`.
 
-Still open for the full TODO box: boot (or a second build flavour) that stays in long mode for
-the whole run so the suite passes under `qemu-system-x86_64` as everyday mode, and 32-bit
-user programs in compatibility mode.
+### Everyday / boot stay (`lmboot`, `LM_BOOT64`)
+
+- The 64-bit IDT installs everyday gates for IRQ0 (timer), IRQ1 (keyboard), IRQ12 (mouse) and
+  `int 0x80` (trap gate, DPL 3). Those stubs call the shared 32-bit ISR / syscall bodies through
+  nestable `lm64_call32` (separate from `lm_thunk*` slots, so a timer IRQ during a thunk is safe).
+- `lm_enter_everyday`: `lm_enter_perm` then restores the saved PIC masks so keyboard and mouse
+  keep working. `lm_boot_enter` does that and latches `lm_boot` so leave is refused.
+- Build flavours: default `os.img` still boots in 32-bit protected mode; `os-lm64.img` is the
+  same sources assembled with `-DLM_BOOT64` and calls `lm_boot_enter` after the PIC is programmed.
+  `tools/build.sh` and `tools/regress.sh` build both. While staying, `lm_call` / `lm_call_stay`
+  switch CR3 to the requested PML4 and use `lm_thunk64` instead of entering and leaving.
+- `lmboot`: on the default image, enter everyday, prove LMA + three timer ticks, leave; on the
+  boot64 image, prove the same without leaving (LMA still set). Checks: `lm-boot`,
+  `lm-boot-again`, `lm-boot64`, `lm-boot64-again`, and the `-nolm` pair under `qemu-system-i386`.
+  `systest` and `lmtest` pass under the boot64 image on `qemu-system-x86_64`.
+
+Still open for the full TODO box: 32-bit user programs in compatibility mode under a permanent
+stay (exception trampolines / ring-3 return paths; `run hello` on `os-lm64.img` is not green yet),
+and running the whole regression suite with the long-mode flavour as everyday mode under
+`qemu-system-x86_64`.

@@ -12,8 +12,11 @@ python3 "$root/tools/mkstrings.py" --check || exit 1
 python3 "$root/tools/mkfont.py" --check || exit 1
 python3 "$root/tools/mkicon.py" --check || exit 1   # 2.3-icons
 (cd "$root/kernel" && nasm -f bin boot.asm -o "$out/boot.bin" \
-    && nasm -f bin pm.asm -o "$out/pm.bin" 2>/dev/null)
+    && nasm -f bin pm.asm -o "$out/pm.bin" 2>/dev/null \
+    && nasm -f bin -DLM_BOOT64 pm.asm -o "$out/pm-lm64.bin" 2>/dev/null)
 cat "$out/boot.bin" "$out/pm.bin" > "$out/os.img"
+cat "$out/boot.bin" "$out/pm-lm64.bin" > "$out/os-lm64.img"
+rm -f "$out/pm-lm64.bin"
 dd if=/dev/zero of="$out/floppy.img" bs=1024 count=1440 2>/dev/null
 dd if="$out/os.img" of="$out/floppy.img" conv=notrunc 2>/dev/null
 python3 "$root/tools/mkiso.py" "$out/floppy.img" "$out/cd.iso"    # installer I.6
@@ -813,11 +816,23 @@ check_all lm-page-again 'lmpage: PASS|lmstay: PASS|lm: PASS|systest: PASS' lmpag
 # 2.9-lm-kernel (stay + thunks): permanent IA-32e + compatibility thunks into 32-bit code
 check lm-thunk      'lmthunk: PASS'         lmthunk '<ret>'
 check_all lm-thunk-again 'lmthunk: PASS|lmpage: PASS|lmstay: PASS|lm: PASS|systest: PASS' lmthunk '<ret>' lmpage '<ret>' lmstay '<ret>' lmtest '<ret>' systest '<ret>'
+# 2.9-lm-kernel (boot64): everyday stay (enter+leave on the 32-bit flavour)
+check lm-boot       'lmboot: PASS'          lmboot '<ret>'
+check_all lm-boot-again 'lmboot: PASS|lmthunk: PASS|systest: PASS' lmboot '<ret>' lmthunk '<ret>' systest '<ret>'
+# Same checks on the LM_BOOT64 image: stayed from boot, leave refused
+boot=$out/os-lm64.img
+check lm-boot64     'lmboot: PASS'          lmboot '<ret>'
+check_all lm-boot64-again 'lmboot: PASS|systest: PASS|lm: PASS' lmboot '<ret>' systest '<ret>' lmtest '<ret>'
+unset boot
 unset QEMU_BIN
 check lm-nolm       'lm: no long mode'      lmtest '<ret>'
 check lm-stay-nolm  'lmstay: no long mode'  lmstay '<ret>'
 check lm-page-nolm  'lmpage: no long mode'  lmpage '<ret>'
 check lm-thunk-nolm 'lmthunk: no long mode' lmthunk '<ret>'
+check lm-boot-nolm  'lmboot: no long mode'  lmboot '<ret>'
+boot=$out/os-lm64.img
+check lm-boot64-nolm 'lmboot: no long mode' lmboot '<ret>'
+unset boot
 export QEMU_EXTRA='-cpu 486,-pse'
 check cpu-nopae     'needs a Pentium Pro-class CPU'
 export QEMU_EXTRA='-cpu pentium3,-fpu'

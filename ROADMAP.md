@@ -52,10 +52,10 @@ bevelled widgets, plus 2.7 (long names, FAT, drive objects; diskutil view/check/
 long-mode entry, SMP and PAE/NX, H.1–H.6, the 3.0 networking and sound half, A.1–A.7, every game,
 the whole calculator suite, foreign programs P.1, P.2, P.5, P.6 (including Win32 windows), P.8
 (including DOS window), P.9 (32-bit LX) and P.10 (FreeBSD), 2.5 WarpCenter, 2.6-context/notebook,
-W.2-templates (#191), W.4-views, and the 2.9 IDT/TSS stay + paging slices (#189, #193).
-**2.3.0** release notes are ready for Squirrel to publish. Open feature PRs: #196
-(`2.9-lm-stay-thunks-b55f`); #183 #184 #188 #192 (2eaf desktop/Warp); #194 (2eaf
-lane tags). Ownership docs #195 are on `main`.
+W.2-templates (#191), W.3-launchpad (#183), W.4-views, W.5-openas (#192), 2.6-shadows
+(#188), and the 2.9 IDT/TSS stay + paging + thunk slices (#189, #193, #196).
+**2.3.0** release notes are ready for Squirrel to publish. Open feature PRs: #204
+(`2.9-lm-boot64-b55f`); #184 (2eaf desktop). Ownership docs #195 are on `main`.
 
 ## Where things were at the 2.1.0 release
 
@@ -173,7 +173,7 @@ in `documentation/architecture/overview.md` (cite squirrelsoft
 `docs/CONTINUANCE.md` decision 3a). Docs only until a later PR wires the
 compiler into `tools/build.sh`.
 
-- [ ] x86-64 long-mode kernel and 64-bit paging (entry #154; IDT stay #189; paging #193 landed; stay+thunks `lmthunk` in progress #196 lane `-b55f` — do not tick until boot stays / x86_64 suite flavour)
+- [ ] x86-64 long-mode kernel and 64-bit paging (entry #154; IDT stay #189; paging #193; stay+thunks #196; boot64 `lmboot`/`os-lm64.img` landed lane `-b55f` — do not tick until ring-3 compat + full x86_64 suite flavour)
 - [x] SMP scheduler (2.8-smp-ap, 2.8-smp-sched, #154)
 - [x] PAE and NX (2.8-pae, #180)
 - [x] H.1 UEFI loader
