@@ -152,7 +152,7 @@ The GUI grows in generations, and each generation is a shippable milestone (epic
 - [x] **2.5** — A WarpCenter-style bar (the default; a taskbar layout is a setting), a Squirrel menu, a tray clock. PR-sized boxes: `TODO.md` **2.5-bar**, **2.5-menu**, **2.5-clock** (W.3 LaunchPad is **W.3-launchpad** with them).
   - [x] **2.5-bar**, **2.5-menu**, **2.5-clock** (`warpcenter` / `wcbar` / `wcmenu` / `wcclock`)
   - [x] **W.3-launchpad** (`wclp`; lane `-2eaf`)
-- [ ] **2.6** — Desktop objects with icons, drag and drop between folders and onto programs, context menus on the right button, Warp-style settings notebooks with tabs, shadows (shortcuts). PR-sized boxes: `TODO.md` **2.6-icons** … **2.6-shadows**, plus **W.2-templates**, **W.4-views**, **W.5-openas**.
+- [x] **2.6** — Desktop objects with icons, drag and drop between folders and onto programs, context menus on the right button, Warp-style settings notebooks with tabs, shadows (shortcuts). PR-sized boxes: `TODO.md` **2.6-icons** … **2.6-shadows**, plus **W.2-templates**, **W.4-views**, **W.5-openas**.
   - [x] **2.6-icons**, **2.6-drag** (`dkicons` / `dkdrag`)
   - [x] **2.6-context**, **2.6-notebook** (`dkctx` / `nbtest`)
   - [x] **W.2-templates** (`wpstmpl` / `wps-tmpl`)
