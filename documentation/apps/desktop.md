@@ -154,9 +154,11 @@ launch-check and pad pixels → `wclp: PASS`.
 ## Context menu and settings notebook (2.6-context / 2.6-notebook)
 
 Right-button on a Program Manager icon opens a context menu (Open, Open as...,
-Settings, Delete, Arrange) through `wg_menu` (`wm_popup`). Open as cascades
-to Icon / Tree / Details / Settings (W.5). Settings opens a `wg_notebook`
-window with General / View tabs. The notebook widget itself lives in
+Settings, Arrange) through `wg_menu` (`wm_popup`); Delete is left out until a
+confirm UI exists. Open as cascades to Icon / Tree / Details / Settings (W.5).
+Settings opens a `wg_notebook` window with General / View tabs; the Program
+Manager loop handles tab clicks and the close box. A right-click selects
+without arming the double-click timer. The notebook widget itself lives in
 `widget.asm`: tab strip, sunken page body, click or Left/Right to switch
 pages. Self-checks: `dkctx` → `dk-ctx: PASS`; `nbtest` → `nbtest: PASS`.
 Desktop-surface icons and drag (`2.6-icons` / `2.6-drag`) are separate boxes.

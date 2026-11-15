@@ -123,7 +123,9 @@ The test windows put a label at (4, `2 + TH_BEVEL_W + WG_BTN_PAD`) and the box b
 
 `scrolltest` (2.0.2) opens a window 60 pixels high with a list of ten items (`Item 0` to `Item 9`), so only a few rows fit. It moves the selection to item 8 with `wg_key` and redraws, then checks that the list scrolled with the selection still shown, that `wg_list_item` maps row 0 to `WG_TOP` and the selection's row to item 8 and refuses the row past the last, and that the black bar is in the selection's row and not in row 0. It prints `scroll: PASS` or `scroll: FAIL` (check `scrolltest`). With the scrolling taken out of the draw, it prints FAIL.
 
-`bevwidgets` (2.3-bevel-default, Sarah follow-up) opens a window with a group box first, then a button, a field and a list, all drawn through `gfx_bevel` and `theme.inc`. It reads back the raised light / face / dark pixels of the button, the sunken look after `wg_pressdraw`, the sunken field and list, and the etched groove of the group box. It then checks that `wg_hit` skips the group, `wg_setfocus` refuses it, Tab cycles button → field → list → button, and a button placed flush with the client bottom still shows its top and bottom bevel. Prints `bevwidgets: PASS` or `bevwidgets: FAIL`. Checks `bevwidgets` and `bevwidgets-text`.
+`bevwidgets` (2.3-bevel-default, Sarah follow-up) opens a window with a group box first, then a button, a field and a list, all drawn through `gfx_bevel` and `theme.inc`. It reads back the raised light / face / dark pixels of the button, the sunken look after `wg_pressdraw`, the sunken field and list, and the etched groove of the group box. It then checks that `wg_hit` skips the group, `wg_setfocus` refuses it, Tab cycles button → field → list → button, that creating or raising another window clears `wg_cur` (Sarah #175), and a button placed flush with the client bottom still shows its top and bottom bevel. Prints `bevwidgets: PASS` or `bevwidgets: FAIL`. Checks `bevwidgets` and `bevwidgets-text`.
+
+`wm_create` and `wm_raise` clear `wg_cur` when the focused window changes, so Tab does not keep a stale widget id from another window.
 
 ## Next
 

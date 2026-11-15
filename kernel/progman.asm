@@ -10,11 +10,13 @@
 ; the chosen icon with the arrows until Enter or Esc, a arranges the focused
 ; group's icons in rows, Esc quits. Mouse: a press on an icon chooses it, a
 ; second press on it soon after opens it, dragging moves it; the right
-; button opens a context menu (Open, Open as..., Settings, Delete, Arrange)
-; on the icon under the pointer (2.6-context / W.5-openas, wg_menu /
-; wm_popup). Open as cascades to Icon / Tree / Details / Settings. A group's
-; close box minimises it (double-click its icon to restore); Main's close
-; quits. Icon places are kept in /desktop/progman.pos, one line per moved or
+; button opens a context menu (Open, Open as..., Settings, Arrange) on the
+; icon under the pointer (2.6-context / W.5-openas, wg_menu / wm_popup)
+; without arming the double-click timer. Open as cascades to Icon / Tree /
+; Details / Settings. Delete is left out until a confirm path exists.
+; Settings notebook tab/close events are handled in pm_wm. A group's close
+; box minimises it (double-click its icon to restore); Main's close quits.
+; Icon places are kept in /desktop/progman.pos, one line per moved or
 ; arranged icon: "name x y". See documentation/apps/progman.md.
 ;
 ; Self-check: dkctx -> dk-ctx: PASS; openas (filemgr) -> openas: PASS.
@@ -31,9 +33,8 @@ PM_DBL      equ 50              ; ticks between the presses of a double-click
 PM_CTX_OPEN     equ 0
 PM_CTX_OPENAS   equ 1           ; W.5: cascades to Icon/Tree/Details/Settings
 PM_CTX_SETTINGS equ 2
-PM_CTX_DELETE   equ 3
-PM_CTX_ARRANGE  equ 4
-PM_CTX_N        equ 5
+PM_CTX_ARRANGE  equ 3           ; Delete left out until a confirm UI exists
+PM_CTX_N        equ 4
 
 PM_OA_ICON      equ 0
 PM_OA_TREE      equ 1
@@ -781,6 +782,14 @@ pm_wm:
 .notmenu:
     cmp eax, WME_CLOSE
     jne .client
+    cmp ebx, [pm_set_win]       ; Settings notebook close (Sarah #186)
+    jne .notset
+    mov eax, ebx
+    call wm_close
+    mov dword [pm_set_win], -1
+    mov dword [pm_set_nb], -1
+    jmp .upd
+.notset:
     cmp ebx, [pm_gwin]
     je .quit
     mov eax, ebx                ; another group: minimised
@@ -789,6 +798,36 @@ pm_wm:
 .client:
     cmp eax, WME_CLIENT
     jne .upd
+    cmp ebx, [pm_set_win]       ; Settings: tab clicks
+    jne .grp
+    cmp dword [pm_set_nb], -1
+    je .upd
+    push eax
+    push ebx
+    push ecx
+    call wm_record              ; edi = Settings window
+    jc .setbad
+    mov eax, [pm_set_nb]
+    mov ebx, [dk_lmx]
+    sub ebx, [edi+WIN_X]
+    dec ebx
+    mov ecx, [dk_lmy]
+    sub ecx, [edi+WIN_Y]
+    sub ecx, WM_TITLE_H + 1
+    call wg_nbclick
+    jnc .setdirty
+.setbad:
+    pop ecx
+    pop ebx
+    pop eax
+    jmp .upd
+.setdirty:
+    mov byte [pm_dirty], 1
+    pop ecx
+    pop ebx
+    pop eax
+    jmp .upd
+.grp:
     mov eax, ebx
     call pm_group
     jc .upd
@@ -1205,8 +1244,8 @@ pm_setpos:
 
 ; ---------- context menu (2.6-context) ----------
 
-; Right-button at (dk_lmx, dk_lmy): if over an icon, select it and open
-; the context menu there.
+; Right-button at (dk_lmx, dk_lmy): if over an icon, select it (without
+; arming the double-click timer) and open the context menu there.
 pm_ctx_at:
     pushad
     mov eax, [dk_lmx]
@@ -1228,9 +1267,37 @@ pm_ctx_at:
     mov ebx, [dk_lmy]
     sub ebx, [edi+WIN_Y]
     sub ebx, WM_TITLE_H + 1     ; client y
-    mov ecx, [ticks]
-    call pm_press               ; choose the icon under the pointer
+    call pm_pick                ; select only; not half a double-click
     call pm_ctx_popup
+.r:
+    popad
+    ret
+
+; ebp = group, eax, ebx = client press: choose the icon under the pointer
+; without updating pm_last / pm_lastt / pm_drag (right-click must not count
+; as half a double-click; Sarah #186).
+pm_pick:
+    pushad
+    xor esi, esi
+.i:
+    cmp esi, [pm_gn+ebp*4]
+    jae .r
+    imul edi, ebp, PM_IMAX
+    add edi, esi
+    mov edx, eax
+    sub edx, [pm_gx+edi*4]
+    cmp edx, PM_CW
+    jae .n
+    mov edx, ebx
+    sub edx, [pm_gy+edi*4]
+    cmp edx, PM_CH
+    jb .hit
+.n:
+    inc esi
+    jmp .i
+.hit:
+    mov [pm_gsel+ebp*4], esi
+    mov byte [pm_dirty], 1
 .r:
     popad
     ret
@@ -1248,7 +1315,7 @@ pm_ctx_popup:
     popad
     ret
 
-; eax = menu item index: Open / Open as... / Settings / Delete / Arrange.
+; eax = menu item index: Open / Open as... / Settings / Arrange.
 pm_ctx_do:
     pushad
     mov [pm_ctx_last], eax
@@ -1258,8 +1325,6 @@ pm_ctx_do:
     je .openas
     cmp eax, PM_CTX_SETTINGS
     je .settings
-    cmp eax, PM_CTX_DELETE
-    je .delete
     cmp eax, PM_CTX_ARRANGE
     je .arrange
     jmp .r
@@ -1272,12 +1337,6 @@ pm_ctx_do:
     jmp .r
 .settings:
     call pm_settings
-    jmp .r
-.delete:
-    ; Same confirm path as the classic desktop: mark and ask on next key.
-    ; For the self-check, recording pm_ctx_last is enough; interactive
-    ; delete reuses the desktop's Delete key on the object list later.
-    mov byte [pm_ctx_del], 1
     jmp .r
 .arrange:
     call pm_focus
@@ -1359,11 +1418,12 @@ pm_settings:
     popad
     ret
 
-; ---------- dkctx (2.6-context) ----------
+; ---------- dkctx (2.6-context / Sarah #186 follow-up) ----------
 ; Builds Program Manager groups, opens the context menu on calc, chooses
-; Open / Settings / Arrange / Delete through wm_menuchoose (Open as is on
-; the menu too; W.5 exercises it in openas), and checks a settings
-; notebook tab pixel. Prints `dk-ctx: PASS` or `dk-ctx: FAIL`.
+; Open / Settings / Arrange through wm_menuchoose (Open as is on the menu
+; too; W.5 exercises it in openas), checks a settings notebook tab pixel,
+; switches the View tab via wg_nbclick, and checks that pm_pick does not
+; arm the double-click timer. Prints `dk-ctx: PASS` or `dk-ctx: FAIL`.
 cmd_dkctx_run:
     call wm_screen
     mov esi, dkctx_fail
@@ -1385,7 +1445,6 @@ cmd_dkctx_run:
     mov [pm_gsel], ebx          ; select calc in Main
     mov dword [pm_set_win], -1
     mov dword [pm_set_nb], -1
-    mov byte [pm_ctx_del], 0
     ; pointer over calc's cell
     mov edx, edi                ; slot
     mov eax, [pm_gwin]
@@ -1439,6 +1498,22 @@ cmd_dkctx_run:
     call .probe
     jc .bad
     mov byte [pm_tstep], '5'
+    ; tab click: switch to View (tab 1) via wg_nbclick (as nbtest)
+    mov esi, pm_set_t0
+    mov ecx, FONT_9
+    call gfx_strwidth_p
+    add eax, NB_TAB_PAD
+    add eax, 4
+    mov ebx, eax
+    mov eax, [pm_set_nb]
+    mov ecx, 4                  ; in the tab strip
+    call wg_nbclick
+    jc .bad
+    mov eax, [pm_set_nb]
+    imul eax, WG_SIZE
+    cmp dword [wg_table+eax+WG_SEL], 1
+    jne .bad
+    mov byte [pm_tstep], '6'
     ; close settings so Main is focused again for Arrange
     mov eax, [pm_set_win]
     call wm_close
@@ -1454,17 +1529,35 @@ cmd_dkctx_run:
     call pm_ctx_do
     cmp dword [pm_ctx_last], PM_CTX_ARRANGE
     jne .bad
-    mov byte [pm_tstep], '6'
-    ; Delete (records the choice; does not remove objects here)
-    call pm_ctx_popup
-    mov dword [wm_msel], PM_CTX_DELETE
-    call wm_menuchoose
-    mov eax, ecx
-    call pm_ctx_do
-    cmp dword [pm_ctx_last], PM_CTX_DELETE
+    mov byte [pm_tstep], '7'
+    ; pm_pick must not arm the double-click timer
+    mov dword [pm_last], -1
+    mov dword [pm_lastt], 0
+    xor ebp, ebp
+    mov edi, [pm_tslot]
+    mov eax, [pm_gx+edi*4]
+    mov ebx, [pm_gy+edi*4]
+    add eax, 10
+    add ebx, 10
+    call pm_pick
+    mov eax, [pm_ticon]
+    cmp [pm_gsel], eax
     jne .bad
-    cmp byte [pm_ctx_del], 1
+    cmp dword [pm_last], -1
     jne .bad
+    cmp dword [pm_lastt], 0
+    jne .bad
+    mov byte [pm_tstep], '8'
+    ; a left-press soon after pick must NOT be a double-click
+    mov edi, [pm_tslot]
+    mov eax, [pm_gx+edi*4]
+    mov ebx, [pm_gy+edi*4]
+    add eax, 10
+    add ebx, 10
+    mov ecx, 100
+    call pm_press
+    jc .bad                     ; pick did not arm; first press is single
+    mov byte [pm_tstep], '9'
     ; Open as is present (W.5); openas self-check drives the cascade
     call pm_ctx_popup
     cmp dword [wm_mn], PM_CTX_N
@@ -1721,11 +1814,10 @@ pm_t_calc db 'calc', 0
 pm_bye db 'Program Manager closed.', 10, 0
 pm_pass db 'pm: PASS', 10, 0
 pm_fail db 'pm: FAIL at ', 0
-pm_ctx_items dd pm_ctx_open, pm_ctx_oas, pm_ctx_set, pm_ctx_del_s, pm_ctx_arr
+pm_ctx_items dd pm_ctx_open, pm_ctx_oas, pm_ctx_set, pm_ctx_arr
 pm_ctx_open db 'Open', 0
 pm_ctx_oas db 'Open as...', 0
 pm_ctx_set db 'Settings', 0
-pm_ctx_del_s db 'Delete', 0
 pm_ctx_arr db 'Arrange', 0
 align 4
 pm_oaitems dd pm_oa_icon, pm_oa_tree, pm_oa_det, pm_oa_set
@@ -1745,5 +1837,4 @@ pm_oa_last dd -1
 pm_set_win dd -1
 pm_set_nb dd -1
 pm_rbtn db 0
-pm_ctx_del db 0
 pm_oa_pend db 0

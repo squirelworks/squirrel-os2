@@ -33,7 +33,10 @@ files need coordinated rebases; do not race edits. Suite-wide checklist:
 
 ### Progress notes `-2eaf`
 
-- **Landed:** `W.2-templates-2eaf` (#191); `W.5-openas-2eaf` (#192); `W.3-launchpad-2eaf` (#183). **This PR:** `2.6-shadows-2eaf` (#188).
+- **Landed:** `W.2-templates-2eaf` (#191); `W.5-openas-2eaf` (#192); `W.3-launchpad-2eaf` (#183); `2.6-shadows-2eaf` (#188).
+- **In flight / this PR:** Sarah Gen2 follow-ups (`cursor/followup-gen2-sarah-2eaf` / #197:
+  #186 context/settings, #190 icon captions/foldview, #175 `wg_cur` reset);
+  `2.6-icons`/`2.6-drag` (#184).
 
 ### Tasks `-2eaf` (other lane)
 
@@ -72,15 +75,16 @@ Used here, in `ROADMAP.md`, `TODO.md` and on the issues (as labels).
   (diskutil view/check/format), 2.8 long-mode entry, SMP and PAE/NX, H.1–H.6,
   3.0 networking and sound, A.1–A.7, C.1–C.9, G.1–G.9, P.1, P.2, P.5, P.6
   (including Win32 windows), P.8 (including DOS window), P.9 (32-bit LX),
-  P.10 (FreeBSD), 2.5 WarpCenter, 2.6-context/notebook, W.2-templates,
-  W.3-launchpad, W.4-views, W.5-openas, and the 2.9 IDT/TSS stay + paging slices
-  (`lmstay` #189, `lmpage` #193). Dual-agent ownership docs are on `main` (#195).
+  P.10 (FreeBSD), 2.5 WarpCenter, 2.6-context/notebook, 2.6-shadows,
+  W.2-templates, W.3-launchpad, W.4-views, W.5-openas, and the 2.9 IDT/TSS
+  stay + paging slices (`lmstay` #189, `lmpage` #193). Dual-agent ownership
+  docs are on `main` (#195 / #203).
 - **Test gate:** `tools/regress.sh` and GitHub CI (`.github/workflows/ci.yml`:
   `build` and `regress`, on every PR). Wait for a green `regress` before
   calling a PR ready.
-- **Open PRs (2026-11-15):** #188 (this PR, `2.6-shadows-2eaf`); #184
-  (`*-2eaf` desktop). Finish or rebase open feature PRs; do not redo them.
-  (#183, #191, #192, #193, #195, #196, and #203 are on `main`.)
+- **Open PRs (2026-11-15):** #197 (this PR, Sarah Gen2 follow-ups); #184
+  (`2.6-icons`/`2.6-drag`). Finish or rebase open feature PRs; do not redo them.
+  (#183, #188, #191, #192, #193, #195, #196, and #203 are on `main`.)
 
 ## Rules (Squirrel's; do not break)
 

@@ -114,6 +114,7 @@ wm_create:
     mov dword [edi+WIN_PAINT], 0
     call wm_markwin             ; its place needs painting (2.2-clip-z)
     call wm_marktop             ; the old top loses the focus colour
+    mov dword [wg_cur], -1      ; new top: drop stale widget focus (Sarah #175)
     mov eax, ebp
     mov ebp, [wm_zn]            ; on top
     mov [wm_z+ebp], al
@@ -245,9 +246,19 @@ wm_zremove:
     ret
 
 ; eax = window id: puts it on top of the z-order, which gives it the focus.
-; CF if the id is not open. The caller redraws.
+; CF if the id is not open. The caller redraws. Switching focus clears
+; wg_cur so Tab does not keep a stale widget id from another window
+; (Sarah #175).
 wm_raise:
     push edi
+    push ebx
+    mov ebx, eax                ; the window being raised
+    call wm_focus
+    cmp eax, ebx
+    je .same
+    mov dword [wg_cur], -1
+.same:
+    mov eax, ebx
     call wm_record
     jc .r
     call wm_markwin             ; all of it is on top now
@@ -260,6 +271,7 @@ wm_raise:
     pop ebp
     clc
 .r:
+    pop ebx
     pop edi
     ret
 

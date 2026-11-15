@@ -1236,13 +1236,13 @@ fm_drawicons:
     push esi                    ; list index
     push eax
     push ebx
-    cmp esi, [fm_lsel]          ; chosen: a selection band behind the icon
+    cmp esi, [fm_lsel]          ; chosen: band covers icon and caption
     jne .ico
     push eax
     push ebx
     mov byte [gfx_colour], TH_SELECT
     mov ecx, FM_ICON_PX + 4
-    mov edx, FM_ICON_PX + 4
+    mov edx, FM_ICON_PX + 4 + GFX_CELL_H + 2
     sub eax, 2
     sub ebx, 2
     call gfx_fillrect
@@ -1262,13 +1262,18 @@ fm_drawicons:
     pop ebx
     pop eax
     pop edx                     ; list index
-    add ebx, FM_ICON_PX + 4     ; caption under the icon (gap past the band)
+    add ebx, FM_ICON_PX + 4     ; caption under the icon
     mov esi, [fm_lent+edx*4]
     shl esi, 5
     add esi, FS_DIR
     mov ecx, FM_ICELL_W - 2 * FM_IPAD
     mov byte [gfx_colour], TH_TEXT
-    mov byte [gfx_bg], TH_BTN_FACE
+    mov byte [gfx_bg], 0xFF     ; transparent on the white pane (no grey box)
+    cmp edx, [fm_lsel]
+    jne .cap
+    mov byte [gfx_colour], TH_SELECT_TEXT
+    mov byte [gfx_bg], TH_SELECT
+.cap:
     call wm_drawtitle
     inc ebp
     jmp .cell
@@ -1705,7 +1710,8 @@ cmd_fmtest_run:
 ; ---------- foldview (W.4-views) ----------
 ; Makes /fv with sub/ and a.txt, opens a File Manager window on /fv, and
 ; checks Details (two panes, list has sub then a.txt), Tree (one full-width
-; pane, tree depth of /fv is 1), and Icon (folder icon yellow body pixel).
+; pane, tree depth of /fv is 1), and Icon (folder icon yellow body pixel,
+; selection band over the caption, fm_hit / Right arrow on the grid).
 ; Removes /fv and prints foldview: PASS or foldview: FAIL at N.
 cmd_foldview_run:
     cmp byte [fs_mounted], 0
@@ -1835,6 +1841,47 @@ cmd_foldview_run:
     call gfx_getpixel
     mov byte [fm_tstep], 'c'
     cmp cl, 0x00
+    jne .bad
+    ; selection band includes the caption row (Sarah #190)
+    mov dword [fm_lsel], 0
+    call wm_redraw
+    mov eax, [fm_tx]
+    add eax, TH_BEVEL_W + FM_IPAD
+    mov ebx, [fm_py]
+    add ebx, TH_BEVEL_W + FM_IPAD + FM_ICON_PX + 6
+    call gfx_getpixel
+    mov byte [fm_tstep], 'e'
+    cmp cl, TH_SELECT
+    jne .bad
+    ; unselected: caption row stays pane white (transparent glyph bg)
+    mov dword [fm_lsel], 1
+    call wm_redraw
+    mov eax, [fm_tx]
+    add eax, TH_BEVEL_W + FM_IPAD
+    mov ebx, [fm_py]
+    add ebx, TH_BEVEL_W + FM_IPAD + FM_ICON_PX + 6
+    call gfx_getpixel
+    mov byte [fm_tstep], 'f'
+    cmp cl, TH_BTN_FACE
+    jne .bad
+    mov dword [fm_lsel], 0
+    ; fm_hit on the second icon (a.txt) and Right arrow (Sarah #190)
+    mov eax, [fm_tx]
+    add eax, TH_BEVEL_W + FM_IPAD + FM_ICELL_W + 8
+    mov ebx, [fm_py]
+    add ebx, TH_BEVEL_W + FM_IPAD + 8
+    call fm_hit
+    mov byte [fm_tstep], 'g'
+    jc .bad
+    cmp ecx, 1
+    jne .bad
+    cmp edx, 1
+    jne .bad
+    mov dword [fm_lsel], 0
+    mov al, WK_RIGHT
+    call fm_key
+    mov byte [fm_tstep], 'h'
+    cmp dword [fm_lsel], 1
     jne .bad
     ; switch back to Details with the key path
     mov byte [fm_tstep], 'd'

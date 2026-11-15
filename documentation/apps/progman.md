@@ -22,7 +22,7 @@ Alt+Tab, Alt+Esc, Alt+Space (the system menu) and Alt+F4 work as everywhere (2.2
 
 A press on an icon chooses it. A second press on it within the Control Panel's double-click time (`cp_dbl`, 50 ticks or half a second unless changed; `control.md`) is a double-click and opens it. Dragging an icon at least 4 pixels moves it by as much, and saves.
 
-The right button on an icon opens a context menu (2.6-context / W.5-openas) built on `wg_menu` / `wm_popup`: **Open**, **Open as...**, **Settings**, **Delete**, **Arrange**. Open sends `open` to the object; Open as cascades to Icon / Tree / Details / Settings (views open or switch a File Manager window via `fm_setview`; Settings is the object notebook); Settings opens a small notebook window (`wg_notebook`, General / View tabs); Arrange lays out the focused group; Delete records a delete request (the classic desktop Delete key still does the confirm step on the object list).
+The right button on an icon opens a context menu (2.6-context / W.5-openas) built on `wg_menu` / `wm_popup`: **Open**, **Open as...**, **Settings**, **Arrange**. Open sends `open` to the object; Open as cascades to Icon / Tree / Details / Settings (views open or switch a File Manager window via `fm_setview`; Settings is the object notebook); Settings opens a small notebook window (`wg_notebook`, General / View tabs) whose tab clicks and close box are handled in the Program Manager loop; Arrange lays out the focused group. Delete is left out of the menu until a confirm UI exists (Sarah follow-up after #186). A right-click selects the icon without arming the double-click timer (`pm_pick`), so it is not half of a double-click.
 
 ## Places
 
@@ -38,7 +38,7 @@ Each group window's record has `WIN_PAINT = pm_paint` (2.3-groups adds the field
 
 On a disk of their own (`pm.img`): `pmtest`, `pm-groups` (the group titles and captions read off the screen), `pm-launch` (calc opened with Enter computes 2 + 2), `pm-move` (m and arrows: `calc 88 12` in the file), `pm-move-reboot` (the next run starts from that place: one more step right gives `calc 96 12`), `pm-arrange` (`calc 72 4` again) and `pm-text`.
 
-`dkctx` (2.6-context) builds the groups, opens the context menu on `calc`, chooses Open / Settings / Arrange / Delete through `wm_menuchoose` (and checks Open as is on the menu), and probes a Settings notebook tab face. Prints `dk-ctx: PASS` or `dk-ctx: FAIL`. Checks `dk-ctx` and `dk-ctx-text`.
+`dkctx` (2.6-context) builds the groups, opens the context menu on `calc`, chooses Open / Settings / Arrange through `wm_menuchoose` (and checks Open as is on the menu), probes a Settings notebook tab face, switches to View via `wg_nbclick`, and checks that `pm_pick` does not arm the double-click timer. Prints `dk-ctx: PASS` or `dk-ctx: FAIL`. Checks `dk-ctx` and `dk-ctx-text`.
 
 Dragging a Template icon onto another group creates an object there (W.2-templates; `documentation/apps/desktop.md`). Settings on any icon uses the same notebook path as `wps_settings`.
 
