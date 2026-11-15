@@ -514,6 +514,9 @@ run_simple:
     mov edi, cmd_fmtest
     call streq
     je .fmtest
+    mov edi, cmd_foldview       ; W.4-views
+    call streq
+    je .foldview
     mov edi, cmd_progman        ; 2.3-groups
     call streq
     je .progman
@@ -839,6 +842,9 @@ run_simple:
     jmp .empty
 .fmtest:
     call cmd_fmtest_run
+    jmp .empty
+.foldview:
+    call cmd_foldview_run
     jmp .empty
 .progman:
     call cmd_progman_run
@@ -1421,6 +1427,7 @@ cmd_control_a db 'control ', 0
 cmd_cptest db 'cptest', 0
 cmd_cbtest db 'cbtest', 0
 cmd_fmtest db 'fmtest', 0
+cmd_foldview db 'foldview', 0
 cmd_pmtest db 'pmtest', 0
 cmd_warpcenter db 'warpcenter', 0
 cmd_wcbar db 'wcbar', 0

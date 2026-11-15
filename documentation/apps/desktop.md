@@ -123,6 +123,16 @@ lives in `widget.asm`: tab strip, sunken page body, click or Left/Right to
 switch pages. Self-checks: `dkctx` → `dk-ctx: PASS`; `nbtest` → `nbtest: PASS`.
 Desktop-surface icons and drag (`2.6-icons` / `2.6-drag`) are separate boxes.
 
+## Folder views (W.4-views)
+
+Folder windows (the File Manager) switch between **Icon**, **Tree** and
+**Details** views with `i` / `t` / `d` (`fm_setview` in `kernel/filemgr.asm`).
+Details is the two-pane layout from 2.3; Tree is the directory tree alone;
+Icon lays entries out as 32×32 icons with captions. Design:
+[`filemgr.md`](filemgr.md). Self-check `foldview` → `foldview: PASS`
+(regress `fold-views`). **W.5-openas** will open a folder in a chosen view
+through the same path.
+
 ## Booting into the desktop
 
 The system still boots to the shell prompt. To boot into the desktop, put a line `desktop` in `autoexec.bat` on the data disk (`../kernel/shell.md`); Esc then reaches the shell as usual.

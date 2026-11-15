@@ -149,7 +149,8 @@ The GUI grows in generations, and each generation is a shippable milestone (epic
   - [ ] **W.3-launchpad**
 - [ ] **2.6** — Desktop objects with icons, drag and drop between folders and onto programs, context menus on the right button, Warp-style settings notebooks with tabs, shadows (shortcuts). PR-sized boxes: `TODO.md` **2.6-icons** … **2.6-shadows**, plus **W.2-templates**, **W.4-views**, **W.5-openas**.
   - [x] **2.6-context**, **2.6-notebook** (`dkctx` / `nbtest`)
-  - [ ] **2.6-icons**, **2.6-drag**, **2.6-shadows**, **W.2-templates**, **W.4-views**, **W.5-openas**
+  - [x] **W.4-views** (`foldview` / `fold-views`)
+  - [ ] **2.6-icons**, **2.6-drag**, **2.6-shadows**, **W.2-templates**, **W.5-openas**
 - [x] **2.7** — Long file names, FAT12/16/32 read and write for exchanging media, drive objects, a shredder object.
   - [x] Long names, FAT12/16/32 read and write, drive and shredder objects (#162)
   - [x] `diskutil` on FAT volumes (2.7-diskutil; view/check #171, format FAT from the OS)
@@ -233,7 +234,7 @@ Each has its rules core with unit tests in squirrelsoft first; card and board gr
 - [x] **W.1** — Warp 4 colour scheme, bevels and fonts (original bitmaps that give the feel, not copies).
 - [ ] **W.2** — The Workplace Shell object model in the GUI: everything is an object with a settings notebook; a templates folder; drag a template to create an object. Box: `TODO.md` **W.2-templates** (with 2.6).
 - [ ] **W.3** — WarpCenter / LaunchPad bar. Box: `TODO.md` **W.3-launchpad** (with 2.5). WarpCenter bar, Squirrel menu and tray clock are on `main` (**2.5-bar** / **2.5-menu** / **2.5-clock**); LaunchPad pads remain.
-- [ ] **W.4** — Folder views: icon, tree, details. Box: `TODO.md` **W.4-views** (with 2.6).
+- [x] **W.4** — Folder views: icon, tree, details. Box: `TODO.md` **W.4-views** (with 2.6).
 - [ ] **W.5** — Context menu "Open as → Icon / Tree / Details / Settings". Box: `TODO.md` **W.5-openas** (with 2.6).
 - [ ] **W.6** — Startup folder, Shredder, Drives and System Setup objects. Boxes: `TODO.md` **W.6-startup**, **W.6-syssetup** (after 2.6; Drive/Shredder classes from **2.7-objects**).
 

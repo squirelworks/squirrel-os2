@@ -124,18 +124,21 @@ host `fatimg.py check`, and `fattest` on the formatted images.
 ### 2.6 / W.2 / W.4 / W.5 — Icons, drag/drop, menus, notebooks, shadows, views  `cursor-codex`
 - **Done on this work:** **2.6-context**, **2.6-notebook** (`kernel/progman.asm`
   context menu on Program Manager icons via `wg_menu` / `wm_popup`;
-  `wg_notebook` in `kernel/widget.asm`; `dkctx` / `nbtest`).
+  `wg_notebook` in `kernel/widget.asm`; `dkctx` / `nbtest`). **W.4-views** —
+  File Manager folder views Icon / Tree / Details (`i`/`t`/`d`, `fm_setview`);
+  self-check `foldview` → `foldview: PASS` (regress `fold-views`). Independent
+  of open 2.6 icon/drag PRs (extends `filemgr.asm`).
 - **Still open:** **2.6-icons**, **2.6-drag** (may be in progress on another
-  branch — do not stack), **2.6-shadows**, **W.2-templates**, **W.4-views**,
-  **W.5-openas**.
+  branch — do not stack), **2.6-shadows**, **W.2-templates**, **W.5-openas**.
 - **Files:** `kernel/progman.asm`, `kernel/widget.asm`, `kernel/wm.asm`,
-  `documentation/apps/desktop.md`, `documentation/apps/progman.md`,
+  `kernel/filemgr.asm`, `kernel/pm.asm`, `documentation/apps/desktop.md`,
+  `documentation/apps/progman.md`, `documentation/apps/filemgr.md`,
   `documentation/kernel/widgets.md`.
 - **Acceptance (done):** right-click menu `dk-ctx: PASS`; notebook tabs
-  `nbtest: PASS`. **Still open:** icon pixel probe `dk-icons: PASS`;
-  file-on-program drag `dk-drag: PASS`; shadow follows rename across reboot
-  `dk-shadow: PASS`; templates create objects `wps: PASS`; folder
-  Icon/Tree/Details `foldview: PASS`; "Open as → …" `openas: PASS`.
+  `nbtest: PASS`; folder Icon/Tree/Details `foldview: PASS`. **Still open:**
+  icon pixel probe `dk-icons: PASS`; file-on-program drag `dk-drag: PASS`;
+  shadow follows rename across reboot `dk-shadow: PASS`; templates create
+  objects `wps: PASS`; "Open as → …" `openas: PASS`.
 
 ### W.6 — Startup and System Setup (with 2.6 + 2.7-objects)  `cursor-codex`
 - **Split done:** `TODO.md` boxes **W.6-startup**, **W.6-syssetup**. Drive and

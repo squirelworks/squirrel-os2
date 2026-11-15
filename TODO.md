@@ -29,7 +29,7 @@ A new defect that contradicts `documentation/specifications.md` or a milestone g
 Added after the roadmap was written, from the question "has it been run in a VM?". Release note: `documentation/releases/0.9.3.md`.
 
 - [x] **0.9.3-floppy** — Boot from a 1.44 MB floppy image (CHS fallback in the boot sector; KB-11, KB-12). Checks `floppy-boot`, `floppy-data`, `floppy-e820`.
-- [x] **0.9.3-cpu** — Say "needs a Pentium-class CPU" and halt instead of crashing (KB-13). Checks `cpu-nopse`, `cpu-nofpu`.
+- [x] **0.9.3-cpu** — Say "needs a Pentium-class CPU" and halt instead of crashing (KB-13). Checks `cpu-nopae`, `cpu-nofpu`.
 - [x] **0.9.3-calc-hist** — `calc` history at `/calc.hist` (KB-15). Check `calc-hist-root`.
 - [x] **0.9.3-planned** — Banner lists `graph`, `diff`, `topo` as planned. Check `ver-planned`.
 - [x] **0.9.3-build** — `tools/build.sh`, `tools/run.sh`, `tools/bochs_smoke.sh`, and `documentation/guides/getting-started.md` (QEMU, Bochs, VirtualBox).
@@ -350,7 +350,7 @@ From the 2.6 milestone in `ROADMAP.md` and W.2 / W.4 / W.5 in epic #117. Start a
 - [x] **2.6-notebook** — A Warp-style settings notebook widget with tabs (`wg_notebook` in `widget.asm`): tab strip, page body, switching pages by click. Self-check reads tab and page pixels → `nbtest: PASS`.
 - [ ] **2.6-shadows** — Shadow (shortcut) objects that point at an original; renaming or moving the original updates the shadow's target, and the link survives a reboot. Check `dk-shadow` → `dk-shadow: PASS`.
 - [ ] **W.2-templates** — Workplace Shell object model in the GUI: every desktop object opens a settings notebook (**2.6-notebook**); a Templates folder; dragging a template onto the desktop (or into a folder) creates a new object of that class. Check `wps-tmpl` → `wps: PASS`.
-- [ ] **W.4-views** — Folder views: Icon, Tree and Details (switchable per folder window). Check `fold-views` → `foldview: PASS`.
+- [x] **W.4-views** — Folder views: Icon, Tree and Details (switchable per folder window). Check `fold-views` → `foldview: PASS`.
 - [ ] **W.5-openas** — Context menu "Open as → Icon / Tree / Details / Settings" on a folder (and Settings on any object), using **2.6-context**, **W.4-views** and **2.6-notebook**. Check `openas` → `openas: PASS`.
 
 ## W.6 — System objects (needs 2.6 + 2.7-objects)
