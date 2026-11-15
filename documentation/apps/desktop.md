@@ -116,11 +116,12 @@ and checks the face changed → `wc-clock: PASS`.
 
 ## Context menu and settings notebook (2.6-context / 2.6-notebook)
 
-Right-button on a Program Manager icon opens a context menu (Open, Settings,
-Delete, Arrange) through `wg_menu` (`wm_popup`). Settings opens a
-`wg_notebook` window with General / View tabs. The notebook widget itself
-lives in `widget.asm`: tab strip, sunken page body, click or Left/Right to
-switch pages. Self-checks: `dkctx` → `dk-ctx: PASS`; `nbtest` → `nbtest: PASS`.
+Right-button on a Program Manager icon opens a context menu (Open, Open as...,
+Settings, Delete, Arrange) through `wg_menu` (`wm_popup`). Open as cascades
+to Icon / Tree / Details / Settings (W.5). Settings opens a `wg_notebook`
+window with General / View tabs. The notebook widget itself lives in
+`widget.asm`: tab strip, sunken page body, click or Left/Right to switch
+pages. Self-checks: `dkctx` → `dk-ctx: PASS`; `nbtest` → `nbtest: PASS`.
 Desktop-surface icons and drag (`2.6-icons` / `2.6-drag`) are separate boxes.
 
 ## Folder views (W.4-views)
@@ -130,8 +131,15 @@ Folder windows (the File Manager) switch between **Icon**, **Tree** and
 Details is the two-pane layout from 2.3; Tree is the directory tree alone;
 Icon lays entries out as 32×32 icons with captions. Design:
 [`filemgr.md`](filemgr.md). Self-check `foldview` → `foldview: PASS`
-(regress `fold-views`). **W.5-openas** will open a folder in a chosen view
-through the same path.
+(regress `fold-views`).
+
+## Open as (W.5-openas)
+
+Right-button on a File Manager directory opens **Open as** (Icon / Tree /
+Details / Settings): the first three call `fm_setview`; Settings opens a
+folder settings notebook. On Program Manager icons, **Open as...** cascades
+to the same four choices (views open or switch a File Manager window;
+Settings uses the object notebook). Self-check `openas` → `openas: PASS`.
 
 ## Templates (W.2-templates)
 
