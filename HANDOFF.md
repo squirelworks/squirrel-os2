@@ -150,19 +150,23 @@ host `fatimg.py check`, and `fattest` on the formatted images.
 ### 2.8-pae — PAE paging and NX  `status: done`
 PAE + NX on `main` (this branch). Checks `nx-heap`, `nx-stack`, `cpu-pentium3`.
 
-### 2.9-lm-kernel — stay in long mode  `cursor-codex`
-- **Depends on:** 2.8-pae.
+### 2.9-lm-kernel — stay in long mode  `cursor-codex` (IDT step in flight)
+- **Depends on:** 2.8-pae (done on `main`).
 - **What:** 64-bit IDT/TSS with IST for double faults, 4-level per-process
   address spaces, the 32-bit kernel reached through compatibility-mode
   thunks, 32-bit programs in compatibility mode.
 - **Acceptance:** the whole `regress.sh` passes under `qemu-system-x86_64`
   with the long-mode kernel; the BIOS boot path still boots under `qemu-system-i386`
   with the 32-bit kernel (two build flavours, both in CI).
-- **Advice:** do it in steps that each keep CI green (IDT first, then paging,
-  then thunks). **CONTINUANCE 3a (recorded):** new 2.9+ subsystems may use
-  freestanding C (`-ffreestanding -mno-red-zone -fno-pic`) linked into the
-  flat image; keep NASM for boot/entry stubs and existing code. See
-  `documentation/architecture/overview.md` (Language for new kernel
+- **IDT first (this PR / `lmstay`):** 64-bit IDT + TSS with IST1, timer IRQs
+  while briefly staying in long mode, then restore the 32-bit IDT/TSS.
+  Checks `lm-stay`, `lm-stay-again`, `lm-stay-nolm`. Do not tick the TODO box
+  until paging and thunks land. Finish on the open branch rather than redo.
+- **Advice:** next green steps are 4-level per-process paging, then permanent
+  stay with compatibility thunks. **CONTINUANCE 3a (recorded):** new 2.9+
+  subsystems may use freestanding C (`-ffreestanding -mno-red-zone -fno-pic`)
+  linked into the flat image; keep NASM for boot/entry stubs and existing code.
+  See `documentation/architecture/overview.md` (Language for new kernel
   subsystems) and squirrelsoft `docs/CONTINUANCE.md` decision 3a.
 
 ### 2.9-syscall64 — ELF64 programs  `cursor-codex`
