@@ -262,9 +262,12 @@ dk_cpy:
 
 ; Drop the held object into the folder shown: set its in and save its file.
 ; A folder can only be dropped at the top level (folders do not nest).
+; A Template (W.2) creates a new object of its class here and stays put.
 dk_drop:
     pushad
     mov eax, [dk_held]
+    cmp dword [eax+OBJ_CLASS], wps_c_tmpl
+    je .tmpl
     mov ecx, [dk_cur]
     test ecx, ecx
     jnz .infolder
@@ -286,6 +289,17 @@ dk_drop:
     call dk_unhold
     call dk_relist
 .r:
+    popad
+    ret
+.tmpl:
+    mov esi, [dk_cur]
+    test esi, esi
+    jnz .tdrop
+    mov esi, dk_empty
+.tdrop:
+    call wps_create_from        ; leaves the template held? unhold either way
+    call dk_unhold
+    call dk_relist
     popad
     ret
 
@@ -508,10 +522,10 @@ dk_mkobjs:
     xor eax, eax
     mov [dk_n], eax
     mov edi, dk_objs
-    mov ecx, DK_NDEF
+    mov ecx, DK_MAX
     rep stosd
     mov edi, dk_files
-    mov ecx, DK_NDEF
+    mov ecx, DK_MAX
     rep stosd
     mov esi, dk_c_dobj
     call obj_class
@@ -538,7 +552,7 @@ dk_mkobjs:
     cmp edi, DK_NDEF
     jb .l
     cmp dword [dk_n], 0
-    jne .out
+    jne .wps
     cmp byte [dk_wrote], 0      ; none loaded (files from 1.8 have one
     jne .builtin                ; field fewer): write the defaults again
 .write:
@@ -564,6 +578,8 @@ dk_mkobjs:
     inc edi
     cmp edi, DK_NDEF
     jb .b
+.wps:
+    call wps_attach             ; W.2: Templates folder + templates
 .out:
     mov byte [dk_wrote], 0
     popad
@@ -604,7 +620,7 @@ dk_add:
     jz .r
     push edx
     mov edx, [dk_n]
-    cmp edx, DK_NDEF
+    cmp edx, DK_MAX
     jae .full
     mov [dk_objs+edx*4], eax
     push eax
@@ -652,11 +668,16 @@ dk_freeobjs:
     pushad
     xor edi, edi
 .f:
+    cmp edi, [dk_n]
+    jae .done
     mov eax, [dk_objs+edi*4]
     call obj_free               ; refuses 0
+    mov dword [dk_objs+edi*4], 0
+    mov dword [dk_files+edi*4], 0
     inc edi
-    cmp edi, DK_NDEF
-    jb .f
+    jmp .f
+.done:
+    mov dword [dk_n], 0
     popad
     ret
 
@@ -1051,6 +1072,7 @@ wg_getkey:
 
 DK_NAPPS equ 5                  ; programs
 DK_NDEF equ DK_NAPPS + 1        ; and the Tools folder (1.9.0)
+DK_MAX equ 16                   ; room for Templates, templates, creates (W.2)
 dk_title db 'Squirrel-OS/2 Desktop', 0
 dk_heading db 'Programs:', 0
 dk_help db 'Enter: open  Bksp: up  Esc: shell', 0
@@ -1077,12 +1099,12 @@ align 4
 dk_apps dd dk_a0, dk_a1, dk_a2, dk_a3, dk_a4
 dk_defs dd dk_a0, dk_a1, dk_a2, dk_a3, dk_a4, dk_a5 ; the files in /desktop
 dk_run dd fb_main, run_calc, run_edit, run_vedit, run_draw ; each Program's entry
-dk_objs times DK_NDEF dd 0
+dk_objs times DK_MAX dd 0
 dk_n dd 0                       ; objects loaded (1.8.3)
-dk_files times DK_NDEF dd 0     ; each object's file name, or 0 (1.9.1)
-dk_vis times DK_NDEF dd 0       ; the objects listed, by their index (1.9.0)
+dk_files times DK_MAX dd 0      ; each object's file name, or 0 (1.9.1)
+dk_vis times DK_MAX dd 0        ; the objects listed, by their index (1.9.0)
 dk_nvis dd 0
-dk_names times DK_NDEF dd 0
+dk_names times DK_MAX dd 0
 dk_cur dd 0                     ; the folder shown: its name, or 0 for the top
 dk_c_dobj dd dk_cn_dobj, 0, dk_dobj_m, dk_dobj_f, 3 ; name and in are text
 dk_c_prog dd dk_cn_prog, dk_c_dobj, dk_prog_m, dk_prog_f, 1 ; entry is text

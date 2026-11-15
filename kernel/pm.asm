@@ -475,6 +475,9 @@ run_simple:
     mov edi, cmd_dkctx          ; 2.6-context
     call streq
     je .dkctx
+    mov edi, cmd_wpstmpl        ; W.2-templates
+    call streq
+    je .wpstmpl
     mov edi, cmd_winvbe         ; 2.2-vbe-wm
     call streq
     je .winvbe
@@ -803,6 +806,9 @@ run_simple:
     jmp .empty
 .dkctx:
     call cmd_dkctx_run
+    jmp .empty
+.wpstmpl:
+    call cmd_wpstmpl_run
     jmp .empty
 .winvbe:
     call cmd_winvbe_run
@@ -1413,6 +1419,7 @@ cmd_bevtest db 'bevtest', 0
 cmd_bevwidgets db 'bevwidgets', 0
 cmd_nbtest db 'nbtest', 0
 cmd_dkctx db 'dkctx', 0
+cmd_wpstmpl db 'wpstmpl', 0
 cmd_winvbe db 'winvbe', 0
 cmd_winclip db 'winclip', 0
 cmd_winhit db 'winhit', 0
@@ -1681,6 +1688,7 @@ khigh_start:
 %include "volume.asm"
 %include "fat.asm"
 %include "fsobj.asm"
+%include "wps.asm"              ; W.2-templates
 %include "debug.asm"
 %include "tty.asm"
 %include "drivers/hw.asm"

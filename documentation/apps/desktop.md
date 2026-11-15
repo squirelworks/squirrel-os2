@@ -133,6 +133,25 @@ Icon lays entries out as 32×32 icons with captions. Design:
 (regress `fold-views`). **W.5-openas** will open a folder in a chosen view
 through the same path.
 
+## Templates (W.2-templates)
+
+A `Template` class under `DesktopObject` (`kernel/wps.asm`) has text fields
+`of` (the class to create: `Folder` or `Program`) and `seed` (for a Program,
+the `entry` name). On first desktop start with a data disk, `wps_attach`
+writes `/desktop/Templates.obj` and seed templates
+`/desktop/tmpl-Folder.obj` / `/desktop/tmpl-Program.obj` (both with
+`in: Templates`) and loads them into the desktop object table.
+
+Dragging a Template in Program Manager onto a group window, or dropping one
+with `m` / `p` on the classic desktop, calls `wps_create_from`: a new object
+of that class is created in the destination folder, saved under `/desktop`,
+and listed; the template itself is not moved. `open` on a Template (and
+Settings on any object) opens the shared General / View settings notebook.
+
+Self-check `wpstmpl` builds the Templates folder, creates a Folder on the
+desktop and a Program in Tools from the seed templates, and probes a
+settings-notebook tab face → `wps: PASS`. Check `wps-tmpl`.
+
 ## Booting into the desktop
 
 The system still boots to the shell prompt. To boot into the desktop, put a line `desktop` in `autoexec.bat` on the data disk (`../kernel/shell.md`); Esc then reaches the shell as usual.
