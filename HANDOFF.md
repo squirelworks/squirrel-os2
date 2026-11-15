@@ -1,4 +1,4 @@
-# Hand-off to Cursor / Codex (2026-11-14; ownership update 2026-11-15)
+# Hand-off to Cursor / Codex (2026-11-14; ownership update 2026-11-15; tip-cut roadmap 2026-11-15; merge-wait 2026-11-15)
 
 From 2026-11-14 the remaining Squirrel-OS/2 work is left for Cursor or Codex to
 pick up. This file says what is done, what is in flight, and what is open,
@@ -6,16 +6,18 @@ with enough detail to start any open item cold. The suite-wide plan for what
 comes after this list is
 [squirrelsoft `docs/CONTINUANCE.md`](https://github.com/squirelworks/squirrelsoft/blob/main/docs/CONTINUANCE.md).
 
+## MERGE-WAIT (both lanes — Sarah 2026-11-15)
+
+**`-b55f` and `-2eaf` are frozen on new implementation.** No ring-3-under-stay,
+no `2.9-syscall64`, no W.6 startup/syssetup, no new Soft work, no version bumps.
+Finish only what keeps the remaining **gate PR** merge-ready (#205; ~~#184~~ /
+~~#197~~ / ~~#204~~ already on `main`), then **idle / watch CI** until it lands
+and the owner tip-cuts `v2.3.0`. Post-cut ladder work stays paused until Sarah /
+credits say go.
+
 Source of truth, in order: `ROADMAP.md` and `TODO.md` on `main`, then the
 GitHub issues (epics #114–#119, progress issue #132, hand-off tracker #169), then
 this file. If they disagree, `main`'s code wins; fix the docs in your PR.
-
-## MERGE-WAIT (both lanes — Sarah 2026-11-15)
-
-**No new implementation** (no ring-3 / syscall64 / W.6 / Soft). Keep gate PRs
-#184 / #204 / #205 mergeable; then idle until tip-cut. Post-cut ladder paused
-until Sarah/credits say go. Full freeze text lives on #205 `HANDOFF` when that
-lands.
 
 ## Agent ownership (dual Cursor agents)
 
@@ -26,23 +28,27 @@ files need coordinated rebases; do not race edits. Suite-wide checklist:
 
 **Living lane claims issue:** [#201](https://github.com/squirelworks/squirrel-os2/issues/201) (RPS over #200; see #202). Close #198/#199/#200 when convenient.
 
+**Agent GitHub write path (2026-11-15):** Cloud agent `gh` uses a GitHub App installation token (`cursor[bot]` / `ghs_…`). **Works:** `gh issue create` (title/body only — labels are silently dropped), git push / open PRs. **Fails with 403** (`Resource not accessible by integration`): issue/PR comments (`addComment`), edit issue/PR body, close issues, add/change labels. Do **not** ask Sarah to paste comments or file issues — create a new issue or land text in-repo (HANDOFF / TODO / this PR). Tip-cut handshake stand-in for a #201 comment: [#208](https://github.com/squirelworks/squirrel-os2/issues/208). Filed ladder issues: #209–#218. **No Sarah action required for this coordination sync.**
+
 ### Progress notes `-b55f`
 
-- **Landed:** `2.9-lm-paging-b55f` (#193 / `lmpage`); `2.9-lm-stay-thunks-b55f` (#196 / `lmthunk`). **This PR / merge-wait:** `2.9-lm-boot64-b55f` (#204 / `lmboot` / `os-lm64.img`). **Paused after tip cut:** ring-3 under stay → `2.9-lm-kernel-tick-b55f` (only once everyday x86_64 suite flavour).
+- **Landed:** `2.9-lm-paging-b55f` (#193 / `lmpage`); `2.9-lm-stay-thunks-b55f` (#196 / `lmthunk`); `2.9-lm-boot64-b55f` (#204 / `lmboot` / `os-lm64.img` / `LM_BOOT64`); lm-boot64 follow-ups (#222 / nest EOI, nestable thunks, syscall return, `#221` ENOSYS note).
+- **Docs (this PR / merge-wait):** tip-cut + path to 3.0.0 (`TO_3.0.0.md`, #205) — **canonical in this repo**; supersedes fc3ae21-only tag advice. Soft PATH is suite index only (Soft #166); Soft #163/#164 still stale until `-2eaf` fixes.
+- **Paused until Sarah/credits say go (after tip cut):** ring-3 under stay (`2.3.2`, #211) → `2.9-lm-kernel-tick-b55f` (`2.9.0`) → `2.9-syscall64-b55f` (`2.9.1`).
 
 ### Tasks `-b55f` (this lane)
 
-- [x] `2.9-lm-stay-thunks-b55f` — permanent long-mode stay + compatibility thunks (`lmthunk`, #196)
-- [ ] `2.9-lm-boot64-b55f` *(this PR #204 — merge-wait)* — boot-time / LM_BOOT64 image everyday stay; lmboot command
-- [ ] `2.9-lm-kernel-tick-b55f` — tick `2.9-lm-kernel` in TODO/ROADMAP/#132 only after boot stay **and** ring-3 compat programs + full x86_64 suite flavour
-- [ ] `2.9-syscall64-b55f` — ELF64 + `syscall`/`sysret` (`hello64`) after lm-kernel
+- [x] `2.9-lm-stay-thunks-b55f` — permanent long-mode stay + compatibility thunks (#196)
+- [x] `2.9-lm-boot64-b55f` — boot-time / `LM_BOOT64` everyday long-mode stay (`lmboot` command, os-lm64.img, #204)
+- [ ] `2.9-lm-kernel-tick-b55f` — **paused** until tip cut + Sarah/credits go
+- [ ] `2.9-syscall64-b55f` — **paused** until tip cut + Sarah/credits go
 - [ ] `soft-followups-b55f` — Soft follow-ups only if Sarah leaves notes on Soft
 - [ ] `rebase-help-b55f` — when Sarah asks, rebase/CI-unblock open Sarah-held PRs (including `*-2eaf`); coordination only
 
 ### Progress notes `-2eaf`
 
-- **Landed:** `W.2-templates-2eaf` (#191); `W.5-openas-2eaf` (#192); `W.3-launchpad-2eaf` (#183); `2.6-shadows-2eaf` (#188); Sarah Gen2 follow-ups (#197).
-- **This PR:** `2.6-icons-2eaf` / `2.6-drag-2eaf` (#184).
+- **Landed:** `W.2-templates-2eaf` (#191); `W.5-openas-2eaf` (#192); `W.3-launchpad-2eaf` (#183); `2.6-shadows-2eaf` (#188); Sarah Gen2 follow-ups (#197); `2.6-icons-2eaf` / `2.6-drag-2eaf` (#184).
+- **Paused until Sarah/credits say go (after tip cut):** `W.6-startup-2eaf` (`2.3.1`, #209) → `W.6-syssetup-2eaf` (`2.3.25`, #210) → Gen2 ship `2.6.0`.
 
 ### Tasks `-2eaf` (other lane)
 
@@ -50,7 +56,7 @@ files need coordinated rebases; do not race edits. Suite-wide checklist:
 - [x] `2.6-icons-2eaf` / `2.6-drag-2eaf` — PR #184
 - [x] `2.6-shadows-2eaf` — PR #188
 - [x] `W.5-openas-2eaf` — PR #192
-- [ ] `W.6-startup-2eaf` / `W.6-syssetup-2eaf` — claimed; start after 2.6 icons/shadows on `main`
+- [ ] `W.6-startup-2eaf` / `W.6-syssetup-2eaf` — claimed (#209 / #210); **paused** until tip cut + Sarah/credits go
 
 **`-b55f` does not take** desktop/Warp boxes while `-2eaf` owns them.  
 **`-2eaf` does not take** `2.9-lm-*-b55f` / `2.9-syscall64-b55f` while `-b55f` owns them.
@@ -60,6 +66,28 @@ files need coordinated rebases; do not race edits. Suite-wide checklist:
 `documentation/kernel/long-mode.md`; `-2eaf` → `kernel/warpcenter.asm`,
 `kernel/launchpad.asm`, `kernel/deskicons.asm`, `kernel/desktop.asm`,
 `kernel/shadow.asm`, `kernel/wps.asm`, `kernel/progman.asm`, `kernel/filemgr.asm`.
+
+## Release coordination (2026-11-15, lane `-b55f` — tip cut)
+
+**Supersedes** the earlier advice to publish `v2.3.0` from prep commit `fc3ae21` alone.
+
+**Plan (Sarah):** finish the open agent PRs **now**, then the owner tags/publishes **`v2.3.0` from that tip** of `main`. Notes are retargeted so they match the tip (Gen2 + LM slices included). Long-form ladder: [`documentation/releases/TO_3.0.0.md`](documentation/releases/TO_3.0.0.md) (**canonical**; Soft `PATH_TO_3.0.0.md` is not the OS ladder).
+
+| Fact | Value |
+|------|-------|
+| Last published tag | `v2.1.0` (2026-11-13) |
+| Banner on `main` | `2.3.0` (`kernel/pm.asm` `banner_rest`) — stays for the tip cut |
+| Prep | #173 landed the first `2.3.0.md`; **retarget** that file for the tip |
+| Tag target | `main` HEAD **after** gate PRs merge — **not** `fc3ae21` |
+| Gate PRs (must land first) | ~~#184 icons/drag~~ (**merged**); ~~#197 Gen2 follow-ups~~ (**merged**); ~~#204 lm-boot64~~ (**merged**); #205 this docs/roadmap (`-b55f`) |
+
+**Handshake (`-b55f` ↔ `-2eaf`):**
+
+1. **Both lanes — MERGE-WAIT now:** no new feature code. Keep remaining gate PR #205 clean vs `main` and CI-green. When it is on `main`, owner tip-cuts; do **not** start W.6 / ring-3 / syscall64 until Sarah/credits say go (those marks are **post**-2.3.0 — see TO_3.0.0).
+2. **Owner (Squirrel):** after the tip is green, Draft release on that commit → Publish `v2.3.0` with `os.img`, `floppy.img`, `data.img`, `cd.iso`, `uefi.img`. Prefill (replace `TIP_SHA` after merge): [releases/new v2.3.0](https://github.com/squirelworks/squirrel-os2/releases/new?tag=v2.3.0&title=Squirrel-OS%2F2%202.3.0%20%E2%80%94%20tip%20after%20open%20PRs&body=See%20documentation%2Freleases%2F2.3.0.md%20on%20main%20tip%20after%20%23184%20%23197%20%23204%20%23205.%0A%0ATag%20target%3A%20TIP_SHA%20%28not%20fc3ae21%29.%0A%0AAssets%20from%20Actions%20Draft%20release%20on%20that%20commit.).
+3. **`-2eaf` after tip (paused):** `W.6-startup-2eaf` (#209) → `W.6-syssetup-2eaf` (#210) → Gen2 ship `2.6.0` (owner) → later `3.0-taskmgr` (#217) / `3.0-themes` (#218).
+4. **`-b55f` after tip (paused):** ring-3 under stay (#211) → `2.9-lm-kernel-tick-b55f` (`2.9.0`) → `2.9-syscall64-b55f` → freestanding C (#212) → `3.0-users`…`3.0-eventlog` (#213–#216). Soft only if Sarah notes.
+5. Agents **never** tag. Visible tip-cut mirror (agents cannot comment on #201): [#208](https://github.com/squirelworks/squirrel-os2/issues/208). **No Sarah paste / issue-filing required.**
 
 ## Status legend
 
@@ -74,25 +102,23 @@ Used here, in `ROADMAP.md`, `TODO.md` and on the issues (as labels).
 
 ## Where things are
 
-- **Released:** 2.1.0 (2026-11-13). **2.3.0** release notes are prepared
-  (`documentation/releases/2.3.0.md`); the owner publishes the tag. `main`
-  includes 2.2 real windows, 2.3 Program Manager / File Manager / clipboard /
-  Control Panel / bevels, 2.4 ring 3, 2.7 long names + FAT + drive objects
-  (diskutil view/check/format), 2.8 long-mode entry, SMP and PAE/NX, H.1–H.6,
-  3.0 networking and sound, A.1–A.7, C.1–C.9, G.1–G.9, P.1, P.2, P.5, P.6
-  (including Win32 windows), P.8 (including DOS window), P.9 (32-bit LX),
-  P.10 (FreeBSD), 2.5 WarpCenter, 2.6-icons/drag (this PR),
-  2.6-context/notebook, 2.6-shadows, W.2-templates, W.3-launchpad,
-  W.4-views, W.5-openas, Sarah Gen2 follow-ups (#197), and the 2.9
-  IDT/TSS stay + paging + thunk + boot64 slices (`lmstay` #189, `lmpage` #193,
-  `lmthunk` #196, `lmboot64` #204). Dual-agent ownership docs are on `main`
-  (#195 / #203). CI regress shards are on `main` (#220).
+- **Released:** 2.1.0 (2026-11-13). **Next cut:** `v2.3.0` from **tip after
+  gate PRs** (~~#184~~ / ~~#197~~ / ~~#204~~ / #205) — see **Release
+  coordination**. Path to 3.0.0:
+  [`documentation/releases/TO_3.0.0.md`](documentation/releases/TO_3.0.0.md).
+  `main` includes 2.2–2.3 GUI, 2.4 ring 3, 2.7 FAT/LFN, 2.8 LM entry/SMP/PAE,
+  H.1–H.6, 3.0 net/audio, apps/games/calc, foreign P.1/P.2/P.5/P.6/P.8/P.9/P.10,
+  2.5 WarpCenter, Gen2 slices through icons/drag (#184), shadows/templates/
+  views/openas, Sarah Gen2 follow-ups (#197), and 2.9 IDT/paging/thunks +
+  boot64 (`lmstay` #189, `lmpage` #193, `lmthunk` #196, `lmboot` /
+  `os-lm64.img` #204) + lm-boot64 follow-ups (#222). Dual-agent ownership on
+  `main` (#195 / #203). CI regress shards on `main` (#220).
 - **Test gate:** `tools/regress.sh` and GitHub CI (`.github/workflows/ci.yml`:
   `build` and `regress`, on every PR). Wait for a green `regress` before
   calling a PR ready.
-- **Open PRs (2026-11-15):** #184 (this PR, `2.6-icons`/`2.6-drag`); tip-cut
-  docs #205 (`-b55f`); lm-boot64 follow-up #222 (`-b55f`).
-  (#183, #188, #191, #192, #193, #195, #196, #197, #203, #204, and #220 are on `main`.)
+- **Open PRs (2026-11-15, merge-wait / tip-cut gate):** #205 (release-coord /
+  TO_3.0.0 docs, `-b55f`). (#183, #184, #188, #191, #192, #193, #195, #196,
+  #197, #203, #204, #220, and #222 on `main`.)
 
 ## Rules (Squirrel's; do not break)
 
@@ -130,31 +156,34 @@ qemu-system-i386 -drive file=build/os.img,format=raw -drive file=build/data.img,
 
 Lanes run in parallel (see **Agent ownership**). Within a lane, keep the order.
 
-1. ~~Merge `int/os2-control`, **2.3-bevel-default**, then **2.3.0 release notes**.~~ Done (#168, #172, #173). Owner publishes `v2.3.0`.
+1. ~~Merge `int/os2-control`, **2.3-bevel-default**, first **2.3.0** prep.~~ Done
+   (#168, #172, #173). **Retarget + tip cut** after gate PRs (see **Release
+   coordination** and `TO_3.0.0.md` M0).
 2. ~~**2.7-diskutil** remainder~~ Done (#179). ~~**P.6 / P.8 windows**~~ Done (#177, #182).
-3. **Generation 2 desktop `-2eaf`:** ~~**2.5-bar → 2.5-menu → 2.5-clock**~~ done
-   (#181); ~~`W.3-launchpad-2eaf`~~ done (#183); ~~`2.6-icons-2eaf` →
-   `2.6-drag-2eaf`~~ done (#184); ~~**2.6-context → 2.6-notebook**~~ done (#186);
-   ~~`W.2-templates-2eaf`~~ done (#191); ~~**W.4-views**~~ done (#190);
-   ~~`2.6-shadows-2eaf`~~ done (#188) → ~~`W.5-openas-2eaf`~~ done (#192); then
-   `W.6-startup-2eaf` → `W.6-syssetup-2eaf`.
-4. **2.9 path `-b55f`:** ~~**2.8-pae**~~ done (#180); ~~IDT/TSS stay~~ done
-   (#189); ~~`2.9-lm-paging-b55f`~~ done (#193); ~~`2.9-lm-stay-thunks-b55f`~~
-   done (#196); ~~`2.9-lm-boot64-b55f`~~ done (`lmboot` / `os-lm64.img`) →
-   ring-3 compat under stay → `2.9-lm-kernel-tick-b55f` → `2.9-syscall64-b55f`.
-5. **3.0** remainder (accounts, permissions, services, event log, task manager, themes).
-6. **P.3, P.4, P.7, P.11, P.12**, then 3.x and 4.x.
+3. **Generation 2 desktop `-2eaf`:** ~~**2.5-***~~ / ~~W.3~~ / ~~context/notebook~~ /
+   ~~templates/views/shadows/openas~~ / ~~#197~~ / ~~`2.6-icons`/`drag` #184~~
+   done → **tip cut** (#205) → then **pause** until Sarah/credits go →
+   `W.6-startup` → `W.6-syssetup` → Gen2 ship `2.6.0`.
+4. **2.9 path `-b55f`:** ~~pae / IDT / paging / thunks~~ done; ~~`2.9-lm-boot64`~~
+   done (#204 / `lmboot` / `os-lm64.img`; follow-ups #222) → **tip cut** → then **pause** until
+   Sarah/credits go → ring-3 under stay → `2.9-lm-kernel-tick` (`2.9.0`) →
+   `2.9-syscall64` → freestanding C → Gen3 kernel boxes.
+5. **3.0** remainder → `v3.0.0` (see `TO_3.0.0.md` M10–M16).
+6. **P.3, P.4, P.7, P.11, P.12**, then 3.x and 4.x (parallel after syscall64;
+   not required for the 3.0.0 ship gate unless the owner expands it).
 
 ## Task cards
 
 ### 2.3-bevel-default — Warp bevels on every widget  `status: done`
 Merged as #172.
 
-### 2.3.0 release notes  `needs: squirrel` (prep done)
-- Prep: `documentation/releases/2.3.0.md`, PROCESS row, banner `2.3.0`,
-  README / ROADMAP / HANDOFF / TODO **2.3.0** box. Owner runs
-  Actions → Draft release on the merge commit and Publishes `v2.3.0`
-  with `os.img`, `floppy.img`, `data.img`, `cd.iso`, `uefi.img`.
+### 2.3.0 release notes  `needs: squirrel` (retarget for tip cut; tag still open)
+- First prep: #173 / banner `2.3.0`. **Retarget** `documentation/releases/2.3.0.md`
+  so notes match **tip after** #184 + #197 + #204 (+ #205 docs).
+- **Tag target:** `main` HEAD after those merges — **not** `fc3ae21`.
+- Ladder after the cut: [`documentation/releases/TO_3.0.0.md`](documentation/releases/TO_3.0.0.md).
+- Owner: Actions → Draft release on tip → Publish `v2.3.0`. Prefill in
+  **Release coordination** (insert tip SHA when known).
 
 ### 2.7-diskutil — FAT and long names in `diskutil`  `status: done`
 View/check shipped as #171; format FAT12/16/32 from the OS completes the box.
@@ -224,25 +253,28 @@ host `fatimg.py check`, and `fattest` on the formatted images.
 ### 2.8-pae — PAE paging and NX  `status: done`
 PAE + NX on `main`. Checks `nx-heap`, `nx-stack`, `cpu-pentium3`.
 
-### 2.9-lm-kernel — stay in long mode  `-b55f` (boot64 landed; box still open)
+### 2.9-lm-kernel — stay in long mode  `-b55f` (boot64 #204 + #222 landed; box still open)
 - **Depends on:** 2.8-pae (done on `main`, #180).
 - **What:** 64-bit IDT/TSS with IST for double faults, 4-level per-process
   address spaces, the 32-bit kernel reached through compatibility-mode
   thunks, 32-bit programs in compatibility mode.
 - **Acceptance:** the whole `regress.sh` passes under `qemu-system-x86_64`
   with the long-mode kernel; the BIOS boot path still boots under `qemu-system-i386`
-  with the 32-bit kernel (two build flavours, both in CI).
-- **Done on `main` / this slice:** IDT/TSS stay (`lmstay`, #189); 4-level
-  paging (`lmpage`, #193); permanent stay + thunks (`lmthunk`, #196);
-  boot64 everyday stay (`lmboot` / `os-lm64.img`): nestable `lm64_call32`,
-  everyday IRQ0/1/12 + `int 0x80` gates, `lm_enter_everyday` / `lm_boot_enter`.
-  Regress names: lm-boot, lm-boot-again, lm-boot64, lm-boot64-again, and the
-  -nolm pair. `systest` + `lmtest` pass on the boot64 image under
-  `qemu-system-x86_64`.
-- **Still open before ticking:** 32-bit ring-3 programs under permanent stay
-  (exception trampolines / return paths — `run hello` on `os-lm64.img` is not
-  green); whole suite as the everyday x86_64 flavour. Then
-  `2.9-lm-kernel-tick-b55f`.
+  with the 32-bit kernel (two build flavours, both in CI). Version mark
+  **`2.9.0`** when ticked (`TO_3.0.0.md` M6).
+- **Done on `main`:** IDT/TSS stay (`lmstay`, #189); 4-level paging
+  (`lmpage`, #193); permanent stay + thunks (`lmthunk`, #196); boot64 everyday
+  stay (`lmboot` / `os-lm64.img` / `LM_BOOT64`, #204) + follow-ups (#222):
+  nestable `lm64_call32`, nest EOI on overflow, nestable thunk CR3 frames,
+  syscall return in eax, everyday IRQ0/1/12 + `int 0x80` gates,
+  `lm_enter_everyday` / `lm_boot_enter`. Regress names: lm-boot,
+  lm-boot-again, lm-boot64, lm-boot64-again, and the -nolm pair. `systest` +
+  `lmtest` pass on the boot64 image under `qemu-system-x86_64`.
+- **Still open before ticking (paused until tip cut + Sarah/credits go):**
+  32-bit ring-3 programs under permanent stay (exception trampolines / return
+  paths — `run hello` on `os-lm64.img` is not green); whole suite as the
+  everyday x86_64 flavour. Then `2.9-lm-kernel-tick-b55f` (mark **2.3.2** →
+  **2.9.0**).
 - **CONTINUANCE 3a (recorded):** freestanding C for new 2.9+ subsystems
   (`-ffreestanding -mno-red-zone -fno-pic`); NASM for boot/entry stubs. See
   `documentation/architecture/overview.md` and squirrelsoft
@@ -257,15 +289,11 @@ PAE + NX on `main`. Checks `nx-heap`, `nx-stack`, `cpu-pentium3`.
 - **Also (#221):** Linux/BSD under permanent stay still get `-ENOSYS` from
   `lm64_syscall_isr` (`lx_isr` is `iretd`-only); teach a returnable body.
 
-### 3.0 remainder — accounts, permissions, services, event log, task manager, themes  `cursor-codex`
-- Networking (DHCP, DNS, HTTP, netcfg) and audio (AC'97, HDA, mixer, A.6 apps)
-  are done. Split the rest into boxes first: `3.0-users` (login screen,
-  `/etc`-style account file, hashed passwords), `3.0-perms` (owner and mode
-  on SQFS entries, checked in `fs.asm`), `3.0-services` (start at boot,
-  restart on crash), `3.0-eventlog` (kernel + service log, viewed by the
-  existing log viewer), `3.0-taskmgr` (end task, priorities, CPU per CPU
-  from SMP), `3.0-themes` (Warp 4 default, "Classic" and a Luna-like theme
-  through `theme.inc` tables).
+### 3.0 remainder — accounts, permissions, services, event log, task manager, themes
+- Networking/audio half done. Boxes and marks in `TODO.md` and
+  `TO_3.0.0.md` M10–M16: `3.0-users` / `perms` / `services` / `eventlog`
+  (`-b55f`, **2.9.2–2.9.5**); `3.0-taskmgr` / `3.0-themes` (`-2eaf`,
+  **2.9.6–2.9.7**); ship **`3.0.0`** (owner).
 
 ### P.3, P.4, P.7, P.9-16, P.10, P.11, P.12 — more foreign programs  `cursor-codex`
 - **P.3** dynamic ELF (an original `ld.so`-style loader for musl first,
