@@ -35,6 +35,7 @@ files need coordinated rebases; do not race edits. Suite-wide checklist:
 
 ### Tasks `-2eaf` (other lane)
 
+- [x] `W.3-launchpad-2eaf` — PR #183
 - [ ] `2.6-icons-2eaf` / `2.6-drag-2eaf` — PR #184
 - [ ] `2.6-shadows-2eaf` — PR #188
 - [x] `W.5-openas-2eaf` — PR #192
