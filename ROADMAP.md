@@ -302,6 +302,22 @@ Each P step ships a tiny original test binary in the tree and a regression `PASS
 - [ ] **P.11** — Darwin Mach-O command-line programs (research).
 - [ ] **P.12** (= F.10) — Sandbox and capability flags, plus seamless-window integration (taskbar, clipboard, drag and drop shared with native programs).
 
+## ISM Flight Lab / ground station (issue #225, lane `-b55f`)
+
+Make OS/2 usable as the **ground / lab** host for International Squirrel Machines
+fighter-jet tooling (Steve’s Flight Lab in squirrelsoft, HIL with Eric’s RC
+controller). Flight-critical FBW stays on a small RTOS + SquirrelBIOS.
+
+Gap matrix (item 1): [`documentation/guides/ism-flightlab-gaps.md`](documentation/guides/ism-flightlab-gaps.md).
+PR-sized boxes: `TODO.md` **ISM-gaps-b55f** … **ISM-lab-setup-b55f**. Soft owns
+the Flight Lab app (`squirrelflightlab/`); this tree owns the host capabilities.
+
+- [x] Gap list (runtime, numerics, file formats, plotting) — **ISM-gaps-b55f**
+- [ ] Serial/USB data path — **ISM-serial-b55f**
+- [ ] Soft-real-time HIL timing — **ISM-hil-timing-b55f**
+- [ ] Package Flight Lab for OS/2 — **ISM-flightlab-pkg-b55f**
+- [ ] Lab setup guide — **ISM-lab-setup-b55f**
+
 ## Explicitly later
 
 Not milestones yet. Where the 2.0.0 → 4.x plan above schedules something that used to be listed here, the plan wins.

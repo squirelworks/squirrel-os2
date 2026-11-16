@@ -32,14 +32,24 @@ files need coordinated rebases; do not race edits. Suite-wide checklist:
 
 ### Progress notes `-b55f`
 
-- **Landed:** `2.9-lm-paging-b55f` (#193 / `lmpage`); `2.9-lm-stay-thunks-b55f` (#196 / `lmthunk`); `2.9-lm-boot64-b55f` (#204 / `lmboot` / `os-lm64.img` / `LM_BOOT64`); lm-boot64 follow-ups (#222 / nest EOI, nestable thunks, syscall return, `#221` ENOSYS note).
-- **Docs (this PR / merge-wait):** tip-cut + path to 3.0.0 (`TO_3.0.0.md`, #205) — **canonical in this repo**; supersedes fc3ae21-only tag advice. Soft PATH is suite index only (Soft #166); Soft #163/#164 still stale until `-2eaf` fixes.
+- **Landed:** `2.9-lm-paging-b55f` (#193 / `lmpage`); `2.9-lm-stay-thunks-b55f` (#196 / `lmthunk`); `2.9-lm-boot64-b55f` (#204 / `lmboot` / `os-lm64.img` / `LM_BOOT64`); lm-boot64 follow-ups (#222 / nest EOI, nestable thunks, syscall return, `#221` ENOSYS note); tip-cut / MERGE-WAIT docs (#205).
+- **ISM ground station (#225):** gap matrix landed in-tree —
+  `documentation/guides/ism-flightlab-gaps.md` (**ISM-gaps-b55f**). Next slices:
+  serial/USB → soft-RT HIL timing → package Flight Lab → lab setup guide.
+  Soft Flight Lab lives in `squirrelsoft/squirrelflightlab/` (S7.1–S7.2b on Soft
+  `main`); OS/2 hosts only — no FCC laws here.
 - **Paused until Sarah/credits say go (after tip cut):** ring-3 under stay (`2.3.2`, #211) → `2.9-lm-kernel-tick-b55f` (`2.9.0`) → `2.9-syscall64-b55f` (`2.9.1`).
+  Exception: Sarah’s #225 ISM ground-station sequence is active for `-b55f`.
 
 ### Tasks `-b55f` (this lane)
 
 - [x] `2.9-lm-stay-thunks-b55f` — permanent long-mode stay + compatibility thunks (#196)
 - [x] `2.9-lm-boot64-b55f` — boot-time / `LM_BOOT64` everyday long-mode stay (`lmboot` command, os-lm64.img, #204)
+- [x] `ISM-gaps-b55f` — #225 item 1 gap matrix (`documentation/guides/ism-flightlab-gaps.md`)
+- [ ] `ISM-serial-b55f` — #225 item 2 serial/USB data path (after gaps)
+- [ ] `ISM-hil-timing-b55f` — #225 item 3 soft-RT HIL timing
+- [ ] `ISM-flightlab-pkg-b55f` — #225 item 4 package Soft Flight Lab
+- [ ] `ISM-lab-setup-b55f` — #225 item 5 lab setup guide
 - [ ] `2.9-lm-kernel-tick-b55f` — **paused** until tip cut + Sarah/credits go
 - [ ] `2.9-syscall64-b55f` — **paused** until tip cut + Sarah/credits go
 - [ ] `soft-followups-b55f` — Soft follow-ups only if Sarah leaves notes on Soft
@@ -288,6 +298,19 @@ PAE + NX on `main`. Checks `nx-heap`, `nx-stack`, `cpu-pentium3`.
   checks refuse kernel addresses (`hello64-badptr`).
 - **Also (#221):** Linux/BSD under permanent stay still get `-ENOSYS` from
   `lm64_syscall_isr` (`lx_isr` is `iretd`-only); teach a returnable body.
+
+### ISM Flight Lab / ground station (#225)  `-b55f`
+- **Goal:** OS/2 as lab / ground host for Soft Flight Lab + Eric HIL — not
+  flight-critical avionics.
+- **Done:** **ISM-gaps-b55f** — gap matrix
+  [`documentation/guides/ism-flightlab-gaps.md`](documentation/guides/ism-flightlab-gaps.md)
+  (runtime, numerics, formats, plotting, serial, timing, packaging). Soft
+  inventory: `squirrelflightlab/` S7.1–S7.2b; HIL still stub (`fl_planned`).
+- **Open (order):** **ISM-serial-b55f** → **ISM-hil-timing-b55f** →
+  **ISM-flightlab-pkg-b55f** → **ISM-lab-setup-b55f**. Boxes in `TODO.md` /
+  `ROADMAP.md`. Mirror ticks on #225 when the agent token can edit; else
+  keep this card + PR bodies as the checklist.
+- **Do not:** take W.6 (`-2eaf`); put FCC control laws on OS/2.
 
 ### 3.0 remainder — accounts, permissions, services, event log, task manager, themes
 - Networking/audio half done. Boxes and marks in `TODO.md` and

@@ -14,6 +14,9 @@ All material under this tree is project-native. External or contemporary sources
 | `guides/`       | Build, run, and contribution guides          |
 | `releases/`     | Release notes and version history            |
 
+ISM Flight Lab / ground-station host gaps (#225, lane `-b55f`):
+[`guides/ism-flightlab-gaps.md`](guides/ism-flightlab-gaps.md).
+
 ## Status
 
 Documentation is active.
