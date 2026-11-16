@@ -556,6 +556,7 @@ dbg_untrap_top:
 ; to plant TF (lm64 flavour / stack-shell follow-ups).
 dbg_kstack_frame:
     push edx
+    push ecx
     mov eax, ebx
     imul eax, PROC_STACK_SIZE
     add eax, PROC_STACK_BASE
@@ -565,6 +566,7 @@ dbg_kstack_frame:
     cmp dword [edx+16], USER_DS
     jne .try64
     mov eax, edx                ; [eax+8] = EFLAGS
+    pop ecx
     pop edx
     clc
     ret
@@ -573,14 +575,23 @@ dbg_kstack_frame:
     je .no
     lea edx, [eax-40]           ; 64-bit: RIP, CS, RFLAGS, RSP, SS
     cmp dword [edx+8], USER_CS
+    je .ss32
+    cmp dword [edx+8], USER64_CS
     jne .no
-    cmp dword [edx+32], USER_DS
+.ss32:
+    mov ecx, [edx+32]           ; SS
+    cmp ecx, USER_DS
+    je .ok64
+    cmp ecx, USER64_DS
     jne .no
+.ok64:
     lea eax, [edx+8]            ; [eax+8] = RFLAGS (trap_top only touches that)
+    pop ecx
     pop edx
     clc
     ret
 .no:
+    pop ecx
     pop edx
     stc
     ret

@@ -76,6 +76,13 @@ the Linux personality (P.1): it starts with the Linux initial stack and its `int
 use Linux numbers. Other ELF programs use the Squirrel-OS/2 `int 0x80` calls. See
 `../architecture/foreign-compatibility.md`.
 
+### ELF64 (2.9-syscall64)
+
+A static `ET_EXEC` image for `EM_X86_64`, little-endian, with 56-byte program headers. Same
+program-area rules as ELF32. Requires a permanent long-mode stay (`lm_perm`); otherwise the
+loader returns “bad SQX/ELF header”. Entry uses `USER64_CS` and the `syscall`/`sysret` ABI
+(`syscalls.md`, `long-mode.md`). Sample: `programs/hello64.asm`.
+
 ### MZ (Windows programs)
 
 A file starting with `MZ` is not loaded by the kernel: the loader runs the program `winrun`
@@ -117,8 +124,8 @@ python3 tools/sqfs.py data.img ls
 python3 tools/sqfs.py data.img get notes       # copy a file out (to stdout)
 ```
 
-Sample programs live in `programs/` (see its README): `hello`, `wc`, `ls`, `cat` (SQX) and
-`elfhello` (a hand-written ELF32 image that also checks its bss is zeroed).
+Sample programs live in `programs/` (see its README): `hello`, `wc`, `ls`, `cat` (SQX),
+`elfhello` (ELF32) and `hello64` (ELF64 / `syscall`).
 
 The loader was first numbered 0.3.0 and is 0.4.0 (flat) / 0.4.1 (ELF32) in the 0.4.x–0.8.x
 laundry list. The list asked to hook `kernel/loaders/elf_stub.asm`; the native loader parses ELF

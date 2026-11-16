@@ -91,9 +91,9 @@ syscall_isr:
     call syscall_isr_body
     iretd
 
-; Shared with the 64-bit int 0x80 gate (2.9 everyday stay). Uses lm_irq_cs
-; for the ring-3 check; leaves the return value in lm_sysret and eax.
-; Native table only (Linux personality stays on the 32-bit lx_isr path).
+; Shared with the 64-bit int 0x80 gate and syscall64_entry (2.9-syscall64).
+; Uses lm_irq_cs for the ring-3 check; leaves the return value in lm_sysret
+; and eax. Native table only; Linux/BSD use lx_syscall_body under stay.
 syscall_isr_body:
     cmp eax, SYS_COUNT
     jae .bad

@@ -138,6 +138,64 @@ lx_isr:
     popad
     iretd
 
+; Returnable body for lm64_syscall_isr under permanent stay (2.9-syscall64).
+; lm_sys_* and lm_irq_cs are filled by the 64-bit gate; no iretd / no
+; signal delivery (lxhello does not need it). Same table walk as lx_isr.
+lx_syscall_body:
+    mov eax, [lm_sys_eax]
+    mov ebx, [lm_sys_ebx]
+    mov ecx, [lm_sys_ecx]
+    mov edx, [lm_sys_edx]
+    mov esi, [lm_sys_esi]
+    mov edi, [lm_sys_edi]
+    mov ebp, [lm_sys_ebp]
+    push eax
+    mov eax, [proc_cur]
+    sub eax, proc_table
+    shr eax, 6
+    cmp byte [bsd_slot+eax], 0
+    pop eax
+    ; BSD under stay: still ENOSYS for now (CF/stack follow-up); Linux is the
+    ; #221 stopgap that 2.9-syscall64 clears. bsd_isr remains for i386.
+    jne .nosys_bare
+    push esi                    ; keep arg esi across the table walk
+    mov esi, lx_calls
+    cmp eax, 0xFFFF
+    ja .nosys
+.find:
+    cmp esi, lx_calls_end
+    jae .nosys
+    cmp ax, [esi]
+    je .hit
+    add esi, 8
+    jmp .find
+.hit:
+    test byte [lm_irq_cs], 3
+    jz .call
+    movzx eax, byte [esi+2]
+    push esi
+    mov esi, [esp+4]            ; arg esi
+    call lx_uargs
+    pop esi
+    jc .efault
+.call:
+    mov eax, [esi+4]
+    mov esi, [esp]              ; arg esi
+    call eax
+    pop esi
+    ret
+.efault:
+    mov eax, LX_EFAULT
+    pop esi
+    ret
+.nosys:
+    mov eax, LX_ENOSYS
+    pop esi
+    ret
+.nosys_bare:
+    mov eax, LX_ENOSYS
+    ret
+
 ; what each call's pointer arguments are (lx_uargs)
 LK_NONE     equ 0
 LK_BZ       equ 1               ; ebx -> string

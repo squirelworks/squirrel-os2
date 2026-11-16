@@ -18,6 +18,8 @@ KHIGH_LBA   equ 1+KERNEL_SIZE/512 ; its first sector on the boot disk
 KHIGH_SIG   equ 0x49483253      ; 'S2HI', its last dword
 USER_CS     equ 0x28|3          ; ring-3 selectors (2.4, documentation/kernel/ring3.md)
 USER_DS     equ 0x30|3
+USER64_CS   equ 0xF8|3          ; ring-3 64-bit code (2.9-syscall64, STAR block)
+USER64_DS   equ 0xF0|3          ; ring-3 data beside USER64_CS for SYSRET
 
 ; Interrupt entry from ring 3: a program may have loaded a null selector
 ; into DS or ES, so the handlers that touch memory reload them first.
@@ -120,6 +122,19 @@ gdt_tss_cpu:                    ; 0x48 on: one TSS per CPU record (2.8, smp.asm)
     times 16 dq 0               ; SMP_MAX
 gdt_tss64:                      ; 0xC8: 64-bit TSS (16-byte system descriptor; 2.9)
     times 2 dq 0
+; STAR block for syscall/sysret (2.9-syscall64). Layout required by the
+; MSR: SYSCALL CS = 0xD8 / SS = 0xE0; SYSRET CS32 = 0xE8, SS = 0xF0,
+; CS64 = 0xF8. See documentation/kernel/long-mode.md.
+gdt_star_kcs:                   ; 0xD8: 64-bit kernel code (STAR SYSCALL_CS)
+    dw 0xFFFF,0,0x9A00,0x00AF
+gdt_star_kds:                   ; 0xE0: kernel data (STAR SYSCALL_CS+8)
+    dw 0xFFFF,0,0x9200,0x00CF
+gdt_star_ucs32:                 ; 0xE8: ring-3 32-bit code (STAR SYSRET_CS)
+    dw 0xFFFF,0,0xFA00,0x00CF
+gdt_star_uds:                   ; 0xF0: ring-3 data (STAR SYSRET_CS+8)
+    dw 0xFFFF,0,0xF200,0x00CF
+gdt_star_ucs64:                 ; 0xF8: ring-3 64-bit code (STAR SYSRET_CS+16)
+    dw 0xFFFF,0,0xFA00,0x00AF
 gdt_desc:
     dw $-gdt-1
     dd gdt
@@ -1354,7 +1369,7 @@ default_isr:
 
 ; ---------- data ----------
 banner db 'Squirrel-OS/2'          ; (the "help" file: the English banner)
-banner_rest db ' 2.9.0', 10  ; OS version: here only (see releases/PROCESS.md)
+banner_rest db ' 2.9.1', 10  ; OS version: here only (see releases/PROCESS.md)
        db 'Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>', 10
        db '          mv <f> <new> | mkdir <d> | cd <d> | pwd | echo | batch <f> | format', 10
        db '          ps | disk | mem | devices | lang <en|la|tlh> | desktop | install', 10

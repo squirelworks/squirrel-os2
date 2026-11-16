@@ -183,7 +183,7 @@ compiler into `tools/build.sh`.
 - [x] H.4 NVMe
 - [x] H.5 USB keyboard (xHCI)
 - [x] H.6 USB storage
-- [ ] 64-bit syscall ABI *(2.9-syscall64 → mark **`2.9.1`**, lane `-b55f` after lm-kernel; Linux/BSD under LM stay still `-ENOSYS` until this box — #221 / #222)*
+- [x] 64-bit syscall ABI *(2.9-syscall64 → mark **`2.9.1`**, lane `-b55f`; ELF64 `syscall`/`sysret` + Linux stay body — #221)*
 
 ### Path index: tip → 3.0.0
 

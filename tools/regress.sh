@@ -36,8 +36,9 @@ flavour_qemu_restore() {
         *) unset QEMU_BIN ;;
     esac
 }
-# True when this flavour cannot run foreign personalities under permanent stay
-# (Linux/Win32/BSD/LX int 0x80 still iretd-only — 2.9-syscall64).
+# Skip personalities still iretd-unsafe or incomplete under LM stay.
+# Linux int 0x80 is stay-safe (2.9-syscall64); BSD CF/stack under stay and
+# some Win32/OS2 hosts still skip on lm64.
 lm64_skip_foreign() { [ "$flavour" = lm64 ]; }
 skip() { echo "skip $1 ($2)"; }
 # CONTINUANCE §3c: checked TODO/ROADMAP/HANDOFF boxes that name a check must
@@ -67,11 +68,11 @@ fi
 dd if=/dev/zero of="$out/floppy.img" bs=1024 count=1440 2>/dev/null
 dd if="$out/os.img" of="$out/floppy.img" conv=notrunc 2>/dev/null
 python3 "$root/tools/mkiso.py" "$out/floppy.img" "$out/cd.iso"    # installer I.6
-for prog in hello wc elfhello ls cat nest crash heap nxheap nxstack devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3 smpspin lxhello lxfile lxcat lxsys winrun winhello wincrt winprog clipbrd; do
+for prog in hello hello64 wc elfhello ls cat nest crash heap nxheap nxstack devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3 smpspin lxhello lxfile lxcat lxsys winrun winhello wincrt winprog clipbrd; do
     nasm -f bin -i "$root/programs/" "$root/programs/$prog.asm" -o "$out/$prog"
 done
 python3 "$root/tools/sqfs.py" "$out/progs.img" format 1024
-for prog in hello wc elfhello ls cat nest crash heap nxheap nxstack devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3 smpspin lxhello lxfile lxcat lxsys winrun winhello wincrt winprog; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
+for prog in hello hello64 wc elfhello ls cat nest crash heap nxheap nxstack devtest fpu seek errno zombie spin thread msg keyev waitcycle stackover udptest priotest drvtest agetest ring3 smpspin lxhello lxfile lxcat lxsys winrun winhello wincrt winprog; do python3 "$root/tools/sqfs.py" "$out/progs.img" put "$out/$prog"; done
 # OS2-GAMES (G.x): the games get a disk of their own, so the file counts above stay put
 python3 "$root/tools/sqfs.py" "$out/games.img" format 1024
 for prog in mines reversi klondike freecell hearts chess mahjongg bridge checkers go; do
@@ -863,7 +864,7 @@ check ed-path-r     'deep'                  'cat e1/long-name.txt' '<ret>'
 check fb-dir        'in /e1'                'cd e1' '<ret>' 'run files' '<ret>'
 check fb-dir-up     '[app]'                 'cd e1' '<ret>' 'run files' '<ret>' '<ret>'
 # 0.9.3: release readiness
-check ver-banner    'Squirrel-OS/2 2.9.0'  systest '<ret>'
+check ver-banner    'Squirrel-OS/2 2.9.1'  systest '<ret>'
 check ver-planned   '(planned: topo)'  systest '<ret>'
 check calc-hist-root '1 + 1 = 2'            'mkdir c1' '<ret>' 'cd c1' '<ret>' 'run calc' '<ret>' '1 + 1' '<ret>' '<esc>' 'cat /calc.hist' '<ret>'
 boot="--floppy $out/floppy.img"
@@ -944,15 +945,7 @@ check ld-sqx        'Hello from a loaded program!'  'run hello' '<ret>'
 check ld-arg        'Argument: world'       'run hello world' '<ret>'
 check ld-wc         '2 3 14 notes'          'run wc notes' '<ret>'
 check ld-elf        'Hello from an ELF program!'    'run elfhello' '<ret>'
-# P.1/P.2: Linux i386 programs (EI_OSABI 3) through the Linux personality
-# Under LM stay the 64-bit int 0x80 gate still returns -ENOSYS / cannot
-# iretd — deferred to 2.9-syscall64 (#221). Skip on the lm64 flavour.
-if lm64_skip_foreign; then
-    for n in lx-hello lx-argv lx-file lx-pipe lx-then-native lx-sys lx-uname \
-             win-hello win-cmdline win-missing win-notpe win-crt win-printf; do
-        skip "$n" "LM stay foreign personality → 2.9-syscall64"
-    done
-else
+# P.1/P.2: Linux i386 programs (EI_OSABI 3) — stay-safe via lx_syscall_body
 check lx-hello      'lxhello: PASS'         'run lxhello' '<ret>'
 check lx-argv       'argc=2 argv[0]=lxhello acorn'  'run lxhello acorn' '<ret>'
 check lx-file       'lxfile: PASS'          'run lxfile' '<ret>'
@@ -960,7 +953,20 @@ check lx-pipe       'lx: acorns'            'echo acorns | run lxcat' '<ret>'
 check lx-then-native 'Hello from a loaded program!'  'run lxhello' '<ret>' 'run hello' '<ret>'
 check lx-sys        'lxsys: PASS'           'run lxsys' '<ret>'
 check lx-uname      'lxsys: uname Linux i686'       'run lxsys' '<ret>'
-# P.5: Win32 PE32 console programs through winrun
+# 2.9-syscall64: ELF64 via syscall/sysret (needs LM stay — skip on i386)
+if [ "$flavour" = lm64 ]; then
+check hello64       'hello64: PASS'         'run hello64' '<ret>'
+check hello64-badptr 'hello64-badptr: PASS' 'run hello64 badptr' '<ret>'
+else
+    skip hello64 "ELF64 syscall/sysret needs LM stay (lm64 flavour)"
+    skip hello64-badptr "ELF64 syscall/sysret needs LM stay (lm64 flavour)"
+fi
+# P.5: Win32 PE32 console programs through winrun (still skip on lm64)
+if lm64_skip_foreign; then
+    for n in win-hello win-cmdline win-missing win-notpe win-crt win-printf; do
+        skip "$n" "LM stay Win32 host → follow-up"
+    done
+else
 check win-hello     'winhello: PASS'        'run winhello' '<ret>'
 check win-cmdline   'command line: winhello nuts'   'run winhello nuts' '<ret>'
 check win-missing   'not implemented: Beep' 'run winhello beep' '<ret>'
@@ -1054,7 +1060,7 @@ unset QEMU_EXTRA
 fi
 # 1.1.0: the timer preempts a program that spins without a system call
 check_all sched-preempt 'spin: second process ran|preempt: PASS' 'run spin' '<ret>' '<pause>'
-check up-ls-filter  '7 file(s)'             'run ls he' '<ret>'   # +nxheap (2.8-pae); shell.hist matches "he" too
+check up-ls-filter  '8 file(s)'             'run ls he' '<ret>'   # +nxheap (2.8-pae) + hello64; shell.hist matches "he" too
 # 1.0.3: programs read why a file call failed (SYS_FSERROR), in the shell's words
 check errno-nf      'errno: Not found'      'run errno missing' '<ret>'
 check errno-dir     'errno: Is a directory' 'mkdir edir' '<ret>' 'run errno edir' '<ret>'
@@ -1099,7 +1105,7 @@ check l10n-hint-la  '(lineam tabulae addit)'  'lang la' '<ret>' put '<ret>'
 check l10n-fe-tlh   "tu'lu'pu'"             'lang tlh' '<ret>' 'mkdir t1' '<ret>' 'mkdir t1' '<ret>'
 check l10n-rm-tlh   "tu'lu'be'"             'lang tlh' '<ret>' 'rm nosuch' '<ret>'
 check lang-bad      'Unknown language (en la tlh)'  'lang fr' '<ret>'
-check lang-banner   'Sciurus-OS/2 2.9.0'   'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
+check lang-banner   'Sciurus-OS/2 2.9.1'   'lang la' '<ret>' 'run calc' '<ret>' '<esc>'
 # 1.9.9: higher priority keeps a lower-priority child from running
 check prio          'prio: PASS'            'run priotest' '<ret>' '<pause>'
 # 2.0.2: aging lets a priority-0 child run beside a priority-3 spinner
@@ -1645,16 +1651,16 @@ disk=$out/hw.img; boot=$out/esp.img
 export QEMU_TEXT=0x1f8000 QEMU_BIN=qemu-system-x86_64
 if [ -f "$OVMF_FD" ] && command -v qemu-system-x86_64 >/dev/null; then
     export QEMU_EXTRA="-bios $OVMF_FD"
-    check_all uefi-x64      'Squirrel-OS/2 2.9.0|systest: PASS|blkdev  '  $uefi_keys systest '<ret>' ls '<ret>'
+    check_all uefi-x64      'Squirrel-OS/2 2.9.1|systest: PASS|blkdev  '  $uefi_keys systest '<ret>' ls '<ret>'
     check_all uefi-x64-mem  'BIOS memory map:|usable|KB free'  $uefi_keys mem '<ret>'
-    check_all uefi-x64-gop  'gop: Squirrel-OS/2 2.9.0|gop: > echo UEFI GOP x|gop: UEFI GOP x'  $uefi_keys 'echo UEFI GOP x' '<ret>' '<pause>' '<gop>'
+    check_all uefi-x64-gop  'gop: Squirrel-OS/2 2.9.1|gop: > echo UEFI GOP x|gop: UEFI GOP x'  $uefi_keys 'echo UEFI GOP x' '<ret>' '<pause>' '<gop>'
 else
     skip uefi-x64 "no OVMF at $OVMF_FD"
 fi
 if [ -f "$OVMF32_CODE" ] && [ -f "$OVMF32_VARS" ] && command -v qemu-system-x86_64 >/dev/null; then
     cp "$OVMF32_VARS" "$out/ovmf32-vars.fd"
     export QEMU_EXTRA="-drive if=pflash,format=raw,readonly=on,file=$OVMF32_CODE -drive if=pflash,format=raw,file=$out/ovmf32-vars.fd"
-    check_all uefi-ia32     'Squirrel-OS/2 2.9.0|systest: PASS|gop: > systest'  $uefi_keys systest '<ret>' '<pause>' '<gop>'
+    check_all uefi-ia32     'Squirrel-OS/2 2.9.1|systest: PASS|gop: > systest'  $uefi_keys systest '<ret>' '<pause>' '<gop>'
 else
     skip uefi-ia32 "no 32-bit OVMF at $OVMF32_CODE"
 fi

@@ -83,9 +83,9 @@ thunks for the remaining 32-bit kernel, 32-bit programs in compatibility mode). 
   during a thunk is safe; overflow EOIs both PICs and counts `lm_nest_overflow`). The nest
   frame pointer rides the process stack so a yield inside `syscall_isr_body` still returns
   through `lm64_call32_ret`. Native `int 0x80` result comes back in `eax` (not a global).
-- Linux/BSD personalities under a permanent stay still return `-ENOSYS` (`-38`) from the
-  64-bit gate: `lx_isr` uses `iretd` and is not stay-safe yet. Wire a returnable personality
-  body in **`2.9-syscall64`** (after ring-3 under stay); see TODO.md and issue #221.
+- Linux under a permanent stay uses returnable `lx_syscall_body` through `lm64_call32`
+  (**2.9-syscall64** / #221); `lx_isr` (`iretd`) remains for the 32-bit IDT path. BSD under
+  stay still returns `-ENOSYS` (CF/stack follow-up).
 - `lm_enter_everyday`: `lm_enter_perm` then restores the saved PIC masks so keyboard and mouse
   keep working. `lm_boot_enter` does that and latches `lm_boot` so leave is refused.
 - Build flavours: default `os.img` still boots in 32-bit protected mode; `os-lm64.img` is the
@@ -118,10 +118,17 @@ thunks for the remaining 32-bit kernel, 32-bit programs in compatibility mode). 
   PML4) and refreshes LM wrappers so VBE / desktop MMIO stays reachable.
 - Everyday IRQ stubs (timer / keyboard / mouse) save the GPRs that `lm64_call32`
   clobbers, so a tick mid ring-3 loop (heap fill, etc.) cannot trash `edi`/`esi`.
-- Foreign personality checks (Linux / Win32 / BSD / LX) skip on lm64 until
-  `2.9-syscall64` (returnable `int 0x80` body). APs still park under stay but do
-  not enter long mode / run ring-3 yet — multi-CPU `smpspin-4` / `smp-*` skip on
+- Linux personality checks run on lm64 (`lx_syscall_body`). Win32 / BSD / LX and
+  Linux signals still skip on lm64 where stay-unsafe. APs still park under stay but
+  do not enter long mode / run ring-3 yet — multi-CPU `smpspin-4` / `smp-*` skip on
   lm64. Native SQX / DOS interpreter / desktop checks run on both flavours.
+
+### 64-bit syscall ABI (`2.9-syscall64`, mark **2.9.1**)
+
+- STAR / LSTAR / EFER.SCE on permanent enter; GDT STAR block at `0xD8`…`0xF8`
+  (`USER64_CS` = `0xFB`). `syscall` from ELF64 ring-3 maps onto the native 32-bit
+  table via `lm64_call32`; `sysret` returns. `int 0x80` for compat programs is
+  unchanged. ELF64 loader requires `lm_perm`. Checks: `hello64`, `hello64-badptr`.
 - Under permanent stay the 64-bit IDT's INT3 gate is DPL 3 (same as
   `dbg_init`), so software breakpoints are `#BP` rather than `#GP(idt[3])`.
   `#DF` on IST1 recovers through a compatibility body (stack-overflow report /

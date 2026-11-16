@@ -34,17 +34,18 @@ Soft tracks (ISM Soft UI / Eric companions) and OS/2 Gen2 desktop are the
 `-2eaf` lane — **not** OS/2 2.9 (`-b55f`). Soft-bound facts:
 
 - OS/2 tip cut **done:** `v2.3.0` published; Soft `PATH_TO_3.0.0.md` stays **suite index only** (OS ladder = this repo `TO_3.0.0.md`).
-- Soft #203 / #204 landed; OS/2 W.6 + #235/#236 landed (this PR #239). **Paused** — next Soft coding is Soft **#207** live HID.
+- Soft #203 / #204 landed; OS/2 W.6 + #235/#236 landed (#239). **Paused** — next Soft coding is Soft **#207** live HID.
 - Soft #163 / #164 still carry stale tip-cut wording — rewrite when convenient; do not treat them as OS/2 SoT.
-- OS/2 core after lm-kernel: `2.9-syscall64-b55f` on `-b55f` — Soft must **not** open competing OS/2 lm PRs.
+- OS/2 next core after syscall64: freestanding C (#212) on `-b55f` — Soft must **not** open competing OS/2 lm PRs / steal syscall64.
 - OS/2 #225 is **background** on OS/2: gaps landed (#227); further serial/HIL/pkg only when natural and **not** ahead of 2.9 core. Soft Flight Lab stays in Soft (`squirrelflightlab/`).
 
 ### Progress notes `-b55f`
 
 - **Landed:** `2.9-lm-paging-b55f` (#193 / `lmpage`); `2.9-lm-stay-thunks-b55f` (#196 / `lmthunk`); `2.9-lm-boot64-b55f` (#204 / `lmboot` / `os-lm64.img` / `LM_BOOT64`); lm-boot64 follow-ups (#222); tip-cut docs (#205); owner tag **`v2.3.0`**; ISM gaps (#227 / `ISM-gaps-b55f`).
 - **Landed:** `2.9-lm-ring3-stay-b55f` (#211 / #231 / M2) — ring-3 under permanent stay; checks `lm64-hello` / `lm64-ring3`.
-- **Landed (this PR):** `2.9-lm-kernel-tick-b55f` (M6) — `REGRESS_FLAVOUR=lm64` everyday suite; banner **2.9.0**; ticks `2.9-lm-kernel`.
-- **Next:** `2.9-syscall64-b55f` (`2.9.1`) → freestanding C (#212).
+- **Landed:** `2.9-lm-kernel-tick-b55f` (#232 / M6) — `REGRESS_FLAVOUR=lm64` everyday suite; banner **2.9.0**; ticks `2.9-lm-kernel`.
+- **Landed (this PR):** `2.9-syscall64-b55f` (M7) — ELF64 `syscall`/`sysret`, `hello64` / `hello64-badptr`, Linux stay body (`lxhello` on lm64); banner **2.9.1**.
+- **Next:** freestanding C (#212 / `2.9.25`) → `3.0-users`….
 - **Background (#225, not ahead of core):** ISM serial / HIL / pkg / lab-setup — only when natural on `main`; Soft Flight Lab stays in Soft. Do **not** expand `lab/`.
 
 ### Tasks `-b55f` (this lane)
@@ -53,7 +54,7 @@ Soft tracks (ISM Soft UI / Eric companions) and OS/2 Gen2 desktop are the
 - [x] `2.9-lm-boot64-b55f` — boot-time / `LM_BOOT64` everyday long-mode stay (`lmboot` command, os-lm64.img, #204)
 - [x] `2.9-lm-ring3-stay-b55f` — #211 / #231 / mark **2.3.1** (ladder M2)
 - [x] `2.9-lm-kernel-tick-b55f` — x86_64 everyday suite flavour; mark **2.9.0**
-- [ ] `2.9-syscall64-b55f` — after lm-kernel is ticked
+- [x] `2.9-syscall64-b55f` — ELF64 syscall/sysret + Linux stay; mark **2.9.1**
 - [x] `ISM-gaps-b55f` — #225 item 1 gap matrix (#227)
 - [ ] `ISM-serial-b55f` — #225 item 2 serial/USB (**background**, after core)
 - [ ] `ISM-hil-timing-b55f` — #225 item 3 soft-RT HIL (**background**)
@@ -64,7 +65,7 @@ Soft tracks (ISM Soft UI / Eric companions) and OS/2 Gen2 desktop are the
 
 ### Progress notes `-2eaf`
 
-- **Landed (OS/2 Gen2 / W.6):** `W.2-templates` (#191); `W.5-openas` (#192); `W.3-launchpad` (#183); `2.6-shadows` (#188); Sarah Gen2 follow-ups (#197); `2.6-icons` / `2.6-drag` (#184); `W.6-startup` (#209 / #234); `W.6-syssetup` (#210 / #237); live Drive unmount drop (#235 / #238); `PM_GMAX` raise (#236 / this PR #239).
+- **Landed (OS/2 Gen2 / W.6):** `W.2-templates` (#191); `W.5-openas` (#192); `W.3-launchpad` (#183); `2.6-shadows` (#188); Sarah Gen2 follow-ups (#197); `2.6-icons` / `2.6-drag` (#184); `W.6-startup` (#209 / #234); `W.6-syssetup` (#210 / #237); live Drive unmount drop (#235 / #238); `PM_GMAX` raise (#236 / #239).
 - **Landed (Soft, same lane):** Soft #203 SPD CDC (#213); Soft #204 PSRAM live march (#215).
 - **Next (pause / wrap 2026-11-17):** do **not** start new code until Sarah says go. Queue when resumed:
   1. Soft **#207** live USB HID host (`libusb` / WinUSB / IOHID) — highest Soft coding item.
@@ -81,7 +82,7 @@ Soft tracks (ISM Soft UI / Eric companions) and OS/2 Gen2 desktop are the
 - [x] `W.6-startup-2eaf` — #209 / #234
 - [x] `W.6-syssetup-2eaf` — #210 / #237
 - [x] `W.6-umount-drive-2eaf` — #235 / #238
-- [x] `W.6-pm-gmax-2eaf` — #236 / this PR #239
+- [x] `W.6-pm-gmax-2eaf` — #236 / #239
 - [ ] `soft-hid-live-2eaf` — Soft #207 (next coding when resumed)
 - [ ] `3.0-taskmgr-2eaf` — #217 (after Gen2 `2.6.0` ship)
 - [ ] `3.0-themes-2eaf` — #218 (after or with taskmgr)
@@ -97,19 +98,19 @@ Soft tracks (ISM Soft UI / Eric companions) and OS/2 Gen2 desktop are the
 
 ## Release coordination (2026-11-16 — tip cut **done**)
 
-**Done:** owner published **`v2.3.0`** from tip `59069e3` (after #184 / #197 / #204 / #205). This PR bumps the banner to **`2.9.0`** (lm-kernel tick). Long-form ladder: [`documentation/releases/TO_3.0.0.md`](documentation/releases/TO_3.0.0.md) (**canonical**; Soft `PATH_TO_3.0.0.md` is suite index only).
+**Done:** owner published **`v2.3.0`** from tip `59069e3` (after #184 / #197 / #204 / #205). This PR bumps the banner to **`2.9.1`** (syscall64). Long-form ladder: [`documentation/releases/TO_3.0.0.md`](documentation/releases/TO_3.0.0.md) (**canonical**; Soft `PATH_TO_3.0.0.md` is suite index only).
 
 | Fact | Value |
 |------|-------|
 | Last published tag | **`v2.3.0`** (2026-11-15; tip `59069e3`) |
-| Banner (this PR) | `2.9.0` (`kernel/pm.asm` `banner_rest`) — lm-kernel tick |
-| Gate PRs | ~~#184~~ / ~~#197~~ / ~~#204~~ / ~~#205~~ / ~~#231~~ — all on `main` |
+| Banner (this PR) | `2.9.1` (`kernel/pm.asm` `banner_rest`) — syscall64 |
+| Gate PRs | ~~#184~~ / ~~#197~~ / ~~#204~~ / ~~#205~~ / ~~#231~~ / ~~#232~~ / ~~#234~~ / ~~#237~~ — all on `main` |
 
 **Handshake (`-b55f` ↔ `-2eaf`) after tip:**
 
 1. **MERGE-WAIT over** — Sarah via relay (2026-11-16): keep working the normal ladder.
 2. **`-2eaf` next (paused 2026-11-17):** Soft #207 live HID → (board soaks #212/#214 if ready) → Gen2 ship `2.6.0` (owner) → `3.0-taskmgr` (#217) / `3.0-themes` (#218).
-3. **`-b55f` next:** ~~ring-3 under stay (#231)~~ → ~~`2.9-lm-kernel-tick` (`2.9.0`)~~ (this PR) → `2.9-syscall64-b55f` → freestanding C (#212) → `3.0-users`…`3.0-eventlog` (#213–#216). Soft only if Sarah notes. #225 ISM is background only.
+3. **`-b55f` next:** ~~ring-3 under stay (#231)~~ → ~~`2.9-lm-kernel-tick` (`2.9.0`)~~ → ~~`2.9-syscall64` (`2.9.1`)~~ (this PR) → freestanding C (#212) → `3.0-users`…`3.0-eventlog` (#213–#216). Soft only if Sarah notes. #225 ISM is background only.
 4. Agents **never** tag. Tip-cut mirror [#208](https://github.com/squirelworks/squirrel-os2/issues/208) is closed.
 5. **#132 note (agents cannot edit issue bodies):** tick “x86-64 long-mode kernel and 64-bit paging” when this PR merges.
 
@@ -298,13 +299,10 @@ PAE + NX on `main`. Checks `nx-heap`, `nx-stack`, `cpu-pentium3`.
   `docs/CONTINUANCE.md` decision 3a. Non-blocking: clear busy on the saved TR
   under SMP; `kernel_pml4` is boot-lifetime.
 
-### 2.9-syscall64 — ELF64 programs  `2.9-syscall64-b55f` (after lm-kernel)
-- **Depends on:** 2.9-lm-kernel.
-- **Acceptance:** `run hello64` prints `hello64: PASS` through
-  `syscall`/`sysret`; `int 0x80` 32-bit programs are unchanged; pointer
-  checks refuse kernel addresses (`hello64-badptr`).
-- **Also (#221):** Linux/BSD under permanent stay still get `-ENOSYS` from
-  `lm64_syscall_isr` (`lx_isr` is `iretd`-only); teach a returnable body.
+### 2.9-syscall64 — ELF64 programs  `status: done` (this PR, mark **2.9.1**)
+- **Acceptance:** `hello64: PASS` via `syscall`/`sysret`; `hello64-badptr`;
+  `int 0x80` 32-bit unchanged; Linux under stay via `lx_syscall_body`
+  (`lxhello` on lm64). BSD/Win32 under stay still follow-up.
 
 ### ISM Flight Lab / ground station (#225)  `-b55f`
 - **Goal:** OS/2 as lab / ground host for Soft Flight Lab + Eric HIL — not
