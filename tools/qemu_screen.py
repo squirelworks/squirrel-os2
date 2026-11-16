@@ -37,9 +37,10 @@ KEYMAP = {' ': 'spc', '\n': 'ret', '-': 'minus', '=': 'equal', '/': 'slash',
 
 def monitor(sock, cmd):
     sock.sendall((cmd + '\n').encode())
-    # LM stay: keyboard IRQs thunk through lm64_call32; 40 ms between
-    # sendkeys drops characters under load (see key_gap in main).
-    gap = 0.12 if 'x86_64' in os.environ.get('QEMU_BIN', '') else 0.04
+    # LM stay: keyboard IRQs thunk through lm64_call32; 40–70 ms between
+    # sendkeys truncates multi-key commands ("debugger" → "debugger dbgtgt"
+    # became "debugger" alone). 100 ms is enough locally with retries.
+    gap = 0.10 if 'x86_64' in os.environ.get('QEMU_BIN', '') else 0.04
     time.sleep(gap)
     sock.setblocking(False)
     try:
