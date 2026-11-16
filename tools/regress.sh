@@ -914,7 +914,7 @@ check_all lm-boot64-again 'lmboot: PASS|systest: PASS|lm: PASS' lmboot '<ret>' s
 # 2.9-lm-ring3-stay: ring-3 programs under permanent boot stay (#211)
 disk=$out/progs.img
 check lm64-hello    'Hello from a loaded program!' '<pause>' '<pause>' '<pause>' 'run hello' '<ret>' '<pause>'
-check_all lm64-ring3 'ring3: PASS' '<pause>' '<pause>' '<pause>' 'run ring3' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>'
+check_all lm64-ring3 'ring3: PASS' '<pause>' '<pause>' '<pause>' 'run ring3' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
 disk=
 unset boot
 # nolm / limited-CPU checks need qemu-system-i386 (no long mode / no PAE)
@@ -1147,7 +1147,7 @@ check_all reversi-play 'Computer plays c3|You (X): 3   Computer (O): 3' 'run rev
 check klondike-test 'klondike: PASS'        'run klondike test' '<ret>'
 check_all klondike-play 'Stock 23|That move is not allowed' 'run klondike 3' '<ret>' d '<ret>' 12 '<ret>'
 check freecell-test 'freecell: PASS'        'run freecell test' '<ret>'
-check freecell-play 'Cells (a b c d) 9C  -  -  -' 'run freecell 2' '<ret>' 1a '<ret>'
+check freecell-play 'Cells (a b c d) 9C  -  -  -' 'run freecell 2' '<ret>' '<pause>' 1a '<ret>' '<pause>'
 check hearts-test   'hearts: PASS'          'run hearts test' '<ret>' '<pause>'
 check_all hearts-play 'You received:  JH  6H  4H|North plays 2C|You cannot play that card now' 'run hearts 3' '<ret>' 'ah kh jc' '<ret>' 2s '<ret>'
 check chess-test    'chess: PASS'           'run chess test' '<ret>' '<pause>' '<pause>'
@@ -1208,16 +1208,16 @@ check notepad-ask   'gfx: Save changes? y/n' 'run notepad' '<ret>' '<pause>' 'x'
 check notepad-quit  'systest: PASS'         'run notepad' '<ret>' '<pause>' 'x' '<esc>' 'n' '<pause>' systest '<ret>'
 check notepad-hl    'notepad: PASS'         'run notepad -test' '<ret>' '<pause>' '<pause>'
 # C.2: grapher (explicit, polar, parametric, implicit, inequalities, sliders; roots, extrema, intersections, trace)
-check grapher       'grapher: PASS'         'run grapher test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
+check grapher       'grapher: PASS'         'run grapher test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
 check_all grapher-roots 'gfx: 1: sin(x)|gfx: roots: -9.4248|gfx: -3.1416' 'run grapher sin(x)' '<ret>' '<pause>' 'z' '<pause>' '<gfx>'
 check_all grapher-ext 'gfx: min(-7.854, -1)|gfx: max(-4.7124, 1)' 'run grapher sin(x)' '<ret>' '<pause>' 'm' '<pause>' '<gfx>'
 check_all grapher-meet 'gfx: meet: (-1, 0)|gfx: (2, 3)' 'run grapher x^2-1' '<ret>' '<pause>' '<tab>' '<ret>' 'y = x + 1' '<ret>' '<tab>' '<tab>' '<tab>' 'i' '<pause>' '<pause>' '<gfx>'
-check_all grapher-trace 'gfx: 2: x = 4*cos(t), y = 2*sin(t)|gfx: t=0.0262|gfx: x=3.9986' 'run grapher' '<ret>' '<pause>' 'sin(x)' '<ret>' '<tab>' '<ret>' 'x = 4*cos(t), y = 2*sin(t)' '<ret>' 't' '<right>' '<pause>' '<gfx>'
+check_all grapher-trace 'gfx: 2: x = 4*cos(t), y = 2*sin(t)|gfx: t=0.0262|gfx: x=3.9986' 'run grapher' '<ret>' '<pause>' 'sin(x)' '<ret>' '<tab>' '<ret>' 'x = 4*cos(t), y = 2*sin(t)' '<ret>' 't' '<right>' '<pause>' '<pause>' '<gfx>'
 check grapher-zoom  'gfx: roots: -3.1416'   'run grapher sin(x)' '<ret>' '<pause>' '+' 'z' '<pause>' '<gfx>'
 check grapher-syn   'gfx: Error: syntax at column 4' 'run grapher' '<ret>' '<pause>' 'y = 2*(' '<ret>' '<pause>' '<gfx>'
 check grapher-quit  'systest: PASS'         'run grapher sin(x)' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
 check_all grapher-impl 'gfx: 1: x^2+y^2=25|gfx: only for y = f(x)' 'run grapher x^2+y^2=25' '<ret>' '<pause>' '<pause>' 'z' '<pause>' '<gfx>'
-check_all grapher-ineq 'gfx: 1: y >= x^2|gfx: Trace is for y =, r = and x =, y =' 'run grapher' '<ret>' '<pause>' 'y >= x^2' '<ret>' '<pause>' 't' '<pause>' '<pause>' '<gfx>'
+check_all grapher-ineq 'gfx: 1: y >= x^2|gfx: Trace is for y =, r = and x =, y =' 'run grapher' '<ret>' '<pause>' 'y >= x^2' '<ret>' '<pause>' '<pause>' 't' '<pause>' '<pause>' '<gfx>'
 check grapher-slider 'gfx: a = 2.2'         'run grapher y=a*sin(x)' '<ret>' '<pause>' 'a' '<pause>' '<right>' '<pause>' '<right>' '<pause>' '<up>' '<pause>' '<pause>' '<gfx>'
 check grapher-form  'gfx: Use y = f(x), r = f(t), x = f(t), y = g(t), = < >' 'run grapher' '<ret>' '<pause>' 'y < x < 2' '<ret>' '<pause>' '<gfx>'
 # A.2: character map, paint, image viewer
@@ -1241,7 +1241,7 @@ check topology-bad  'gfx: Vertices are 0 to 15' 'run topology' '<ret>' '<pause>'
 check matrixgui     'matrixgui: PASS'       'run matrixgui test' '<ret>' '<pause>' '<pause>'
 check_all matrixgui-mul 'gfx: A * B =|gfx: 19|gfx: 22|gfx: 43|gfx: 50' 'run matrixgui' '<ret>' '<pause>' '1' '<right>' '2' '<down>' '4' '<left>' '3' '<ret>' '<tab>' '<up>' '5' '<right>' '6' '<down>' '8' '<left>' '7' '<ret>' '*' '<pause>' '<gfx>'
 check_all matrixgui-inv 'gfx: inv A =|gfx: -2|gfx: 1.5|gfx: -0.5' 'run matrixgui' '<ret>' '<pause>' '1' '<right>' '2' '<down>' '4' '<left>' '3' '<ret>' 'i' '<pause>' '<gfx>'
-check matrixgui-det 'gfx: det A = -2'      'run matrixgui' '<ret>' '<pause>' '1' '<right>' '2' '<down>' '4' '<left>' '3' '<ret>' 'd' '<pause>' '<gfx>'
+check matrixgui-det 'gfx: det A = -2'      'run matrixgui' '<ret>' '<pause>' '1' '<right>' '2' '<down>' '4' '<left>' '3' '<ret>' 'd' '<pause>' '<pause>' '<gfx>'
 check matrixgui-sing 'gfx: The matrix is singular' 'run matrixgui' '<ret>' '<pause>' 'i' '<pause>' '<gfx>'
 check matrixgui-quit 'systest: PASS'        'run matrixgui' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
 # C.3: statistics (lists, one- and two-variable statistics, regressions, histogram, box plot, CSV)
@@ -1263,7 +1263,7 @@ check graph3d-quit  'systest: PASS'         'run graph3d x*y' '<ret>' '<pause>' 
 check hexedit       'hexedit: PASS'         'run hexedit test' '<ret>' '<pause>' '<pause>'
 check_all hexedit-view 'gfx: Hex: htest.bin|gfx: 00020: 20 21 22 23 24 25 26 27|gfx: @00011 = AB 171' 'run hexedit htest.bin' '<ret>' '<pause>' '<down>' '<down>' '<right>' '<pause>' '<gfx>'
 check hexedit-goto  'gfx: @00080 = 80 128'  'run hexedit htest.bin' '<ret>' '<pause>' '<ctrl-g>' '80' '<ret>' '<pause>' '<gfx>'
-check_all hexedit-new 'gfx: Saved|gfx: @00000 = 41 65' 'run hexedit hnew.bin' '<ret>' '<pause>' '4' '1' '4' '2' '<ctrl-s>' '<pause>' '<gfx>' '<esc>' '<pause>' 'run hexedit hnew.bin' '<ret>' '<pause>' '<gfx>'
+check_all hexedit-new 'gfx: Saved|gfx: @00000 = 41 65' 'run hexedit hnew.bin' '<ret>' '<pause>' '4' '1' '4' '2' '<ctrl-s>' '<pause>' '<pause>' '<gfx>' '<esc>' '<pause>' 'run hexedit hnew.bin' '<ret>' '<pause>' '<pause>' '<gfx>'
 check hexedit-quit  'systest: PASS'         'run hexedit htest.bin' '<ret>' '<pause>' '7' '<esc>' '<pause>' 'n' '<pause>' systest '<ret>'
 check hexedit-usage 'usage: run hexedit <file>' 'run hexedit' '<ret>'
 # A.7: word processor
@@ -1341,9 +1341,9 @@ python3 "$root/tools/sqfs.py" "$sq" get 'disk image.img' "$out/floppy27b.img"
 fatok fat-loop-fsck "$out/floppy27b.img"
 disk=$saved_disk; target=$saved_target
 # C.4: spreadsheet with charts
-check sheet         'sheet: PASS'           'run sheet test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
+check sheet         'sheet: PASS'           'run sheet test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
 check_all sheet-calc 'gfx: A3: =A1*A2+1|gfx: = 7' 'run sheet' '<ret>' '<pause>' '2' '<ret>' '3' '<ret>' '=A1*A2+1' '<ret>' '<up>' '<pause>' '<gfx>'
-check_all sheet-chart 'gfx: Line A1:B3|gfx: one|gfx: two' 'run sheet' '<ret>' '<pause>' 'one' '<tab>' 'two' '<ret>' '<left>' '1' '<ret>' '2' '<ret>' '<up>' '<up>' '<right>' '3' '<ret>' '5' '<ret>' '<up>' '<f3>' '<left>' '<up>' '<up>' '<ctrl-g>' '<pause>' '<gfx>'
+check_all sheet-chart 'gfx: Line A1:B3|gfx: one|gfx: two' 'run sheet' '<ret>' '<pause>' 'one' '<tab>' 'two' '<ret>' '<left>' '1' '<ret>' '2' '<ret>' '<up>' '<up>' '<right>' '3' '<ret>' '5' '<ret>' '<up>' '<f3>' '<left>' '<up>' '<up>' '<ctrl-g>' '<pause>' '<pause>' '<gfx>'
 check sheet-cyc     'gfx: #CYC: it depends on itself' 'run sheet' '<ret>' '<pause>' '=A2' '<ret>' '=A1+1' '<ret>' '<up>' '<pause>' '<gfx>'
 check sheet-csv     '1,=A1*2'               'run sheet s.csv' '<ret>' '<pause>' '1' '<tab>' '=A1*2' '<ret>' '<ctrl-s>' '<pause>' '<esc>' '<pause>' 'cat s.csv' '<ret>'
 check sheet-quit    'systest: PASS'         'run sheet' '<ret>' '<pause>' 'x' '<ret>' '<esc>' '<pause>' 'n' '<pause>' systest '<ret>'
@@ -1361,7 +1361,7 @@ check_all cas-calculus 'gfx: x^2*cos(x) + 2*x*sin(x)|gfx: sin(3*x)/3 + C|gfx: 1 
 check_all cas-err   'gfx: Error: syntax|gfx: Error: no answer yet for ans' 'run cas' '<ret>' '<pause>' 'ans' '<ret>' 'x +* 2' '<ret>' '<pause>' '<gfx>'
 check cas-quit      'systest: PASS'         'run cas' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
 # A.5: system monitor, log viewer, disk utility (and the kernel's GUI_SYSINFO)
-check sysmon        'sysmon: PASS'          'run sysmon test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
+check sysmon        'sysmon: PASS'          'run sysmon test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
 check_all sysmon-view 'gfx: System Monitor|gfx: PID STATE|gfx: Memory|sysmon' 'run sysmon' '<ret>' '<pause>' '<pause>' '<gfx>'
 check sysmon-prio   'kernel prio 2'         'run sysmon' '<ret>' '<pause>' '<up>' '+' '<pause>' '<esc>' '<pause>' ps '<ret>'
 check sysmon-quit   'systest: PASS'         'run sysmon' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
@@ -1370,9 +1370,9 @@ check_all logview-crash 'Squirrel-OS/2 started|crashed crash (pid 1): page fault
 check_all logview-filter 'gfx: Lines 1-3 of 5|gfx: filter: crash' 'run crash' '<ret>' '<pause>' 'run logview' '<ret>' '<pause>' '/' 'crash' '<ret>' '<pause>' '<gfx>'
 check_all logview-file 'gfx: lv.txt|gfx: acorns and oak' 'put lv.txt acorns and oak' '<ret>' 'run logview lv.txt' '<ret>' '<pause>' '<gfx>'
 check logview-quit  'systest: PASS'         'run logview' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
-check diskutil      'diskutil: PASS'        'run diskutil test' '<ret>' '<pause>' '<pause>'
+check diskutil      'diskutil: PASS'        'run diskutil test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>'
 check_all diskutil-check 'gfx: hd1 (data disk): SQFS, 2048 sectors, 1024 KB|gfx: Check: no problems found' 'run diskutil' '<ret>' '<pause>' 'c' '<pause>' '<gfx>'
-check diskutil-scan 'gfx: Surface scan: 2048 sectors read, 0 failed' 'run diskutil' '<ret>' '<pause>' 's' '<pause>' '<pause>' '<gfx>'
+check diskutil-scan 'gfx: Surface scan: 2048 sectors read, 0 failed' 'run diskutil' '<ret>' '<pause>' 's' '<pause>' '<pause>' '<pause>' '<gfx>'
 check diskutil-quit 'systest: PASS'         'run diskutil' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
 # 2.7 (OS2-FS): diskutil on a FAT disk (hd2, mounted first so that it is a
 # block device), and on the FAT images the 2.7 checks above wrote to
@@ -1385,7 +1385,7 @@ check diskutil-fat   'diskutil: PASS'        'mount d: hd2' '<ret>' 'run diskuti
 check_all diskutil-fat-gui 'gfx: hd2: FAT16, 30720 sectors, 15360 KB|gfx: Used 3 of 30449 clusters|gfx: A Long Document Name|gfx: Check: no problems found' 'mount d: hd2' '<ret>' 'run diskutil hd2' '<ret>' '<pause>' 'c' '<pause>' '<gfx>'
 for t in 12 16 32; do
     target=$out/fat$t.img
-    check_all diskutil-fat$t "gfx: hd2: FAT$t|gfx: Check: no problems found" 'mount d: hd2' '<ret>' 'run diskutil hd2' '<ret>' '<pause>' 'c' '<pause>' '<gfx>'
+    check_all diskutil-fat$t "gfx: hd2: FAT$t|gfx: Check: no problems found" 'mount d: hd2' '<ret>' 'run diskutil hd2' '<ret>' '<pause>' 'c' '<pause>' '<pause>' '<gfx>'
 done
 # 2.7: format FAT from the OS (blank images; mount once to register hd2)
 dd if=/dev/zero of="$out/dufmt12.img" bs=1024 count=1440 2>/dev/null
@@ -1399,7 +1399,7 @@ target=$out/dufmt16.img
 check diskutil-fmt16 'diskutil: PASS'       'mount d: hd2' '<ret>' 'run diskutil test format hd2 16' '<ret>' '<pause>' '<pause>'
 fatok diskutil-fmt16-fsck "$out/dufmt16.img"
 check_all diskutil-fmt16-use 'D: FAT16, 15 MB, hd2|fattest: PASS' 'mount d: hd2' '<ret>' 'fattest d:' '<ret>' '<pause>' '<pause>'
-check_all diskutil-fmt-gui 'gfx: Formatted FAT16' 'mount d: hd2' '<ret>' 'run diskutil hd2' '<ret>' '<pause>' 'f' '<pause>' 'y' '<pause>' '<gfx>'
+check_all diskutil-fmt-gui 'gfx: Formatted FAT16' 'mount d: hd2' '<ret>' 'run diskutil hd2' '<ret>' '<pause>' 'f' '<pause>' 'y' '<pause>' '<pause>' '<gfx>'
 target=$out/dufmt32.img
 check diskutil-fmt32 'diskutil: PASS'       'mount d: hd2' '<ret>' 'run diskutil test format hd2 32' '<ret>' '<pause>' '<pause>'
 fatok diskutil-fmt32-fsck "$out/dufmt32.img"
@@ -1537,10 +1537,13 @@ check_all dbg-elf-run 'loop 0x30059 <loop_top>|dbgelf done|pid 2 ended (exit cod
 # A.3: the terminal (SYS_TTY): programs in windows, their output and input
 check_all term-run  'gfx: Terminal 1|gfx: 1> hello world|gfx: Hello from a loaded program!|gfx: Argument: world'  'run terminal' '<ret>' '<pause>' '<pause>' 'hello world' '<ret>' '<pause>' '<gfx>'
 check_all term-builtin 'gfx: hi there|gfx: Unknown command or program|gfx: F1-F4 sessions, F5 one/all windows, F10 quit'  'run terminal' '<ret>' '<pause>' '<pause>' 'echo hi there' '<ret>' nothing '<ret>' help '<ret>' '<pause>' '<pause>' '<gfx>'
-check_all term-input 'gfx: 1> wc|gfx: 2 3 14'  'run terminal' '<ret>' '<pause>' '<pause>' wc '<ret>' '<pause>' 'one two' '<ret>' three '<ret>' '<ctrl-d>' '<pause>' '<pause>' '<gfx>'
+check_all term-input 'gfx: 1> wc|gfx: 2 3 14'  'run terminal' '<ret>' '<pause>' '<pause>' wc '<ret>' '<pause>' '<pause>' 'one two' '<ret>' three '<ret>' '<ctrl-d>' '<pause>' '<pause>' '<pause>' '<gfx>'
 check_all term-sessions 'gfx: Terminal 1 - dbgtgt|gfx: 1> dbgtgt s|gfx: Terminal 2|gfx: 2> hello two|gfx: Argument: two'  'run terminal' '<ret>' '<pause>' '<pause>' 'dbgtgt s' '<ret>' '<pause>' '<f2>' '<pause>' 'hello two' '<ret>' '<pause>' '<f5>' '<pause>' '<gfx>'
 check_all term-ctrlc 'gfx: ^C|gfx: *** CPU exception 14 (page fault) in pid 3 (dbgtgt)|gfx: [exit code -1]'  'run terminal' '<ret>' '<pause>' '<pause>' 'dbgtgt s' '<ret>' '<pause>' '<ctrl-c>' '<pause>' 'dbgtgt f' '<ret>' '<pause>' '<pause>' '<gfx>'
-check_all term-debugger 'gfx: pid 3 hit breakpoint 1|gfx: pid 3 stopped|gfx: jmp 0x30073 <here.spin>|gfx: pid 3 ended (exit code -1)'  'run terminal' '<ret>' '<pause>' '<pause>' 'debugger dbgtgt s' '<ret>' '<pause>' 'b level1' '<ret>' c '<ret>' '<pause>' 'bd 1' '<ret>' c '<ret>' '<pause>' '<pause>' '<esc>' '<pause>' q '<ret>' '<pause>' '<pause>' '<gfx>'
+# lm64: debugger under the terminal needs long wall-clock gaps between dbg>
+# commands; a short gap leaves the guest still at entry and OCR misses the
+# breakpoint / spin / exit lines (CI shard 4).
+check_all term-debugger 'gfx: pid 3 hit breakpoint 1|gfx: pid 3 stopped|gfx: jmp 0x30073 <here.spin>|gfx: pid 3 ended (exit code -1)'  'run terminal' '<ret>' '<pause>' '<pause>' '<pause>' 'debugger dbgtgt s' '<ret>' '<pause>' '<pause>' '<pause>' 'b level1' '<ret>' '<pause>' '<pause>' c '<ret>' '<pause>' '<pause>' '<pause>' 'bd 1' '<ret>' '<pause>' c '<ret>' '<pause>' '<pause>' '<pause>' '<esc>' '<pause>' '<pause>' q '<ret>' '<pause>' '<pause>' '<pause>' '<gfx>'
 check_all term-quit 'systest: PASS|0        running  shell'  'run terminal' '<ret>' '<pause>' '<pause>' 'dbgtgt s' '<ret>' '<f2>' '<pause>' exit '<ret>' '<pause>' '<f10>' '<pause>' '<pause>' systest '<ret>' ps '<ret>'
 fi
 if in_group snd; then   # snd.img
