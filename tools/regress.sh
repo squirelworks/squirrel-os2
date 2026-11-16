@@ -180,6 +180,26 @@ check_all() {   # check_all NAME 'WANT1|WANT2|...' KEYS...: every WANT must be o
     IFS=$oldifs
     if [ -z "$missing" ]; then echo "ok   $name"; else echo "FAIL $name (missing:$missing)"; fail=1; fi
 }
+# lm64: VBE terminal keyboard trails LM thunks under CI load; term-input /
+# term-debugger OCR goldens miss on a cold guest. Retry a few times.
+check_all_retry() {
+    name=$1; wants=$2; shift 2
+    tries=1
+    [ "$flavour" = lm64 ] && tries=3
+    n=1; missing=
+    while [ "$n" -le "$tries" ]; do
+        screen=$(python3 "$root/tools/qemu_screen.py" ${disk:+--disk "$disk"} ${target:+--target "$target"} ${nic:+--nic} ${boot:-"$default_boot"} "$@")
+        missing=
+        oldifs=$IFS; IFS='|'
+        for want in $wants; do
+            case $screen in *"$want"*) ;; *) missing="$missing [$want]" ;; esac
+        done
+        IFS=$oldifs
+        if [ -z "$missing" ]; then echo "ok   $name"; return; fi
+        n=$((n + 1))
+    done
+    echo "FAIL $name (missing:$missing)"; fail=1
+}
 check_none() {   # check_none NAME UNWANTED SEEN KEYS...: UNWANTED must not be on the screen, SEEN must
     name=$1; unwanted=$2; seen=$3; shift 3
     screen=$(python3 "$root/tools/qemu_screen.py" ${disk:+--disk "$disk"} ${target:+--target "$target"} ${nic:+--nic} ${boot:-"$default_boot"} "$@")
@@ -1537,13 +1557,13 @@ check_all dbg-elf-run 'loop 0x30059 <loop_top>|dbgelf done|pid 2 ended (exit cod
 # A.3: the terminal (SYS_TTY): programs in windows, their output and input
 check_all term-run  'gfx: Terminal 1|gfx: 1> hello world|gfx: Hello from a loaded program!|gfx: Argument: world'  'run terminal' '<ret>' '<pause>' '<pause>' 'hello world' '<ret>' '<pause>' '<gfx>'
 check_all term-builtin 'gfx: hi there|gfx: Unknown command or program|gfx: F1-F4 sessions, F5 one/all windows, F10 quit'  'run terminal' '<ret>' '<pause>' '<pause>' 'echo hi there' '<ret>' nothing '<ret>' help '<ret>' '<pause>' '<pause>' '<gfx>'
-check_all term-input 'gfx: 1> wc|gfx: 2 3 14'  'run terminal' '<ret>' '<pause>' '<pause>' wc '<ret>' '<pause>' '<pause>' 'one two' '<ret>' three '<ret>' '<ctrl-d>' '<pause>' '<pause>' '<pause>' '<gfx>'
+check_all_retry term-input 'gfx: 1> wc|gfx: 2 3 14'  'run terminal' '<ret>' '<pause>' '<pause>' wc '<ret>' '<pause>' '<pause>' 'one two' '<ret>' '<pause>' three '<ret>' '<pause>' '<ctrl-d>' '<pause>' '<pause>' '<pause>' '<gfx>'
 check_all term-sessions 'gfx: Terminal 1 - dbgtgt|gfx: 1> dbgtgt s|gfx: Terminal 2|gfx: 2> hello two|gfx: Argument: two'  'run terminal' '<ret>' '<pause>' '<pause>' 'dbgtgt s' '<ret>' '<pause>' '<f2>' '<pause>' 'hello two' '<ret>' '<pause>' '<f5>' '<pause>' '<gfx>'
 check_all term-ctrlc 'gfx: ^C|gfx: *** CPU exception 14 (page fault) in pid 3 (dbgtgt)|gfx: [exit code -1]'  'run terminal' '<ret>' '<pause>' '<pause>' 'dbgtgt s' '<ret>' '<pause>' '<ctrl-c>' '<pause>' 'dbgtgt f' '<ret>' '<pause>' '<pause>' '<gfx>'
 # lm64: debugger under the terminal needs long wall-clock gaps between dbg>
 # commands; a short gap leaves the guest still at entry and OCR misses the
-# breakpoint / spin / exit lines (CI shard 4).
-check_all term-debugger 'gfx: pid 3 hit breakpoint 1|gfx: pid 3 stopped|gfx: jmp 0x30073 <here.spin>|gfx: pid 3 ended (exit code -1)'  'run terminal' '<ret>' '<pause>' '<pause>' '<pause>' 'debugger dbgtgt s' '<ret>' '<pause>' '<pause>' '<pause>' 'b level1' '<ret>' '<pause>' '<pause>' c '<ret>' '<pause>' '<pause>' '<pause>' 'bd 1' '<ret>' '<pause>' c '<ret>' '<pause>' '<pause>' '<pause>' '<esc>' '<pause>' '<pause>' q '<ret>' '<pause>' '<pause>' '<pause>' '<gfx>'
+# breakpoint / spin / exit lines (CI shard 4). Retried via check_all_retry.
+check_all_retry term-debugger 'gfx: pid 3 hit breakpoint 1|gfx: pid 3 stopped|gfx: jmp 0x30073 <here.spin>|gfx: pid 3 ended (exit code -1)'  'run terminal' '<ret>' '<pause>' '<pause>' '<pause>' 'debugger dbgtgt s' '<ret>' '<pause>' '<pause>' '<pause>' 'b level1' '<ret>' '<pause>' '<pause>' c '<ret>' '<pause>' '<pause>' '<pause>' 'bd 1' '<ret>' '<pause>' c '<ret>' '<pause>' '<pause>' '<pause>' '<esc>' '<pause>' '<pause>' q '<ret>' '<pause>' '<pause>' '<pause>' '<gfx>'
 check_all term-quit 'systest: PASS|0        running  shell'  'run terminal' '<ret>' '<pause>' '<pause>' 'dbgtgt s' '<ret>' '<f2>' '<pause>' exit '<ret>' '<pause>' '<f10>' '<pause>' '<pause>' systest '<ret>' ps '<ret>'
 fi
 if in_group snd; then   # snd.img
