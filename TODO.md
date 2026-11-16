@@ -329,7 +329,7 @@ From the 2.3 milestone in `ROADMAP.md`. Start after **2.2-progwin** is on `main`
 - [x] **2.3-clipboard** — Clipboard: kernel text clipboard with syscalls to put and get, Ctrl+Ins / Shift+Ins / Shift+Del (and Ctrl+C / Ctrl+V) in field widgets and the editors, and a Clipboard viewer program. `cbtest` (2.1 already has a `cliptest`) copies from a field and pastes into another → `clip: PASS`; checks `cbtest`, `ed-clip-*`, `clip-*`.
 - [x] **2.3-control** — Control Panel v1: colours (theme scheme from **W.1-theme**), mouse (double-click time, button swap, speed), date and time (reads and sets the RTC), keyboard (repeat rate and delay). Settings saved in `/desktop/control.cfg` and applied at boot. Checks that a change survives a reboot (`cp-*`).
 - [x] **2.3-bevel-default** — Warp-style bevelled 3D controls are the default for every widget (buttons press in, fields and lists are sunken, group boxes etched), all through `gfx_bevel` and `theme.inc`. Pixel-probe check `bevwidgets` → `bevwidgets: PASS`.
-- [x] **2.3.0** — The release. Every 2.2 and 2.3 box above is on `main`: release note `documentation/releases/2.3.0.md`, banner `2.3.0`, PROCESS table, README, HANDOFF. Prep merged as #173; **notes retargeted for tip cut**; **tag still `needs: squirrel`** after remaining gate PR #205 lands (~~#184~~ / ~~#197~~ / ~~#204~~ already on `main`; see HANDOFF **Release coordination** and `documentation/releases/TO_3.0.0.md`). **Ask the owner before tagging.**
+- [x] **2.3.0** — The release. Every 2.2 and 2.3 box above is on `main`: release note `documentation/releases/2.3.0.md`, banner `2.3.0`, PROCESS table, README, HANDOFF. Prep #173; retarget #205; owner tagged **`v2.3.0`** (2026-11-15, tip `59069e3`). Ladder: `documentation/releases/TO_3.0.0.md`.
 
 ## 2.5 — WarpCenter / LaunchPad (includes W.3)
 
@@ -357,8 +357,8 @@ From the 2.6 milestone in `ROADMAP.md` and W.2 / W.4 / W.5 in epic #117. Start a
 
 From W.6 in `ROADMAP.md` / epic #117. Start after **2.6-icons** and **2.6-context** are on `main`. Drive and Shredder object classes are already on `main` (**2.7-objects** in `kernel/fsobj.asm`); these boxes put Startup and System Setup beside them on the Generation-2 desktop and wire all four through icons, context menus and notebooks.
 
-- [ ] **W.6-startup** *(claimed lane `-2eaf`; #209; start after 2.6 icons/shadows on `main`)* — A Startup folder: objects (or shadows) placed in it are opened when the desktop starts; removing one stops that. Check `w6-startup` → `startup: PASS`.
-- [ ] **W.6-syssetup** *(claimed lane `-2eaf`; #210; start after 2.6 icons/shadows on `main`)* — A System Setup object that opens the system setup folder / Control Panel entry points; together with Drive and Shredder icons on the desktop, right-click and Settings notebook work like any other object. Check `w6-setup` → `syssetup: PASS`.
+- [ ] **W.6-startup** *(claimed lane `-2eaf`; #209; unpaused after `v2.3.0`)* — A Startup folder: objects (or shadows) placed in it are opened when the desktop starts; removing one stops that. Check `w6-startup` → `startup: PASS`.
+- [ ] **W.6-syssetup** *(claimed lane `-2eaf`; #210; unpaused after `v2.3.0`)* — A System Setup object that opens the system setup folder / Control Panel entry points; together with Drive and Shredder icons on the desktop, right-click and Settings notebook work like any other object. Check `w6-setup` → `syssetup: PASS`.
 
 ## Path to 3.0.0 (version marks)
 
@@ -367,9 +367,9 @@ Fine-grain ladder, owners, acceptance, depends-on:
 Index also in `ROADMAP.md`. Tick the matching mark when that cut’s last PR lands
 (and for ship tags, when the owner publishes).
 
-- [ ] **M0 / 2.3.0 tip** *(owner after gate PRs)* — ~~#184~~ + ~~#197~~ + ~~#204~~ on `main`; land #205; retargeted `2.3.0.md`; owner tags `v2.3.0`
+- [x] **M0 / 2.3.0 tip** *(owner)* — ~~#184~~ + ~~#197~~ + ~~#204~~ + ~~#205~~ on `main`; retargeted `2.3.0.md`; owner tagged `v2.3.0` (tip `59069e3`)
 - [ ] **M1 / 2.3.1** *(`-2eaf`, #209)* — `W.6-startup-2eaf` → `startup: PASS`
-- [ ] **M2 / 2.3.2** *(`-b55f`, #211)* — ring-3 programs under permanent stay (after #204)
+- [ ] **M2 / 2.3.2** *(`-b55f`, #211; *(in progress)* sibling `bc-bba0fac7`)* — ring-3 programs under permanent stay (after #204)
 - [ ] **M3 / 2.3.25** *(`-2eaf`, #210)* — `W.6-syssetup-2eaf` → `syssetup: PASS`
 - [ ] **M4 / 2.6.0** *(shared / owner)* — Generation 2 declared complete; banner `2.6.0`
 - [ ] **M6 / 2.9.0** *(`-b55f`)* — tick `2.9-lm-kernel` (stay + boot64 + ring-3 stay + x86_64 flavour)
@@ -470,10 +470,10 @@ From the 2.8–2.9 bridge in `ROADMAP.md` (the hardware drivers H.1–H.6 are th
 - [x] **2.8-smp-sched** — Per-CPU run queues: the APs run ring-3 threads, the kernel is entered under one lock, IPIs wake idle CPUs. A check runs four spinning threads at once on four CPUs.
 - [x] **2.8-pae** — The 32-bit kernel's paging on PAE (64-bit entries), the format long mode shares; NX on the heap and stacks. Checks `nx-heap`, `nx-stack`, `cpu-pentium3`.
 - [x] **2.9-lm-boot64** *(landed #204 + follow-ups #222, lane `-b55f`)* — Boot-time / `LM_BOOT64` everyday long-mode stay (`lmboot` command, os-lm64.img; nestable `lm64_call32`, everyday IRQ0/1/12 + `int 0x80` gates, `lm_enter_everyday` / `lm_boot_enter`). #222: nest EOI on overflow, nestable thunk CR3 frames, syscall return in eax. Checks `lm-boot`, `lm-boot-again`, `lm-boot64`, `lm-boot64-again`, `lm-boot-nolm`, `lm-boot64-nolm`. Does **not** alone tick `2.9-lm-kernel`.
-- [ ] **2.9-lm-ring3-stay** *(claimed lane `-b55f` — after boot64; mark **2.3.2**; paused until tip cut + Sarah/credits go)* — Ring-3 programs run while permanent stay is active. Check existing `ring3` / desktop suite under stay.
+- [ ] **2.9-lm-ring3-stay** *(claimed lane `-b55f`; mark **2.3.2**; *(in progress)* sibling `bc-bba0fac7` / #211 — do not duplicate)* — Ring-3 programs run while permanent stay is active. Check existing `ring3` / desktop suite under stay.
 - [ ] **2.9-lm-kernel** *(IDT stay #189 + paging #193 + stay+thunks #196 + boot64 `lmboot`/`os-lm64.img` #204/#222 on `main`; + ring3-stay — mark **2.9.0**, lane `-b55f` — do not tick until boot stays + ring-3 under stay + x86_64 suite flavour)* — The kernel stays in long mode: 64-bit IDT and TSS (IST for double faults), 4-level per-process address spaces, the 32-bit kernel code reached through compatibility-mode thunks until it is ported, and 32-bit programs in compatibility mode. The whole regression suite passes under `qemu-system-x86_64`.
-- [ ] **2.9-syscall64** *(claimed lane `-b55f` — after 2.9-lm-kernel; mark **2.9.1**; paused until tip cut + Sarah/credits go; also #221)* — 64-bit programs: an ELF64 loader and the `syscall`/`sysret` ABI (STAR/LSTAR, 64-bit call table, pointer checks), with `int 0x80` unchanged for 32-bit programs. A `hello64` check. **Also:** under permanent LM stay, Linux/BSD `int 0x80` currently returns `-ENOSYS` from `lm64_syscall_isr` because `lx_isr` still `iretd`s; teach the personality a returnable body through `lm64_call32` (or native `syscall`) so `lxhello` works on `os-lm64.img`.
-- [ ] **2.9-freestanding-c** *(claimed lane `-b55f` / shared — mark **2.9.25**; #212; CONTINUANCE 3a; paused until tip cut + Sarah/credits go)* — Wire freestanding C objects into `tools/build.sh`; one trivial linked symbol; NASM boot/entry unchanged.
+- [ ] **2.9-syscall64** *(claimed lane `-b55f` — after 2.9-lm-kernel; mark **2.9.1**; also #221)* — 64-bit programs: an ELF64 loader and the `syscall`/`sysret` ABI (STAR/LSTAR, 64-bit call table, pointer checks), with `int 0x80` unchanged for 32-bit programs. A `hello64` check. **Also:** under permanent LM stay, Linux/BSD `int 0x80` currently returns `-ENOSYS` from `lm64_syscall_isr` because `lx_isr` still `iretd`s; teach the personality a returnable body through `lm64_call32` (or native `syscall`) so `lxhello` works on `os-lm64.img`.
+- [ ] **2.9-freestanding-c** *(claimed lane `-b55f` / shared — mark **2.9.25**; #212; CONTINUANCE 3a)* — Wire freestanding C objects into `tools/build.sh`; one trivial linked symbol; NASM boot/entry unchanged.
 
 ## Modern hardware (2.8–2.9)
 
@@ -497,6 +497,8 @@ Scheduled in the 64-bit bridge, 2.8–2.9 in `ROADMAP.md`. Each box is one PR, a
 Ground / lab host only — **not** flight-critical FCC loops (those stay on a small
 RTOS + SquirrelBIOS). Soft app SoT: `squirrelsoft/squirrelflightlab/`. Gap matrix:
 `documentation/guides/ism-flightlab-gaps.md`. Do not take W.6 (`-2eaf`).
+**Background vs core:** do **not** put #225 ahead of ring-3 / 2.9 ladder work;
+no separate lab branch racing core. Land on `main` when natural.
 
 - [x] **ISM-gaps-b55f** — Gap list: what Flight Lab / sims need from OS/2 (runtime,
   numerics, file formats, plotting, serial, timing, packaging). Design note:

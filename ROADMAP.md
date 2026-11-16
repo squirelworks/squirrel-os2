@@ -20,7 +20,7 @@ The code in this tree is project-native. Early releases are not described as OS/
 | **4.x** | The "Windows 10/11 class" generation: HiDPI, touch, accessibility, a package manager. |
 
 1.0.0 is released (2026-10-31, `documentation/releases/1.0.0.md`).
-**2.0.0** is released (2026-11-01, `documentation/releases/2.0.0.md`), and so are **2.0.1** and **2.0.2** (2026-11-04), which finish the 2.0.x clean-up. **2.1.0** (2.1 framebuffer graphics and 2.4 ring 3, plus apps, games and foreign programs) was released 2026-11-13 (`documentation/releases/2.1.0.md`). **2.3.0** is the next owner-published tag: **finish open gate PRs, then tag the tip** (retargeted notes in `documentation/releases/2.3.0.md` — not prep-only `fc3ae21`). Fine-grain marks through **3.0.0**: [`documentation/releases/TO_3.0.0.md`](documentation/releases/TO_3.0.0.md). Boxes in `TODO.md` and `HANDOFF.md`.
+**2.0.0** is released (2026-11-01, `documentation/releases/2.0.0.md`), and so are **2.0.1** and **2.0.2** (2026-11-04), which finish the 2.0.x clean-up. **2.1.0** (2.1 framebuffer graphics and 2.4 ring 3, plus apps, games and foreign programs) was released 2026-11-13 (`documentation/releases/2.1.0.md`). **2.3.0** is released (2026-11-15, tip `59069e3` after #184/#197/#204/#205; notes in `documentation/releases/2.3.0.md`). Fine-grain marks through **3.0.0**: [`documentation/releases/TO_3.0.0.md`](documentation/releases/TO_3.0.0.md). Boxes in `TODO.md` and `HANDOFF.md`.
 
 SquirrelBIOS (github.com/squirelworks/squirrelbios) is the firmware this system is meant to sit on; booting Squirrel-OS/2 is its main acceptance test. Squirrel-OS/2 keeps booting under SeaBIOS in QEMU as well. Many built-in applications are first built as desktop programs in squirrelsoft and then ported here.
 
@@ -53,12 +53,10 @@ the whole calculator suite, foreign programs P.1, P.2, P.5, P.6 (including Win32
 (including DOS window), P.9 (32-bit LX) and P.10 (FreeBSD), 2.5 WarpCenter, 2.6-context/notebook/shadows,
 W.2-templates (#191), W.3-launchpad (#183), W.4-views, W.5-openas (#192), and the 2.9 IDT/TSS stay +
 paging + thunks + boot64 slices (#189, #193, #196, #204 / `lmboot` / `os-lm64.img`).
-**Release (2026-11-15 tip-cut plan):** last published tag is still `v2.1.0`; banner is `2.3.0`.
-**Cut rule:** land gate PRs #184 / #197 / #204 / #205, then owner publishes `v2.3.0` from **that tip**
-(retargeted notes). **Supersedes** tagging `fc3ae21` alone. ~~#184~~ / ~~#197~~ / ~~#204~~ are on
-`main`; remaining open gate: #205. Ladder to 3.0.0:
+**Release (2026-11-16):** published tag **`v2.3.0`** (2026-11-15, tip `59069e3` after
+#184 / #197 / #204 / #205). Banner remains `2.3.0` until a later mark. Ladder to 3.0.0:
 [`documentation/releases/TO_3.0.0.md`](documentation/releases/TO_3.0.0.md). See `HANDOFF.md`
-**Release coordination**.
+**Release coordination** (MERGE-WAIT lifted; next `-b55f` = ring-3 stay #211).
 
 ## Where things were at the 2.1.0 release
 
@@ -194,9 +192,9 @@ Numbered marks, owners, acceptance, and depends-on live in
 
 | Mark | Title | Lane |
 |------|-------|------|
-| **2.3.0** | Tip cut after #184/#197/#204/#205 | owner |
+| **2.3.0** | Tip cut after #184/#197/#204/#205 — **tagged** | owner |
 | **2.3.1** | W.6-startup | `-2eaf` |
-| **2.3.2** | ring-3 under permanent stay | `-b55f` |
+| **2.3.2** | ring-3 under permanent stay (#211, *(in progress)*) | `-b55f` |
 | **2.3.25** | W.6-syssetup | `-2eaf` |
 | **2.6.0** | Generation 2 declared complete | shared / owner |
 | **2.9.0** | tick `2.9-lm-kernel` | `-b55f` |
