@@ -439,14 +439,24 @@ as_free_table:
     ret
 
 ; edi = PCB: loads its page directory (if not already loaded).
+; Under a permanent long-mode stay (lm_perm), CR3 must be the 4-level
+; PML4 from as_lm_cr3 — a PAE PDPT is not a valid long-mode root and
+; triple-faults as soon as ring-3 code runs (2.9-lm-ring3-stay).
 ; Clobbers eax, ebx.
 vm_load:
-    mov eax, [kernel_pd]
     mov ebx, [edi+PCB_AS]
+    cmp dword [lm_perm], 0
+    jne .stay
+    mov eax, [kernel_pd]
     test ebx, ebx
-    jz .k
+    jz .set
     mov eax, [ebx+AS_PD]
-.k:
+    jmp .set
+.stay:
+    mov eax, ebx                ; AS record, or 0 for the kernel/shell
+    call as_lm_cr3
+    jc .r
+.set:
     mov ebx, cr3
     cmp eax, ebx
     je .r
@@ -584,6 +594,16 @@ as_pte:
     or eax, PG_P                ; PDPTE: W is reserved
     mov [ebx], eax
     mov dword [ebx+4], 0
+    ; Permanent stay walks the LM PDPT: mirror a new PAE PDPTE there
+    ; (ring-3 stacks live in PDPT[1] at 0x7FC00000 — 2.9-lm-ring3-stay).
+    cmp dword [lm_perm], 0
+    je .have_pd
+    push eax
+    mov eax, ebp
+    call as_lm_sync
+    mov eax, cr3
+    mov cr3, eax                ; flush cached non-present walks
+    pop eax
 .have_pd:
     and eax, -PAGE_SIZE
     mov edx, esi
@@ -828,7 +848,7 @@ as_lm_sync:
     test eax, eax
     jz .fail_pml4
     mov edx, eax
-    or eax, PG_P|PG_W
+    or eax, PG_P|PG_W|PG_U      ; U: ring-3 page walks under permanent stay
     mov [ebx], eax              ; PML4[0] -> LM PDPT (high dword 0)
     mov dword [ebx+4], 0
     mov [edi], ebx
@@ -838,13 +858,17 @@ as_lm_sync:
 .refresh:
     mov edx, [ebx]              ; LM PDPT
     and edx, -PAGE_SIZE
+    ; Existing PML4[0] may predate the U bit — keep it user-walkable.
+    mov eax, [ebx]
+    or eax, PG_P|PG_W|PG_U
+    mov [ebx], eax
     xor ecx, ecx                ; PDPTE index 0..3
 .copy:
     mov eax, [esi+ecx*8]
     test eax, PG_P
     jz .empty
     and eax, -PAGE_SIZE
-    or eax, PG_P|PG_W           ; long-mode PDPTE: W allowed
+    or eax, PG_P|PG_W|PG_U      ; long-mode PDPTE: W + U (ring-3 stay)
     mov [edx+ecx*8], eax
     mov dword [edx+ecx*8+4], 0
     jmp .next

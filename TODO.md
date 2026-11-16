@@ -369,7 +369,7 @@ Index also in `ROADMAP.md`. Tick the matching mark when that cut’s last PR lan
 
 - [x] **M0 / 2.3.0 tip** *(owner)* — ~~#184~~ + ~~#197~~ + ~~#204~~ + ~~#205~~ on `main`; retargeted `2.3.0.md`; owner tagged `v2.3.0` (tip `59069e3`)
 - [ ] **M1 / 2.3.1** *(`-2eaf`, #209)* — `W.6-startup-2eaf` → `startup: PASS`
-- [ ] **M2 / 2.3.2** *(`-b55f`, #211; *(in progress)* sibling `bc-bba0fac7`)* — ring-3 programs under permanent stay (after #204)
+- [x] **M2 / 2.3.1** *(`-b55f`, #211; ladder name was 2.3.2 — next free patch after v2.3.0)* — ring-3 under permanent stay (`lm64-hello` / `lm64-ring3`)
 - [ ] **M3 / 2.3.25** *(`-2eaf`, #210)* — `W.6-syssetup-2eaf` → `syssetup: PASS`
 - [ ] **M4 / 2.6.0** *(shared / owner)* — Generation 2 declared complete; banner `2.6.0`
 - [ ] **M6 / 2.9.0** *(`-b55f`)* — tick `2.9-lm-kernel` (stay + boot64 + ring-3 stay + x86_64 flavour)
@@ -470,7 +470,7 @@ From the 2.8–2.9 bridge in `ROADMAP.md` (the hardware drivers H.1–H.6 are th
 - [x] **2.8-smp-sched** — Per-CPU run queues: the APs run ring-3 threads, the kernel is entered under one lock, IPIs wake idle CPUs. A check runs four spinning threads at once on four CPUs.
 - [x] **2.8-pae** — The 32-bit kernel's paging on PAE (64-bit entries), the format long mode shares; NX on the heap and stacks. Checks `nx-heap`, `nx-stack`, `cpu-pentium3`.
 - [x] **2.9-lm-boot64** *(landed #204 + follow-ups #222, lane `-b55f`)* — Boot-time / `LM_BOOT64` everyday long-mode stay (`lmboot` command, os-lm64.img; nestable `lm64_call32`, everyday IRQ0/1/12 + `int 0x80` gates, `lm_enter_everyday` / `lm_boot_enter`). #222: nest EOI on overflow, nestable thunk CR3 frames, syscall return in eax. Checks `lm-boot`, `lm-boot-again`, `lm-boot64`, `lm-boot64-again`, `lm-boot-nolm`, `lm-boot64-nolm`. Does **not** alone tick `2.9-lm-kernel`.
-- [ ] **2.9-lm-ring3-stay** *(claimed lane `-b55f`; mark **2.3.2**; *(in progress)* sibling `bc-bba0fac7` / #211 — do not duplicate)* — Ring-3 programs run while permanent stay is active. Check existing `ring3` / desktop suite under stay.
+- [x] **2.9-lm-ring3-stay** *(lane `-b55f`; mark **2.3.1** this cut / ladder M2; #211)* — Ring-3 programs run while permanent stay is active. Checks `lm64-hello`, `lm64-ring3`.
 - [ ] **2.9-lm-kernel** *(IDT stay #189 + paging #193 + stay+thunks #196 + boot64 `lmboot`/`os-lm64.img` #204/#222 on `main`; + ring3-stay — mark **2.9.0**, lane `-b55f` — do not tick until boot stays + ring-3 under stay + x86_64 suite flavour)* — The kernel stays in long mode: 64-bit IDT and TSS (IST for double faults), 4-level per-process address spaces, the 32-bit kernel code reached through compatibility-mode thunks until it is ported, and 32-bit programs in compatibility mode. The whole regression suite passes under `qemu-system-x86_64`.
 - [ ] **2.9-syscall64** *(claimed lane `-b55f` — after 2.9-lm-kernel; mark **2.9.1**; also #221)* — 64-bit programs: an ELF64 loader and the `syscall`/`sysret` ABI (STAR/LSTAR, 64-bit call table, pointer checks), with `int 0x80` unchanged for 32-bit programs. A `hello64` check. **Also:** under permanent LM stay, Linux/BSD `int 0x80` currently returns `-ENOSYS` from `lm64_syscall_isr` because `lx_isr` still `iretd`s; teach the personality a returnable body through `lm64_call32` (or native `syscall`) so `lxhello` works on `os-lm64.img`.
 - [ ] **2.9-freestanding-c** *(claimed lane `-b55f` / shared — mark **2.9.25**; #212; CONTINUANCE 3a)* — Wire freestanding C objects into `tools/build.sh`; one trivial linked symbol; NASM boot/entry unchanged.

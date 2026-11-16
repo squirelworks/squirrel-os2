@@ -98,7 +98,16 @@ thunks for the remaining 32-bit kernel, 32-bit programs in compatibility mode). 
   `lm-boot-again`, `lm-boot64`, `lm-boot64-again`, and the `-nolm` pair under `qemu-system-i386`.
   `systest` and `lmtest` pass under the boot64 image on `qemu-system-x86_64`.
 
-Still open for the full TODO box: 32-bit user programs in compatibility mode under a permanent
-stay (exception trampolines / ring-3 return paths; `run hello` on `os-lm64.img` is not green yet),
-and running the whole regression suite with the long-mode flavour as everyday mode under
-`qemu-system-x86_64`.
+### Ring-3 under permanent stay (`lm64-hello` / `lm64-ring3`)
+
+- While `lm_perm` is set, `vm_load` / the loader / `vm_reload_kernel` put the process (or
+  kernel) **PML4** in CR3, not the PAE PDPT. Long-mode PDPTE and `PML4[0]` carry `PG_U` so
+  ring-3 walks succeed; `as_pte` refreshes the LM wrapper when it creates a new PAE PDPTE
+  (ring-3 stacks live in PDPT[1]).
+- Vectors 0..31 (except `#DF` on IST1) use 64-bit stubs that call `exc_report` through
+  `lm64_call32`. Stack growth resumes with `iretq` after restoring GPRs; other faults kill
+  the process. `smp_on_ap` treats selector `0xC8` (`SEL_TSS64`) as the BSP.
+- Checks: `lm64-hello`, `lm64-ring3` on `os-lm64.img` under `qemu-system-x86_64`.
+
+Still open for the full TODO box: running the whole regression suite with the long-mode
+flavour as everyday mode under `qemu-system-x86_64` (then tick `2.9-lm-kernel`).

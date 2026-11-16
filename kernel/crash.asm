@@ -270,11 +270,20 @@ shell_restart:
     jmp pm.cmdloop
 
 ; Loads the kernel page directory (the shell's) if another is loaded.
+; Under permanent stay, load the kernel PML4 (see vm_load).
 vm_reload_kernel:
     push eax
+    cmp dword [lm_perm], 0
+    jne .stay
     mov eax, [kernel_pd]
     test eax, eax
     jz .r                       ; paging not on yet
+    mov cr3, eax
+    jmp .r
+.stay:
+    xor eax, eax
+    call as_lm_cr3
+    jc .r
     mov cr3, eax
 .r:
     pop eax
