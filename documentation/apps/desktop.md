@@ -229,3 +229,12 @@ The system still boots to the shell prompt. To boot into the desktop, put a line
 ## Testing
 
 The regression run cannot read graphics from the VGA text buffer, so `tools/qemu_screen.py` has a `<gfx>` key. It takes a screen dump and reads the text drawn with the kernel's 5 × 7 font at any pixel offset. It prints each run of text it finds as a `gfx: ...` line. A cell counts when its spacing column and bottom row are one colour, and its other pixels then give the glyph. Checks: `desktop` (title and the five names), `desktop-quit` (`systest: PASS` after Esc), `desktop-calc` (`calc> 2 + 2` and `= 4` in the window), `desktop-calc-back` (the desktop after Esc in `calc`), `desktop-calc-mem` (the page is freed), `desktop-calc-text` (the shell screen is intact afterwards), `desktop-draw` (two plotted cells next to the canvas border, read off the window), `desktop-draw-save` (the saved file holds them), `desktop-draw-back`, `desktop-draw-mem` and `desktop-draw-text` (as for `calc`), `gfx-read-list` (the reader on `listtest`), and `desktop-boot` / `desktop-boot-quit` (a data disk whose `autoexec.bat` is `desktop`).
+
+## Startup (W.6)
+
+A top-level folder named `Startup` under `/desktop` holds Programs (and
+Shadows) that are opened when `desktop` or `progman` starts (`stu_run` in
+`kernel/startup.asm`). Nested Folders inside Startup are not auto-opened.
+Removing an object from Startup (or deleting it) stops that. The self-check
+`w6startup` prints `startup: PASS`.
+

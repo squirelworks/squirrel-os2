@@ -30,6 +30,7 @@ cmd_desktop_run:
     mov [dk_oy], eax
     add [mouse_y], eax
     call dk_mkobjs              ; the entries are objects (1.7.6)
+    call stu_run                ; W.6: open Startup contents
     mov dword [dk_cur], 0       ; the top level (1.9.0)
     mov eax, DK_X
     mov ebx, DK_Y
@@ -594,6 +595,7 @@ dk_mkobjs:
     jb .b
 .wps:
     call wps_attach             ; W.2: Templates folder + templates
+    call stu_attach             ; W.6: Startup folder
 .out:
     mov byte [dk_wrote], 0
     popad

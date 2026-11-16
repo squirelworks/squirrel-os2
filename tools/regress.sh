@@ -729,6 +729,12 @@ check fold-views    'foldview: PASS'        foldview '<ret>'
 # W.5-openas: Open as → Icon / Tree / Details / Settings on a folder; Settings on objects
 check openas        'openas: PASS'          openas '<ret>' '<pause>'
 check openas-text   'systest: PASS'         openas '<ret>' '<pause>' systest '<ret>'
+# W.6-startup: Startup folder auto-opens Programs at desktop start
+python3 "$root/tools/sqfs.py" "$out/stu.img" format 1024 >/dev/null
+disk=$out/stu.img
+check w6-startup    'startup: PASS'         w6startup '<ret>'
+check w6-startup-text 'systest: PASS'       w6startup '<ret>' systest '<ret>'
+disk=$pm_disk
 # 2.3-filemgr: the File Manager on a disk of its own: /w holds a.txt and sub
 python3 "$root/tools/sqfs.py" "$out/fm.img" format 1024 >/dev/null
 disk=$out/fm.img

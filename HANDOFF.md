@@ -72,7 +72,8 @@ Soft agent owns Soft tracks (ISM fighter-jet Soft UI apps / Eric companion apps)
 - [x] `2.6-icons-2eaf` / `2.6-drag-2eaf` — PR #184
 - [x] `2.6-shadows-2eaf` — PR #188
 - [x] `W.5-openas-2eaf` — PR #192
-- [ ] `W.6-startup-2eaf` / `W.6-syssetup-2eaf` — claimed (#209 / #210); **unpaused** after `v2.3.0`
+- [x] `W.6-startup-2eaf` — this PR (#209)
+- [ ] `W.6-syssetup-2eaf` — claimed (#210)
 
 **`-b55f` does not take** desktop/Warp boxes while `-2eaf` owns them.  
 **`-2eaf` does not take** `2.9-lm-*-b55f` / `2.9-syscall64-b55f` while `-b55f` owns them.
@@ -245,15 +246,14 @@ host `fatimg.py check`, and `fattest` on the formatted images.
   objects `wps: PASS`; "Open as → …" `openas: PASS`; shadow follows rename
   across reboot `dk-shadow: PASS`.
 
-### W.6 — Startup and System Setup (with 2.6 + 2.7-objects)  `-2eaf` (claimed)
-- **Split done:** `TODO.md` boxes `W.6-startup-2eaf`, `W.6-syssetup-2eaf`.
-  Drive and Shredder classes are already on `main` (**2.7-objects**); this
-  card wires Startup and System Setup into the Generation-2 desktop.
-- **Files:** `kernel/desktop.asm`, `kernel/fsobj.asm`, `kernel/object.asm`,
-  `documentation/apps/desktop.md`, `documentation/kernel/fat.md`.
-- **Acceptance:** Startup opens its contents at desktop start `startup: PASS`;
-  System Setup opens setup entry points and Drive/Shredder behave as desktop
-  objects `syssetup: PASS`.
+### W.6-startup — Startup folder  `-2eaf`  `status: done` (this PR, #209)
+- `kernel/startup.asm`: `stu_attach` / `stu_run`; wired from `dk_mkobjs`,
+  `desktop`, `progman`. Check `w6-startup` → `startup: PASS`.
+- **Next:** `W.6-syssetup-2eaf` (#210) → Gen2 ship `2.6.0`.
+
+### W.6-syssetup — System Setup object  `-2eaf` (claimed, #210)
+- System Setup opens setup entry points; Drive/Shredder behave as desktop
+  objects. Acceptance `syssetup: PASS` / `w6-setup`.
 
 ### 2.8-pae — PAE paging and NX  `status: done`
 PAE + NX on `main`. Checks `nx-heap`, `nx-stack`, `cpu-pentium3`.

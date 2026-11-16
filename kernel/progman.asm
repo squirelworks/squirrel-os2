@@ -57,6 +57,7 @@ cmd_progman_run:
     shr eax, 1
     mov [dk_oy], eax
     call dk_mkobjs
+    call stu_run                ; W.6: open Startup contents
     call pm_build
     call pm_load
     mov byte [dk_quit], 0
