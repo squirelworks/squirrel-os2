@@ -119,15 +119,15 @@ Lanes run **in parallel**. Within a lane, keep order.
 
 ## Phase 2 — Everyday long-mode kernel (`-b55f` spine)
 
-### M6 — `2.9.0` tick `2.9-lm-kernel`  ·  `-b55f`  ·  depends: M2 + x86_64 suite flavour
+### M6 — `2.9.0` tick `2.9-lm-kernel`  ·  `-b55f`  ·  depends: M2 + x86_64 suite flavour — **done this cut**
 
 | Field | Value |
 |-------|-------|
 | **Bump** | Jump to **`2.9.0`** (ROADMAP bridge ship) |
-| **Box** | `2.9-lm-kernel-tick-b55f` — tick TODO / ROADMAP / #132 only when **all** of: stay+thunks (#196), boot64 (#204), ring-3 under stay (M2), and `regress.sh` under `qemu-system-x86_64` with the long-mode build flavour, plus BIOS/`i386` flavour still green |
+| **Box** | `2.9-lm-kernel-tick-b55f` — tick TODO / ROADMAP / #132 when **all** of: stay+thunks (#196), boot64 (#204), ring-3 under stay (M2 / #231), and `REGRESS_FLAVOUR=lm64` under `qemu-system-x86_64`, plus BIOS/`i386` flavour still green |
 | **CONTINUANCE 3a** | Freestanding C allowed for **new** 2.9+ subsystems; NASM for boot/entry; docs already in `documentation/architecture/overview.md` |
 | **Acceptance** | Full suite both flavours; box ticked; note `2.9.0.md` |
-| **Non-goals** | ELF64 `syscall` (that is M7) |
+| **Non-goals** | ELF64 `syscall` (that is M7); foreign personality under stay (skip on lm64 until M7) |
 
 ### M7 — `2.9.1` `2.9-syscall64` / `hello64`  ·  `-b55f`  ·  depends: M6
 

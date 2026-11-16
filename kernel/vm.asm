@@ -532,7 +532,9 @@ sys_sbrk:
     ret
 
 ; ebp = address space (the current one), esi = first page, edi = end:
-; maps fresh pages -> esi = where it stopped, CF if memory ran out
+; maps fresh pages -> esi = where it stopped, CF if memory ran out.
+; Under permanent stay a CR3 reload at the end drops any cached
+; non-present walks so the new PTEs are visible (2.9-lm-kernel).
 heap_map:
     cmp esi, edi
     jae .ok
@@ -546,12 +548,18 @@ heap_map:
     call vm_nx_hi
     mov [ebx+4], eax
     inc dword [ebp+AS_PAGES]
+    invlpg [esi]
     add esi, PAGE_SIZE
     jmp heap_map
 .no:
     stc
     ret
 .ok:
+    cmp dword [lm_perm], 0
+    je .ok_clc
+    mov eax, cr3
+    mov cr3, eax
+.ok_clc:
     clc
 .r:
     ret
@@ -723,6 +731,9 @@ vm_ustack_fault:
 ; Identity-maps enough 2 MB pages (PAE PS) in the kernel page tables to
 ; cover [eax, eax+ecx). Addresses below MM_LIMIT are already mapped.
 ; Reloads CR3. CF set if ecx is 0. Keeps registers (pushad/popad).
+; Under permanent long-mode stay CR3 is a PML4, not a PAE PDPT: never
+; feed it to vm_pde_in_root (that would corrupt PML4[0..3]). Map the
+; process PAE PDPT instead and refresh the LM wrappers (2.9-lm-kernel).
 vm_map_range:
     pushad
     test ecx, ecx
@@ -744,6 +755,8 @@ vm_map_range:
     or eax, PG_P|PG_W|PG_PS
     mov [ebx], eax
     mov dword [ebx+4], 0
+    cmp dword [lm_perm], 0
+    jne .stay_cur               ; CR3 is PML4 — do not treat as PAE PDPT
     mov ecx, cr3                ; and in the directory in use, when a
     and ecx, -4096              ; program asked (2.2-progwin)
     cmp ecx, [kernel_pd]
@@ -756,12 +769,59 @@ vm_map_range:
     or eax, PG_P|PG_W|PG_PS
     mov [ebx], eax
     mov dword [ebx+4], 0
+    jmp .next
+.stay_cur:
+    mov eax, [proc_cur]
+    test eax, eax
+    jz .next
+    mov eax, [eax+PCB_AS]
+    test eax, eax
+    jz .next                    ; shell shares the kernel tables
+    mov eax, [eax+AS_PD]
+    test eax, eax
+    jz .next
+    mov esi, edx
+    call vm_pde_in_root
+    jc .next
+    mov eax, edx
+    or eax, PG_P|PG_W|PG_PS
+    mov [ebx], eax
+    mov dword [ebx+4], 0
 .next:
     add edx, PAE_2MB
     jmp .map
 .ok:
+    cmp dword [lm_perm], 0
+    jne .lm_ok
     mov eax, cr3                ; flush TLB / reload PAE PDPTRs
     mov cr3, eax
+    popad
+    clc
+    ret
+.lm_ok:
+    ; New PAE PDPTEs (high MMIO) must appear in the LM PDPT; shared PDs
+    ; already show new PDEs, but a fresh PDPTE does not until sync.
+    xor eax, eax
+    call as_lm_sync             ; kernel wrapper
+    mov eax, [proc_cur]
+    test eax, eax
+    jz .lm_cr3
+    mov eax, [eax+PCB_AS]
+    test eax, eax
+    jz .lm_cr3
+    call as_lm_sync             ; current process wrapper
+.lm_cr3:
+    mov edi, [proc_cur]
+    test edi, edi
+    jz .lm_kern
+    call vm_load                ; PML4 for this PCB (or kernel if AS=0)
+    jmp .lm_done
+.lm_kern:
+    xor eax, eax
+    call as_lm_cr3
+    jc .lm_done
+    mov cr3, eax
+.lm_done:
     popad
     clc
     ret

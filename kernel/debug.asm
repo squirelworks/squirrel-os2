@@ -548,19 +548,40 @@ dbg_untrap_top:
     pop eax
     ret
 
-; ebx = slot -> eax -> the EIP of the ring-3 frame at the top of its
-; kernel stack, CF when there is none
+; ebx = slot -> eax -> a pointer such that [eax+8] is the EFLAGS/RFLAGS
+; the process will iret(q) with (so dbg_trap_top can set TF). CF when
+; there is no ring-3 return frame at the top of its kernel stack.
+; Under permanent stay the top frame is the 64-bit IRQ/exception layout
+; (RIP,CS,RFLAGS,RSP,SS), not the 32-bit one — DBG_STOP/KILL need that
+; to plant TF (lm64 flavour / stack-shell follow-ups).
 dbg_kstack_frame:
+    push edx
     mov eax, ebx
     imul eax, PROC_STACK_SIZE
-    add eax, PROC_STACK_BASE-20 ; EIP, CS, EFLAGS, ESP, SS
-    cmp dword [eax+4], USER_CS
+    add eax, PROC_STACK_BASE
+    lea edx, [eax-20]           ; 32-bit: EIP, CS, EFLAGS, ESP, SS
+    cmp dword [edx+4], USER_CS
+    jne .try64
+    cmp dword [edx+16], USER_DS
+    jne .try64
+    mov eax, edx                ; [eax+8] = EFLAGS
+    pop edx
+    clc
+    ret
+.try64:
+    cmp dword [lm_perm], 0
+    je .no
+    lea edx, [eax-40]           ; 64-bit: RIP, CS, RFLAGS, RSP, SS
+    cmp dword [edx+8], USER_CS
     jne .no
-    cmp dword [eax+16], USER_DS
+    cmp dword [edx+32], USER_DS
     jne .no
+    lea eax, [edx+8]            ; [eax+8] = RFLAGS (trap_top only touches that)
+    pop edx
     clc
     ret
 .no:
+    pop edx
     stc
     ret
 
