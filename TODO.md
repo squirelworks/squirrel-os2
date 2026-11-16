@@ -492,6 +492,28 @@ Scheduled in the 64-bit bridge, 2.8–2.9 in `ROADMAP.md`. Each box is one PR, a
 - [x] **H.6-usb-storage** — USB mass storage, so the system can boot from and read the stick it was written to.
   **Acceptance:** SQFS on a `usb-storage` disk lists its files.
 
+## ISM Flight Lab / ground station (issue #225, lane `-b55f`)
+
+Ground / lab host only — **not** flight-critical FCC loops (those stay on a small
+RTOS + SquirrelBIOS). Soft app SoT: `squirrelsoft/squirrelflightlab/`. Gap matrix:
+`documentation/guides/ism-flightlab-gaps.md`. Do not take W.6 (`-2eaf`).
+
+- [x] **ISM-gaps-b55f** — Gap list: what Flight Lab / sims need from OS/2 (runtime,
+  numerics, file formats, plotting, serial, timing, packaging). Design note:
+  `documentation/guides/ism-flightlab-gaps.md`. Docs-only reading check: the guide
+  names Soft `squirrelflightlab/`, ISM `computing-platform.md`, and the four
+  follow-up boxes below.
+- [ ] **ISM-serial-b55f** — Serial/USB data path for Eric’s RC flight controller /
+  data-logger and ISM bay I/O (UART char device; then USB CDC/bulk). See gap
+  matrix §E. Behaviour + `regress.sh` check in that PR.
+- [ ] **ISM-hil-timing-b55f** — Soft-real-time timing good enough for HIL bench
+  loops (sleep / wait-until-tick, jitter bound under load). Gap matrix §F.
+- [ ] **ISM-flightlab-pkg-b55f** — Package Soft Flight Lab CLI (and fixtures) for
+  OS/2 once freestanding C / shim allows. Gap matrix §G.
+- [ ] **ISM-lab-setup-b55f** — Docs: lab setup guide
+  (`documentation/guides/ism-flightlab-setup.md`). Gap matrix §H; after serial
+  and a packaged smoke.
+
 ## 3.0 — Networking and sound (OS2-NET-AUDIO)
 
 From the 3.0 line in `ROADMAP.md` (audio, a network settings GUI, DHCP, DNS and an HTTP client). Worked by the OS2-NET-AUDIO stream; each box is a branch the condenser folds into a PR. Design notes go in `documentation/kernel/network.md`, `documentation/kernel/audio.md` and `documentation/apps/network.md` / `documentation/apps/audio.md`.
