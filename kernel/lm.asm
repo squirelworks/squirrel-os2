@@ -318,6 +318,9 @@ lm_idt_init:
     mov eax, lm64_df_isr
     mov ebx, 1                      ; IST index
     call lm_set_gate64_ist
+    ; INT3 from ring 3 (software breakpoints) needs DPL 3 — same as
+    ; dbg_init on the 32-bit IDT. A DPL-0 gate makes INT3 a #GP(idt[3]).
+    mov byte [lm64_idt+3*16+5], 0xEE
     mov word [lm64_idt_desc], LM64_IDT_BYTES-1
     mov dword [lm64_idt_desc+2], lm64_idt
     mov dword [lm64_idt_desc+6], 0
@@ -648,12 +651,87 @@ lm64_default_isr:
     pop rax
     iretq
 
-; Double fault on IST1: record and halt (the stay test must not reach here).
+; Double fault on IST1. Temporary stay tests must not reach here (record
+; and halt). Under permanent stay, recover like the 32-bit task gate:
+; report a stack overflow (or #DF) and restart the shell / kill the
+; process (KB-17 / stack-shell on the lm64 flavour).
+; IST frame: err, RIP, CS, RFLAGS, RSP, SS.
 lm64_df_isr:
     mov dword [rel lm_df_hit], 1
+    cmp dword [rel lm_perm], 0
+    je .hang
+    mov rax, [rsp+8]
+    mov [rel lm_exc_rip], eax
+    mov rax, [rsp+16]
+    mov [rel lm_exc_cs], eax
+    mov rax, [rsp+32]
+    mov [rel lm_exc_rsp], eax
+    ; Still on IST1 (frame below). Far-return to compatibility without
+    ; lm64_call32 — recovery never returns, so a nest frame would leak.
+    ; Do not `mov rsp, [lm_ist1_top]`: that qword-load pulls the next
+    ; dword (lm_ticks64) into RSP's high half and faults on the push.
+    push qword 0x08
+    lea rax, [rel lm64_df_body]
+    push rax
+    retfq
 .hang:
     hlt
     jmp .hang
+
+BITS 32
+; Report #DF / stack overflow under permanent stay, then df_shell / df_kill.
+lm64_df_body:
+    mov ax, 0x10
+    mov ss, ax
+    mov ds, ax
+    mov es, ax
+    mov esp, SHELL_STACK
+    clts
+    call vm_reload_kernel
+    mov eax, cr2
+    mov [exc_err], eax
+    sub eax, PROC_STACK_BASE
+    cmp eax, PROC_GUARDS*PROC_STACK_SIZE
+    jae .df
+    xor edx, edx
+    mov ecx, PROC_STACK_SIZE
+    div ecx
+    cmp edx, PAGE_SIZE
+    jae .df
+    mov esi, df_m_overflow
+    jmp .head
+.df:
+    mov esi, df_m_double
+.head:
+    call puts
+    call exc_who
+    mov esi, exc_m_eip
+    call puts
+    mov eax, [lm_exc_rip]
+    call puthex
+    mov esi, df_m_esp
+    call puts
+    mov eax, [lm_exc_rsp]
+    call puthex
+    mov esi, exc_m_addr
+    call puts
+    mov eax, [exc_err]
+    call puthex
+    mov al, 10
+    call putc
+    cmp byte [shell_up], 0
+    je .halt
+    mov esi, [proc_cur]
+    cmp dword [esi+PCB_PID], 0
+    je df_shell
+    sub esi, proc_table
+    shr esi, 6
+    imul esi, PROC_STACK_SIZE
+    add esi, PROC_STACK_BASE
+    mov esp, esi
+    jmp df_kill
+.halt:
+    jmp exc_report.halt
 
 ; ---------- 64-bit exception trampolines (2.9-lm-ring3-stay) ----------
 ; Vectors 0..31 (except #DF on IST1) forward through lm64_call32 into the
@@ -943,9 +1021,13 @@ cmd_lmpage_run:
     test eax, eax
     jz .fail
     mov [lmpage_as2], eax
-    ; Stamp private program-area bytes under each PAE PDPT.
+    ; Stamp private program-area bytes under each space. In PAE, CR3 is
+    ; the AS PDPT; under permanent stay CR3 must stay a PML4 (loading a
+    ; PAE PDPT while LMA=1 walks garbage and hangs — lm64 flavour).
     mov eax, cr3
     mov [lmpage_save_cr3], eax
+    cmp dword [lm_perm], 0
+    jne .stamp_stay
     mov ebx, [lmpage_as1]
     mov eax, [ebx+AS_PD]
     mov cr3, eax
@@ -954,6 +1036,19 @@ cmd_lmpage_run:
     mov eax, [ebx+AS_PD]
     mov cr3, eax
     mov byte [LMPAGE_PROG], 0xB2
+    jmp .stamp_done
+.stamp_stay:
+    mov eax, [lmpage_as1]
+    call as_lm_cr3
+    jc .fail
+    mov cr3, eax
+    mov byte [LMPAGE_PROG], 0xA1
+    mov eax, [lmpage_as2]
+    call as_lm_cr3
+    jc .fail
+    mov cr3, eax
+    mov byte [LMPAGE_PROG], 0xB2
+.stamp_done:
     mov eax, [lmpage_save_cr3]
     mov cr3, eax
     ; Long mode with AS1: private byte + shared kernel mark

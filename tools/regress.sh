@@ -427,7 +427,7 @@ get = lambda img, p: subprocess.run(["python3", sq, img, "get", p], capture_outp
 names = ls(data)
 files = [n for n, z in zip(names[0::2], names[1::2]) if "/" not in n and n != "shell.hist"]
 bad = [n for n in files if get(data, n) != get(tgt + ".part", n)]
-print("same" if files and not bad else "differ: %s" % bad)' "$target" "$out/os.img" "$disk" "$root/tools/sqfs.py")
+print("same" if files and not bad else "differ: %s" % bad)' "$target" "$default_boot" "$disk" "$root/tools/sqfs.py")
     if [ "$got" = "$2" ]; then echo "ok   $1"; else echo "FAIL $1 (expected: $2, got: $got)"; fail=1; fi
 }
 copied install-copy-esc-blank 'none'
@@ -440,7 +440,7 @@ bootsec() { # bootsec NAME 'blank' | 'boots': sector 0 of the target, on the hos
 t = open(sys.argv[1], "rb").read(512); o = open(sys.argv[2], "rb").read(512)
 if not any(t[:440]): print("blank")
 elif t[:440] == o[:440] and t[446] == 0x80 and t[450] == 0x7F and t[510:] == b"\x55\xaa": print("boots")
-else: print("wrong")' "$target" "$out/os.img")
+else: print("wrong")' "$target" "$default_boot")
     if [ "$got" = "$2" ]; then echo "ok   $1"; else echo "FAIL $1 (expected: $2, got: $got)"; fail=1; fi
 }
 check install-boot-esc 'Nothing was written.'  'install boot' '<ret>' '<esc>'

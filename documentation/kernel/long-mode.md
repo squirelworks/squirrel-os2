@@ -122,5 +122,12 @@ thunks for the remaining 32-bit kernel, 32-bit programs in compatibility mode). 
   `2.9-syscall64` (returnable `int 0x80` body). APs still park under stay but do
   not enter long mode / run ring-3 yet — multi-CPU `smpspin-4` / `smp-*` skip on
   lm64. Native SQX / DOS interpreter / desktop checks run on both flavours.
+- Under permanent stay the 64-bit IDT's INT3 gate is DPL 3 (same as
+  `dbg_init`), so software breakpoints are `#BP` rather than `#GP(idt[3])`.
+  `#DF` on IST1 recovers through a compatibility body (stack-overflow report /
+  shell restart) instead of hanging. `lmpage` stamps private pages via each
+  space's PML4 when `lm_perm` is set (never loads a PAE PDPT into CR3 while
+  LMA=1). Installer host checks compare against the flavour boot image
+  (`os-lm64.img` on lm64).
 
 `2.9-lm-kernel` is ticked (mark **2.9.0**).
