@@ -35,22 +35,23 @@ Soft agent owns Soft tracks (ISM fighter-jet Soft UI apps / Eric companion apps)
 
 - OS/2 tip cut **done:** `v2.3.0` published; Soft `PATH_TO_3.0.0.md` stays **suite index only** (OS ladder = this repo `TO_3.0.0.md`).
 - Soft #163 / #164 still carry stale tip-cut wording — Soft/`-2eaf` may rewrite when convenient; do not treat them as OS/2 SoT.
-- OS/2 next core after ring-3 stay lands: `2.9-lm-kernel-tick` / syscall64 on lane `-b55f` — Soft must **not** open competing OS/2 lm PRs.
+- OS/2 next core after lm-kernel tick: `2.9-syscall64-b55f` on lane `-b55f` — Soft must **not** open competing OS/2 lm PRs.
 - OS/2 #225 (ISM Flight Lab / ground station) is **background** on OS/2: gaps landed (#227); further serial/HIL/pkg only when natural and **not** ahead of 2.9 core. Soft Flight Lab stays in Soft (`squirrelflightlab/`).
 
 ### Progress notes `-b55f`
 
 - **Landed:** `2.9-lm-paging-b55f` (#193 / `lmpage`); `2.9-lm-stay-thunks-b55f` (#196 / `lmthunk`); `2.9-lm-boot64-b55f` (#204 / `lmboot` / `os-lm64.img` / `LM_BOOT64`); lm-boot64 follow-ups (#222); tip-cut docs (#205); owner tag **`v2.3.0`**; ISM gaps (#227 / `ISM-gaps-b55f`).
-- **Landed (this PR):** `2.9-lm-ring3-stay-b55f` (#211 / M2) — ring-3 under permanent stay; banner **2.3.1**; checks `lm64-hello` / `lm64-ring3`.
-- **Next:** `2.9-lm-kernel-tick-b55f` (`2.9.0`) → `2.9-syscall64-b55f` (`2.9.1`) → freestanding C (#212).
-- **Background (#225, not ahead of core):** ISM serial / HIL / pkg / lab-setup — only when natural on `main`; Soft Flight Lab stays in Soft.
+- **Landed:** `2.9-lm-ring3-stay-b55f` (#211 / #231 / M2) — ring-3 under permanent stay; checks `lm64-hello` / `lm64-ring3`.
+- **Landed (this PR):** `2.9-lm-kernel-tick-b55f` (M6) — `REGRESS_FLAVOUR=lm64` everyday suite; banner **2.9.0**; ticks `2.9-lm-kernel`.
+- **Next:** `2.9-syscall64-b55f` (`2.9.1`) → freestanding C (#212).
+- **Background (#225, not ahead of core):** ISM serial / HIL / pkg / lab-setup — only when natural on `main`; Soft Flight Lab stays in Soft. Do **not** expand `lab/`.
 
 ### Tasks `-b55f` (this lane)
 
 - [x] `2.9-lm-stay-thunks-b55f` — permanent long-mode stay + compatibility thunks (#196)
 - [x] `2.9-lm-boot64-b55f` — boot-time / `LM_BOOT64` everyday long-mode stay (`lmboot` command, os-lm64.img, #204)
-- [x] `2.9-lm-ring3-stay-b55f` — #211 / mark **2.3.1** (ladder M2)
-- [ ] `2.9-lm-kernel-tick-b55f` — after ring-3 stay on `main`
+- [x] `2.9-lm-ring3-stay-b55f` — #211 / #231 / mark **2.3.1** (ladder M2)
+- [x] `2.9-lm-kernel-tick-b55f` — x86_64 everyday suite flavour; mark **2.9.0**
 - [ ] `2.9-syscall64-b55f` — after lm-kernel is ticked
 - [x] `ISM-gaps-b55f` — #225 item 1 gap matrix (#227)
 - [ ] `ISM-serial-b55f` — #225 item 2 serial/USB (**background**, after core)
@@ -84,20 +85,21 @@ Soft agent owns Soft tracks (ISM fighter-jet Soft UI apps / Eric companion apps)
 
 ## Release coordination (2026-11-16 — tip cut **done**)
 
-**Done:** owner published **`v2.3.0`** from tip `59069e3` (after #184 / #197 / #204 / #205). Banner remains `2.3.0` until a later mark bumps it. Long-form ladder: [`documentation/releases/TO_3.0.0.md`](documentation/releases/TO_3.0.0.md) (**canonical**; Soft `PATH_TO_3.0.0.md` is suite index only).
+**Done:** owner published **`v2.3.0`** from tip `59069e3` (after #184 / #197 / #204 / #205). This PR bumps the banner to **`2.9.0`** (lm-kernel tick). Long-form ladder: [`documentation/releases/TO_3.0.0.md`](documentation/releases/TO_3.0.0.md) (**canonical**; Soft `PATH_TO_3.0.0.md` is suite index only).
 
 | Fact | Value |
 |------|-------|
 | Last published tag | **`v2.3.0`** (2026-11-15; tip `59069e3`) |
-| Banner (this PR) | `2.3.1` (`kernel/pm.asm` `banner_rest`) — ring-3 stay |
-| Gate PRs | ~~#184~~ / ~~#197~~ / ~~#204~~ / ~~#205~~ — all on `main` |
+| Banner (this PR) | `2.9.0` (`kernel/pm.asm` `banner_rest`) — lm-kernel tick |
+| Gate PRs | ~~#184~~ / ~~#197~~ / ~~#204~~ / ~~#205~~ / ~~#231~~ — all on `main` |
 
 **Handshake (`-b55f` ↔ `-2eaf`) after tip:**
 
 1. **MERGE-WAIT over** — Sarah via relay (2026-11-16): keep working the normal ladder.
 2. **`-2eaf` next:** `W.6-startup-2eaf` (#209) → `W.6-syssetup-2eaf` (#210) → Gen2 ship `2.6.0` (owner) → later `3.0-taskmgr` (#217) / `3.0-themes` (#218).
-3. **`-b55f` next:** ~~ring-3 under stay (#211)~~ (this PR) → `2.9-lm-kernel-tick-b55f` (`2.9.0`) → `2.9-syscall64-b55f` → freestanding C (#212) → `3.0-users`…`3.0-eventlog` (#213–#216). Soft only if Sarah notes. #225 ISM is background only.
+3. **`-b55f` next:** ~~ring-3 under stay (#231)~~ → ~~`2.9-lm-kernel-tick` (`2.9.0`)~~ (this PR) → `2.9-syscall64-b55f` → freestanding C (#212) → `3.0-users`…`3.0-eventlog` (#213–#216). Soft only if Sarah notes. #225 ISM is background only.
 4. Agents **never** tag. Tip-cut mirror [#208](https://github.com/squirelworks/squirrel-os2/issues/208) is closed.
+5. **#132 note (agents cannot edit issue bodies):** tick “x86-64 long-mode kernel and 64-bit paging” when this PR merges.
 
 ## Status legend
 
@@ -126,8 +128,8 @@ Used here, in `ROADMAP.md`, `TODO.md` and on the issues (as labels).
 - **Test gate:** `tools/regress.sh` and GitHub CI (`.github/workflows/ci.yml`:
   `build` and `regress`, on every PR). Wait for a green `regress` before
   calling a PR ready.
-- **Open PRs (2026-11-16):** tip-cut gates all merged. This PR: ring-3 under
-  stay (`-b55f`, #211). W.6 (`-2eaf`, #209/#210). #225 ISM background only.
+- **Open PRs (2026-11-16):** tip-cut gates + ring-3 stay (#231) on `main`. This
+  PR: lm-kernel tick (`-b55f`). W.6 (`-2eaf`, #209/#210). #225 ISM background only.
 
 ## Rules (Squirrel's; do not break)
 
@@ -171,9 +173,9 @@ Lanes run in parallel (see **Agent ownership**). Within a lane, keep the order.
 3. **Generation 2 desktop `-2eaf`:** ~~**2.5-***~~ / ~~W.3~~ / ~~context/notebook~~ /
    ~~templates/views/shadows/openas~~ / ~~#197~~ / ~~`2.6-icons`/`drag` #184~~ /
    ~~tip cut `v2.3.0`~~ done → `W.6-startup` → `W.6-syssetup` → Gen2 ship `2.6.0`.
-4. **2.9 path `-b55f`:** ~~pae / IDT / paging / thunks~~ done; ~~`2.9-lm-boot64`~~
-   done (#204); ~~tip cut~~ done; ~~ring-3 under stay (#211)~~ (this PR) →
-   `2.9-lm-kernel-tick` (`2.9.0`) → `2.9-syscall64` → freestanding C → Gen3.
+4. **2.9 path `-b55f`:** ~~pae / IDT / paging / thunks / boot64 / ring-3 stay~~
+   done; ~~`2.9-lm-kernel-tick` (`2.9.0`)~~ (this PR) → `2.9-syscall64` →
+   freestanding C → Gen3.
 5. **3.0** remainder → `v3.0.0` (see `TO_3.0.0.md` M10–M16).
 6. **P.3, P.4, P.7, P.11, P.12**, then 3.x and 4.x (parallel after syscall64;
    not required for the 3.0.0 ship gate unless the owner expands it).
@@ -256,7 +258,7 @@ host `fatimg.py check`, and `fattest` on the formatted images.
 ### 2.8-pae — PAE paging and NX  `status: done`
 PAE + NX on `main`. Checks `nx-heap`, `nx-stack`, `cpu-pentium3`.
 
-### 2.9-lm-kernel — stay in long mode  `-b55f` (boot64 #204 + #222 landed; box still open)
+### 2.9-lm-kernel — stay in long mode  `-b55f`  `status: done` (mark **2.9.0**)
 - **Depends on:** 2.8-pae (done on `main`, #180).
 - **What:** 64-bit IDT/TSS with IST for double faults, 4-level per-process
   address spaces, the 32-bit kernel reached through compatibility-mode
@@ -264,18 +266,15 @@ PAE + NX on `main`. Checks `nx-heap`, `nx-stack`, `cpu-pentium3`.
 - **Acceptance:** the whole `regress.sh` passes under `qemu-system-x86_64`
   with the long-mode kernel; the BIOS boot path still boots under `qemu-system-i386`
   with the 32-bit kernel (two build flavours, both in CI). Version mark
-  **`2.9.0`** when ticked (`TO_3.0.0.md` M6).
+  **`2.9.0`** (`TO_3.0.0.md` M6).
 - **Done on `main`:** IDT/TSS stay (`lmstay`, #189); 4-level paging
   (`lmpage`, #193); permanent stay + thunks (`lmthunk`, #196); boot64 everyday
-  stay (`lmboot` / `os-lm64.img` / `LM_BOOT64`, #204) + follow-ups (#222):
-  nestable `lm64_call32`, nest EOI on overflow, nestable thunk CR3 frames,
-  syscall return in eax, everyday IRQ0/1/12 + `int 0x80` gates,
-  `lm_enter_everyday` / `lm_boot_enter`. Regress names: lm-boot,
-  lm-boot-again, lm-boot64, lm-boot64-again, and the -nolm pair. `systest` +
-  `lmtest` pass on the boot64 image under `qemu-system-x86_64`.
-- **Ring-3 stay (this PR / #211):** `lm64-hello` / `lm64-ring3` on `os-lm64.img`.
-  **Still open before ticking `2.9-lm-kernel`:** whole suite as the everyday
-  x86_64 flavour → `2.9-lm-kernel-tick-b55f` (mark **2.9.0**).
+  stay (`lmboot` / `os-lm64.img` / `LM_BOOT64`, #204) + follow-ups (#222);
+  ring-3 under stay (`lm64-hello` / `lm64-ring3`, #231).
+- **This PR (tick):** `REGRESS_FLAVOUR=lm64` everyday suite under
+  `qemu-system-x86_64`; `i386` flavour still green; CI runs both; `vm_map_range`
+  stay-safe for VBE; foreign personalities skip on lm64 until syscall64;
+  notes in `2.9.0.md`.
 - **CONTINUANCE 3a (recorded):** freestanding C for new 2.9+ subsystems
   (`-ffreestanding -mno-red-zone -fno-pic`); NASM for boot/entry stubs. See
   `documentation/architecture/overview.md` and squirrelsoft

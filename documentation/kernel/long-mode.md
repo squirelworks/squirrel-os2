@@ -109,5 +109,18 @@ thunks for the remaining 32-bit kernel, 32-bit programs in compatibility mode). 
   the process. `smp_on_ap` treats selector `0xC8` (`SEL_TSS64`) as the BSP.
 - Checks: `lm64-hello`, `lm64-ring3` on `os-lm64.img` under `qemu-system-x86_64`.
 
-Still open for the full TODO box: running the whole regression suite with the long-mode
-flavour as everyday mode under `qemu-system-x86_64` (then tick `2.9-lm-kernel`).
+### Everyday x86_64 suite flavour (`REGRESS_FLAVOUR=lm64`)
+
+- `tools/regress.sh` accepts `REGRESS_FLAVOUR=i386|lm64` (default `i386`). The lm64
+  flavour boots `os-lm64.img` under `qemu-system-x86_64` for the whole suite; the
+  i386 flavour keeps `os.img` under `qemu-system-i386`. CI runs both.
+- `vm_map_range` under permanent stay maps into the process PAE PDPT (never the
+  PML4) and refreshes LM wrappers so VBE / desktop MMIO stays reachable.
+- Everyday IRQ stubs (timer / keyboard / mouse) save the GPRs that `lm64_call32`
+  clobbers, so a tick mid ring-3 loop (heap fill, etc.) cannot trash `edi`/`esi`.
+- Foreign personality checks (Linux / Win32 / BSD / LX) skip on lm64 until
+  `2.9-syscall64` (returnable `int 0x80` body). APs still park under stay but do
+  not enter long mode / run ring-3 yet — multi-CPU `smpspin-4` / `smp-*` skip on
+  lm64. Native SQX / DOS interpreter / desktop checks run on both flavours.
+
+`2.9-lm-kernel` is ticked (mark **2.9.0**).

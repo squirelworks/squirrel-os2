@@ -504,27 +504,65 @@ lm_stay64:
     ret
 
 ; Everyday 64-bit IRQ0: count stay-test ticks, then the shared timer body.
+; Save the GPRs lm64_call32 / the 32-bit body clobber — a timer mid
+; ring-3 loop (heap fill, etc.) must not trash edi/esi (2.9-lm-kernel).
 lm64_timer_isr:
     push rax
-    mov eax, [rsp+16]               ; CS (RIP at +8 after push rax)
+    push rbx
+    push rcx
+    push rdx
+    push rsi
+    push rdi
+    push rbp
+    mov eax, [rsp+64]               ; CS (7 pushes + RIP)
     mov [rel lm_irq_cs], eax
     inc dword [rel lm_ticks64]
     mov eax, timer_isr_body
     call lm64_call32
+    pop rbp
+    pop rdi
+    pop rsi
+    pop rdx
+    pop rcx
+    pop rbx
     pop rax
     iretq
 
 lm64_kbd_isr:
     push rax
+    push rbx
+    push rcx
+    push rdx
+    push rsi
+    push rdi
+    push rbp
     mov eax, kbd_isr_body
     call lm64_call32
+    pop rbp
+    pop rdi
+    pop rsi
+    pop rdx
+    pop rcx
+    pop rbx
     pop rax
     iretq
 
 lm64_mouse_isr:
     push rax
+    push rbx
+    push rcx
+    push rdx
+    push rsi
+    push rdi
+    push rbp
     mov eax, mouse_isr_body
     call lm64_call32
+    pop rbp
+    pop rdi
+    pop rsi
+    pop rdx
+    pop rcx
+    pop rbx
     pop rax
     iretq
 

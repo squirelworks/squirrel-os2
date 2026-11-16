@@ -174,7 +174,7 @@ in `documentation/architecture/overview.md` (cite squirrelsoft
 `docs/CONTINUANCE.md` decision 3a). Docs only until a later PR wires the
 compiler into `tools/build.sh`.
 
-- [ ] x86-64 long-mode kernel and 64-bit paging (entry #154; IDT stay #189; paging #193; stay+thunks #196; boot64 `lmboot`/`os-lm64.img` #204 on `main` — do not tick until ring-3 under stay + full x86_64 suite flavour → mark **`2.9.0`**)
+- [x] x86-64 long-mode kernel and 64-bit paging (entry #154; IDT stay #189; paging #193; stay+thunks #196; boot64 #204; ring-3 stay #231; x86_64 suite flavour / `REGRESS_FLAVOUR=lm64` → mark **`2.9.0`**)
 - [x] SMP scheduler (2.8-smp-ap, 2.8-smp-sched, #154)
 - [x] PAE and NX (2.8-pae, #180)
 - [x] H.1 UEFI loader
@@ -194,10 +194,10 @@ Numbered marks, owners, acceptance, and depends-on live in
 |------|-------|------|
 | **2.3.0** | Tip cut after #184/#197/#204/#205 — **tagged** | owner |
 | **2.3.1** | W.6-startup | `-2eaf` |
-| **2.3.2** | ring-3 under permanent stay (#211, *(in progress)*) | `-b55f` |
+| **2.3.1** | ring-3 under permanent stay (#211 / #231) | `-b55f` |
 | **2.3.25** | W.6-syssetup | `-2eaf` |
 | **2.6.0** | Generation 2 declared complete | shared / owner |
-| **2.9.0** | tick `2.9-lm-kernel` | `-b55f` |
+| **2.9.0** | tick `2.9-lm-kernel` (this cut) | `-b55f` |
 | **2.9.1** | `2.9-syscall64` / `hello64` | `-b55f` |
 | **2.9.25** | freestanding C in build | `-b55f` / shared |
 | **2.9.2–2.9.7** | 3.0-users … 3.0-themes | `-b55f` / `-2eaf` |

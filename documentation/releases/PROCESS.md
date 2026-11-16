@@ -143,12 +143,16 @@ This avoids retargeting chains and confirmation steps.
 | 2.1.0   | 2026-11-13 | Framebuffer, ring 3, apps, games, foreign programs |
 | 2.3.0   | 2026-11-14 | Real windows, Program Manager, FAT/LFN, UEFI/SMP, net/audio |
 | 2.3.1   | 2026-11-16 | Ring-3 under permanent long-mode stay (M2 / #211) |
+| 2.9.0   | 2026-11-16 | Everyday long-mode kernel / x86_64 suite flavour (M6) |
 
 ## Next planned release
 
-**2.3.1** — ring-3 under stay (`2.9-lm-ring3-stay`, #211); notes in `2.3.1.md`.
-Owner tags when ready. Agents never tag. Fine-grain ladder through **3.0.0**:
-[`TO_3.0.0.md`](TO_3.0.0.md). Checklist: `../../HANDOFF.md`. Boxes: `../../TODO.md`.
+**2.9.0** — tick `2.9-lm-kernel` (`REGRESS_FLAVOUR=lm64` + i386); notes in
+`2.9.0.md`. Owner tags when ready. Agents never tag. Fine-grain ladder through
+**3.0.0**: [`TO_3.0.0.md`](TO_3.0.0.md). Checklist: `../../HANDOFF.md`. Boxes:
+`../../TODO.md`.
+
+**2.3.1** — ring-3 under stay (#211 / #231); notes in `2.3.1.md`.
 
 **2.3.0** is published (tip cut after #184 / #197 / #204 / #205).
 
