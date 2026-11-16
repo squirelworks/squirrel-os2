@@ -155,6 +155,26 @@ proc_trampoline:
 proc_exit:
     call ws_procgone            ; its windows close (2.2-progwin)
     cli
+    ; If this exit is from inside lm64_call32 (syscall / exception under
+    ; permanent stay), free nest frames on this kernel stack so the pool
+    ; is not leaked when call32_ret never runs (2.9-lm-ring3-stay).
+    cmp dword [lm_perm], 0
+    je .no_nest
+    mov eax, [proc_cur]
+    sub eax, proc_table
+    jz .shell_nest
+    shr eax, 6                  ; slot
+    imul eax, PROC_STACK_SIZE
+    add eax, PROC_STACK_BASE    ; stack top (ESP0)
+    mov edx, eax
+    sub eax, PROC_STACK_SIZE
+    call lm_nest_free_range
+    jmp .no_nest
+.shell_nest:
+    mov eax, SHELL_STACK-0x10000
+    mov edx, SHELL_STACK
+    call lm_nest_free_range
+.no_nest:
     mov esi, [proc_cur]
     call dbg_exit               ; what it traced runs on untraced (A.4)
     call tty_exit               ; its terminals close (A.3)

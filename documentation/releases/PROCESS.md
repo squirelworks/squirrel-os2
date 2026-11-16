@@ -142,14 +142,15 @@ This avoids retargeting chains and confirmation steps.
 | 2.0.2   | 2026-11-04 | 2.0 clean-up, part two               |
 | 2.1.0   | 2026-11-13 | Framebuffer, ring 3, apps, games, foreign programs |
 | 2.3.0   | 2026-11-14 | Real windows, Program Manager, FAT/LFN, UEFI/SMP, net/audio |
+| 2.3.1   | 2026-11-16 | Ring-3 under permanent long-mode stay (M2 / #211) |
 
 ## Next planned release
 
-**2.3.0** — **tip cut**, not prep-only `fc3ae21`. Land gate PRs #184 / #197 / #204 /
-#205, retarget `2.3.0.md` to that tip, then the owner publishes the tag. Agents
-never tag. Fine-grain ladder through **3.0.0** (including `+0.0.1` / `+0.0.25` /
-`+0.25.0`-style marks): [`TO_3.0.0.md`](TO_3.0.0.md). Checklist and handshake:
-`../../HANDOFF.md` (**Release coordination**). Boxes: `../../TODO.md`.
+**2.3.1** — ring-3 under stay (`2.9-lm-ring3-stay`, #211); notes in `2.3.1.md`.
+Owner tags when ready. Agents never tag. Fine-grain ladder through **3.0.0**:
+[`TO_3.0.0.md`](TO_3.0.0.md). Checklist: `../../HANDOFF.md`. Boxes: `../../TODO.md`.
+
+**2.3.0** is published (tip cut after #184 / #197 / #204 / #205).
 
 **Version bump guide (tip → 3.0.0):** `+0.0.1` = one small box; `+0.0.25` = small
 multi-file / pair-closing slice; jump to `2.6.0` / `2.9.0` / `3.0.0` when a

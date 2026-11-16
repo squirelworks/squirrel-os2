@@ -75,16 +75,16 @@ Lanes run **in parallel**. Within a lane, keep order.
 | **Acceptance** | `startup: PASS` / `w6-startup`; Drive/Shredder unchanged |
 | **Release note** | Short `2.3.1.md` when owner wants a patch tag; else fold into next mark |
 
-### M2 — `2.3.2` ring-3 under permanent stay  ·  `-b55f`  ·  depends: M0 (#204 on `main`)
+### M2 — ring-3 under permanent stay  ·  `-b55f`  ·  depends: M0 (#204 on `main`) — **done this cut as `2.3.1`**
 
 | Field | Value |
 |-------|-------|
-| **Bump** | `+0.0.1` (from 2.3.1 if that tagged; else next free patch after 2.3.0) |
-| **Box** | New slice under `2.9-lm-kernel` — ring-3 programs run while EFER.LMA stays; compat CS |
+| **Bump** | `+0.0.1` → banner **`2.3.1`** (next free after `v2.3.0`; ladder name was `2.3.2`) |
+| **Box** | `2.9-lm-ring3-stay` — ring-3 programs while EFER.LMA stays; compat CS |
 | **Branch pattern** | `cursor/2.9-lm-ring3-stay-b55f` |
-| **Issue** | [#211](https://github.com/squirelworks/squirrel-os2/issues/211) `2.9: ring-3 programs under permanent long-mode stay` |
-| **Acceptance** | Existing `ring3` / `progwin` / desktop checks pass with boot stay; no tick of full `2.9-lm-kernel` yet |
-| **Depends-on** | #204 `LM_BOOT64` behaviour on `main` |
+| **Issue** | [#211](https://github.com/squirelworks/squirrel-os2/issues/211) |
+| **Acceptance** | `lm64-hello` / `lm64-ring3` on `os-lm64.img`; no tick of full `2.9-lm-kernel` yet |
+| **Depends-on** | #204 `LM_BOOT64` on `main` |
 
 *If M1 and M2 race on version numbers, use calendar order of merge for the patch; do not renumber history.*
 

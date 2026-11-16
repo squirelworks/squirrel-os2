@@ -166,7 +166,15 @@ prog_exec:
     mov [ld_as], eax
     mov dword [ld_linux], 0
     mov dword [ld_bsd], 0
+    ; Under permanent stay CR3 must be the process PML4 (2.9-lm-ring3-stay)
+    cmp dword [lm_perm], 0
+    jne .stay_cr3
     mov eax, [eax+AS_PD]
+    jmp .load_cr3
+.stay_cr3:
+    call as_lm_cr3
+    jc .nomem
+.load_cr3:
     mov cr3, eax
     cmp dword [LD_STAGE], SQX_MAGIC
     jne .elf

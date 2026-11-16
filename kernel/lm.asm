@@ -313,6 +313,7 @@ lm_idt_init:
     add edi, 16
     loop .fill
     call lm_idt_everyday            ; timer, kbd, mouse, int 0x80
+    call lm_idt_exc_install         ; 0..31 → report/kill (not the EOI stub)
     mov edi, lm64_idt+8*16          ; #DF uses IST1
     mov eax, lm64_df_isr
     mov ebx, 1                      ; IST index
@@ -616,12 +617,178 @@ lm64_df_isr:
     hlt
     jmp .hang
 
+; ---------- 64-bit exception trampolines (2.9-lm-ring3-stay) ----------
+; Vectors 0..31 (except #DF on IST1) forward through lm64_call32 into the
+; existing 32-bit exc_report path. Stack growth (#PF in a ring-3 window)
+; is handled here and resumes with iretq; everything else builds a fake
+; 32-bit frame and jumps to exc_report (kill / shell prompt / halt).
+
+BITS 32
+; Install interrupt gates for CPU exceptions. Vector 8 keeps lm64_df_isr.
+; Clobbers eax, ecx, esi, edi.
+lm_idt_exc_install:
+    xor ecx, ecx
+.fill:
+    cmp ecx, 8
+    je .next                    ; #DF: IST handler already / about to be set
+    mov esi, lm64_exc_stubs
+    mov eax, ecx
+    shl eax, 4
+    add esi, eax
+    mov edi, lm64_idt
+    mov eax, ecx
+    shl eax, 4
+    add edi, eax
+    mov eax, esi
+    call lm_set_gate64
+.next:
+    inc ecx
+    cmp ecx, 32
+    jb .fill
+    ret
+
+; One 16-byte stub per vector: push a fake error code when the CPU does
+; not, push rax/rbx, load the vector into eax, join the common path.
+BITS 64
+align 16
+lm64_exc_stubs:
+%assign v 0
+%rep 32
+lm64_exc_stub_ %+ v:
+    %assign has_err 0
+    %if (v == 8) || (v == 10) || (v == 11) || (v == 12) || (v == 13) || (v == 14) || (v == 17)
+        %assign has_err 1
+    %endif
+    %if has_err == 0
+    push qword 0
+    %endif
+    push rax
+    push rbx
+    mov eax, v
+    jmp lm64_exc_common
+    times (lm64_exc_stubs + (v+1)*16) - $ nop
+%assign v v+1
+%endrep
+
+; Stack on entry: rbx, rax, err, rip, cs, rflags, rsp, ss
+lm64_exc_common:
+    cli                             ; grow/report path is not re-entrant
+    mov [rel lm_exc_vec], eax
+    mov rax, [rsp+16]
+    mov [rel lm_exc_err], eax
+    mov rax, [rsp+24]
+    mov [rel lm_exc_rip], eax
+    mov rax, [rsp+32]
+    mov [rel lm_exc_cs], eax
+    mov [rel lm_irq_cs], eax
+    mov rax, [rsp+40]
+    mov [rel lm_exc_rflags], eax
+    mov rax, [rsp+48]
+    mov [rel lm_exc_rsp], eax
+    mov rax, [rsp+56]
+    mov [rel lm_exc_ss], eax
+    mov rax, [rsp+8]
+    mov [rel lm_exc_rax], eax
+    mov rax, [rsp]
+    mov [rel lm_exc_rbx], eax
+    mov [rel lm_exc_rcx], ecx
+    mov [rel lm_exc_rdx], edx
+    mov [rel lm_exc_rsi], esi
+    mov [rel lm_exc_rdi], edi
+    mov [rel lm_exc_rbp], ebp
+    mov eax, lm64_exc_body
+    call lm64_call32
+    test eax, eax
+    jnz .bad                    ; report path should not return
+    ; Restore GPRs clobbered by the 64-bit stub / call32 (stack grow
+    ; resumes the faulting MOV that saved ecx in deep()).
+    mov ecx, [rel lm_exc_rcx]
+    mov edx, [rel lm_exc_rdx]
+    mov esi, [rel lm_exc_rsi]
+    mov edi, [rel lm_exc_rdi]
+    mov ebp, [rel lm_exc_rbp]
+    pop rbx
+    pop rax
+    add rsp, 8                  ; error code (real or fake)
+    iretq
+.bad:
+    hlt
+    jmp .bad
+
+BITS 32
+; -> eax = 0 to resume the interrupted instruction, 1 on unexpected return
+lm64_exc_body:
+    cmp dword [lm_exc_vec], 14
+    jne .report
+    mov eax, cr2
+    call vm_ustack_fault
+    test eax, eax
+    jnz .report
+    mov eax, cr3                ; new stack PTE must be visible under stay
+    mov cr3, eax
+    xor eax, eax
+    ret
+.report:
+    ; Fake a 32-bit interrupt frame and enter exc_report. Ring-3 frames
+    ; include SS:ESP; ring-0 frames do not (matches the CPU).
+    test byte [lm_exc_cs], 3
+    jz .kframe
+    push dword [lm_exc_ss]
+    push dword [lm_exc_rsp]
+.kframe:
+    push dword [lm_exc_rflags]
+    push dword [lm_exc_cs]
+    push dword [lm_exc_rip]
+    mov ecx, [lm_exc_vec]
+    mov eax, 1
+    shl eax, cl
+    test eax, EXC_ERRCODE_MASK
+    jz .noerr
+    push dword [lm_exc_err]
+.noerr:
+    push dword [lm_exc_vec]
+    mov eax, [lm_exc_rax]
+    mov ebx, [lm_exc_rbx]
+    mov ecx, [lm_exc_rcx]
+    mov edx, [lm_exc_rdx]
+    mov esi, [lm_exc_rsi]
+    mov edi, [lm_exc_rdi]
+    mov ebp, [lm_exc_rbp]
+    jmp exc_report
+
+; eax = low address (inclusive), edx = high (exclusive): free nest frames
+; whose saved rsp64 lies in that range. Used when a process dies inside
+; lm64_call32 (SYS_EXIT / exception) so the slot is not leaked.
+; Keeps every register.
+lm_nest_free_range:
+    pushad
+    lea ebx, [lm_nest_pool]
+    mov ecx, LM_NEST_MAX
+.walk:
+    cmp dword [ebx+4], 0
+    je .next
+    mov esi, [ebx+8]            ; rsp64 low half
+    cmp esi, eax
+    jb .next
+    cmp esi, edx
+    jae .next
+    mov dword [ebx+4], 0
+    cmp dword [lm_nest_sp], 0
+    je .next
+    dec dword [lm_nest_sp]
+.next:
+    add ebx, LM_NEST_SIZE
+    loop .walk
+    popad
+    ret
+
 ; eax = 32-bit near routine -> call it in compatibility mode and return
 ; here in 64-bit. Nestable free-list frames (separate from lm_thunk* slots).
 ; Used by 64-bit IRQ and syscall gates. A yield/switch inside the 32-bit
 ; body is safe: the frame pointer is pushed on the process stack and
 ; returned in ebx across the far jump, so lm_nest_cur is not consulted
 ; after the body runs. CF set if every frame is busy (caller should EOI).
+BITS 64
 lm64_call32:
     push rbx
     cmp dword [rel lm_nest_sp], LM_NEST_MAX
@@ -1302,6 +1469,21 @@ lm_sys_edx    dd 0
 lm_sys_esi    dd 0
 lm_sys_edi    dd 0
 lm_sys_ebp    dd 0
+; Saved exception state for lm64_exc_* → exc_report (2.9-lm-ring3-stay)
+lm_exc_vec    dd 0
+lm_exc_err    dd 0
+lm_exc_rip    dd 0
+lm_exc_cs     dd 0
+lm_exc_rflags dd 0
+lm_exc_rsp    dd 0
+lm_exc_ss     dd 0
+lm_exc_rax    dd 0
+lm_exc_rbx    dd 0
+lm_exc_rcx    dd 0
+lm_exc_rdx    dd 0
+lm_exc_rsi    dd 0
+lm_exc_rdi    dd 0
+lm_exc_rbp    dd 0
 lm_nest_sp    dd 0             ; lm64_call32 in-use count
 lm_nest_overflow dd 0          ; times LM_NEST_MAX blocked a call32
 align 8

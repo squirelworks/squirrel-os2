@@ -508,16 +508,21 @@ ap_handback:
     jmp .lost
 
 ; -> CF unless this CPU is an AP (its task register is not tss_main).
+; Under permanent long-mode stay the BSP loads SEL_TSS64 (0xC8) instead
+; of SEL_TSS_MAIN; treat that as the BSP too (2.9-lm-ring3-stay).
 ; Keeps every register.
 smp_on_ap:
     push eax
     str ax
     cmp ax, SEL_TSS_MAIN
-    pop eax
     je .bsp
+    cmp ax, 0xC8                   ; SEL_TSS64 (lm.asm); stay IDT/TSS
+    je .bsp
+    pop eax
     clc
     ret
 .bsp:
+    pop eax
     stc
     ret
 
