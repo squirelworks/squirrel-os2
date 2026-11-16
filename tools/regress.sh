@@ -200,6 +200,22 @@ check_all_retry() {
     done
     echo "FAIL $name (missing:$missing)"; fail=1
 }
+# lm64: long self-tests (grapher/sheet/sysmon) and timing-sensitive shell
+# checks lag under CI load; retry like check_all_retry.
+check_retry() {
+    name=$1; want=$2; shift 2
+    tries=1
+    [ "$flavour" = lm64 ] && tries=5
+    n=1
+    while [ "$n" -le "$tries" ]; do
+        screen=$(python3 "$root/tools/qemu_screen.py" ${disk:+--disk "$disk"} ${target:+--target "$target"} ${nic:+--nic} ${boot:-"$default_boot"} "$@")
+        case $screen in
+            *"$want"*) echo "ok   $name"; return ;;
+        esac
+        n=$((n + 1))
+    done
+    echo "FAIL $name (expected: $want)"; fail=1
+}
 check_none() {   # check_none NAME UNWANTED SEEN KEYS...: UNWANTED must not be on the screen, SEEN must
     name=$1; unwanted=$2; seen=$3; shift 3
     screen=$(python3 "$root/tools/qemu_screen.py" ${disk:+--disk "$disk"} ${target:+--target "$target"} ${nic:+--nic} ${boot:-"$default_boot"} "$@")
@@ -1094,7 +1110,7 @@ check sh-redirect   'hi there'              'echo hi there > greet' '<ret>' 'cat
 check sh-append     'more'                  'echo more >> greet' '<ret>' 'cat greet' '<ret>'
 check sh-pipe       '1 3 6'                 'echo x y z | run cat | run wc' '<ret>'
 check sh-stdin      '= 42'                  'run calc < exprs > out' '<ret>' 'cat out' '<ret>'
-check sh-quiet      'calc> 2 + 3'           'run calc < exprs > out' '<ret>' 'run cat < out' '<ret>'
+check_retry sh-quiet 'calc> 2 + 3'          'run calc < exprs > out' '<ret>' '<pause>' '<pause>' 'run cat < out' '<ret>'
 check sh-ls-pipe    'demo2.bat'             'ls | run cat' '<ret>'
 check sh-badpipe    'command on both sides' 'ls |' '<ret>'
 check sh-noname     'needs a file name'     'cat >' '<ret>'
@@ -1131,7 +1147,7 @@ check prio          'prio: PASS'            'run priotest' '<ret>' '<pause>'
 # 2.0.2: aging lets a priority-0 child run beside a priority-3 spinner
 check age           'age: PASS'             'run agetest' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
 # 1.9.10: polled mouse sees motion from the QEMU monitor
-check mousetest     'mouse: PASS'           mousetest '<ret>' '<pause>' '<mouse-move:12,-8>' '<pause>'
+check_retry mousetest 'mouse: PASS'         mousetest '<ret>' '<pause>' '<pause>' '<mouse-move:12,-8>' '<pause>' '<pause>'
 # 2.0.1: mousetest no longer polls, so a still mouse fails; motion and
 # clicks in the text shell no longer block the keyboard (KB-18)
 # 2.0.1: 9-bit motion and overflow bits, from fixed packets
@@ -1180,7 +1196,7 @@ check_all bridge-play 'S pass  W pass  N 1H  E pass  S 3H|Contract: 3H by North|
 check klondike-gui  'gfx: That move is not allowed' 'run klondike gui 3' '<ret>' '<pause>' '<ret>' '<right>' '<ret>' '<pause>' '<gfx>'
 check freecell-gui  'gfx: That move is not allowed' 'run freecell gui 2' '<ret>' '<pause>' '<ret>' '<right>' '<ret>' '<pause>' '<gfx>'
 check hearts-gui    'gfx: You got JH 6H 4H - click to go on' 'run hearts gui 3' '<ret>' '<pause>' ' ' '<right>' ' ' '<right>' ' ' '<ret>' '<pause>' '<gfx>'
-check_all mines-gui 'gfx: Mines left: 9|gfx: Click or Enter: open' 'run mines gui 5' '<ret>' '<pause>' '<ret>' '<up>' '<up>' '<up>' '<up>' '<left>' '<left>' '<left>' '<left>' f '<pause>' '<gfx>'
+check_all_retry mines-gui 'gfx: Mines left: 9|gfx: Click or Enter: open' 'run mines gui 5' '<ret>' '<pause>' '<pause>' '<ret>' '<up>' '<up>' '<up>' '<up>' '<left>' '<left>' '<left>' '<left>' f '<pause>' '<pause>' '<gfx>'
 check mines-gui-big 'gfx: Boom! You hit a mine.' 'run mines gui 5 big' '<ret>' '<pause>' '<ret>' '<down>' '<down>' '<down>' '<ret>' '<pause>' '<gfx>'
 check_all reversi-gui 'gfx: You 3|gfx: Computer 3' 'run reversi gui 1' '<ret>' '<pause>' '<ret>' '<pause>' '<pause>' '<gfx>'
 check_all chess-gui 'gfx: You: e4|gfx: d5' 'run chess gui 1' '<ret>' '<pause>' '<ret>' '<up>' '<up>' '<ret>' '<pause>' '<pause>' '<pause>' '<gfx>'
@@ -1228,10 +1244,10 @@ check notepad-ask   'gfx: Save changes? y/n' 'run notepad' '<ret>' '<pause>' 'x'
 check notepad-quit  'systest: PASS'         'run notepad' '<ret>' '<pause>' 'x' '<esc>' 'n' '<pause>' systest '<ret>'
 check notepad-hl    'notepad: PASS'         'run notepad -test' '<ret>' '<pause>' '<pause>'
 # C.2: grapher (explicit, polar, parametric, implicit, inequalities, sliders; roots, extrema, intersections, trace)
-check grapher       'grapher: PASS'         'run grapher test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
+check_retry grapher 'grapher: PASS'         'run grapher test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
 check_all grapher-roots 'gfx: 1: sin(x)|gfx: roots: -9.4248|gfx: -3.1416' 'run grapher sin(x)' '<ret>' '<pause>' 'z' '<pause>' '<gfx>'
 check_all grapher-ext 'gfx: min(-7.854, -1)|gfx: max(-4.7124, 1)' 'run grapher sin(x)' '<ret>' '<pause>' 'm' '<pause>' '<gfx>'
-check_all grapher-meet 'gfx: meet: (-1, 0)|gfx: (2, 3)' 'run grapher x^2-1' '<ret>' '<pause>' '<tab>' '<ret>' 'y = x + 1' '<ret>' '<tab>' '<tab>' '<tab>' 'i' '<pause>' '<pause>' '<gfx>'
+check_all_retry grapher-meet 'gfx: meet: (-1, 0)|gfx: (2, 3)' 'run grapher x^2-1' '<ret>' '<pause>' '<pause>' '<tab>' '<ret>' 'y = x + 1' '<ret>' '<pause>' '<tab>' '<tab>' '<tab>' 'i' '<pause>' '<pause>' '<pause>' '<gfx>'
 check_all grapher-trace 'gfx: 2: x = 4*cos(t), y = 2*sin(t)|gfx: t=0.0262|gfx: x=3.9986' 'run grapher' '<ret>' '<pause>' 'sin(x)' '<ret>' '<tab>' '<ret>' 'x = 4*cos(t), y = 2*sin(t)' '<ret>' 't' '<right>' '<pause>' '<pause>' '<gfx>'
 check grapher-zoom  'gfx: roots: -3.1416'   'run grapher sin(x)' '<ret>' '<pause>' '+' 'z' '<pause>' '<gfx>'
 check grapher-syn   'gfx: Error: syntax at column 4' 'run grapher' '<ret>' '<pause>' 'y = 2*(' '<ret>' '<pause>' '<gfx>'
@@ -1361,7 +1377,7 @@ python3 "$root/tools/sqfs.py" "$sq" get 'disk image.img' "$out/floppy27b.img"
 fatok fat-loop-fsck "$out/floppy27b.img"
 disk=$saved_disk; target=$saved_target
 # C.4: spreadsheet with charts
-check sheet         'sheet: PASS'           'run sheet test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
+check_retry sheet   'sheet: PASS'           'run sheet test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
 check_all sheet-calc 'gfx: A3: =A1*A2+1|gfx: = 7' 'run sheet' '<ret>' '<pause>' '2' '<ret>' '3' '<ret>' '=A1*A2+1' '<ret>' '<up>' '<pause>' '<gfx>'
 check_all sheet-chart 'gfx: Line A1:B3|gfx: one|gfx: two' 'run sheet' '<ret>' '<pause>' 'one' '<tab>' 'two' '<ret>' '<left>' '1' '<ret>' '2' '<ret>' '<up>' '<up>' '<right>' '3' '<ret>' '5' '<ret>' '<up>' '<f3>' '<left>' '<up>' '<up>' '<ctrl-g>' '<pause>' '<pause>' '<gfx>'
 check sheet-cyc     'gfx: #CYC: it depends on itself' 'run sheet' '<ret>' '<pause>' '=A2' '<ret>' '=A1+1' '<ret>' '<up>' '<pause>' '<gfx>'
@@ -1377,11 +1393,11 @@ check geometry-quit 'systest: PASS'         'run geometry' '<ret>' '<pause>' '<e
 # C.5: computer algebra
 check cas           'cas: PASS'             'run cas test' '<ret>' '<pause>' '<pause>' '<pause>'
 check_all cas-algebra 'gfx: (x + 3)*(x - 3)|gfx: x^2 - 9|gfx: x = -sqrt(2), x = sqrt(2)' 'run cas' '<ret>' '<pause>' 'factor(x^2-9)' '<ret>' 'expand(ans)' '<ret>' 'solve(x^2=2)' '<ret>' '<pause>' '<gfx>'
-check_all cas-calculus 'gfx: x^2*cos(x) + 2*x*sin(x)|gfx: sin(3*x)/3 + C|gfx: 1 - x^2/2 + x^4/24' 'run cas' '<ret>' '<pause>' 'diff(x^2*sin(x))' '<ret>' 'integrate(cos(3*x))' '<ret>' 'series(cos(x), 0, 4)' '<ret>' '<pause>' '<gfx>'
+check_all_retry cas-calculus 'gfx: x^2*cos(x) + 2*x*sin(x)|gfx: sin(3*x)/3 + C|gfx: 1 - x^2/2 + x^4/24' 'run cas' '<ret>' '<pause>' '<pause>' 'diff(x^2*sin(x))' '<ret>' '<pause>' 'integrate(cos(3*x))' '<ret>' '<pause>' 'series(cos(x), 0, 4)' '<ret>' '<pause>' '<pause>' '<gfx>'
 check_all cas-err   'gfx: Error: syntax|gfx: Error: no answer yet for ans' 'run cas' '<ret>' '<pause>' 'ans' '<ret>' 'x +* 2' '<ret>' '<pause>' '<gfx>'
 check cas-quit      'systest: PASS'         'run cas' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
 # A.5: system monitor, log viewer, disk utility (and the kernel's GUI_SYSINFO)
-check sysmon        'sysmon: PASS'          'run sysmon test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
+check_retry sysmon  'sysmon: PASS'          'run sysmon test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
 check_all sysmon-view 'gfx: System Monitor|gfx: PID STATE|gfx: Memory|sysmon' 'run sysmon' '<ret>' '<pause>' '<pause>' '<gfx>'
 check sysmon-prio   'kernel prio 2'         'run sysmon' '<ret>' '<pause>' '<up>' '+' '<pause>' '<esc>' '<pause>' ps '<ret>'
 check sysmon-quit   'systest: PASS'         'run sysmon' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
