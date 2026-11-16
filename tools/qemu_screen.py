@@ -4,12 +4,13 @@
 Usage: qemu_screen.py [--disk DATA_IMAGE] [--target DISK] [--nic] [--floppy|--cdrom] IMAGE [KEYS...]
 Each KEYS argument is typed as text; a token like "<ret>", "<esc>",
 "<backspace>" or "<up>" is sent as that single QEMU key name, and
-"<pause>" waits a second before the next key, "<gop>" reads the text the
-GOP console drew (UEFI boot, printed as "gop: <line>"), and "<gfx>" reads the text
-drawn in graphics mode (the 5 x 7 font of tools/font5x7.txt, in 6 x 8
-cells at any pixel offset, and the proportional faces of tools/fontp*.txt)
-and prints each line found as "gfx: <text>"
-after the text screen.
+"<pause>" waits a second before the next key (1.5 s when QEMU_BIN is
+qemu-system-x86_64: LM stay thunks the timer through lm64_call32, so guest
+work lags wall-clock under load), "<gop>" reads the text the GOP console drew
+(UEFI boot, printed as "gop: <line>"), and "<gfx>" reads the text drawn in
+graphics mode (the 5 x 7 font of tools/font5x7.txt, in 6 x 8 cells at any
+pixel offset, and the proportional faces of tools/fontp*.txt) and prints each
+line found as "gfx: <text>" after the text screen.
 --disk attaches DATA_IMAGE as the primary slave (the kernel's data disk).
 --target attaches DISK as the secondary master (the installer's target;
 always a scratch image, never a real disk).
@@ -238,10 +239,15 @@ def main():
             time.sleep(0.1)
         sock = socket.socket(socket.AF_UNIX)
         sock.connect(path)
-        time.sleep(1.5)
+        # LM stay (qemu-system-x86_64 + os-lm64.img) pays for every timer IRQ
+        # through a 64→32 thunk; under a busy host the guest falls behind the
+        # wall-clock pauses that i386 CI already tolerates.
+        lm64 = 'x86_64' in os.environ.get('QEMU_BIN', '')
+        time.sleep(2.0 if lm64 else 1.5)
+        pause_s = 1.5 if lm64 else 1.0
         for chunk in keys:
-            if chunk == '<pause>':      # let the guest run for a second
-                time.sleep(1)
+            if chunk == '<pause>':      # let the guest run (see docstring)
+                time.sleep(pause_s)
                 continue
             if chunk == '<gop>':        # OS2-HW H.2: read the GOP console's pixels
                 shot = os.path.join(tmp, f'gop{len(gfx)}.ppm')
