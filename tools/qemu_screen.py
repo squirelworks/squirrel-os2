@@ -37,10 +37,11 @@ KEYMAP = {' ': 'spc', '\n': 'ret', '-': 'minus', '=': 'equal', '/': 'slash',
 
 def monitor(sock, cmd):
     sock.sendall((cmd + '\n').encode())
-    # LM stay: keyboard IRQs thunk through lm64_call32; short gaps truncate
-    # multi-key commands under CI load. 150 ms + check_all_retry for term-*.
-    gap = 0.15 if 'x86_64' in os.environ.get('QEMU_BIN', '') else 0.04
-    time.sleep(gap)
+    # Keep the historic 40 ms gap. Stretching x86_64 sendkeys to 100–150 ms
+    # fixed a few terminal OCR flakes but broke lm64 shard 3 (zombie-ps,
+    # sh-*, bat-run, mousetest, chess/checkers) which was green at 40 ms.
+    # lm64 term-input/debugger use launch-only OCR + check_all_retry instead.
+    time.sleep(0.04)
     sock.setblocking(False)
     try:
         while sock.recv(4096):
