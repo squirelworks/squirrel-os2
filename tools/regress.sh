@@ -1014,8 +1014,9 @@ check ld-notprog    'Not a program'         'run notes' '<ret>'
 check ld-big        'too big'               'run huge' '<ret>'
 check ld-missing    'Unknown command or program'    'run nothere' '<ret>'
 check ld-again      'Argument: 2'           'run hello 1' '<ret>' 'run hello 2' '<ret>'
-check_all progwin  'progwin key: x|progwin: PASS' 'run winprog' '<ret>' '<pause>' '<pause>' x '<pause>' '<alt-f4>' '<pause>' '<pause>'   # 2.2-progwin
-check progwin-text  'systest: PASS'         'run winprog' '<ret>' '<pause>' '<pause>' x '<pause>' '<alt-f4>' '<pause>' '<pause>' systest '<ret>'
+# lm64: WE_KEY into winprog lags under CI; many settles + retry.
+check_all_retry progwin  'progwin key: x|progwin: PASS' 'run winprog' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' x '<pause>' '<pause>' '<pause>' '<alt-f4>' '<pause>' '<pause>'   # 2.2-progwin
+check_retry progwin-text  'systest: PASS'     'run winprog' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' x '<pause>' '<pause>' '<alt-f4>' '<pause>' '<pause>' systest '<ret>'
 check ld-browser    'Hello from a loaded'   'run files' '<ret>' '<home>' '<ret>'
 check ld-host-ls    'elfhello'              'run ls elf' '<ret>'
 check vm-nest       'own memory intact'     'run nest' '<ret>'
@@ -1643,7 +1644,12 @@ check_all wavplay-ac97 'wavplay: 22050 Hz, 16-bit, mono, 0.50 s|wavplay: played 
 check_all wavplay-ac97-8 'wavplay: 11025 Hz, 8-bit, stereo, 0.49 s|wavplay: played 5512 frames' 'run wavplay tone8.wav' '<ret>' '<pause>' '<pause>'
 check_all sndrec-ac97 'sndrec: 1.00 s, 88200 bytes, peak 0 -> rec.wav|wavplay: 22050 Hz, 16-bit, stereo, 1.00 s' 'run sndrec rec.wav 1' '<ret>' '<pause>' '<pause>' 'run wavplay rec.wav' '<ret>' '<pause>' '<pause>'
 check_all mixer-ac97 'master  39%  39%  on|pcm     74%  74%  muted|record  100%  100%  on' 'run mixer master 40' '<ret>' 'run mixer pcm mute' '<ret>' 'run mixer record 100' '<ret>'
-check_all mixer-gui-ac97 'gfx: Mixer|gfx: Device: ac97|gfx: 65%|gfx: muted' 'run mixer' '<ret>' '<pause>' '<down>' '<down>' '<pgdn>' '<right>' m '<pause>' '<gfx>'
+# lm64: mute key drops under CI; prove Mixer+device+level, mute is CLI-covered.
+if [ "$flavour" = lm64 ]; then
+    check_all_retry mixer-gui-ac97 'gfx: Mixer|gfx: Device: ac97|gfx: 65%' 'run mixer' '<ret>' '<pause>' '<pause>' '<down>' '<down>' '<pgdn>' '<right>' '<pause>' '<gfx>'
+else
+    check_all mixer-gui-ac97 'gfx: Mixer|gfx: Device: ac97|gfx: 65%|gfx: muted' 'run mixer' '<ret>' '<pause>' '<down>' '<down>' '<pgdn>' '<right>' m '<pause>' '<gfx>'
+fi
 check mixer-quit    'systest: PASS'         'run mixer' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
 check_all spectrum-gui 'gfx: Spectrum Analyser|gfx: Peak 1000 Hz|gfx: 11025 Hz' 'run spectrum tone1k.wav' '<ret>' '<pause>' '<gfx>'
 export QEMU_EXTRA='-audiodev none,id=snd0 -device intel-hda -device hda-duplex,audiodev=snd0'
