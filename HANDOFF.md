@@ -254,8 +254,8 @@ host `fatimg.py check`, and `fattest` on the formatted images.
 - `kernel/syssetup.asm`: `ss_attach` loads System Setup + Shredder + Drives
   into `dk_objs`; open runs Control Panel; Settings notebook works. Check
   `w6-setup` → `syssetup: PASS`.
-- **Gaps filed:** #235 (umount vs live Drive), #236 (`PM_GMAX` saturated).
-- **Next:** Gen2 ship `2.6.0` (owner).
+- **Gaps:** ~~#235 umount vs live Drive~~ (this PR); #236 (`PM_GMAX` saturated).
+- **Next:** Gen2 ship `2.6.0` (owner); #236 when sized.
 
 ### 2.8-pae — PAE paging and NX  `status: done`
 PAE + NX on `main`. Checks `nx-heap`, `nx-stack`, `cpu-pentium3`.

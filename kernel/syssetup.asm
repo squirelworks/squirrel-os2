@@ -146,6 +146,50 @@ ss_load_drives:
     popad
     ret
 
+; cl = lowercase drive letter: drop drive-X from live dk_objs (W.6 #235).
+; Frees the object and closes the slot; refreshes deskicons when live.
+ss_drive_drop:
+    pushad
+    mov [ss_drive_fn+6], cl
+    xor edx, edx
+.f:
+    cmp edx, [dk_n]
+    jae .r
+    mov esi, [dk_files+edx*4]
+    test esi, esi
+    jz .n
+    mov edi, ss_drive_fn
+    call streq
+    je .drop
+.n:
+    inc edx
+    jmp .f
+.drop:
+    mov eax, [dk_objs+edx*4]
+    test eax, eax
+    jz .sh
+    call obj_free
+.sh:
+    lea eax, [edx+1]
+    cmp eax, [dk_n]
+    jae .last
+    mov eax, [dk_objs+edx*4+4]
+    mov [dk_objs+edx*4], eax
+    mov eax, [dk_files+edx*4+4]
+    mov [dk_files+edx*4], eax
+    inc edx
+    jmp .sh
+.last:
+    mov dword [dk_objs+edx*4], 0
+    mov dword [dk_files+edx*4], 0
+    dec dword [dk_n]
+    cmp byte [dki_live], 0
+    je .r
+    call dki_layout
+.r:
+    popad
+    ret
+
 ; After fsobj_mounted writes a Drive file: keep the live object in dk_objs
 ; when the desktop table is in use. eax = Drive object still live after
 ; obj_save; cl = drive letter (lowercase). Frees eax when not kept.
@@ -317,6 +361,14 @@ cmd_w6setup_run:
     call wm_close
     mov dword [pm_set_win], -1
 .nset3:
+    ; #235: dropping the live Drive removes it from dk_objs
+    mov cl, 't'
+    call ss_drive_drop
+    mov esi, ss_nm_tdrive
+    call stu_find
+    setc al
+    cmp al, 1
+    call st_check
     mov esi, ss_drive_tfile
     call fs_delete
     cmp dword [st_fail], 0

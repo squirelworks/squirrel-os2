@@ -245,6 +245,7 @@ A top-level `SystemSetup` object (`/desktop/SystemSetup.obj`, name
 Shredder object files from `kernel/fsobj.asm` are loaded into `dk_objs` by
 `ss_attach` (called from `dk_mkobjs`), so they appear as desktop icons with
 the usual context menu and Settings notebook. A Drive mounted while the
-desktop is live stays in `dk_objs` via `ss_drive_live`. The self-check
-`w6setup` prints `syssetup: PASS`. Regress: `w6-setup`.
+desktop is live stays in `dk_objs` via `ss_drive_live`; `umount` drops it with
+`ss_drive_drop` (#235). The self-check `w6setup` prints `syssetup: PASS`.
+Regress: `w6-setup`.
 
