@@ -105,10 +105,13 @@ agreed with the desktop stream: it owns these classes, the desktop only sends th
   `open` does nothing.
 - The classes are recorded at mount, and at boot when `/desktop` exists, so they are known before
   the desktop loads its object files.
+- **W.6 desktop wiring** (`kernel/syssetup.asm`): `ss_attach` loads `shredder.obj` and any
+  `drive-?.obj` into `dk_objs` with System Setup; `ss_drive_live` keeps a newly mounted Drive in
+  the live desktop table. Settings notebooks and icons use the same path as other objects.
 - `fsobjtest` checks the classes, a Drive's `path` through `obj_save`/`obj_load`, the inherited
   `name`, and the shredder deleting a file with a long name and refusing a Drive and a missing
   path. Regress: `fsobjtest`, `drive-obj`, `drive-obj-boot`, `drive-browse`, `drive-show`,
-  `drive-up`.
+  `drive-up`, `w6-setup`.
 
 ## Tests
 

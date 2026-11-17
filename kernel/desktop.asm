@@ -596,6 +596,7 @@ dk_mkobjs:
 .wps:
     call wps_attach             ; W.2: Templates folder + templates
     call stu_attach             ; W.6: Startup folder
+    call ss_attach              ; W.6: System Setup + Drive/Shredder
 .out:
     mov byte [dk_wrote], 0
     popad
@@ -1151,7 +1152,7 @@ wg_getkey:
 
 DK_NAPPS equ 5                  ; programs
 DK_NDEF equ DK_NAPPS + 1        ; and the Tools folder (1.9.0)
-DK_MAX equ 16                   ; Templates/creates (W.2) + File objects (2.6)
+DK_MAX equ 24                   ; Templates (W.2) + Startup/Setup/Drive/Shredder (W.6)
 dk_title db 'Squirrel-OS/2 Desktop', 0
 dk_heading db 'Programs:', 0
 dk_help db 'Enter: open  Bksp: up  Esc: shell', 0

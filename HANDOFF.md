@@ -64,7 +64,7 @@ Soft agent owns Soft tracks (ISM fighter-jet Soft UI apps / Eric companion apps)
 ### Progress notes `-2eaf`
 
 - **Landed:** `W.2-templates-2eaf` (#191); `W.5-openas-2eaf` (#192); `W.3-launchpad-2eaf` (#183); `2.6-shadows-2eaf` (#188); Sarah Gen2 follow-ups (#197); `2.6-icons-2eaf` / `2.6-drag-2eaf` (#184).
-- **Next (unpaused after tip):** `W.6-startup-2eaf` (`2.3.1`, #209) → `W.6-syssetup-2eaf` (`2.3.25`, #210) → Gen2 ship `2.6.0`.
+- **Next:** Gen2 ship `2.6.0` (owner) → later `3.0-taskmgr` (#217) / `3.0-themes` (#218).
 
 ### Tasks `-2eaf` (other lane)
 
@@ -72,8 +72,8 @@ Soft agent owns Soft tracks (ISM fighter-jet Soft UI apps / Eric companion apps)
 - [x] `2.6-icons-2eaf` / `2.6-drag-2eaf` — PR #184
 - [x] `2.6-shadows-2eaf` — PR #188
 - [x] `W.5-openas-2eaf` — PR #192
-- [x] `W.6-startup-2eaf` — this PR (#209)
-- [ ] `W.6-syssetup-2eaf` — claimed (#210)
+- [x] `W.6-startup-2eaf` — #209 / #234
+- [x] `W.6-syssetup-2eaf` — this PR (#210)
 
 **`-b55f` does not take** desktop/Warp boxes while `-2eaf` owns them.  
 **`-2eaf` does not take** `2.9-lm-*-b55f` / `2.9-syscall64-b55f` while `-b55f` owns them.
@@ -97,7 +97,7 @@ Soft agent owns Soft tracks (ISM fighter-jet Soft UI apps / Eric companion apps)
 **Handshake (`-b55f` ↔ `-2eaf`) after tip:**
 
 1. **MERGE-WAIT over** — Sarah via relay (2026-11-16): keep working the normal ladder.
-2. **`-2eaf` next:** `W.6-startup-2eaf` (#209) → `W.6-syssetup-2eaf` (#210) → Gen2 ship `2.6.0` (owner) → later `3.0-taskmgr` (#217) / `3.0-themes` (#218).
+2. **`-2eaf` next:** Gen2 ship `2.6.0` (owner) → later `3.0-taskmgr` (#217) / `3.0-themes` (#218).
 3. **`-b55f` next:** ~~ring-3 under stay (#231)~~ → ~~`2.9-lm-kernel-tick` (`2.9.0`)~~ (this PR) → `2.9-syscall64-b55f` → freestanding C (#212) → `3.0-users`…`3.0-eventlog` (#213–#216). Soft only if Sarah notes. #225 ISM is background only.
 4. Agents **never** tag. Tip-cut mirror [#208](https://github.com/squirelworks/squirrel-os2/issues/208) is closed.
 5. **#132 note (agents cannot edit issue bodies):** tick “x86-64 long-mode kernel and 64-bit paging” when this PR merges.
@@ -173,7 +173,7 @@ Lanes run in parallel (see **Agent ownership**). Within a lane, keep the order.
 2. ~~**2.7-diskutil** remainder~~ Done (#179). ~~**P.6 / P.8 windows**~~ Done (#177, #182).
 3. **Generation 2 desktop `-2eaf`:** ~~**2.5-***~~ / ~~W.3~~ / ~~context/notebook~~ /
    ~~templates/views/shadows/openas~~ / ~~#197~~ / ~~`2.6-icons`/`drag` #184~~ /
-   ~~tip cut `v2.3.0`~~ done → `W.6-startup` → `W.6-syssetup` → Gen2 ship `2.6.0`.
+   ~~tip cut `v2.3.0`~~ done → ~~W.6-startup~~ → ~~W.6-syssetup~~ → Gen2 ship `2.6.0`.
 4. **2.9 path `-b55f`:** ~~pae / IDT / paging / thunks / boot64 / ring-3 stay~~
    done; ~~`2.9-lm-kernel-tick` (`2.9.0`)~~ (this PR) → `2.9-syscall64` →
    freestanding C → Gen3.
@@ -246,14 +246,16 @@ host `fatimg.py check`, and `fattest` on the formatted images.
   objects `wps: PASS`; "Open as → …" `openas: PASS`; shadow follows rename
   across reboot `dk-shadow: PASS`.
 
-### W.6-startup — Startup folder  `-2eaf`  `status: done` (this PR, #209)
+### W.6-startup — Startup folder  `-2eaf`  `status: done` (#209 / #234)
 - `kernel/startup.asm`: `stu_attach` / `stu_run`; wired from `dk_mkobjs`,
   `desktop`, `progman`. Check `w6-startup` → `startup: PASS`.
-- **Next:** `W.6-syssetup-2eaf` (#210) → Gen2 ship `2.6.0`.
 
-### W.6-syssetup — System Setup object  `-2eaf` (claimed, #210)
-- System Setup opens setup entry points; Drive/Shredder behave as desktop
-  objects. Acceptance `syssetup: PASS` / `w6-setup`.
+### W.6-syssetup — System Setup object  `-2eaf`  `status: done` (this PR, #210)
+- `kernel/syssetup.asm`: `ss_attach` loads System Setup + Shredder + Drives
+  into `dk_objs`; open runs Control Panel; Settings notebook works. Check
+  `w6-setup` → `syssetup: PASS`.
+- **Gaps filed:** #235 (umount vs live Drive), #236 (`PM_GMAX` saturated).
+- **Next:** Gen2 ship `2.6.0` (owner).
 
 ### 2.8-pae — PAE paging and NX  `status: done`
 PAE + NX on `main`. Checks `nx-heap`, `nx-stack`, `cpu-pentium3`.
