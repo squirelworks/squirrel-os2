@@ -245,10 +245,11 @@ def main():
         sock.connect(path)
         # LM stay (qemu-system-x86_64 + os-lm64.img) pays for every timer IRQ
         # through a 64→32 thunk; under a busy host the guest falls behind the
-        # wall-clock pauses that i386 CI already tolerates.
+        # wall-clock pauses that i386 CI already tolerates. 2s pauses burned
+        # short guest waits (mousetest) and still flaked; 1.25s + retries.
         lm64 = 'x86_64' in os.environ.get('QEMU_BIN', '')
-        time.sleep(2.5 if lm64 else 1.5)
-        pause_s = 2.0 if lm64 else 1.0
+        time.sleep(2.0 if lm64 else 1.5)
+        pause_s = 1.25 if lm64 else 1.0
         for chunk in keys:
             if chunk == '<pause>':      # let the guest run (see docstring)
                 time.sleep(pause_s)
