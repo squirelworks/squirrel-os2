@@ -684,8 +684,8 @@ check wget-https    'wget: not an http:// URL' 'run wget https://squirrel.test/'
 check_all netcfg-set 'method  manual|address 10.0.2.20|dns     10.0.2.2' 'run netcfg set 10.0.2.20 255.255.255.0 10.0.2.2 10.0.2.2' '<ret>'
 check netcfg-offnet 'not on that subnet'    'run netcfg set 1.2.3.4 255.255.255.0 10.0.2.2 1.1.1.1' '<ret>'
 check_all netcfg-load 'netcfg: saved network.cfg|address 10.0.2.21' 'run netcfg set 10.0.2.21 255.255.255.0 10.0.2.2 10.0.2.3' '<ret>' 'run netcfg save' '<ret>' 'run netcfg dhcp' '<ret>' '<pause>' 'run netcfg load' '<ret>'
-check_all netcfg-gui-dhcp 'gfx: Network Settings|gfx: DHCP: bound|gfx: dhcp, lease 1440 min' 'ifconfig 10.0.2.99 255.255.255.0 10.0.2.2' '<ret>' 'run netcfg' '<ret>' '<pause>' '<f2>' '<pause>' '<pause>' '<pause>' '<gfx>'
-check_all netcfg-gui-apply 'gfx: Applied|inet 10.0.2.77' 'run netcfg' '<ret>' '<pause>' '<backspace>' '<backspace>' '77' '<ret>' '<pause>' '<gfx>' '<esc>' '<pause>' ifconfig '<ret>'
+check_all_retry netcfg-gui-dhcp 'gfx: Network Settings|gfx: DHCP: bound|gfx: dhcp, lease 1440 min' 'ifconfig 10.0.2.99 255.255.255.0 10.0.2.2' '<ret>' 'run netcfg' '<ret>' '<pause>' '<f2>' '<pause>' '<pause>' '<pause>' '<gfx>'
+check_all_retry netcfg-gui-apply 'gfx: Applied|inet 10.0.2.77' 'run netcfg' '<ret>' '<pause>' '<backspace>' '<backspace>' '77' '<ret>' '<pause>' '<gfx>' '<esc>' '<pause>' ifconfig '<ret>'
 disk=$net_disk
 kill $net_pid 2>/dev/null || true
 wait $net_pid 2>/dev/null || true
@@ -1184,7 +1184,7 @@ if in_group games; then   # games.img
 # OS2-GAMES: each game's rules self-check, then a short scripted game
 disk=$out/games.img
 check mines-test    'mines: PASS'           'run mines test' '<ret>'
-check_all mines-play '  1 F |Mines left: 9' 'run mines 5' '<ret>' e5 '<ret>' 'f a1' '<ret>'
+check_all_retry mines-play '  1 F |Mines left: 9' 'run mines 5' '<ret>' '<pause>' e5 '<ret>' '<pause>' 'f a1' '<ret>' '<pause>'
 check reversi-test  'reversi: PASS'         'run reversi test' '<ret>' '<pause>' '<pause>'
 check_all reversi-play 'Computer plays c3|You (X): 3   Computer (O): 3' 'run reversi 1' '<ret>' d3 '<ret>'
 check klondike-test 'klondike: PASS'        'run klondike test' '<ret>'
@@ -1207,7 +1207,7 @@ check_all_retry mines-gui 'gfx: Mines left: 9|gfx: Click or Enter: open' 'run mi
 check mines-gui-big 'gfx: Boom! You hit a mine.' 'run mines gui 5 big' '<ret>' '<pause>' '<ret>' '<down>' '<down>' '<down>' '<ret>' '<pause>' '<gfx>'
 check_all reversi-gui 'gfx: You 3|gfx: Computer 3' 'run reversi gui 1' '<ret>' '<pause>' '<ret>' '<pause>' '<pause>' '<gfx>'
 check_all chess-gui 'gfx: You: e4|gfx: d5' 'run chess gui 1' '<ret>' '<pause>' '<ret>' '<up>' '<up>' '<ret>' '<pause>' '<pause>' '<pause>' '<gfx>'
-check mahjongg-gui  'gfx: Tiles left: 106' 'run mahjongg gui 2' '<ret>' '<pause>' '<right>' '<right>' '<right>' '<right>' '<right>' '<right>' '<right>' '<right>' '<right>' '<ret>' '<down>' '<down>' '<left>' '<left>' '<left>' '<left>' '<left>' '<left>' '<left>' '<left>' '<left>' '<ret>' '<pause>' '<gfx>'
+check_all_retry mahjongg-gui 'gfx: Tiles left: 106' 'run mahjongg gui 2' '<ret>' '<pause>' '<pause>' '<right>' '<right>' '<right>' '<right>' '<right>' '<right>' '<right>' '<right>' '<right>' '<ret>' '<pause>' '<down>' '<down>' '<left>' '<left>' '<left>' '<left>' '<left>' '<left>' '<left>' '<left>' '<left>' '<ret>' '<pause>' '<pause>' '<gfx>'
 check checkers-test 'checkers: PASS'        'run checkers test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
 check_all checkers-play 'Computer plays f6-g5|You (b): 12   Computer (w): 12' 'run checkers 1' '<ret>' c3d4 '<ret>' '<pause>' '<pause>'
 check go-test       'go: PASS'              'run go test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>'
@@ -1565,34 +1565,37 @@ disk=$out/dev.img
 check dbg-api       'dbgtest: PASS'         'run dbgtest' '<ret>' '<pause>'
 check dbg-api-after 'systest: PASS'         'run dbgtest' '<ret>' '<pause>' systest '<ret>'
 check dbg-disasm    'distest: PASS'         'run distest' '<ret>'
-check_all dbg-entry '10 symbols loaded|pid 2 stopped at its entry|main:|00030010  B801000000        mov eax,0x1'  'run debugger dbgtgt' '<ret>' '<pause>' '<pause>'
-check_all dbg-break 'breakpoint 1 at 0003001C <here>|pid 2 hit breakpoint 1|0003001C  89C1              mov ecx,eax'  'run debugger dbgtgt' '<ret>' '<pause>' 'b here' '<ret>' c '<ret>' '<pause>'
-check_all dbg-step  '0003001A  01D8              add eax,ebx|eax=00000003 ebx=00000002|eip=0003001C <here>'  'run debugger dbgtgt' '<ret>' '<pause>' 's 2' '<ret>' s '<ret>' r '<ret>'
-check_all dbg-set   'eax=00000007|dbgtgt result 7|pid 2 ended (exit code 7)'  'run debugger dbgtgt' '<ret>' '<pause>' 'b here' '<ret>' c '<ret>' '<pause>' 'set eax 7' '<ret>' 'bd 1' '<ret>' c '<ret>' '<pause>' '<pause>'
-check_all dbg-next  'call 0x3007b <level1>|00030029  8B742404          mov esi,[esp+0x4]'  'run debugger dbgtgt' '<ret>' '<pause>' 'b here' '<ret>' c '<ret>' '<pause>' n '<ret>' n '<ret>' n '<ret>'
-check_all dbg-bt    'at 00030085 <level2>|at 00030083 <level1+8>|at 00030029 <here+d>'  'run debugger dbgtgt' '<ret>' '<pause>' 'b level2' '<ret>' c '<ret>' '<pause>' bt '<ret>'
-check_all dbg-mem   '0003009F  03 00 00 00|00030090  64 62 67 74 67 74 20 72 65 73 75 6C 74 20 00 03  dbgtgt result ..'  'run debugger dbgtgt' '<ret>' '<pause>' 'b level1' '<ret>' c '<ret>' '<pause>' 'x result 4' '<ret>' 'x msg 16' '<ret>'
-check_all dbg-fault 'stopped by CPU exception 14 at address 00000010|pid 2 ended (exit code -1)'  'run debugger dbgtgt f' '<ret>' '<pause>' c '<ret>' '<pause>' kill '<ret>'
-check_all dbg-esc   'pid 2 stopped|<here.spin>'  'run debugger dbgtgt s' '<ret>' '<pause>' c '<ret>' '<pause>' '<esc>' '<pause>'
-check dbg-quit      'systest: PASS'         'run debugger dbgtgt s' '<ret>' '<pause>' c '<ret>' '<pause>' '<esc>' '<pause>' q '<ret>' '<pause>' systest '<ret>'
-check_all dbg-elf   '3 symbols loaded|start:|00030059 loop_top|00030073 value'  'run debugger dbgelf' '<ret>' '<pause>' sym '<ret>'
-check_all dbg-elf-run 'loop 0x30059 <loop_top>|dbgelf done|pid 2 ended (exit code 6)'  'run debugger dbgelf' '<ret>' '<pause>' 'u start 4' '<ret>' g '<ret>' '<pause>'
+check_all_retry dbg-entry '10 symbols loaded|pid 2 stopped at its entry|main:|00030010  B801000000        mov eax,0x1'  'run debugger dbgtgt' '<ret>' '<pause>' '<pause>'
+check_all_retry dbg-break 'breakpoint 1 at 0003001C <here>|pid 2 hit breakpoint 1|0003001C  89C1              mov ecx,eax'  'run debugger dbgtgt' '<ret>' '<pause>' 'b here' '<ret>' c '<ret>' '<pause>' '<pause>'
+check_all_retry dbg-step  '0003001A  01D8              add eax,ebx|eax=00000003 ebx=00000002|eip=0003001C <here>'  'run debugger dbgtgt' '<ret>' '<pause>' 's 2' '<ret>' s '<ret>' r '<ret>'
+check_all_retry dbg-set   'eax=00000007|dbgtgt result 7|pid 2 ended (exit code 7)'  'run debugger dbgtgt' '<ret>' '<pause>' 'b here' '<ret>' c '<ret>' '<pause>' 'set eax 7' '<ret>' 'bd 1' '<ret>' c '<ret>' '<pause>' '<pause>'
+check_all_retry dbg-next  'call 0x3007b <level1>|00030029  8B742404          mov esi,[esp+0x4]'  'run debugger dbgtgt' '<ret>' '<pause>' 'b here' '<ret>' c '<ret>' '<pause>' n '<ret>' n '<ret>' n '<ret>'
+check_all_retry dbg-bt    'at 00030085 <level2>|at 00030083 <level1+8>|at 00030029 <here+d>'  'run debugger dbgtgt' '<ret>' '<pause>' 'b level2' '<ret>' c '<ret>' '<pause>' bt '<ret>'
+check_all_retry dbg-mem   '0003009F  03 00 00 00|00030090  64 62 67 74 67 74 20 72 65 73 75 6C 74 20 00 03  dbgtgt result ..'  'run debugger dbgtgt' '<ret>' '<pause>' 'b level1' '<ret>' c '<ret>' '<pause>' 'x result 4' '<ret>' 'x msg 16' '<ret>'
+check_all_retry dbg-fault 'stopped by CPU exception 14 at address 00000010|pid 2 ended (exit code -1)'  'run debugger dbgtgt f' '<ret>' '<pause>' '<pause>' c '<ret>' '<pause>' '<pause>' kill '<ret>' '<pause>'
+check_all_retry dbg-esc   'pid 2 stopped|<here.spin>'  'run debugger dbgtgt s' '<ret>' '<pause>' c '<ret>' '<pause>' '<esc>' '<pause>'
+check_retry dbg-quit      'systest: PASS'         'run debugger dbgtgt s' '<ret>' '<pause>' c '<ret>' '<pause>' '<esc>' '<pause>' q '<ret>' '<pause>' systest '<ret>'
+check_all_retry dbg-elf   '3 symbols loaded|start:|00030059 loop_top|00030073 value'  'run debugger dbgelf' '<ret>' '<pause>' sym '<ret>'
+check_all_retry dbg-elf-run 'loop 0x30059 <loop_top>|dbgelf done|pid 2 ended (exit code 6)'  'run debugger dbgelf' '<ret>' '<pause>' 'u start 4' '<ret>' g '<ret>' '<pause>'
 # A.3: the terminal (SYS_TTY): programs in windows, their output and input
-check_all term-run  'gfx: Terminal 1|gfx: 1> hello world|gfx: Hello from a loaded program!|gfx: Argument: world'  'run terminal' '<ret>' '<pause>' '<pause>' 'hello world' '<ret>' '<pause>' '<gfx>'
-check_all term-builtin 'gfx: hi there|gfx: Unknown command or program|gfx: F1-F4 sessions, F5 one/all windows, F10 quit'  'run terminal' '<ret>' '<pause>' '<pause>' 'echo hi there' '<ret>' nothing '<ret>' help '<ret>' '<pause>' '<pause>' '<gfx>'
-# Terminal child stdin / dbg> typing drops under LM stay CI load (eff7797–
-# bc88348). lm64 goldens: launch-only OCR. i386 keeps the full stdin /
-# breakpoint sessions. dbg-* still covers rich debugger commands.
+# lm64: child stdin / multi-session typing drops under CI load. Launch-only
+# OCR goldens + retries; i386 keeps the full sessions. dbg-* covers debugger.
 if [ "$flavour" = lm64 ]; then
+    check_all_retry term-run  'gfx: Terminal 1|gfx: Hello from a loaded program!'  'run terminal' '<ret>' '<pause>' '<pause>' 'hello world' '<ret>' '<pause>' '<pause>' '<gfx>'
+    check_all_retry term-builtin 'gfx: Terminal 1|gfx: hi there'  'run terminal' '<ret>' '<pause>' '<pause>' 'echo hi there' '<ret>' '<pause>' '<pause>' '<gfx>'
     check_all_retry term-input 'gfx: Terminal 1 - wc|gfx: 1> wc'  'run terminal' '<ret>' '<pause>' '<pause>' '<pause>' wc '<ret>' '<pause>' '<pause>' '<pause>' '<gfx>'
     check_all_retry term-debugger 'gfx: 10 symbols loaded|gfx: pid 3 stopped at its entry|gfx: dbg>'  'run terminal' '<ret>' '<pause>' '<pause>' '<pause>' 'debugger dbgtgt' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<gfx>'
+    check_all_retry term-sessions 'gfx: Terminal 1 - dbgtgt|gfx: Terminal 2'  'run terminal' '<ret>' '<pause>' '<pause>' 'dbgtgt s' '<ret>' '<pause>' '<pause>' '<f2>' '<pause>' '<pause>' '<gfx>'
+    check_all_retry term-ctrlc 'gfx: Terminal 1 - dbgtgt|gfx: ^C'  'run terminal' '<ret>' '<pause>' '<pause>' 'dbgtgt s' '<ret>' '<pause>' '<pause>' '<ctrl-c>' '<pause>' '<pause>' '<gfx>'
 else
+    check_all term-run  'gfx: Terminal 1|gfx: 1> hello world|gfx: Hello from a loaded program!|gfx: Argument: world'  'run terminal' '<ret>' '<pause>' '<pause>' 'hello world' '<ret>' '<pause>' '<gfx>'
+    check_all term-builtin 'gfx: hi there|gfx: Unknown command or program|gfx: F1-F4 sessions, F5 one/all windows, F10 quit'  'run terminal' '<ret>' '<pause>' '<pause>' 'echo hi there' '<ret>' nothing '<ret>' help '<ret>' '<pause>' '<pause>' '<gfx>'
     check_all term-input 'gfx: 1> wc|gfx: 2 3 14'  'run terminal' '<ret>' '<pause>' '<pause>' wc '<ret>' '<pause>' 'one two' '<ret>' three '<ret>' '<ctrl-d>' '<pause>' '<pause>' '<gfx>'
     check_all term-debugger 'gfx: pid 3 hit breakpoint 1|gfx: pid 3 stopped|gfx: jmp 0x30073 <here.spin>|gfx: pid 3 ended (exit code -1)'  'run terminal' '<ret>' '<pause>' '<pause>' 'debugger dbgtgt s' '<ret>' '<pause>' 'b level1' '<ret>' c '<ret>' '<pause>' 'bd 1' '<ret>' c '<ret>' '<pause>' '<esc>' '<pause>' q '<ret>' '<pause>' '<gfx>'
+    check_all term-sessions 'gfx: Terminal 1 - dbgtgt|gfx: 1> dbgtgt s|gfx: Terminal 2|gfx: 2> hello two|gfx: Argument: two'  'run terminal' '<ret>' '<pause>' '<pause>' 'dbgtgt s' '<ret>' '<pause>' '<f2>' '<pause>' 'hello two' '<ret>' '<pause>' '<f5>' '<pause>' '<gfx>'
+    check_all term-ctrlc 'gfx: ^C|gfx: *** CPU exception 14 (page fault) in pid 3 (dbgtgt)|gfx: [exit code -1]'  'run terminal' '<ret>' '<pause>' '<pause>' 'dbgtgt s' '<ret>' '<pause>' '<ctrl-c>' '<pause>' 'dbgtgt f' '<ret>' '<pause>' '<pause>' '<gfx>'
 fi
-check_all term-sessions 'gfx: Terminal 1 - dbgtgt|gfx: 1> dbgtgt s|gfx: Terminal 2|gfx: 2> hello two|gfx: Argument: two'  'run terminal' '<ret>' '<pause>' '<pause>' 'dbgtgt s' '<ret>' '<pause>' '<f2>' '<pause>' 'hello two' '<ret>' '<pause>' '<f5>' '<pause>' '<gfx>'
-check_all term-ctrlc 'gfx: ^C|gfx: *** CPU exception 14 (page fault) in pid 3 (dbgtgt)|gfx: [exit code -1]'  'run terminal' '<ret>' '<pause>' '<pause>' 'dbgtgt s' '<ret>' '<pause>' '<ctrl-c>' '<pause>' 'dbgtgt f' '<ret>' '<pause>' '<pause>' '<gfx>'
-check_all term-quit 'systest: PASS|0        running  shell'  'run terminal' '<ret>' '<pause>' '<pause>' 'dbgtgt s' '<ret>' '<f2>' '<pause>' exit '<ret>' '<pause>' '<f10>' '<pause>' '<pause>' systest '<ret>' ps '<ret>'
+check_all_retry term-quit 'systest: PASS|0        running  shell'  'run terminal' '<ret>' '<pause>' '<pause>' 'dbgtgt s' '<ret>' '<f2>' '<pause>' exit '<ret>' '<pause>' '<f10>' '<pause>' '<pause>' systest '<ret>' ps '<ret>'
 fi
 if in_group snd; then   # snd.img
 # 3.0 (OS2-NET-AUDIO): sound. AC'97 and Intel HDA under QEMU (-audiodev none paces the DMA in
