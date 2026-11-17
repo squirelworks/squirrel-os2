@@ -1511,7 +1511,9 @@ if lm64_skip_foreign; then
 else
 check_all dos-winrun  'Hello from an MZ .EXE!|dosexe: PASS'  'run winrun dosexe.exe' '<ret>'
 fi
-check dos-run-after   'systest: PASS'         'run doscpu.com' '<ret>' systest '<ret>'
+# Same LM-stay race as dos-after: after auto-launched doscpu.com the shell
+# lags wall-clock (timer IRQs via lm64_call32), so systest keys must wait.
+check dos-run-after   'systest: PASS'         'run doscpu.com' '<ret>' '<pause>' '<pause>' systest '<ret>'
 # P.2: Linux signals: handlers, SA_SIGINFO, masks and pending, and a default action that ends the program
 if lm64_skip_foreign; then
     for n in lx-sig lx-sig-term lx-sig-after; do
