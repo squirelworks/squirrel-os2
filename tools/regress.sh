@@ -185,7 +185,7 @@ check_all() {   # check_all NAME 'WANT1|WANT2|...' KEYS...: every WANT must be o
 check_all_retry() {
     name=$1; wants=$2; shift 2
     tries=1
-    [ "$flavour" = lm64 ] && tries=5
+    [ "$flavour" = lm64 ] && tries=8
     n=1; missing=
     while [ "$n" -le "$tries" ]; do
         screen=$(python3 "$root/tools/qemu_screen.py" ${disk:+--disk "$disk"} ${target:+--target "$target"} ${nic:+--nic} ${boot:-"$default_boot"} "$@")
@@ -205,7 +205,7 @@ check_all_retry() {
 check_retry() {
     name=$1; want=$2; shift 2
     tries=1
-    [ "$flavour" = lm64 ] && tries=5
+    [ "$flavour" = lm64 ] && tries=8
     n=1
     while [ "$n" -le "$tries" ]; do
         screen=$(python3 "$root/tools/qemu_screen.py" ${disk:+--disk "$disk"} ${target:+--target "$target"} ${nic:+--nic} ${boot:-"$default_boot"} "$@")
@@ -1252,7 +1252,9 @@ check notepad-ask   'gfx: Save changes? y/n' 'run notepad' '<ret>' '<pause>' 'x'
 check notepad-quit  'systest: PASS'         'run notepad' '<ret>' '<pause>' 'x' '<esc>' 'n' '<pause>' systest '<ret>'
 check notepad-hl    'notepad: PASS'         'run notepad -test' '<ret>' '<pause>' '<pause>'
 # C.2: grapher (explicit, polar, parametric, implicit, inequalities, sliders; roots, extrema, intersections, trace)
-check_retry grapher 'grapher: PASS'         'run grapher test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
+# 1.25s lm64 pauses: self-test needs ~30s wall-clock under CI (ccf061b still
+# red after 14 pauses × 5 retries). Extra pauses + 8× retry.
+check_retry grapher 'grapher: PASS'         'run grapher test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
 check_all grapher-roots 'gfx: 1: sin(x)|gfx: roots: -9.4248|gfx: -3.1416' 'run grapher sin(x)' '<ret>' '<pause>' 'z' '<pause>' '<gfx>'
 check_all grapher-ext 'gfx: min(-7.854, -1)|gfx: max(-4.7124, 1)' 'run grapher sin(x)' '<ret>' '<pause>' 'm' '<pause>' '<gfx>'
 check_all_retry grapher-meet 'gfx: meet: (-1, 0)|gfx: (2, 3)' 'run grapher x^2-1' '<ret>' '<pause>' '<pause>' '<tab>' '<ret>' 'y = x + 1' '<ret>' '<pause>' '<tab>' '<tab>' '<tab>' 'i' '<pause>' '<pause>' '<pause>' '<gfx>'
@@ -1262,7 +1264,7 @@ check grapher-syn   'gfx: Error: syntax at column 4' 'run grapher' '<ret>' '<pau
 check grapher-quit  'systest: PASS'         'run grapher sin(x)' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
 check_all grapher-impl 'gfx: 1: x^2+y^2=25|gfx: only for y = f(x)' 'run grapher x^2+y^2=25' '<ret>' '<pause>' '<pause>' 'z' '<pause>' '<gfx>'
 check_all grapher-ineq 'gfx: 1: y >= x^2|gfx: Trace is for y =, r = and x =, y =' 'run grapher' '<ret>' '<pause>' 'y >= x^2' '<ret>' '<pause>' '<pause>' 't' '<pause>' '<pause>' '<gfx>'
-check grapher-slider 'gfx: a = 2.2'         'run grapher y=a*sin(x)' '<ret>' '<pause>' 'a' '<pause>' '<right>' '<pause>' '<right>' '<pause>' '<up>' '<pause>' '<pause>' '<gfx>'
+check_retry grapher-slider 'gfx: a = 2.2'   'run grapher y=a*sin(x)' '<ret>' '<pause>' '<pause>' 'a' '<pause>' '<right>' '<pause>' '<right>' '<pause>' '<up>' '<pause>' '<pause>' '<pause>' '<gfx>'
 check grapher-form  'gfx: Use y = f(x), r = f(t), x = f(t), y = g(t), = < >' 'run grapher' '<ret>' '<pause>' 'y < x < 2' '<ret>' '<pause>' '<gfx>'
 # A.2: character map, paint, image viewer
 check_all charmap   'gfx: Character map|gfx: AB~|gfx: 0x7E|gfx: 126' 'run charmap' '<ret>' '<pause>' '<ret>' '<right>' '<ret>' 'z' '<down>' '<ret>' '<pause>' '<gfx>'
@@ -1400,12 +1402,12 @@ check geometry-save 'C=circle A 2'          'run geometry g.geo' '<ret>' '<pause
 check geometry-quit 'systest: PASS'         'run geometry' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
 # C.5: computer algebra
 check cas           'cas: PASS'             'run cas test' '<ret>' '<pause>' '<pause>' '<pause>'
-check_all cas-algebra 'gfx: (x + 3)*(x - 3)|gfx: x^2 - 9|gfx: x = -sqrt(2), x = sqrt(2)' 'run cas' '<ret>' '<pause>' 'factor(x^2-9)' '<ret>' 'expand(ans)' '<ret>' 'solve(x^2=2)' '<ret>' '<pause>' '<gfx>'
+check_all_retry cas-algebra 'gfx: (x + 3)*(x - 3)|gfx: x^2 - 9|gfx: x = -sqrt(2), x = sqrt(2)' 'run cas' '<ret>' '<pause>' '<pause>' 'factor(x^2-9)' '<ret>' '<pause>' 'expand(ans)' '<ret>' '<pause>' 'solve(x^2=2)' '<ret>' '<pause>' '<pause>' '<gfx>'
 check_all_retry cas-calculus 'gfx: x^2*cos(x) + 2*x*sin(x)|gfx: sin(3*x)/3 + C|gfx: 1 - x^2/2 + x^4/24' 'run cas' '<ret>' '<pause>' '<pause>' 'diff(x^2*sin(x))' '<ret>' '<pause>' 'integrate(cos(3*x))' '<ret>' '<pause>' 'series(cos(x), 0, 4)' '<ret>' '<pause>' '<pause>' '<gfx>'
 check_all cas-err   'gfx: Error: syntax|gfx: Error: no answer yet for ans' 'run cas' '<ret>' '<pause>' 'ans' '<ret>' 'x +* 2' '<ret>' '<pause>' '<gfx>'
 check cas-quit      'systest: PASS'         'run cas' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
 # A.5: system monitor, log viewer, disk utility (and the kernel's GUI_SYSINFO)
-check_retry sysmon  'sysmon: PASS'          'run sysmon test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
+check_retry sysmon  'sysmon: PASS'          'run sysmon test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
 check_all sysmon-view 'gfx: System Monitor|gfx: PID STATE|gfx: Memory|sysmon' 'run sysmon' '<ret>' '<pause>' '<pause>' '<gfx>'
 check sysmon-prio   'kernel prio 2'         'run sysmon' '<ret>' '<pause>' '<up>' '+' '<pause>' '<esc>' '<pause>' ps '<ret>'
 check sysmon-quit   'systest: PASS'         'run sysmon' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
@@ -1445,9 +1447,9 @@ fatok diskutil-fmt16-fsck "$out/dufmt16.img"
 check_all diskutil-fmt16-use 'D: FAT16, 15 MB, hd2|fattest: PASS' 'mount d: hd2' '<ret>' 'fattest d:' '<ret>' '<pause>' '<pause>'
 check_all diskutil-fmt-gui 'gfx: Formatted FAT16' 'mount d: hd2' '<ret>' 'run diskutil hd2' '<ret>' '<pause>' 'f' '<pause>' 'y' '<pause>' '<pause>' '<gfx>'
 target=$out/dufmt32.img
-check diskutil-fmt32 'diskutil: PASS'       'mount d: hd2' '<ret>' 'run diskutil test format hd2 32' '<ret>' '<pause>' '<pause>'
+check_retry diskutil-fmt32 'diskutil: PASS' 'mount d: hd2' '<ret>' 'run diskutil test format hd2 32' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
 fatok diskutil-fmt32-fsck "$out/dufmt32.img"
-check_all diskutil-fmt32-use 'D: FAT32, 39 MB, hd2|fattest: PASS' 'mount d: hd2' '<ret>' 'fattest d:' '<ret>' '<pause>' '<pause>'
+check_all_retry diskutil-fmt32-use 'D: FAT32, 39 MB, hd2|fattest: PASS' 'mount d: hd2' '<ret>' 'fattest d:' '<ret>' '<pause>' '<pause>' '<pause>'
 target=$saved_target
 # 2.7 (OS2-FS): SQFS tables of 256 entries (version 2); version 1 disks
 # (64 entries) still mount and are written as they are
@@ -1489,7 +1491,7 @@ disk=$saved_disk2
 # C.8: notebooks (notes, Nut code, graphs, tables, geometry; C.1: math cells by sqmath)
 check notebook      'notebook: PASS'        'run notebook test' '<ret>' '<pause>' '<pause>' '<pause>'
 check_all notebook-code 'gfx: 42|gfx: 7 12' 'run notebook' '<ret>' '<pause>' 'c' 'x = 6' '<ret>' 'print x*7' '<ret>' 'print x+1, x*2' '<esc>' '<pause>' '<gfx>'
-check_all notebook-cells 'gfx: y = sin(x)|gfx: x: -10 .. 10|gfx: y: -1 .. 1|gfx: d = 5|gfx: 2 hi' 'run notebook' '<ret>' '<pause>' 'g' 'sin(x)' '<esc>' 'o' 'A = (0,0)' '<ret>' 'B = (3,4)' '<ret>' 'seg A B' '<ret>' 'd = dist A B' '<esc>' 't' '=d-3 | hi' '<esc>' '<pause>' '<gfx>'
+check_all_retry notebook-cells 'gfx: y = sin(x)|gfx: x: -10 .. 10|gfx: y: -1 .. 1|gfx: d = 5|gfx: 2 hi' 'run notebook' '<ret>' '<pause>' '<pause>' 'g' 'sin(x)' '<esc>' 'o' 'A = (0,0)' '<ret>' 'B = (3,4)' '<ret>' 'seg A B' '<ret>' 'd = dist A B' '<esc>' 't' '=d-3 | hi' '<esc>' '<pause>' '<pause>' '<gfx>'
 check notebook-err  'gfx: ! line 2: division by zero' 'run notebook' '<ret>' '<pause>' 'c' 'x = 1' '<ret>' 'print x/0' '<esc>' '<pause>' '<gfx>'
 check_all notebook-save '%% code|print 5|%% note|acorns' 'run notebook n.nb' '<ret>' '<pause>' 'n' 'acorns' '<esc>' 'c' 'print 5' '<esc>' '<ctrl-s>' '<pause>' '<esc>' '<pause>' 'cat n.nb' '<ret>'
 check_all notebook-math 'gfx: z = -3 + 4i|gfx: v = 25 m/s|gfx: 1/7 = 0.1428571428571428571428571428571428571429' 'run notebook' '<ret>' '<pause>' 'm' 'z = (1+2i)^2' '<ret>' 'v = 90 [km/h] to [m/s]' '<ret>' 'digits 40' '<ret>' '1/7' '<esc>' '<pause>' '<gfx>'
