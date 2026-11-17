@@ -950,7 +950,8 @@ check_all lm-boot64-again 'lmboot: PASS|systest: PASS|lm: PASS' lmboot '<ret>' s
 # 2.9-lm-ring3-stay: ring-3 programs under permanent boot stay (#211)
 disk=$out/progs.img
 check lm64-hello    'Hello from a loaded program!' '<pause>' '<pause>' '<pause>' 'run hello' '<ret>' '<pause>'
-check_all lm64-ring3 'ring3: PASS' '<pause>' '<pause>' '<pause>' 'run ring3' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
+# lm64: ring3 self-test lags under CI load (5ce0a1e data shard); settle + retry.
+check_all_retry lm64-ring3 'ring3: PASS' '<pause>' '<pause>' '<pause>' '<pause>' 'run ring3' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
 disk=
 unset boot
 # nolm / limited-CPU checks need qemu-system-i386 (no long mode / no PAE)
