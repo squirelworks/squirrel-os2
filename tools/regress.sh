@@ -1147,7 +1147,14 @@ check prio          'prio: PASS'            'run priotest' '<ret>' '<pause>'
 # 2.0.2: aging lets a priority-0 child run beside a priority-3 spinner
 check age           'age: PASS'             'run agetest' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
 # 1.9.10: polled mouse sees motion from the QEMU monitor
-check_retry mousetest 'mouse: PASS'         mousetest '<ret>' '<pause>' '<pause>' '<mouse-move:12,-8>' '<pause>' '<pause>'
+# lm64 <pause> is 2 s; mousetest only waits 200 ticks (~2 s). A full pause
+# before mouse-move burns the wait window on a snappy host. Inject motion
+# right after launch on lm64; i386 keeps the historic 1 s settle.
+if [ "$flavour" = lm64 ]; then
+    check_retry mousetest 'mouse: PASS'     mousetest '<ret>' '<mouse-move:12,-8>' '<mouse-move:12,-8>' '<pause>' '<pause>'
+else
+    check mousetest     'mouse: PASS'       mousetest '<ret>' '<pause>' '<mouse-move:12,-8>' '<pause>'
+fi
 # 2.0.1: mousetest no longer polls, so a still mouse fails; motion and
 # clicks in the text shell no longer block the keyboard (KB-18)
 # 2.0.1: 9-bit motion and overflow bits, from fixed packets
@@ -1397,7 +1404,7 @@ check_all_retry cas-calculus 'gfx: x^2*cos(x) + 2*x*sin(x)|gfx: sin(3*x)/3 + C|g
 check_all cas-err   'gfx: Error: syntax|gfx: Error: no answer yet for ans' 'run cas' '<ret>' '<pause>' 'ans' '<ret>' 'x +* 2' '<ret>' '<pause>' '<gfx>'
 check cas-quit      'systest: PASS'         'run cas' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
 # A.5: system monitor, log viewer, disk utility (and the kernel's GUI_SYSINFO)
-check_retry sysmon  'sysmon: PASS'          'run sysmon test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
+check_retry sysmon  'sysmon: PASS'          'run sysmon test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
 check_all sysmon-view 'gfx: System Monitor|gfx: PID STATE|gfx: Memory|sysmon' 'run sysmon' '<ret>' '<pause>' '<pause>' '<gfx>'
 check sysmon-prio   'kernel prio 2'         'run sysmon' '<ret>' '<pause>' '<up>' '+' '<pause>' '<esc>' '<pause>' ps '<ret>'
 check sysmon-quit   'systest: PASS'         'run sysmon' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
