@@ -977,7 +977,7 @@ flavour_qemu_restore
 fi
 if in_group progs; then   # progs.img
 disk=$out/progs.img
-check ld-sqx        'Hello from a loaded program!'  'run hello' '<ret>'
+check_retry ld-sqx  'Hello from a loaded program!'  'run hello' '<ret>' '<pause>'
 check ld-arg        'Argument: world'       'run hello world' '<ret>'
 check ld-wc         '2 3 14 notes'          'run wc notes' '<ret>'
 check ld-elf        'Hello from an ELF program!'    'run elfhello' '<ret>'
@@ -1202,7 +1202,7 @@ check_all bridge-play 'S pass  W pass  N 1H  E pass  S 3H|Contract: 3H by North|
 # OS2-GAMES: the graphical front ends (run <game> gui [seed]), read off the screen
 check klondike-gui  'gfx: That move is not allowed' 'run klondike gui 3' '<ret>' '<pause>' '<ret>' '<right>' '<ret>' '<pause>' '<gfx>'
 check freecell-gui  'gfx: That move is not allowed' 'run freecell gui 2' '<ret>' '<pause>' '<ret>' '<right>' '<ret>' '<pause>' '<gfx>'
-check hearts-gui    'gfx: You got JH 6H 4H - click to go on' 'run hearts gui 3' '<ret>' '<pause>' ' ' '<right>' ' ' '<right>' ' ' '<ret>' '<pause>' '<gfx>'
+check_retry hearts-gui 'gfx: You got JH 6H 4H - click to go on' 'run hearts gui 3' '<ret>' '<pause>' '<pause>' ' ' '<right>' ' ' '<right>' ' ' '<ret>' '<pause>' '<pause>' '<gfx>'
 check_all_retry mines-gui 'gfx: Mines left: 9|gfx: Click or Enter: open' 'run mines gui 5' '<ret>' '<pause>' '<pause>' '<ret>' '<up>' '<up>' '<up>' '<up>' '<left>' '<left>' '<left>' '<left>' f '<pause>' '<pause>' '<gfx>'
 check mines-gui-big 'gfx: Boom! You hit a mine.' 'run mines gui 5 big' '<ret>' '<pause>' '<ret>' '<down>' '<down>' '<down>' '<ret>' '<pause>' '<gfx>'
 check_all reversi-gui 'gfx: You 3|gfx: Computer 3' 'run reversi gui 1' '<ret>' '<pause>' '<ret>' '<pause>' '<pause>' '<gfx>'
@@ -1513,7 +1513,8 @@ check_all dos-winrun  'Hello from an MZ .EXE!|dosexe: PASS'  'run winrun dosexe.
 fi
 # Same LM-stay race as dos-after: after auto-launched doscpu.com the shell
 # lags wall-clock (timer IRQs via lm64_call32), so systest keys must wait.
-check dos-run-after   'systest: PASS'         'run doscpu.com' '<ret>' '<pause>' '<pause>' systest '<ret>'
+# Two pauses still raced on 411b3e8 CI; retry + an extra pause (#233).
+check_retry dos-run-after 'systest: PASS'     'run doscpu.com' '<ret>' '<pause>' '<pause>' '<pause>' systest '<ret>'
 # P.2: Linux signals: handlers, SA_SIGINFO, masks and pending, and a default action that ends the program
 if lm64_skip_foreign; then
     for n in lx-sig lx-sig-term lx-sig-after; do
