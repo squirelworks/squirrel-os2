@@ -1582,13 +1582,14 @@ check_all_retry dbg-elf-run 'loop 0x30059 <loop_top>|dbgelf done|pid 2 ended (ex
 # OCR goldens + retries; i386 keeps the full sessions. dbg-* covers debugger.
 if [ "$flavour" = lm64 ]; then
     # Child stdin / title updates drop under LM stay CI load even with retries.
-    # Prove the VBE terminal launches (and F2 opens session 2); dbg-* + i386
-    # keep the rich stdin / multi-session / ^C goldens.
+    # Prove the VBE terminal launches; F2 session switch OCR's the active
+    # title only (fb57da7 missed Terminal 1 after F2). dbg-* + i386 keep the
+    # rich stdin / multi-session / ^C goldens.
     check_all_retry term-run  'gfx: Terminal 1'  'run terminal' '<ret>' '<pause>' '<pause>' '<gfx>'
     check_all_retry term-builtin 'gfx: Terminal 1'  'run terminal' '<ret>' '<pause>' '<pause>' '<gfx>'
     check_all_retry term-input 'gfx: Terminal 1'  'run terminal' '<ret>' '<pause>' '<pause>' '<gfx>'
     check_all_retry term-debugger 'gfx: Terminal 1'  'run terminal' '<ret>' '<pause>' '<pause>' '<gfx>'
-    check_all_retry term-sessions 'gfx: Terminal 1|gfx: Terminal 2'  'run terminal' '<ret>' '<pause>' '<pause>' '<f2>' '<pause>' '<pause>' '<gfx>'
+    check_all_retry term-sessions 'gfx: Terminal 2'  'run terminal' '<ret>' '<pause>' '<pause>' '<f2>' '<pause>' '<pause>' '<gfx>'
     check_all_retry term-ctrlc 'gfx: Terminal 1'  'run terminal' '<ret>' '<pause>' '<pause>' '<gfx>'
 else
     check_all term-run  'gfx: Terminal 1|gfx: 1> hello world|gfx: Hello from a loaded program!|gfx: Argument: world'  'run terminal' '<ret>' '<pause>' '<pause>' 'hello world' '<ret>' '<pause>' '<gfx>'
