@@ -271,7 +271,7 @@ Each has its rules core with unit tests in squirrelsoft first; card and board gr
   **W.3-launchpad**.
 - [x] **W.4** — Folder views: icon, tree, details. Box: `TODO.md` **W.4-views** (with 2.6).
 - [x] **W.5** — Context menu "Open as → Icon / Tree / Details / Settings". Box: `TODO.md` **W.5-openas** (with 2.6).
-- [ ] **W.6** *(claimed lane `-2eaf`)* — Startup folder, Shredder, Drives and System Setup objects. Boxes: `TODO.md` **W.6-startup**, **W.6-syssetup** (after 2.6; Drive/Shredder classes from **2.7-objects**).
+- [x] **W.6** *(lane `-2eaf`)* — Startup folder, Shredder, Drives and System Setup objects. Boxes: `TODO.md` **W.6-startup**, **W.6-syssetup** (after 2.6; Drive/Shredder classes from **2.7-objects**).
 
 ### Running other systems' programs (P.1–P.12, extends F.1–F.10, epic #118)
 

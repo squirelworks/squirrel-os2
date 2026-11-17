@@ -735,6 +735,12 @@ disk=$out/stu.img
 check w6-startup    'startup: PASS'         w6startup '<ret>'
 check w6-startup-text 'systest: PASS'       w6startup '<ret>' systest '<ret>'
 disk=$pm_disk
+# W.6-syssetup: System Setup + Drive/Shredder as desktop objects
+python3 "$root/tools/sqfs.py" "$out/ss.img" format 1024 >/dev/null
+disk=$out/ss.img
+check w6-setup      'syssetup: PASS'        w6setup '<ret>' '<pause>'
+check w6-setup-text 'systest: PASS'         w6setup '<ret>' '<pause>' systest '<ret>'
+disk=$pm_disk
 # 2.3-filemgr: the File Manager on a disk of its own: /w holds a.txt and sub
 python3 "$root/tools/sqfs.py" "$out/fm.img" format 1024 >/dev/null
 disk=$out/fm.img

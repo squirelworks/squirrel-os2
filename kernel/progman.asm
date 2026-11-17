@@ -626,7 +626,15 @@ pm_icon:
     je .r
     cmp dword [eax+OBJ_CLASS], wps_c_tmpl
     je .tmpl
+    mov esi, icon_files
+    cmp dword [eax+OBJ_CLASS], fo_c_drive
+    je .r
+    mov esi, icon_shell
+    cmp dword [eax+OBJ_CLASS], fo_c_shred
+    je .r
     mov esi, icon_program
+    cmp dword [eax+OBJ_CLASS], ss_c_setup
+    je .r
     cmp dword [eax+OBJ_CLASS], dk_c_prog
     jne .r
     mov ebx, 2
@@ -1609,10 +1617,11 @@ cmd_dkctx_run:
 
 ; ---------- pmtest ----------
 ; Builds the groups without the loop and checks them: Main has the five
-; programs and Tools is a group of its own; a press on calc chooses it, a
-; drag of (40, 16) moves it and saves; the places read back put it there
-; again; a second press soon after on calc is a double-click, a late one
-; is not; arrange puts it back in its row. Prints `pm: PASS` or `pm: FAIL`.
+; programs plus System Setup and Shredder (W.6), and Tools is a group of
+; its own; a press on calc chooses it, a drag of (40, 16) moves it and
+; saves; the places read back put it there again; a second press soon
+; after on calc is a double-click, a late one is not; arrange puts it
+; back in its row. Prints `pm: PASS` or `pm: FAIL`.
 cmd_pmtest_run:
     call wm_screen
     jnc .ok
@@ -1622,10 +1631,10 @@ cmd_pmtest_run:
     call dk_mkobjs
     call pm_build
     mov byte [pm_tok], 1
-    cmp dword [pm_ng], 2        ; Main and Tools
+    cmp dword [pm_ng], 2        ; Main and Tools (Templates/Startup too)
     mov byte [pm_tstep], 1
     jb .bad
-    cmp dword [pm_gn], 5
+    cmp dword [pm_gn], 7        ; 5 programs + System Setup + Shredder
     mov byte [pm_tstep], 2
     jne .bad
     mov esi, [pm_gname+4]

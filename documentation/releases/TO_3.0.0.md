@@ -249,7 +249,7 @@ These may start after their depends-on; they are **not** required to publish `3.
 | Lane | Now | Next |
 |------|-----|------|
 | **`-b55f`** | #204 lm-boot64 (rebase if dirty); this docs PR #205 | After M0: **M2 ring-3 under stay** → M6 lm-kernel tick → M7 syscall64 |
-| **`-2eaf`** | #184 icons/drag; #197 Gen2 follow-ups | After M0: **M1 W.6-startup** → M3 W.6-syssetup → M14/M15 when Gen3 GUI opens |
+| **`-2eaf`** | W.6 done (#209/#210) | Gen2 ship **M4 `2.6.0`** (owner) → M14/M15 when Gen3 GUI opens |
 | **Owner** | Publish nothing until gate PRs land | **M0** tag `v2.3.0` from tip; later M4 / M6 / M16 |
 | **Shared** | HANDOFF / TODO / ROADMAP / `pm.asm` / `regress.sh` | Rebase; do not race |
 

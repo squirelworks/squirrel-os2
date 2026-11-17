@@ -573,6 +573,9 @@ run_simple:
     mov edi, cmd_w6startup      ; W.6-startup
     call streq
     je .w6startup
+    mov edi, cmd_w6setup        ; W.6-syssetup
+    call streq
+    je .w6setup
 
     mov edi, cmd_winalttab      ; 2.2-alttab
     call streq
@@ -926,6 +929,9 @@ run_simple:
     jmp .empty
 .w6startup:
     call cmd_w6startup_run
+    jmp .empty
+.w6setup:
+    call cmd_w6setup_run
     jmp .empty
 
 .winalttab:
@@ -1529,6 +1535,7 @@ cmd_dkicons db 'dkicons', 0
 cmd_dkdrag db 'dkdrag', 0
 cmd_dkshadow db 'dkshadow', 0
 cmd_w6startup db 'w6startup', 0
+cmd_w6setup db 'w6setup', 0
 
 cmd_pfont db 'pfont', 0
 cmd_icontest db 'icontest', 0
@@ -1783,6 +1790,7 @@ khigh_start:
 %include "wps.asm"              ; W.2-templates
 %include "shadow.asm"           ; 2.6-shadows
 %include "startup.asm"          ; W.6-startup
+%include "syssetup.asm"         ; W.6-syssetup
 %include "debug.asm"
 %include "tty.asm"
 %include "drivers/hw.asm"

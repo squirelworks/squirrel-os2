@@ -358,7 +358,7 @@ From the 2.6 milestone in `ROADMAP.md` and W.2 / W.4 / W.5 in epic #117. Start a
 From W.6 in `ROADMAP.md` / epic #117. Start after **2.6-icons** and **2.6-context** are on `main`. Drive and Shredder object classes are already on `main` (**2.7-objects** in `kernel/fsobj.asm`); these boxes put Startup and System Setup beside them on the Generation-2 desktop and wire all four through icons, context menus and notebooks.
 
 - [x] **W.6-startup** *(lane `-2eaf`; #209)* — Startup folder: Programs/Shadows in it open when desktop / Program Manager starts; removing one stops that. Check `w6-startup` → `startup: PASS`.
-- [ ] **W.6-syssetup** *(claimed lane `-2eaf`; #210; unpaused after `v2.3.0`)* — A System Setup object that opens the system setup folder / Control Panel entry points; together with Drive and Shredder icons on the desktop, right-click and Settings notebook work like any other object. Check `w6-setup` → `syssetup: PASS`.
+- [x] **W.6-syssetup** *(lane `-2eaf`; #210)* — A System Setup object that opens the Control Panel; Drive and Shredder icons on the desktop with context menu and Settings notebook like any other object. Check `w6-setup` → `syssetup: PASS`.
 
 ## Path to 3.0.0 (version marks)
 
@@ -370,7 +370,7 @@ Index also in `ROADMAP.md`. Tick the matching mark when that cut’s last PR lan
 - [x] **M0 / 2.3.0 tip** *(owner)* — ~~#184~~ + ~~#197~~ + ~~#204~~ + ~~#205~~ on `main`; retargeted `2.3.0.md`; owner tagged `v2.3.0` (tip `59069e3`)
 - [x] **M1 / 2.3.1** *(`-2eaf`, #209)* — `W.6-startup-2eaf` → `startup: PASS`
 - [x] **M2 / 2.3.1** *(`-b55f`, #211; ladder name was 2.3.2 — next free patch after v2.3.0)* — ring-3 under permanent stay (`lm64-hello` / `lm64-ring3`)
-- [ ] **M3 / 2.3.25** *(`-2eaf`, #210)* — `W.6-syssetup-2eaf` → `syssetup: PASS`
+- [x] **M3 / 2.3.25** *(`-2eaf`, #210)* — `W.6-syssetup-2eaf` → `syssetup: PASS`
 - [ ] **M4 / 2.6.0** *(shared / owner)* — Generation 2 declared complete; banner `2.6.0`
 - [x] **M6 / 2.9.0** *(`-b55f`)* — tick `2.9-lm-kernel` (stay + boot64 + ring-3 stay + x86_64 flavour)
 - [ ] **M7 / 2.9.1** *(`-b55f`)* — `2.9-syscall64` / `hello64`
