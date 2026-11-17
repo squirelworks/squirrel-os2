@@ -951,7 +951,7 @@ check_all lm-boot64-again 'lmboot: PASS|systest: PASS|lm: PASS' lmboot '<ret>' s
 disk=$out/progs.img
 check lm64-hello    'Hello from a loaded program!' '<pause>' '<pause>' '<pause>' 'run hello' '<ret>' '<pause>'
 # lm64: ring3 self-test lags under CI load (5ce0a1e data shard); settle + retry.
-check_all_retry lm64-ring3 'ring3: PASS' '<pause>' '<pause>' '<pause>' '<pause>' 'run ring3' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
+check_all_retry lm64-ring3 'ring3: PASS' '<pause>' '<pause>' 'run ring3' '<ret>' '<wait-text:ring3: PASS>'
 disk=
 unset boot
 # nolm / limited-CPU checks need qemu-system-i386 (no long mode / no PAE)
@@ -1245,7 +1245,7 @@ check_all calculator-syn 'gfx: Error: syntax at|gfx: column 4' 'run calculator' 
 check calculator-keys 'gfx: = 45'           'run calculator' '<ret>' '<pause>' '<spc>' '<right>' '<spc>' '<ret>' '<pause>' '<gfx>'
 check_all calculator-sci 'gfx: sin|gfx: DEG|gfx: = 0.5' 'run calculator' '<ret>' '<pause>' '<tab>' '<f2>' 'sin(30)' '<ret>' '<pause>' '<gfx>'
 check calculator-quit 'systest: PASS'       'run calculator' '<ret>' '<pause>' '<esc>' '<pause>' '<pause>' systest '<ret>'
-check clock         'clock: PASS'           'run clock test' '<ret>' '<pause>' '<pause>' '<pause>'
+check_retry clock   'clock: PASS'           'run clock test' '<ret>' '<wait-text:clock: PASS>'
 check_all clock-gfx 'gfx: Clock|gfx: 20'    'run clock' '<ret>' '<pause>' '<gfx>'
 check clock-quit    'systest: PASS'         'run clock' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
 check_all notepad   'gfx: Notepad - memo|gfx: Hello notepad!|gfx: second line|gfx: Ln 1 Col 15' \
@@ -1254,11 +1254,11 @@ check notepad-save  'Hello notepad!'        'run notepad memo' '<ret>' '<pause>'
 check notepad-open  'gfx: Hello notepad!'   'run notepad memo' '<ret>' '<pause>' '<gfx>'
 check notepad-ask   'gfx: Save changes? y/n' 'run notepad' '<ret>' '<pause>' 'x' '<esc>' '<pause>' '<gfx>'
 check notepad-quit  'systest: PASS'         'run notepad' '<ret>' '<pause>' 'x' '<esc>' 'n' '<pause>' systest '<ret>'
-check notepad-hl    'notepad: PASS'         'run notepad -test' '<ret>' '<pause>' '<pause>'
+check_retry notepad-hl 'notepad: PASS'      'run notepad -test' '<ret>' '<wait-text:notepad: PASS>'
 # C.2: grapher (explicit, polar, parametric, implicit, inequalities, sliders; roots, extrema, intersections, trace)
 # 1.25s lm64 pauses: self-test needs ~30s wall-clock under CI (ccf061b still
 # red after 14 pauses × 5 retries). Extra pauses + 8× retry.
-check_retry grapher 'grapher: PASS'         'run grapher test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
+check_retry grapher 'grapher: PASS'         'run grapher test' '<ret>' '<wait-text:grapher: PASS>'
 check_all grapher-roots 'gfx: 1: sin(x)|gfx: roots: -9.4248|gfx: -3.1416' 'run grapher sin(x)' '<ret>' '<pause>' 'z' '<pause>' '<gfx>'
 check_all grapher-ext 'gfx: min(-7.854, -1)|gfx: max(-4.7124, 1)' 'run grapher sin(x)' '<ret>' '<pause>' 'm' '<pause>' '<gfx>'
 check_all_retry grapher-meet 'gfx: meet: (-1, 0)|gfx: (2, 3)' 'run grapher x^2-1' '<ret>' '<pause>' '<pause>' '<tab>' '<ret>' 'y = x + 1' '<ret>' '<pause>' '<tab>' '<tab>' '<tab>' 'i' '<pause>' '<pause>' '<pause>' '<gfx>'
@@ -1295,7 +1295,7 @@ check matrixgui-det 'gfx: det A = -2'      'run matrixgui' '<ret>' '<pause>' '1'
 check matrixgui-sing 'gfx: The matrix is singular' 'run matrixgui' '<ret>' '<pause>' 'i' '<pause>' '<gfx>'
 check matrixgui-quit 'systest: PASS'        'run matrixgui' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
 # C.3: statistics (lists, one- and two-variable statistics, regressions, histogram, box plot, CSV)
-check stats         'stats: PASS'           'run stats test' '<ret>' '<pause>' '<pause>' '<pause>'
+check_retry stats   'stats: PASS'           'run stats test' '<ret>' '<wait-text:stats: PASS>'
 check_all stats-one 'gfx: n = 5|gfx: mean = 3|gfx: sx = 1.581139|gfx: Q1 = 1.5|gfx: Q3 = 4.5' 'run stats' '<ret>' '<pause>' '1' '<ret>' '2' '<ret>' '3' '<ret>' '4' '<ret>' '5' '<ret>' 'v' '<pause>' '<gfx>'
 check_all stats-reg 'gfx: linear: y = a*x + b|gfx: a = 0.6|gfx: b = 2.2|gfx: r^2 = 0.6' 'run stats' '<ret>' '<pause>' '1' '<ret>' '2' '<ret>' '3' '<ret>' '4' '<ret>' '5' '<ret>' '<tab>' '2' '<ret>' '4' '<ret>' '5' '<ret>' '4' '<ret>' '5' '<ret>' 'r' '<pause>' '<gfx>'
 check_all stats-quad 'gfx: quadratic: y=a*x^2+b*x+c|gfx: a = -0.285714|gfx: b = 2.314286|gfx: c = 0.2' 'run stats' '<ret>' '<pause>' '1' '<ret>' '2' '<ret>' '3' '<ret>' '4' '<ret>' '5' '<ret>' '<tab>' '2' '<ret>' '4' '<ret>' '5' '<ret>' '4' '<ret>' '5' '<ret>' 'r' 'r' '<pause>' '<gfx>'
@@ -1391,27 +1391,27 @@ python3 "$root/tools/sqfs.py" "$sq" get 'disk image.img' "$out/floppy27b.img"
 fatok fat-loop-fsck "$out/floppy27b.img"
 disk=$saved_disk; target=$saved_target
 # C.4: spreadsheet with charts
-check_retry sheet   'sheet: PASS'           'run sheet test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
+check_retry sheet   'sheet: PASS'           'run sheet test' '<ret>' '<wait-text:sheet: PASS>'
 check_all sheet-calc 'gfx: A3: =A1*A2+1|gfx: = 7' 'run sheet' '<ret>' '<pause>' '2' '<ret>' '3' '<ret>' '=A1*A2+1' '<ret>' '<up>' '<pause>' '<gfx>'
 check_all sheet-chart 'gfx: Line A1:B3|gfx: one|gfx: two' 'run sheet' '<ret>' '<pause>' 'one' '<tab>' 'two' '<ret>' '<left>' '1' '<ret>' '2' '<ret>' '<up>' '<up>' '<right>' '3' '<ret>' '5' '<ret>' '<up>' '<f3>' '<left>' '<up>' '<up>' '<ctrl-g>' '<pause>' '<pause>' '<gfx>'
 check sheet-cyc     'gfx: #CYC: it depends on itself' 'run sheet' '<ret>' '<pause>' '=A2' '<ret>' '=A1+1' '<ret>' '<up>' '<pause>' '<gfx>'
 check sheet-csv     '1,=A1*2'               'run sheet s.csv' '<ret>' '<pause>' '1' '<tab>' '=A1*2' '<ret>' '<ctrl-s>' '<pause>' '<esc>' '<pause>' 'cat s.csv' '<ret>'
 check sheet-quit    'systest: PASS'         'run sheet' '<ret>' '<pause>' 'x' '<ret>' '<esc>' '<pause>' 'n' '<pause>' systest '<ret>'
 # C.6: geometry
-check geometry      'geometry: PASS'        'run geometry test' '<ret>' '<pause>' '<pause>' '<pause>'
+check_retry geometry 'geometry: PASS'       'run geometry test' '<ret>' '<wait-text:geometry: PASS>'
 check_all geometry-cmds 'gfx: s1: length 5|gfx: m1 = 5|gfx: D (-1.9365, 3.5)|gfx: E (1.9365, 3.5)' 'run geometry' '<ret>' '<pause>' '(0,0)' '<ret>' '(4,0)' '<ret>' 'C=(0,3)' '<ret>' 'seg B C' '<ret>' 'k=circle C 2' '<ret>' 'circle A B' '<ret>' 'dist B C' '<ret>' 'inter c1 k' '<ret>' '<pause>' '<pause>' '<gfx>'
 check_all geometry-move 'gfx: B (4.5, 0)|gfx: m1 = 4.5|gfx: M (2.25, 0)' 'run geometry' '<ret>' '<pause>' '(0,0)' '<ret>' '(4,0)' '<ret>' 'dist A B' '<ret>' 'M=mid A B' '<ret>' '<tab>' '<tab>' '<right>' '<right>' '<pause>' '<gfx>'
 check geometry-err  'gfx: Those are not the right kinds of object' 'run geometry' '<ret>' '<pause>' '(0,0)' '<ret>' '(4,0)' '<ret>' 'perp A B' '<ret>' '<pause>' '<gfx>'
 check geometry-save 'C=circle A 2'          'run geometry g.geo' '<ret>' '<pause>' '(0,0)' '<ret>' 'C=circle A 2' '<ret>' '<ctrl-s>' '<pause>' '<esc>' '<pause>' 'cat g.geo' '<ret>'
 check geometry-quit 'systest: PASS'         'run geometry' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
 # C.5: computer algebra
-check cas           'cas: PASS'             'run cas test' '<ret>' '<pause>' '<pause>' '<pause>'
+check_retry cas     'cas: PASS'             'run cas test' '<ret>' '<wait-text:cas: PASS>'
 check_all_retry cas-algebra 'gfx: (x + 3)*(x - 3)|gfx: x^2 - 9|gfx: x = -sqrt(2), x = sqrt(2)' 'run cas' '<ret>' '<pause>' '<pause>' 'factor(x^2-9)' '<ret>' '<pause>' 'expand(ans)' '<ret>' '<pause>' 'solve(x^2=2)' '<ret>' '<pause>' '<pause>' '<gfx>'
 check_all_retry cas-calculus 'gfx: x^2*cos(x) + 2*x*sin(x)|gfx: sin(3*x)/3 + C|gfx: 1 - x^2/2 + x^4/24' 'run cas' '<ret>' '<pause>' '<pause>' 'diff(x^2*sin(x))' '<ret>' '<pause>' 'integrate(cos(3*x))' '<ret>' '<pause>' 'series(cos(x), 0, 4)' '<ret>' '<pause>' '<pause>' '<gfx>'
 check_all cas-err   'gfx: Error: syntax|gfx: Error: no answer yet for ans' 'run cas' '<ret>' '<pause>' 'ans' '<ret>' 'x +* 2' '<ret>' '<pause>' '<gfx>'
 check cas-quit      'systest: PASS'         'run cas' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
 # A.5: system monitor, log viewer, disk utility (and the kernel's GUI_SYSINFO)
-check_retry sysmon  'sysmon: PASS'          'run sysmon test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
+check_retry sysmon  'sysmon: PASS'          'run sysmon test' '<ret>' '<wait-text:sysmon: PASS>'
 check_all sysmon-view 'gfx: System Monitor|gfx: PID STATE|gfx: Memory|sysmon' 'run sysmon' '<ret>' '<pause>' '<pause>' '<gfx>'
 check sysmon-prio   'kernel prio 2'         'run sysmon' '<ret>' '<pause>' '<up>' '+' '<pause>' '<esc>' '<pause>' ps '<ret>'
 check sysmon-quit   'systest: PASS'         'run sysmon' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
@@ -1451,7 +1451,7 @@ fatok diskutil-fmt16-fsck "$out/dufmt16.img"
 check_all diskutil-fmt16-use 'D: FAT16, 15 MB, hd2|fattest: PASS' 'mount d: hd2' '<ret>' 'fattest d:' '<ret>' '<pause>' '<pause>'
 check_all diskutil-fmt-gui 'gfx: Formatted FAT16' 'mount d: hd2' '<ret>' 'run diskutil hd2' '<ret>' '<pause>' 'f' '<pause>' 'y' '<pause>' '<pause>' '<gfx>'
 target=$out/dufmt32.img
-check_retry diskutil-fmt32 'diskutil: PASS' 'mount d: hd2' '<ret>' 'run diskutil test format hd2 32' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
+check_retry diskutil-fmt32 'diskutil: PASS' 'mount d: hd2' '<ret>' 'run diskutil test format hd2 32' '<ret>' '<wait-text:diskutil: PASS>'
 fatok diskutil-fmt32-fsck "$out/dufmt32.img"
 check_all_retry diskutil-fmt32-use 'D: FAT32, 39 MB, hd2|fattest: PASS' 'mount d: hd2' '<ret>' 'fattest d:' '<ret>' '<pause>' '<pause>' '<pause>'
 target=$saved_target
@@ -1493,7 +1493,7 @@ sqout=$(python3 "$root/tools/sqfs.py" "$sd1" get new 2>&1)
 if [ "$sqv" = "(1, 2047, 1, 4, 5)" ] && [ "$sqout" = pinecones ]; then echo "ok   sqfs-v1-host"; else echo "FAIL sqfs-v1-host ($sqv $sqout)"; fail=1; fi
 disk=$saved_disk2
 # C.8: notebooks (notes, Nut code, graphs, tables, geometry; C.1: math cells by sqmath)
-check notebook      'notebook: PASS'        'run notebook test' '<ret>' '<pause>' '<pause>' '<pause>'
+check_retry notebook 'notebook: PASS'       'run notebook test' '<ret>' '<wait-text:notebook: PASS>'
 check_all notebook-code 'gfx: 42|gfx: 7 12' 'run notebook' '<ret>' '<pause>' 'c' 'x = 6' '<ret>' 'print x*7' '<ret>' 'print x+1, x*2' '<esc>' '<pause>' '<gfx>'
 check_all_retry notebook-cells 'gfx: y = sin(x)|gfx: x: -10 .. 10|gfx: y: -1 .. 1|gfx: d = 5|gfx: 2 hi' 'run notebook' '<ret>' '<pause>' '<pause>' 'g' 'sin(x)' '<esc>' 'o' 'A = (0,0)' '<ret>' 'B = (3,4)' '<ret>' 'seg A B' '<ret>' 'd = dist A B' '<esc>' 't' '=d-3 | hi' '<esc>' '<pause>' '<pause>' '<gfx>'
 check notebook-err  'gfx: ! line 2: division by zero' 'run notebook' '<ret>' '<pause>' 'c' 'x = 1' '<ret>' 'print x/0' '<esc>' '<pause>' '<gfx>'

@@ -4,13 +4,16 @@
 Usage: qemu_screen.py [--disk DATA_IMAGE] [--target DISK] [--nic] [--floppy|--cdrom] IMAGE [KEYS...]
 Each KEYS argument is typed as text; a token like "<ret>", "<esc>",
 "<backspace>" or "<up>" is sent as that single QEMU key name, and
-"<pause>" waits a second before the next key (2 s when QEMU_BIN is
+"<pause>" waits a second before the next key (1.25 s when QEMU_BIN is
 qemu-system-x86_64: LM stay thunks the timer through lm64_call32, so guest
-work lags wall-clock under load), "<gop>" reads the text the GOP console drew
-(UEFI boot, printed as "gop: <line>"), and "<gfx>" reads the text drawn in
-graphics mode (the 5 x 7 font of tools/font5x7.txt, in 6 x 8 cells at any
-pixel offset, and the proportional faces of tools/fontp*.txt) and prints each
-line found as "gfx: <text>" after the text screen.
+work lags wall-clock under load), "<wait-text:NEEDLE>" / "<wait-text:NEEDLE:SEC>"
+polls the VGA text buffer until NEEDLE appears or SEC seconds elapse (default
+45 on x86_64, 20 on i386) — prefer this for long self-tests over stacks of
+"<pause>", "<gop>" reads the text the GOP console drew (UEFI boot, printed as
+"gop: <line>"), and "<gfx>" reads the text drawn in graphics mode (the 5 x 7
+font of tools/font5x7.txt, in 6 x 8 cells at any pixel offset, and the
+proportional faces of tools/fontp*.txt) and prints each line found as
+"gfx: <text>" after the text screen.
 --disk attaches DATA_IMAGE as the primary slave (the kernel's data disk).
 --target attaches DISK as the secondary master (the installer's target;
 always a scratch image, never a real disk).
@@ -49,6 +52,26 @@ def monitor(sock, cmd):
     except BlockingIOError:
         pass
     sock.setblocking(True)
+
+
+def read_text_screen(sock, dump_path, text_addr='0xb8000'):
+    """Return the 80x25 VGA text buffer as one string (rows joined by newline)."""
+    try:
+        os.remove(dump_path)
+    except FileNotFoundError:
+        pass
+    monitor(sock, f'pmemsave {text_addr} 4000 "{dump_path}"')
+    for _ in range(50):
+        if os.path.exists(dump_path) and os.path.getsize(dump_path) == 4000:
+            break
+        time.sleep(0.05)
+    if not (os.path.exists(dump_path) and os.path.getsize(dump_path) == 4000):
+        return ''
+    data = open(dump_path, 'rb').read()
+    lines = []
+    for row in range(25):
+        lines.append(data[row * 160:(row + 1) * 160:2].decode('cp437').rstrip())
+    return '\n'.join(lines)
 
 
 def read_ppm(path):
@@ -250,9 +273,26 @@ def main():
         lm64 = 'x86_64' in os.environ.get('QEMU_BIN', '')
         time.sleep(2.0 if lm64 else 1.5)
         pause_s = 1.25 if lm64 else 1.0
+        text_addr = os.environ.get('QEMU_TEXT', '0xb8000')
         for chunk in keys:
             if chunk == '<pause>':      # let the guest run (see docstring)
                 time.sleep(pause_s)
+                continue
+            # Poll VGA text until a needle appears (long self-tests under LM stay).
+            if chunk.startswith('<wait-text:') and chunk.endswith('>'):
+                body = chunk[len('<wait-text:'):-1]
+                # Optional timeout: <wait-text:needle:45>
+                if ':' in body and body.rsplit(':', 1)[-1].isdigit():
+                    needle, secs_s = body.rsplit(':', 1)
+                    timeout_s = float(secs_s)
+                else:
+                    needle, timeout_s = body, (45.0 if lm64 else 20.0)
+                wait_dump = os.path.join(tmp, 'wait.bin')
+                deadline = time.time() + timeout_s
+                while time.time() < deadline:
+                    if needle in read_text_screen(sock, wait_dump, text_addr):
+                        break
+                    time.sleep(0.5)
                 continue
             if chunk == '<gop>':        # OS2-HW H.2: read the GOP console's pixels
                 shot = os.path.join(tmp, f'gop{len(gfx)}.ppm')
@@ -296,16 +336,8 @@ def main():
                 monitor(sock, 'sendkey ' + key)
         time.sleep(0.5)
         # OS2-HW H.2: on a UEFI boot the text screen lives in RAM at GOP_SHADOW
-        text_addr = os.environ.get('QEMU_TEXT', '0xb8000')
-        monitor(sock, f'pmemsave {text_addr} 4000 "{dump}"')
-        for _ in range(50):
-            if os.path.exists(dump) and os.path.getsize(dump) == 4000:
-                break
-            time.sleep(0.1)
-        data = open(dump, 'rb').read()
-        for row in range(25):
-            line = data[row * 160:(row + 1) * 160:2].decode('cp437')
-            print(line.rstrip())
+        screen = read_text_screen(sock, dump, text_addr)
+        print(screen)
         for line in gfx:
             print(line[1:] if line.startswith('\x00') else 'gfx: ' + line)
     finally:
