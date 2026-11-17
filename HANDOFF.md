@@ -189,7 +189,7 @@ Lanes run in parallel (see **Agent ownership**). Within a lane, keep the order.
    ~~#235 umount Drive~~ → ~~#236 `PM_GMAX`~~ → Gen2 ship `2.6.0` (owner) /
    Soft #207 when coding resumes.
 4. **2.9 path `-b55f`:** ~~pae / IDT / paging / thunks / boot64 / ring-3 stay~~
-   done; ~~`2.9-lm-kernel-tick` (`2.9.0`)~~ (this PR) → `2.9-syscall64` →
+   done; ~~`2.9-lm-kernel-tick` (`2.9.0`)~~ → ~~`2.9-syscall64` (`2.9.1`)~~ (this PR) →
    freestanding C → Gen3.
 5. **3.0** remainder → `v3.0.0` (see `TO_3.0.0.md` M10–M16).
 6. **P.3, P.4, P.7, P.11, P.12**, then 3.x and 4.x (parallel after syscall64;
@@ -289,10 +289,9 @@ PAE + NX on `main`. Checks `nx-heap`, `nx-stack`, `cpu-pentium3`.
   (`lmpage`, #193); permanent stay + thunks (`lmthunk`, #196); boot64 everyday
   stay (`lmboot` / `os-lm64.img` / `LM_BOOT64`, #204) + follow-ups (#222);
   ring-3 under stay (`lm64-hello` / `lm64-ring3`, #231).
-- **This PR (tick):** `REGRESS_FLAVOUR=lm64` everyday suite under
+- **Landed (#232):** `REGRESS_FLAVOUR=lm64` everyday suite under
   `qemu-system-x86_64`; `i386` flavour still green; CI runs both; `vm_map_range`
-  stay-safe for VBE; foreign personalities skip on lm64 until syscall64;
-  notes in `2.9.0.md`.
+  stay-safe for VBE; notes in `2.9.0.md`.
 - **CONTINUANCE 3a (recorded):** freestanding C for new 2.9+ subsystems
   (`-ffreestanding -mno-red-zone -fno-pic`); NASM for boot/entry stubs. See
   `documentation/architecture/overview.md` and squirrelsoft
