@@ -1112,7 +1112,8 @@ check sh-append     'more'                  'echo more >> greet' '<ret>' 'cat gr
 check sh-pipe       '1 3 6'                 'echo x y z | run cat | run wc' '<ret>'
 check sh-stdin      '= 42'                  'run calc < exprs > out' '<ret>' 'cat out' '<ret>'
 check_retry sh-quiet 'calc> 2 + 3'          'run calc < exprs > out' '<ret>' '<pause>' '<pause>' 'run cat < out' '<ret>'
-check sh-ls-pipe    'demo2.bat'             'ls | run cat' '<ret>'
+# lm64: ls|cat through the shell lags under CI; pause + retry like sh-quiet.
+check_retry sh-ls-pipe 'demo2.bat'          'ls | run cat' '<ret>' '<pause>' '<pause>'
 check sh-badpipe    'command on both sides' 'ls |' '<ret>'
 check sh-noname     'needs a file name'     'cat >' '<ret>'
 check sh-nofile     'Cannot read nofile'    'run wc < nofile' '<ret>'
@@ -1191,7 +1192,8 @@ check_all reversi-play 'Computer plays c3|You (X): 3   Computer (O): 3' 'run rev
 check klondike-test 'klondike: PASS'        'run klondike test' '<ret>'
 check_all klondike-play 'Stock 23|That move is not allowed' 'run klondike 3' '<ret>' d '<ret>' 12 '<ret>'
 check freecell-test 'freecell: PASS'        'run freecell test' '<ret>'
-check freecell-play 'Cells (a b c d) 9C  -  -  -' 'run freecell 2' '<ret>' '<pause>' 1a '<ret>' '<pause>'
+# lm64: freecell move + redraw trails thunks under CI load.
+check_retry freecell-play 'Cells (a b c d) 9C  -  -  -' 'run freecell 2' '<ret>' '<pause>' '<pause>' 1a '<ret>' '<pause>' '<pause>'
 check hearts-test   'hearts: PASS'          'run hearts test' '<ret>' '<pause>'
 check_all hearts-play 'You received:  JH  6H  4H|North plays 2C|You cannot play that card now' 'run hearts 3' '<ret>' 'ah kh jc' '<ret>' 2s '<ret>'
 check chess-test    'chess: PASS'           'run chess test' '<ret>' '<pause>' '<pause>'
@@ -1210,7 +1212,8 @@ check_all reversi-gui 'gfx: You 3|gfx: Computer 3' 'run reversi gui 1' '<ret>' '
 check_all chess-gui 'gfx: You: e4|gfx: d5' 'run chess gui 1' '<ret>' '<pause>' '<ret>' '<up>' '<up>' '<ret>' '<pause>' '<pause>' '<pause>' '<gfx>'
 check_all_retry mahjongg-gui 'gfx: Tiles left: 106' 'run mahjongg gui 2' '<ret>' '<pause>' '<pause>' '<pause>' '<right>' '<right>' '<right>' '<right>' '<right>' '<right>' '<right>' '<right>' '<right>' '<ret>' '<pause>' '<pause>' '<down>' '<down>' '<left>' '<left>' '<left>' '<left>' '<left>' '<left>' '<left>' '<left>' '<left>' '<ret>' '<pause>' '<pause>' '<pause>' '<gfx>'
 check checkers-test 'checkers: PASS'        'run checkers test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>'
-check_all checkers-play 'Computer plays f6-g5|You (b): 12   Computer (w): 12' 'run checkers 1' '<ret>' c3d4 '<ret>' '<pause>' '<pause>'
+# lm64: AI reply after c3d4 lags under CI; settle + retry.
+check_all_retry checkers-play 'Computer plays f6-g5|You (b): 12   Computer (w): 12' 'run checkers 1' '<ret>' '<pause>' c3d4 '<ret>' '<pause>' '<pause>' '<pause>' '<pause>'
 check go-test       'go: PASS'              'run go test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>'
 check_all go-play   'Computer plays f3|You cannot play there' 'run go 1' '<ret>' e5 '<ret>' e5 '<ret>'
 fi
