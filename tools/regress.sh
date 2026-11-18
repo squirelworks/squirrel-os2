@@ -1399,6 +1399,43 @@ check diskutil-fmt32 'diskutil: PASS'       'mount d: hd2' '<ret>' 'run diskutil
 fatok diskutil-fmt32-fsck "$out/dufmt32.img"
 check_all diskutil-fmt32-use 'D: FAT32, 39 MB, hd2|fattest: PASS' 'mount d: hd2' '<ret>' 'fattest d:' '<ret>' '<pause>' '<pause>'
 target=$saved_target
+# 2.7 (OS2-FS): SQFS tables of 256 entries (version 2); version 1 disks
+# (64 entries) still mount and are written as they are
+saved_disk2=$disk
+sd=$out/sqdir.img
+python3 "$root/tools/sqfs.py" "$sd" format 1024
+printf 'acorn\n' > "$out/sqone"
+python3 - "$root/tools/sqfs.py" "$sd" "$out/sqone" <<'PYEOF'    # 200 files, in one go
+import sys, importlib.util
+spec = importlib.util.spec_from_file_location('sqfs', sys.argv[1]); sq = importlib.util.module_from_spec(spec); spec.loader.exec_module(sq)
+for i in range(1, 201):
+    sq.main(['sqfs.py', sys.argv[2], 'put', sys.argv[3], 'note %d' % i])
+PYEOF
+disk=$sd
+check_all sqfs-many  'acorn|ok' 'cat "note 200"' '<ret>' 'mkdir "a directory past 64"' '<ret>' 'put "a directory past 64/inside" pinecones' '<ret>'
+sqout=$(python3 "$root/tools/sqfs.py" "$sd" get 'a directory past 64/inside' 2>&1)
+if [ "$sqout" = pinecones ]; then echo "ok   sqfs-many-host"; else echo "FAIL sqfs-many-host ($sqout)"; fail=1; fi
+python3 - "$root/tools/sqfs.py" "$sd" "$out/sqone" <<'PYEOF'    # fill the table to 254 entries
+import sys, importlib.util
+spec = importlib.util.spec_from_file_location('sqfs', sys.argv[1]); sq = importlib.util.module_from_spec(spec); spec.loader.exec_module(sq)
+d = sq.Disk(sys.argv[2]); used = sum(1 for e in d.entries if e.name)
+for i in range(used, 254):
+    sq.main(['sqfs.py', sys.argv[2], 'put', sys.argv[3], 'fill %d' % i])
+PYEOF
+# entries 254 and 255 take files, never a directory (its id would be 255 or 256)
+check_all sqfs-dirmax 'Directory table full|ok' 'mkdir "late directory"' '<ret>' 'put "late file" x' '<ret>'
+check sqfs-full      'Directory table full'  'put x1 x' '<ret>' 'put x2 x' '<ret>' 'put x3 x' '<ret>'
+sqls=$(python3 "$root/tools/sqfs.py" "$sd" ls 2>&1)
+case $sqls in *"late directory"*) echo "FAIL sqfs-dirmax-host"; fail=1 ;; *) echo "ok   sqfs-dirmax-host" ;; esac
+sd1=$out/sqv1.img
+python3 "$root/tools/sqfs.py" "$sd1" format 1024 --v1
+python3 "$root/tools/sqfs.py" "$sd1" put "$out/sqone" 'old file'
+disk=$sd1
+check_all sqfs-v1    'acorn|ok|pinecones' 'cat "old file"' '<ret>' 'put new pinecones' '<ret>' 'cat new' '<ret>'
+sqv=$(python3 -c "import struct,sys; print(struct.unpack_from('<6I', open(sys.argv[1],'rb').read())[1:])" "$sd1")
+sqout=$(python3 "$root/tools/sqfs.py" "$sd1" get new 2>&1)
+if [ "$sqv" = "(1, 2047, 1, 4, 5)" ] && [ "$sqout" = pinecones ]; then echo "ok   sqfs-v1-host"; else echo "FAIL sqfs-v1-host ($sqv $sqout)"; fail=1; fi
+disk=$saved_disk2
 # C.8: notebooks (notes, Nut code, graphs, tables, geometry; C.1: math cells by sqmath)
 check notebook      'notebook: PASS'        'run notebook test' '<ret>' '<pause>' '<pause>' '<pause>'
 check_all notebook-code 'gfx: 42|gfx: 7 12' 'run notebook' '<ret>' '<pause>' 'c' 'x = 6' '<ret>' 'print x*7' '<ret>' 'print x+1, x*2' '<esc>' '<pause>' '<gfx>'

@@ -1,7 +1,7 @@
 ; Squirrel-OS/2 — SQFS on-disk file system (0.2.1 / 0.2.2)
 ; Included from pm.asm. Original code.
 ;
-; One table of 64 entries, each a contiguous extent, on the data disk
+; One table of entries, each a contiguous extent, on the data disk
 ; (device hd1, the primary slave). Since 0.8.0 an entry may be a
 ; directory, and every entry names the directory it is in, so names are
 ; paths: "notes/todo", "/shell.hist", "../x".
@@ -11,12 +11,15 @@ FS_DEV        equ dev_hd1     ; the data disk (0.7.2: through the device table)
 ; fs_dev is the device the file system uses: FS_DEV, except while the
 ; installer (install.asm) points it at the target partition (I.2).
 FS_MAGIC      equ 0x53465153    ; 'SQFS'
-FS_VERSION    equ 1
+FS_VERSION    equ 2             ; (2.7: the table's size from the superblock)
 FS_DIR_LBA    equ 1
-FS_DIR_SECTS  equ 4
-FS_DATA_LBA   equ FS_DIR_LBA+FS_DIR_SECTS
+FS_DIR_SECTS1 equ 4             ; version 1: 64 entries
+FS_DIR_SECTS  equ 16            ; a new disk (2.7): 256 entries
 FS_DIRENT     equ 32
-FS_MAXFILES   equ FS_DIR_SECTS*SECTOR_SIZE/FS_DIRENT    ; 64
+FS_MAXDIR     equ FS_DIR_SECTS*SECTOR_SIZE/FS_DIRENT    ; 256, the most
+FS_MAXDIRS    equ 254           ; directories only in entries 0..253: an id
+                                ; is the index + 1 in a byte, 0xFF is taken
+; fs_maxfiles, fs_dirsects and fs_datalba hold the mounted disk's table
 FS_NAMELEN    equ 16            ; including the terminating zero
 FS_MAXFD      equ 8
 
@@ -53,7 +56,9 @@ O_APPEND      equ 4
 ; buffers in the kernel scratch area
 FS_SB         equ KSCRATCH+0x800
 FS_SEC        equ KSCRATCH+0xA00
-FS_DIR        equ KSCRATCH+0x1000   ; 2 KB directory cache (write-through)
+; the directory cache (write-through, 8 KB since 2.7): just below the GOP
+; console's shadow, in the room kept for the high image (pm.asm checks it)
+FS_DIR        equ KHIGH_BASE+KHIGH_MAX-0x8000-FS_MAXDIR*FS_DIRENT
 
 ; ---------- mount / format ----------
 
@@ -64,7 +69,7 @@ fs_mount_boot:
     pushad
     mov byte [fs_mounted], 0
     mov ebx, [fs_dev]
-    cmp dword [ebx+DEV_SIZE], FS_DATA_LBA+2
+    cmp dword [ebx+DEV_SIZE], FS_DIR_LBA+FS_DIR_SECTS+2
     jb .out                     ; no (usable) data disk
     mov ebx, [fs_dev]
     xor ecx, ecx
@@ -99,6 +104,25 @@ fs_mount_boot:
 ; Superblock in FS_SB -> loads the directory and marks mounted. CF on error.
 fs_load:
     pushad
+    mov eax, FS_DIR_SECTS1      ; version 1: 4 sectors
+    cmp dword [FS_SB+SB_VERSION], 2
+    jb .geo
+    cmp dword [FS_SB+SB_DIRLBA], FS_DIR_LBA
+    jne .fail
+    mov eax, [FS_SB+SB_DIRSECTS]
+    test eax, eax
+    jz .fail
+    cmp eax, FS_DIR_SECTS
+    ja .fail
+    lea edx, [eax+FS_DIR_LBA]
+    cmp [FS_SB+SB_DATALBA], edx
+    jne .fail
+.geo:
+    call fs_geometry
+    mov edi, FS_DIR             ; (the rest of the cache stays empty)
+    mov ecx, FS_MAXDIR*FS_DIRENT/4
+    xor eax, eax
+    rep stosd
     mov ebx, [fs_dev]
     mov ecx, FS_DIR_LBA
     mov edi, FS_DIR
@@ -107,7 +131,7 @@ fs_load:
     jc .fail
     inc ecx
     add edi, SECTOR_SIZE
-    cmp ecx, FS_DIR_LBA+FS_DIR_SECTS
+    cmp ecx, [fs_datalba]
     jb .r
     mov eax, [FS_SB+SB_TOTAL]
     mov [fs_total], eax
@@ -148,9 +172,11 @@ fs_format_empty:
     mov [FS_SB+SB_TOTAL], eax
     mov dword [FS_SB+SB_DIRLBA], FS_DIR_LBA
     mov dword [FS_SB+SB_DIRSECTS], FS_DIR_SECTS
-    mov dword [FS_SB+SB_DATALBA], FS_DATA_LBA
+    mov dword [FS_SB+SB_DATALBA], FS_DIR_LBA+FS_DIR_SECTS
+    mov eax, FS_DIR_SECTS
+    call fs_geometry
     mov edi, FS_DIR
-    mov ecx, FS_DIR_SECTS*SECTOR_SIZE/4
+    mov ecx, FS_MAXDIR*FS_DIRENT/4
     xor eax, eax
     rep stosd
     mov eax, [FS_SB+SB_TOTAL]
@@ -206,6 +232,17 @@ fs_seed:
     popad
     ret
 
+; eax = the table's sectors -> fs_dirsects, fs_maxfiles, fs_datalba
+fs_geometry:
+    mov [fs_dirsects], eax
+    push eax
+    shl eax, 9-5                ; * SECTOR_SIZE / FS_DIRENT
+    mov [fs_maxfiles], eax
+    pop eax
+    add eax, FS_DIR_LBA
+    mov [fs_datalba], eax
+    ret
+
 fs_flush_dir:
     pushad
     mov ebx, [fs_dev]
@@ -216,7 +253,7 @@ fs_flush_dir:
     jc .fail
     inc ecx
     add esi, SECTOR_SIZE
-    cmp ecx, FS_DIR_LBA+FS_DIR_SECTS
+    cmp ecx, [fs_datalba]
     jb .w
     popad
     clc
@@ -387,7 +424,7 @@ fs_dir_used:
     push ecx
     push edi
     mov edi, FS_DIR
-    mov ecx, FS_MAXFILES
+    mov ecx, [fs_maxfiles]
 .l:
     cmp byte [edi], 0
     je .n
@@ -474,10 +511,10 @@ fs_alloc:
     push ebx
     push esi
     push edi
-    mov eax, FS_DATA_LBA
+    mov eax, [fs_datalba]
 .retry:
     mov edi, FS_DIR
-    mov esi, FS_MAXFILES
+    mov esi, [fs_maxfiles]
 .e:
     cmp byte [edi], 0
     je .next
@@ -606,7 +643,12 @@ fs_make:
     test edi, edi
     jnz .fail
     mov edi, FS_DIR
-    mov ecx, FS_MAXFILES
+    mov ecx, [fs_maxfiles]
+    cmp bl, DK_DIR              ; a directory's id must fit (2.7)
+    jne .f
+    cmp ecx, FS_MAXDIRS
+    jbe .f
+    mov ecx, FS_MAXDIRS
 .f:
     cmp byte [edi], 0
     je .slot
@@ -1073,7 +1115,7 @@ fs_list_dir:
     mov esi, [lstr+LS_FILES*4]
     call lputs_nl
     mov ebx, FS_DIR
-    mov ecx, FS_MAXFILES
+    mov ecx, [fs_maxfiles]
 .l:
     cmp byte [ebx], 0
     je .n
@@ -1372,7 +1414,7 @@ fs_print_path:
     inc ecx
     shl eax, 5
     mov dl, [FS_DIR-FS_DIRENT+eax+DE_PARENT]
-    cmp ecx, FS_MAXFILES        ; (a damaged table could loop)
+    cmp ecx, [fs_maxfiles]        ; (a damaged table could loop)
     jb .up
 .print:
     mov al, '/'
@@ -1418,7 +1460,7 @@ cmd_mv_run:
 
 ; format: wipe the data disk and reseed the built-in files
 cmd_format_run:
-    cmp dword [FS_DEV+DEV_SIZE], FS_DATA_LBA+2
+    cmp dword [FS_DEV+DEV_SIZE], FS_DIR_LBA+FS_DIR_SECTS+2
     jb .nodisk
     call fs_format
     mov eax, 0
@@ -1542,6 +1584,9 @@ fs_newname times FS_LNAMEMAX+1 db 0
 fs_m_dir db '<dir>', 0
 fs_cat_last db 0
 fs_total dd 0
+fs_maxfiles dd FS_DIR_SECTS1*SECTOR_SIZE/FS_DIRENT  ; the mounted table (2.7)
+fs_dirsects dd FS_DIR_SECTS1
+fs_datalba dd FS_DIR_LBA+FS_DIR_SECTS1
 fs_xfer_total dd 0
 fs_xfer_lba dd 0
 ft_fd_tmp dd 0

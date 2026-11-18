@@ -18,8 +18,8 @@ partition 1 of the boot disk, from boot on.
 | LBA | Contents |
 |-----|----------|
 | 0 | Superblock |
-| 1–4 | Directory: 64 entries × 32 bytes |
-| 5 … total−1 | File data (contiguous extents) |
+| 1–16 | Directory: 256 entries × 32 bytes (version 2; version 1: sectors 1–4, 64 entries) |
+| 17 … total−1 | File data (contiguous extents; from 5 in version 1) |
 | last sector | Not part of the FS; reserved for `blktest` |
 
 ### Superblock
@@ -27,11 +27,28 @@ partition 1 of the boot disk, from boot on.
 | Offset | Field | Value |
 |--------|-------|-------|
 | 0 | magic | `SQFS` (`0x53465153`) |
-| 4 | version | 1 |
+| 4 | version | 2 (1 before 2.7) |
 | 8 | total | Sectors the FS may use (disk size − 1) |
 | 12 | dir LBA | 1 |
-| 16 | dir sectors | 4 |
-| 20 | data LBA | 5 |
+| 16 | dir sectors | 16 (4 in version 1) |
+| 20 | data LBA | 17 (5 in version 1) |
+
+### Table size (2.7)
+
+Disks formatted since 2.7 (by `format`, a blank disk at boot, the installer, or `tools/sqfs.py
+IMAGE format`) are version 2 with 16 directory sectors: 256 entries. The kernel takes the table's
+size from the superblock when it mounts a disk (`fs_maxfiles`, `fs_dirsects`, `fs_datalba`): a
+version 1 disk keeps its 4 sectors and 64 entries and stays version 1, so older disks mount and
+are written unchanged; version 2 needs dir LBA 1, 1 to 16 dir sectors and the data right after
+them, or the disk is not mounted. Kernels before 2.7 read only the first 64 entries of a version
+2 disk and put data after sector 5, so a version 2 disk is not for them. `tools/sqfs.py IMAGE
+format SIZE --v1` still makes a version 1 disk.
+
+- A directory's id is its index + 1 in one byte and `0xFF` marks long-name parts, so directories
+  go in entries 0 to 253 (`FS_MAXDIRS`); files and long-name parts use all 256.
+- The directory cache is 8 KB at `FS_DIR`, just below the GOP console's shadow at the top of the
+  high image's 1 MB (`pm.asm` refuses to build a high image that would reach it), and every
+  change writes the table's sectors back.
 
 ### Directory entry (32 bytes)
 
@@ -51,7 +68,7 @@ The directory is cached in memory (`KSCRATCH+0x1000`) and written through on eve
 
 Names have up to 63 characters (`FS_LNAMEMAX`; 15 before 2.7). Spaces are allowed; in the shell a
 name with spaces goes in double quotes (`cd "My Documents"`, `cp a "b c"`), and `cat` also takes
-the rest of the line as before. The 32-byte entry and the 64-entry table stay as they are
+the rest of the line as before. The 32-byte entry and the table stay as they are
 (`kernel/fslfn.asm`):
 
 - A name of 15 characters or fewer is stored in the entry's name field exactly as before.
@@ -73,7 +90,7 @@ the rest of the line as before. The 32-byte entry and the 64-entry table stay as
 - Either the long name or the alias finds the file: `fs_find_in` compares both, so programs that
   use the 16-byte name from `SYS_READDIR`, the file browser and the installer keep working.
   `ls`, `pwd` and the prompt show long names.
-- A long name uses table entries: the 64 entries are shared by files, directories and
+- A long name uses table entries: the table's entries (256 since 2.7) are shared by files, directories and
   continuation entries. `fs_create` or `mv` refuse with `Directory table full` when the parts do
   not fit (checked before anything changes).
 - **Older kernels** show the alias, never list the continuation entries, and never allocate over
@@ -142,7 +159,7 @@ Without a data disk, `ls` and `cat` fall back to the built-in (ROM) table, as be
 | `fs_format` | — | CF on error |
 
 On −1, `fs_errno` says why (0.9.2): `FE_NOFS`, `FE_NAME` (empty, over 63 characters (15 before 2.7), `.` or `..`),
-`FE_EXISTS`, `FE_NODIR` (a directory on the path is missing), `FE_TABLE` (64 entries used),
+`FE_EXISTS`, `FE_NODIR` (a directory on the path is missing), `FE_TABLE` (every entry used),
 `FE_NOTFOUND`, `FE_BUSY` (open), `FE_NOTEMPTY`, `FE_CWD` (the current directory), `FE_LOOP`
 (a directory into itself), `FE_IO`, `FE_FULL` (no free run of sectors), `FE_ISDIR`, `FE_NOFD`
 (all eight descriptors in use), and since 2.7 `FE_NODRIVE` (no drive mounted on the letter of a
@@ -203,7 +220,8 @@ Failures say why: `Already exists`, `Bad name: 1 to 63 characters, not . or ..`,
 
 ## Limitations
 
-- 64 entries in all (files, directories and long-name continuation entries together), names up to
+- 256 entries in all on a new disk, 64 on a version 1 disk (files, directories and long-name
+  continuation entries together; directories in the first 254), names up to
   63 characters, paths up to 95 characters (`FS_PATHMAX` 96; 64 before 2.7).
 - Seeking is limited to positions inside the file (0 to its size); there are no sparse files.
 - Write-through, no cache: every partial sector write is a read-modify-write.

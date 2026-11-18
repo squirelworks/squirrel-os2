@@ -1812,6 +1812,9 @@ KHIGH_LIMIT equ (INS_PART_LBA-KHIGH_LBA)*512 ; to the installer's partition
 %if $-$$ > GOP_SHADOW-KHIGH_BASE-4
 %error the high kernel image runs into the GOP console's text shadow (drivers/gopcon.asm)
 %endif
+%if $-$$ > FS_DIR-KHIGH_BASE-4
+%error the high kernel image runs into the SQFS directory cache (fs.asm)
+%endif
 times (512-(($-$$+4) % 512)) % 512 db 0
 dd KHIGH_SIG
 khigh_end:

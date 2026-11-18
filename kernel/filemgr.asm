@@ -15,7 +15,7 @@
 ; Starts in the shell's current directory. See documentation/apps/filemgr.md.
 
 FM_MAXT     equ 32              ; tree rows
-FM_MAXL     equ FS_MAXFILES     ; list rows
+FM_MAXL     equ FS_MAXDIR       ; list rows
 FM_ROW      equ 11              ; a row: the window face and a margin
 FM_INDENT   equ 8               ; per tree level
 FM_INMAX    equ 40              ; characters typed on the status line
@@ -189,7 +189,7 @@ fm_tadd:
     inc dword [fm_tn]
     xor ebx, ebx
 .e:
-    cmp ebx, FS_MAXFILES
+    cmp ebx, [fs_maxfiles]
     jae .r
     mov esi, ebx
     shl esi, 5
@@ -220,7 +220,7 @@ fm_ladd:
     mov edx, [fm_cur]
     xor ecx, ecx
 .e:
-    cmp ecx, FS_MAXFILES
+    cmp ecx, [fs_maxfiles]
     jae .r
     mov esi, ecx
     shl esi, 5

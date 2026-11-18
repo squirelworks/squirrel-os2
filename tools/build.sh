@@ -39,9 +39,9 @@ python3 "$root/tools/mkesp.py" "$out/uefi.img" "$out/BOOTX64.EFI" "$out/BOOTIA32
 if [ "$1" = "--fresh" ] || [ ! -f "$out/data.img" ]; then
     rm -f "$out/data.img"
     python3 "$root/tools/sqfs.py" "$out/data.img" format 4096 >/dev/null
-    # The disk holds 64 files (FS_MAXFILES), fewer than there are programs:
-    # the apps and games go on first, then the kernel test programs that
+    # The apps and games go on first, then the kernel test programs that
     # tools/regress.sh puts on its own progs.img, for as long as they fit
+    # (since 2.7 a new disk holds 256 entries, so all of them do)
     tests=$(sed -n 's/^for prog in \(hello wc .*\); do$/\1/p' "$root/tools/regress.sh" | head -n 1)
     skipped=
     for pass in apps tests; do

@@ -41,10 +41,9 @@ SQX_HEADER main
 
 SQ_MAGIC    equ 0x53465153
 DIR_LBA     equ 1
-DIR_SECTS   equ 4
-DATA_LBA    equ DIR_LBA + DIR_SECTS
+DIR_SECTS   equ 16              ; the most (2.7: version 2); version 1 has 4
 DIRENT      equ 32
-MAXFILES    equ DIR_SECTS * 512 / DIRENT
+; maxfiles, dirsects and datalba: the disk's own table (its superblock)
 NAMELEN     equ 16
 E_START     equ 16
 E_SIZE      equ 20
@@ -279,7 +278,29 @@ analyse:
     mov [total], eax
     mov eax, [sect+4]
     mov [sq_ver], eax
-    mov ecx, DIR_SECTS          ; the directory
+    mov ecx, 4                  ; (2.7) the table's size: 4 sectors in
+    cmp eax, 2                  ; version 1, the superblock's in version 2
+    jb .geo
+    mov ecx, [sect+16]
+    test ecx, ecx
+    jz .badgeo
+    cmp ecx, DIR_SECTS
+    ja .badgeo
+    cmp dword [sect+12], DIR_LBA
+    jne .badgeo
+    lea edx, [ecx+DIR_LBA]
+    cmp [sect+20], edx
+    je .geo
+.badgeo:
+    mov dword [sq_ver], 0       ; (reported as an unknown version)
+    mov ecx, 4
+.geo:
+    mov [dirsects], ecx
+    lea eax, [ecx+DIR_LBA]
+    mov [datalba], eax
+    mov eax, ecx
+    shl eax, 9 - 5
+    mov [maxfiles], eax
     mov eax, DIR_LBA
     mov edi, dir
 .d:
@@ -308,17 +329,18 @@ map_dir:
     xor eax, eax
     rep stosb
     mov edi, [smap]             ; the superblock and directory
-    mov ecx, DATA_LBA
+    mov ecx, [datalba]
     mov al, M_META
     rep stosb
     mov dword [nfiles], 0
     mov dword [ndirs], 0
-    mov dword [used], DATA_LBA
+    mov eax, [datalba]
+    mov [used], eax
     mov dword [ntop], 0
     mov dword [databytes], 0
     xor ebx, ebx
 .e:
-    cmp ebx, MAXFILES
+    cmp ebx, [maxfiles]
     jae .done
     mov esi, ebx
     shl esi, 5
@@ -417,14 +439,16 @@ check_fs:
     call problem
     jmp .done
 .sb:
-    cmp dword [sq_ver], 1
+    cmp dword [sq_ver], 1       ; (2.7: version 2 too)
+    je .ent
+    cmp dword [sq_ver], 2
     je .ent
     mov esi, p_ver
     call problem
 .ent:
     xor ebx, ebx                ; each entry
 .e:
-    cmp ebx, MAXFILES
+    cmp ebx, [maxfiles]
     jae .done
     mov esi, ebx
     shl esi, 5
@@ -458,7 +482,7 @@ check_fs:
     movzx eax, byte [esi+E_PARENT]
     test eax, eax
     jz .dup
-    cmp eax, MAXFILES
+    cmp eax, [maxfiles]
     ja .badpar
     dec eax
     shl eax, 5
@@ -488,7 +512,7 @@ check_fs:
     test eax, eax
     jz .n
     mov edx, [esi+E_START]
-    cmp edx, DATA_LBA
+    cmp edx, [datalba]
     jb .past
     add eax, edx
     jc .past
@@ -601,7 +625,7 @@ check_overlap:
     add edx, [esi+E_CAP]
     xor ecx, ecx
 .e:
-    cmp ecx, MAXFILES
+    cmp ecx, [maxfiles]
     jae .no
     cmp ecx, ebx
     je .n
@@ -749,7 +773,7 @@ find_part:
     mov bh, al
     xor ecx, ecx
 .e:
-    cmp ecx, MAXFILES
+    cmp ecx, [maxfiles]
     jae .no
     mov edi, ecx
     shl edi, 5
@@ -787,7 +811,7 @@ find_part:
 check_part:
     pushad
     movzx eax, byte [esi+LFN_OWNER]
-    cmp eax, MAXFILES
+    cmp eax, [maxfiles]
     jae .bad
     shl eax, 5
     lea edi, [dir+eax]
@@ -1399,7 +1423,8 @@ selftest:
     jne fail
     cmp byte [sq_ok], 1
     jne fail
-    cmp dword [total], DATA_LBA
+    mov eax, [datalba]
+    cmp [total], eax
     jbe fail
     call find_test
     jc fail
@@ -1570,7 +1595,7 @@ fail:
 find_test:
     xor ecx, ecx
 .e:
-    cmp ecx, MAXFILES
+    cmp ecx, [maxfiles]
     jae .no
     mov esi, ecx
     shl esi, 5
@@ -1646,7 +1671,7 @@ free_entry:
     push ecx
     xor ecx, ecx
 .e:
-    cmp ecx, MAXFILES
+    cmp ecx, [maxfiles]
     jae .no
     mov eax, ecx
     shl eax, 5
@@ -1856,6 +1881,9 @@ fmt_part resd 1                 ; 1 = write/keep an MBR partition
 frootents resd 1                ; root directory entries (0 on FAT32)
 fmt_clusters resd 1             ; data clusters while sizing
 sect resb 2048
+maxfiles resd 1
+dirsects resd 1
+datalba resd 1
 dir resb DIR_SECTS * 512
 probs resb NPROB * PLEN
 pline resb 96

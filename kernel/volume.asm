@@ -1164,7 +1164,7 @@ fs_readdir_long:
     je .err
     mov dl, [fs_cwd]
 .sq:
-    cmp ebx, FS_MAXFILES
+    cmp ebx, [fs_maxfiles]
     jae .end
     mov edi, ebx
     shl edi, 5

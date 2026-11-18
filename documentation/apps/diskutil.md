@@ -33,7 +33,7 @@ SQFS keeps a name longer than its 15-character field in continuation entries (`.
 
 ## Keys
 
-`C` checks the file system: the superblock's version, and for each directory entry that its name is printable and not too long, its kind is a file or a directory, its directory exists, no other entry in the same directory has its name, its size fits the sectors it keeps, its sectors are inside the data area, and no other file uses them. The first three problems are listed under the map, each with the entry's name; files that share sectors turn red on the map. `S` scans the surface: it reads every sector of the disk, with a progress count, and reports how many could not be read (red on the map). `F` formats `hd2`/`hd3` as FAT (Y to confirm). Esc quits.
+`C` checks the file system: the superblock's version (1, or 2 with its own table size: 2.7), and for each directory entry that its name is printable and not too long, its kind is a file or a directory, its directory exists, no other entry in the same directory has its name, its size fits the sectors it keeps, its sectors are inside the data area, and no other file uses them. The first three problems are listed under the map, each with the entry's name; files that share sectors turn red on the map. `S` scans the surface: it reads every sector of the disk, with a progress count, and reports how many could not be read (red on the map). `F` formats `hd2`/`hd3` as FAT (Y to confirm). Esc quits.
 
 ## Checks
 

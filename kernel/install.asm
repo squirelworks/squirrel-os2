@@ -226,7 +226,7 @@ cmd_install_ls_run:
     ; count what is in the root
     xor eax, eax
     mov ebx, FS_DIR
-    mov ecx, FS_MAXFILES
+    mov ecx, [fs_maxfiles]
 .c:
     cmp byte [ebx], 0
     je .n
@@ -344,7 +344,7 @@ ins_do_files:
     mov edi, ins_names
     xor edx, edx                ; how many
     mov ebx, FS_DIR
-    mov ecx, FS_MAXFILES
+    mov ecx, [fs_maxfiles]
 .l:
     cmp byte [ebx], 0
     je .ln
@@ -761,7 +761,7 @@ ins_open_part:
     jne .no
     mov eax, [INS_IN+INS_ENTRY+8]   ; start
     mov edx, [INS_IN+INS_ENTRY+12]  ; size
-    cmp edx, FS_DATA_LBA+2
+    cmp edx, FS_DIR_LBA+FS_DIR_SECTS+2
     jb .no
     test eax, eax
     jz .no                      ; never over the MBR
@@ -1074,7 +1074,7 @@ ins_ncopied dd 0
 ins_fsize dd 0
 ins_quiet db 0
 ins_ffailed db 0
-ins_names times FS_MAXFILES*(FS_NAMELEN+4) db 0 ; name, then size
+ins_names times FS_MAXDIR*(FS_NAMELEN+4) db 0 ; name, then size
 ins_path times FS_NAMELEN+2 db 0
 ins_was_fds times FS_MAXFD dd 0
 ins_was_mounted db 0

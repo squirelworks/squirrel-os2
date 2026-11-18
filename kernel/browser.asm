@@ -7,7 +7,7 @@
 ; See documentation/apps/files.md.
 
 FB_ROWS       equ 18            ; list rows on screen
-FB_MAX        equ 65            ; every entry, plus ".."
+FB_MAX        equ FS_MAXDIR+1   ; every entry, plus ".."
 FB_DIR        equ -1            ; the size recorded for a directory
 
 fb_main:
@@ -198,7 +198,7 @@ fb_scan:
     inc dword [fb_count]
 .top:
     mov esi, FS_DIR
-    mov ecx, FS_MAXFILES
+    mov ecx, [fs_maxfiles]
 .d:
     cmp byte [esi], 0
     je .dn
