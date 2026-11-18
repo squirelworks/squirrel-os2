@@ -5,8 +5,9 @@
 ; and date as text under it, from the CMOS clock (SYS_GUI GUI_TIME and
 ; GUI_DATE). It redraws when the second changes. Esc quits.
 ; "run clock test" draws one face, reads back pixels from the screen (the
-; centre, the 12 o'clock mark and the face beside it), checks that the
-; clock moves within two seconds, and prints "clock: PASS" or FAIL.
+; centre, the 12 o'clock mark and a white face pixel — several spots so a
+; hand cannot cover every probe), checks that the clock moves within two
+; seconds, and prints "clock: PASS" or FAIL.
 ; See documentation/apps/gui-programs.md.
 
 %include "sqx.inc"
@@ -76,14 +77,26 @@ selftest:
     call gui_peek
     cmp cl, C_BLACK
     jne .fail
-    mov byte [bad], 'f'         ; the face: white left of the hub, or
-    mov eax, FACE_X - RADIUS / 2 ; right of it if a hand is there now
-    mov ebx, FACE_Y + 3
+    ; the face: white at half-radius. Two probes used to fail when both
+    ; the hour and minute hands covered them (e.g. ~02:43); try four.
+    mov byte [bad], 'f'
+    mov eax, FACE_X - RADIUS / 2
+    mov ebx, FACE_Y
     call gui_peek
     cmp cl, C_WHITE
     je .faceok
     mov eax, FACE_X + RADIUS / 2
-    mov ebx, FACE_Y - 3
+    mov ebx, FACE_Y
+    call gui_peek
+    cmp cl, C_WHITE
+    je .faceok
+    mov eax, FACE_X
+    mov ebx, FACE_Y - RADIUS / 2
+    call gui_peek
+    cmp cl, C_WHITE
+    je .faceok
+    mov eax, FACE_X
+    mov ebx, FACE_Y + RADIUS / 2
     call gui_peek
     cmp cl, C_WHITE
     jne .fail

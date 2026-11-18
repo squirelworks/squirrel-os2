@@ -14,6 +14,9 @@ All material under this tree is project-native. External or contemporary sources
 | `guides/`       | Build, run, and contribution guides          |
 | `releases/`     | Release notes and version history            |
 
+ISM Flight Lab / ground-station host gaps (#225, lane `-b55f`):
+[`guides/ism-flightlab-gaps.md`](guides/ism-flightlab-gaps.md).
+
 ## Status
 
 Documentation is active.
@@ -109,4 +112,5 @@ Documentation is active.
 - 2.0.1 mouse on IRQ 12, drained everywhere; KB-18 resolved (`releases/2.0.1.md`, `kernel/mouse.md`)
 - 2.0.2 `ifconfig` refuses an off-subnet gateway (`releases/2.0.2.md`, `kernel/network.md`)
 - 2.1.0 VBE framebuffer graphics, ring 3, graphical apps, games, Linux/Win32/DOS programs (`releases/2.1.0.md`, `kernel/kernel-image.md`, `kernel/ring3.md`)
-- Next: modern hardware H.1–H.6 (`../TODO.md`, `../ROADMAP.md`).
+- **2.3.0 released** — real windows, Program Manager desktop, FAT/LFN, UEFI/SMP, net/audio (`releases/2.3.0.md`, `kernel/windows.md`, `apps/desktop.md`)
+- Next: P.6-win32-windows, P.8-dos-window, then 2.5/2.6 and 2.8-pae (`../TODO.md`, `../HANDOFF.md`, `../ROADMAP.md`).

@@ -47,26 +47,30 @@ Not provided yet: the FPU, video memory at B800 on the screen, the timer
 interrupts, BIOS disk services, and I/O ports other than the VGA's DAC (3C8h, 3C9h)
 and input status (3DAh); other ports read FFh and ignore writes.
 
-## Graphics: VGA mode 13h
+## Graphics: VGA mode 13h in a window (P.8-dos-window)
 
-`INT 10h AX=0013h` switches the screen to 320 × 200 graphics through `SYS_GUI` (a
-full-screen session, as a DOS box is on real hardware). The program's `A000:0000` is the
-screen, one byte a pixel; dosrun copies it to the display when the program waits for a key,
-polls the keyboard, reads the clock or the retrace bit, changes mode or ends, and at least once
-a tick while it computes. The BIOS teletype (and INT 21h output) writes into `A000` with the
-kernel's 5 × 7 font in 6 × 8 cells, 53 columns by 25 rows, in the colour from BL (INT 10h
-AH=0Eh) or white. Port 3DAh toggles its retrace bits on every read, so wait-for-retrace loops
-end.
+`INT 10h AX=0013h` opens a 2.2 program window whose client is the 320 × 200 DOS screen,
+scaled 1× (`WD_BLIT`) or 2× (`WD_SBLIT`, leading `2x` argument). The program's `A000:0000`
+is that buffer, one byte a pixel; dosrun copies it through the colour table when the
+program waits for a key, polls the keyboard, reads the clock or the retrace bit, changes
+mode or ends, and at least once a tick while it computes. Keys while the window is focused
+arrive as `WE_KEY`. The BIOS teletype (and INT 21h output in graphics) writes into `A000`
+with the kernel's 5 × 7 font in 6 × 8 cells, 53 columns by 25 rows. Port 3DAh toggles its
+retrace bits on every read. Any other mode (`AX=0003h` and the rest) closes the window and
+returns to the text screen; so does the program's end. The desktop around the window is
+left alone (checked by sampling a pixel outside it).
 
 Colours: the program has a full 256-entry DAC (default: 16 EGA colours, 16 greys and a hue
 wheel made here). Entries 64–255 go to the display's own entries as they are
-(`GUI_PALETTE`); entries 0–63 are shown as the nearest of the display's fixed 64 EGA colours,
-because the kernel keeps those for text. Any other mode set (`AX=0003h` and the rest) goes
-back to the text screen as it was; so does the program's end.
+(`GUI_PALETTE`); entries 0–63 are shown as the nearest of the display's fixed 64 EGA colours.
 
-Not yet: a DOS program in a window beside others. That waits for programs to own windows
-(2.2, OS2-GUI); the DOS screen is then the window's contents instead of the whole display.
+## Text screen in a window
 
+`run dosrun win prog.com` (or a DOS program started while a VBE desktop is already up)
+opens a text-mode DOS window and draws the console there with `WD_TEXT`. Keys go to it
+while focused. After the program ends the window stays until a key, so a scripted `<gfx>`
+can read it. Ordinary shell runs without `win` still use the text console, so the existing
+`dos-*` checks keep working.
 
 ## Tests
 
@@ -81,15 +85,17 @@ All are original, hand-written programs in `programs/`, built with
 | `dosgfx.asm` (.COM) | mode 13h: A000, INT 10h pixels, DAC ports and INT 10h read-back, retrace, teletype text in graphics, back to text |
 | `dosexe.asm` (.EXE) | a hand-written MZ with relocations, SS:SP from the header, a far call between segments |
 
-Regress checks: `dos-hello`, `dos-cpu`, `dos-file`, `dos-exe`, `dos-missing`, `dos-after`.
+Regress checks: `dos-hello`, `dos-cpu`, `dos-file`, `dos-exe`, `dos-missing`, `dos-after`,
+`dos-gfx`, `dos-gfx-after`, `dos-win`, `dos-win-2x`, `dos-win-text`.
 
 ## Starting a DOS program
 
 `run prog.com [arguments]` and `run prog.exe [arguments]` work without naming dosrun: the
 kernel loader runs `dosrun <file> <arguments>` for a headerless file named `*.com` and for an
 `MZ` file without a PE header (`../kernel/loader.md`). `run winrun prog.exe` on a DOS `.EXE`
-passes it on to dosrun and returns its exit code. Regress checks: `dos-run-com`,
-`dos-run-exe`, `dos-winrun`, `dos-run-after`.
+passes it on to dosrun and returns its exit code. Optional leading arguments to dosrun:
+`2x` (mode 13h at double size) and `win` (text screen in a window). Regress checks:
+`dos-run-com`, `dos-run-exe`, `dos-winrun`, `dos-run-after`.
 
 Not yet: DOS programs larger than 64 KB (the loader's staging limit refuses them before
 dosrun sees them; `run dosrun big.exe` works up to dosrun's own limit).

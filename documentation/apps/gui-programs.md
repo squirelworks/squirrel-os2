@@ -27,7 +27,7 @@ Checks: `calculator` (`2+3*4` → `= 14`), `calculator-ans`, `calculator-err`, `
 
 An analogue face (twelve marks, hour, minute and red second hands) with the time and date as text under it (`07:41:36  2026-11-13`), from the CMOS clock (`GUI_TIME`, `GUI_DATE`). It looks at the clock five times a second and redraws when the second changes. Esc quits.
 
-`run clock test` draws one face, reads back from the screen the hub, the 12 o'clock mark and a face pixel, waits up to two seconds for the clock to move, and prints `clock: PASS` (or `clock: FAIL` and a letter for the failed check). Checks: `clock`, `clock-gfx`, `clock-quit`.
+`run clock test` draws one face, reads back from the screen the hub, the 12 o'clock mark and a white face pixel (four half-radius probes so a hand cannot cover every one), waits up to two seconds for the clock to move, and prints `clock: PASS` (or `clock: FAIL` and a letter for the failed check). Checks: `clock`, `clock-gfx`, `clock-quit`.
 
 ## Notepad (`run notepad [file]`)
 

@@ -1,4 +1,5 @@
-; Squirrel-OS/2 — Program Manager (2.3-groups). Original code.
+; Squirrel-OS/2 — Program Manager (2.3-groups / 2.6-context / W.5-openas).
+; Original code.
 ;
 ; progman: the desktop as group windows full of icons. Main holds the
 ; top-level programs; each top-level Folder is a group of its own holding
@@ -8,10 +9,17 @@
 ; Keys: the arrows choose an icon, Enter opens it (sends `open`), m moves
 ; the chosen icon with the arrows until Enter or Esc, a arranges the focused
 ; group's icons in rows, Esc quits. Mouse: a press on an icon chooses it, a
-; second press on it soon after opens it, dragging moves it. A group's close
+; second press on it soon after opens it, dragging moves it; the right
+; button opens a context menu (Open, Open as..., Settings, Arrange) on the
+; icon under the pointer (2.6-context / W.5-openas, wg_menu / wm_popup)
+; without arming the double-click timer. Open as cascades to Icon / Tree /
+; Details / Settings. Delete is left out until a confirm path exists.
+; Settings notebook tab/close events are handled in pm_wm. A group's close
 ; box minimises it (double-click its icon to restore); Main's close quits.
 ; Icon places are kept in /desktop/progman.pos, one line per moved or
 ; arranged icon: "name x y". See documentation/apps/progman.md.
+;
+; Self-check: dkctx -> dk-ctx: PASS; openas (filemgr) -> openas: PASS.
 
 PM_GMAX     equ 4               ; groups: Main and up to three folders
 PM_IMAX     equ 8               ; icons in a group
@@ -21,6 +29,18 @@ PM_CAP_Y    equ 34              ; the caption, below the 32 x 32 icon
 PM_STEP     equ 8               ; keyboard move, pixels a press
 PM_DRAG     equ 4               ; a press that moves less than this is a click
 PM_DBL      equ 50              ; ticks between the presses of a double-click
+
+PM_CTX_OPEN     equ 0
+PM_CTX_OPENAS   equ 1           ; W.5: cascades to Icon/Tree/Details/Settings
+PM_CTX_SETTINGS equ 2
+PM_CTX_ARRANGE  equ 3           ; Delete left out until a confirm UI exists
+PM_CTX_N        equ 4
+
+PM_OA_ICON      equ 0
+PM_OA_TREE      equ 1
+PM_OA_DETAILS   equ 2
+PM_OA_SETTINGS  equ 3
+PM_OA_N         equ 4
 
 cmd_progman_run:
     call wm_screen              ; 640 x 480 x 8 VBE, or mode 13h
@@ -37,6 +57,7 @@ cmd_progman_run:
     shr eax, 1
     mov [dk_oy], eax
     call dk_mkobjs
+    call stu_run                ; W.6: open Startup contents
     call pm_build
     call pm_load
     mov byte [dk_quit], 0
@@ -59,8 +80,22 @@ cmd_progman_run:
     jmp .draw
 .nokey:
     cmp byte [pm_dirty], 0
-    je .k
+    je .menu
     mov byte [pm_dirty], 0
+    jmp .draw
+.menu:                          ; context menu / Open as (2.6 / W.5)
+    mov eax, [dk_menu]
+    test eax, eax
+    jz .k
+    mov dword [dk_menu], 0
+    dec eax                     ; item index
+    cmp byte [pm_oa_pend], 0
+    je .top
+    mov byte [pm_oa_pend], 0
+    call pm_openas_do
+    jmp .draw
+.top:
+    call pm_ctx_do
     jmp .draw
 .k:
     call dk_trykey              ; CF clear, al = key
@@ -260,6 +295,8 @@ pm_place:
     shr ebx, 1
     imul ebx, ebx, 200
     add ebx, 16
+    add ebx, [wc_top]          ; shared top chrome (WarpCenter and/or LaunchPad)
+    add ebx, [lp_top]
     mov ecx, 296
     mov edx, 180
     ret
@@ -268,6 +305,8 @@ pm_place:
     add eax, 4
     imul ebx, ebp, 12
     add ebx, 4
+    add ebx, [wc_top]          ; shared top chrome (WarpCenter and/or LaunchPad)
+    add ebx, [lp_top]
     mov ecx, 220
     mov edx, 120
     ret
@@ -574,15 +613,28 @@ pm_caption:
     popad
     ret
 
-; eax = object -> esi = its icon: a Folder's, the program's own (named as
-; its entry), or the generic program icon
+; eax = object -> esi = its icon: a Folder's, a File's, the program's own
+; (named as its entry), a Template's (by of), or the generic program icon
 pm_icon:
     push eax
     push ebx
     mov esi, icon_folder
     cmp dword [eax+OBJ_CLASS], dk_c_fold
     je .r
+    mov esi, icon_file
+    cmp dword [eax+OBJ_CLASS], dk_c_file
+    je .r
+    cmp dword [eax+OBJ_CLASS], wps_c_tmpl
+    je .tmpl
+    mov esi, icon_files
+    cmp dword [eax+OBJ_CLASS], fo_c_drive
+    je .r
+    mov esi, icon_shell
+    cmp dword [eax+OBJ_CLASS], fo_c_shred
+    je .r
     mov esi, icon_program
+    cmp dword [eax+OBJ_CLASS], ss_c_setup
+    je .r
     cmp dword [eax+OBJ_CLASS], dk_c_prog
     jne .r
     mov ebx, 2
@@ -597,6 +649,21 @@ pm_icon:
     pop ebx
     pop eax
     ret
+.tmpl:
+    mov ebx, 2
+    call obj_get                ; of
+    mov esi, icon_folder
+    test eax, eax
+    jz .r
+    push edi
+    mov esi, eax
+    mov edi, wps_nm_folder
+    call streq
+    pop edi
+    mov esi, icon_folder
+    je .r
+    mov esi, icon_program
+    jmp .r
 
 ; eax, ebx, ecx, edx = a rectangle: the clip becomes its overlap with the
 ; clip already set (saved for pm_clipout)
@@ -693,6 +760,15 @@ pm_wm:
     mov [dk_lmx], eax
     mov [dk_lmy], ebx
     mov [dk_lmb], cl
+    test cl, 2                  ; right button: context menu (2.6-context)
+    jz .noright
+    test byte [pm_rbtn], 2
+    jnz .noright
+    mov [pm_rbtn], cl
+    call pm_ctx_at
+    jmp .upd
+.noright:
+    mov [pm_rbtn], cl
     test cl, 1
     jnz .down
     cmp dword [pm_drag], -1     ; let go: the end of a drag
@@ -710,8 +786,22 @@ pm_wm:
 .wm:
 .down:
     call wm_mouse
+    cmp eax, WME_MENU           ; a context item clicked
+    jne .notmenu
+    inc ecx
+    mov [dk_menu], ecx
+    jmp .upd
+.notmenu:
     cmp eax, WME_CLOSE
     jne .client
+    cmp ebx, [pm_set_win]       ; Settings notebook close (Sarah #186)
+    jne .notset
+    mov eax, ebx
+    call wm_close
+    mov dword [pm_set_win], -1
+    mov dword [pm_set_nb], -1
+    jmp .upd
+.notset:
     cmp ebx, [pm_gwin]
     je .quit
     mov eax, ebx                ; another group: minimised
@@ -720,6 +810,36 @@ pm_wm:
 .client:
     cmp eax, WME_CLIENT
     jne .upd
+    cmp ebx, [pm_set_win]       ; Settings: tab clicks
+    jne .grp
+    cmp dword [pm_set_nb], -1
+    je .upd
+    push eax
+    push ebx
+    push ecx
+    call wm_record              ; edi = Settings window
+    jc .setbad
+    mov eax, [pm_set_nb]
+    mov ebx, [dk_lmx]
+    sub ebx, [edi+WIN_X]
+    dec ebx
+    mov ecx, [dk_lmy]
+    sub ecx, [edi+WIN_Y]
+    sub ecx, WM_TITLE_H + 1
+    call wg_nbclick
+    jnc .setdirty
+.setbad:
+    pop ecx
+    pop ebx
+    pop eax
+    jmp .upd
+.setdirty:
+    mov byte [pm_dirty], 1
+    pop ecx
+    pop ebx
+    pop eax
+    jmp .upd
+.grp:
     mov eax, ebx
     call pm_group
     jc .upd
@@ -802,7 +922,8 @@ pm_press:
 
 ; ecx, edx = how far the pointer went since the press: a drag of at
 ; least PM_DRAG pixels moves the icon (and saves the places); less is
-; a click and changes nothing.
+; a click and changes nothing. A Template (W.2) creates a new object in
+; the group under the pointer instead of moving.
 pm_release:
     pushad
     mov edi, [pm_drag]
@@ -821,12 +942,107 @@ pm_release:
     add eax, ebx
     cmp eax, PM_DRAG
     jb .r
+    mov eax, [pm_gobj+edi*4]
+    mov eax, [dk_objs+eax*4]
+    cmp dword [eax+OBJ_CLASS], wps_c_tmpl
+    je .tmpl
     mov edx, [esp+20]
     call pm_moveby
     mov dword [pm_last], -1     ; a drag is not half of a double-click
     call pm_save
 .r:
     popad
+    ret
+.tmpl:
+    mov dword [pm_last], -1
+    mov [wps_src], eax
+    mov eax, [dk_lmx]
+    mov ebx, [dk_lmy]
+    call pm_group_at            ; ebp = group under the pointer
+    jnc .tdrop
+    call pm_focus
+    jnc .tdrop
+    xor ebp, ebp                ; Main
+.tdrop:
+    mov esi, [pm_gfold+ebp*4]
+    mov eax, [wps_src]
+    call wps_create_from
+    jc .r
+    call pm_rebuild             ; new Folder needs a group; else refresh
+    mov byte [pm_dirty], 1
+    jmp .r
+
+; Close group windows and rebuild from dk_objs (after a template create).
+pm_rebuild:
+    pushad
+    xor ebp, ebp
+.c:
+    mov eax, [pm_gwin+ebp*4]
+    cmp eax, -1
+    je .n
+    call wm_close
+.n:
+    inc ebp
+    cmp ebp, PM_GMAX
+    jb .c
+    call pm_build
+    call pm_load
+    popad
+    ret
+
+; eax, ebx = screen point -> ebp = group whose window contains it, CF clear;
+; CF set if none.
+pm_group_at:
+    push eax
+    push ebx
+    push ecx
+    push edx
+    push esi
+    push edi
+    mov [pm_atx], eax
+    mov [pm_aty], ebx
+    xor ebp, ebp
+.g:
+    cmp ebp, [pm_ng]
+    jae .no
+    mov eax, [pm_gwin+ebp*4]
+    cmp eax, -1
+    je .n
+    call wm_record             ; edi = window record
+    jc .n
+    mov eax, [pm_atx]
+    mov ebx, [pm_aty]
+    cmp eax, [edi+WIN_X]
+    jl .n
+    mov ecx, [edi+WIN_X]
+    add ecx, [edi+WIN_W]
+    cmp eax, ecx
+    jge .n
+    cmp ebx, [edi+WIN_Y]
+    jl .n
+    mov edx, [edi+WIN_Y]
+    add edx, [edi+WIN_H]
+    cmp ebx, edx
+    jge .n
+    pop edi
+    pop esi
+    pop edx
+    pop ecx
+    pop ebx
+    pop eax
+    clc
+    ret
+.n:
+    inc ebp
+    jmp .g
+.no:
+    pop edi
+    pop esi
+    pop edx
+    pop ecx
+    pop ebx
+    pop eax
+    stc
     ret
 
 ; ---------- places file ----------
@@ -1038,12 +1254,374 @@ pm_setpos:
     popad
     ret
 
+; ---------- context menu (2.6-context) ----------
+
+; Right-button at (dk_lmx, dk_lmy): if over an icon, select it (without
+; arming the double-click timer) and open the context menu there.
+pm_ctx_at:
+    pushad
+    mov eax, [dk_lmx]
+    mov ebx, [dk_lmy]
+    call wm_hit
+    cmp eax, -1
+    je .r
+    cmp ebx, HT_CLIENT
+    jne .r
+    call pm_group               ; eax = window -> ebp = group
+    jc .r
+    push eax
+    call wm_record              ; edi = window record
+    pop eax
+    jc .r
+    mov eax, [dk_lmx]
+    sub eax, [edi+WIN_X]
+    dec eax                     ; client x
+    mov ebx, [dk_lmy]
+    sub ebx, [edi+WIN_Y]
+    sub ebx, WM_TITLE_H + 1     ; client y
+    call pm_pick                ; select only; not half a double-click
+    call pm_ctx_popup
+.r:
+    popad
+    ret
+
+; ebp = group, eax, ebx = client press: choose the icon under the pointer
+; without updating pm_last / pm_lastt / pm_drag (right-click must not count
+; as half a double-click; Sarah #186).
+pm_pick:
+    pushad
+    xor esi, esi
+.i:
+    cmp esi, [pm_gn+ebp*4]
+    jae .r
+    imul edi, ebp, PM_IMAX
+    add edi, esi
+    mov edx, eax
+    sub edx, [pm_gx+edi*4]
+    cmp edx, PM_CW
+    jae .n
+    mov edx, ebx
+    sub edx, [pm_gy+edi*4]
+    cmp edx, PM_CH
+    jb .hit
+.n:
+    inc esi
+    jmp .i
+.hit:
+    mov [pm_gsel+ebp*4], esi
+    mov byte [pm_dirty], 1
+.r:
+    popad
+    ret
+
+; Opens the context menu under the pointer for the focused/selected icon.
+pm_ctx_popup:
+    pushad
+    mov eax, [dk_lmx]
+    mov ebx, [dk_lmy]
+    mov esi, pm_ctx_items
+    mov edx, PM_CTX_N
+    mov ecx, -1                 ; owner: not a window; WME_MENU still fires
+    call wg_menu
+    mov byte [pm_dirty], 1
+    popad
+    ret
+
+; eax = menu item index: Open / Open as... / Settings / Arrange.
+pm_ctx_do:
+    pushad
+    mov [pm_ctx_last], eax
+    cmp eax, PM_CTX_OPEN
+    je .open
+    cmp eax, PM_CTX_OPENAS
+    je .openas
+    cmp eax, PM_CTX_SETTINGS
+    je .settings
+    cmp eax, PM_CTX_ARRANGE
+    je .arrange
+    jmp .r
+.open:
+    call pm_launch
+    jmp .r
+.openas:
+    call pm_openas_popup
+    mov byte [pm_oa_pend], 1
+    jmp .r
+.settings:
+    call pm_settings
+    jmp .r
+.arrange:
+    call pm_focus
+    jc .r
+    call pm_arrange
+    call pm_save
+.r:
+    popad
+    ret
+
+; Open as submenu (W.5): Icon / Tree / Details / Settings.
+pm_openas_popup:
+    pushad
+    mov eax, [dk_lmx]
+    mov ebx, [dk_lmy]
+    add eax, 8
+    add ebx, 8
+    mov esi, pm_oaitems
+    mov edx, PM_OA_N
+    mov ecx, -1
+    call wg_menu
+    mov byte [pm_dirty], 1
+    popad
+    ret
+
+; eax = PM_OA_*: open File Manager in that view, or Settings on the object.
+pm_openas_do:
+    pushad
+    mov [pm_oa_last], eax
+    cmp eax, PM_OA_SETTINGS
+    je .set
+    cmp eax, PM_OA_DETAILS
+    ja .r
+    ; Icon / Tree / Details: open the folder view through File Manager.
+    mov ebx, eax                ; keep FMV_* across fm_scan
+    call fm_scan                ; refresh from fm_cur (cwd / last dir)
+    mov eax, ebx
+    call fm_setview
+    cmp dword [fm_win], -1
+    jne .drawn
+    cmp dword [gfx_width], 640
+    jb .small
+    mov eax, 40
+    mov ebx, 40
+    mov ecx, 560
+    mov edx, 400
+    jmp .mk
+.small:
+    xor eax, eax
+    xor ebx, ebx
+    mov ecx, GFX_W
+    mov edx, GFX_H
+.mk:
+    mov esi, fm_title
+    call wm_create
+    cmp eax, -1
+    je .r
+    mov [fm_win], eax
+    imul edi, eax, WIN_SIZE
+    mov dword [wm_table+edi+WIN_PAINT], fm_paint
+.drawn:
+    call wm_redraw
+    jmp .r
+.set:
+    call pm_settings
+.r:
+    popad
+    ret
+
+; Opens a small settings notebook for the chosen icon (General / View).
+pm_settings:
+    pushad
+    call pm_focus
+    jc .r
+    cmp dword [pm_gn+ebp*4], 0
+    je .r
+    call wps_settings           ; W.2: same notebook path for every object
+.r:
+    popad
+    ret
+
+; ---------- dkctx (2.6-context / Sarah #186 follow-up) ----------
+; Builds Program Manager groups, opens the context menu on calc, chooses
+; Open / Settings / Arrange through wm_menuchoose (Open as is on the menu
+; too; W.5 exercises it in openas), checks a settings notebook tab pixel,
+; switches the View tab via wg_nbclick, and checks that pm_pick does not
+; arm the double-click timer. Prints `dk-ctx: PASS` or `dk-ctx: FAIL`.
+cmd_dkctx_run:
+    call wm_screen
+    mov esi, dkctx_fail
+    jc .say
+    mov byte [pm_tok], 1
+    mov byte [pm_tstep], '0'
+    call dk_mkobjs
+    call pm_build
+    mov byte [pm_tstep], '1'
+    cmp dword [pm_ng], 0
+    je .bad
+    xor ebp, ebp                ; Main
+    mov esi, pm_t_calc
+    call pm_find
+    mov byte [pm_tstep], '2'
+    jc .bad
+    mov [pm_tslot], edi
+    mov [pm_ticon], ebx
+    mov [pm_gsel], ebx          ; select calc in Main
+    mov dword [pm_set_win], -1
+    mov dword [pm_set_nb], -1
+    ; pointer over calc's cell
+    mov edx, edi                ; slot
+    mov eax, [pm_gwin]
+    call wm_record              ; edi = Main window record
+    jc .bad
+    mov eax, [edi+WIN_X]
+    mov ebx, [edi+WIN_Y]
+    add eax, 1
+    add eax, [pm_gx+edx*4]
+    add ebx, 1 + WM_TITLE_H
+    add ebx, [pm_gy+edx*4]
+    add eax, 10
+    add ebx, 10
+    mov [dk_lmx], eax
+    mov [dk_lmy], ebx
+    mov byte [pm_tstep], '3'
+    call pm_ctx_popup
+    cmp dword [wm_mn], PM_CTX_N
+    jne .bad
+    ; Open (menu choice only — launching calc would enter its window)
+    mov dword [wm_msel], PM_CTX_OPEN
+    call wm_menuchoose
+    cmp eax, WME_MENU
+    jne .bad
+    cmp ecx, PM_CTX_OPEN
+    jne .bad
+    mov [pm_ctx_last], ecx
+    mov byte [pm_tstep], '4'
+    ; Settings -> notebook window
+    call pm_ctx_popup
+    mov dword [wm_msel], PM_CTX_SETTINGS
+    call wm_menuchoose
+    cmp eax, WME_MENU
+    jne .bad
+    mov eax, ecx
+    call pm_ctx_do
+    cmp dword [pm_ctx_last], PM_CTX_SETTINGS
+    jne .bad
+    cmp dword [pm_set_win], -1
+    je .bad
+    cmp dword [pm_set_nb], -1
+    je .bad
+    mov eax, [pm_set_win]
+    call wm_record
+    jc .bad
+    mov eax, [edi+WIN_X]
+    mov ebx, [edi+WIN_Y]
+    add eax, 1 + 8 + TH_BEVEL_W + 2
+    add ebx, 1 + WM_TITLE_H + 8 + TH_BEVEL_W + 1
+    mov dl, TH_FACE
+    call .probe
+    jc .bad
+    mov byte [pm_tstep], '5'
+    ; tab click: switch to View (tab 1) via wg_nbclick (as nbtest)
+    mov esi, pm_set_t0
+    mov ecx, FONT_9
+    call gfx_strwidth_p
+    add eax, NB_TAB_PAD
+    add eax, 4
+    mov ebx, eax
+    mov eax, [pm_set_nb]
+    mov ecx, 4                  ; in the tab strip
+    call wg_nbclick
+    jc .bad
+    mov eax, [pm_set_nb]
+    imul eax, WG_SIZE
+    cmp dword [wg_table+eax+WG_SEL], 1
+    jne .bad
+    mov byte [pm_tstep], '6'
+    ; close settings so Main is focused again for Arrange
+    mov eax, [pm_set_win]
+    call wm_close
+    mov dword [pm_set_win], -1
+    mov dword [pm_set_nb], -1
+    mov eax, [pm_gwin]
+    call wm_raise
+    ; Arrange
+    call pm_ctx_popup
+    mov dword [wm_msel], PM_CTX_ARRANGE
+    call wm_menuchoose
+    mov eax, ecx
+    call pm_ctx_do
+    cmp dword [pm_ctx_last], PM_CTX_ARRANGE
+    jne .bad
+    mov byte [pm_tstep], '7'
+    ; pm_pick must not arm the double-click timer
+    mov dword [pm_last], -1
+    mov dword [pm_lastt], 0
+    xor ebp, ebp
+    mov edi, [pm_tslot]
+    mov eax, [pm_gx+edi*4]
+    mov ebx, [pm_gy+edi*4]
+    add eax, 10
+    add ebx, 10
+    call pm_pick
+    mov eax, [pm_ticon]
+    cmp [pm_gsel], eax
+    jne .bad
+    cmp dword [pm_last], -1
+    jne .bad
+    cmp dword [pm_lastt], 0
+    jne .bad
+    mov byte [pm_tstep], '8'
+    ; a left-press soon after pick must NOT be a double-click
+    mov edi, [pm_tslot]
+    mov eax, [pm_gx+edi*4]
+    mov ebx, [pm_gy+edi*4]
+    add eax, 10
+    add ebx, 10
+    mov ecx, 100
+    call pm_press
+    jc .bad                     ; pick did not arm; first press is single
+    mov byte [pm_tstep], '9'
+    ; Open as is present (W.5); openas self-check drives the cascade
+    call pm_ctx_popup
+    cmp dword [wm_mn], PM_CTX_N
+    jne .bad
+    call wm_menuclose
+    jmp .end
+.probe:                         ; dl = expected at (eax, ebx); CF set on miss
+    push edx
+    call gfx_getpixel
+    pop edx
+    cmp cl, dl
+    je .pok
+    stc
+    ret
+.pok:
+    clc
+    ret
+.bad:
+    mov byte [pm_tok], 0
+.end:
+    cmp dword [pm_set_win], -1
+    je .noset
+    mov eax, [pm_set_win]
+    call wm_close
+    mov dword [pm_set_win], -1
+.noset:
+    xor ebp, ebp
+.close:
+    mov eax, [pm_gwin+ebp*4]
+    cmp eax, -1
+    je .cn
+    call wm_close
+.cn:
+    inc ebp
+    cmp ebp, PM_GMAX
+    jb .close
+    call dk_freeobjs
+    call gfx_text
+    mov esi, dkctx_pass
+    cmp byte [pm_tok], 1
+    je .say
+    mov esi, dkctx_fail
+.say:
+    jmp puts
+
 ; ---------- pmtest ----------
 ; Builds the groups without the loop and checks them: Main has the five
-; programs and Tools is a group of its own; a press on calc chooses it, a
-; drag of (40, 16) moves it and saves; the places read back put it there
-; again; a second press soon after on calc is a double-click, a late one
-; is not; arrange puts it back in its row. Prints `pm: PASS` or `pm: FAIL`.
+; programs plus System Setup and Shredder (W.6), and Tools is a group of
+; its own; a press on calc chooses it, a drag of (40, 16) moves it and
+; saves; the places read back put it there again; a second press soon
+; after on calc is a double-click, a late one is not; arrange puts it
+; back in its row. Prints `pm: PASS` or `pm: FAIL`.
 cmd_pmtest_run:
     call wm_screen
     jnc .ok
@@ -1053,10 +1631,10 @@ cmd_pmtest_run:
     call dk_mkobjs
     call pm_build
     mov byte [pm_tok], 1
-    cmp dword [pm_ng], 2        ; Main and Tools
+    cmp dword [pm_ng], 2        ; Main and Tools (Templates/Startup too)
     mov byte [pm_tstep], 1
     jb .bad
-    cmp dword [pm_gn], 5
+    cmp dword [pm_gn], 7        ; 5 programs + System Setup + Shredder
     mov byte [pm_tstep], 2
     jne .bad
     mov esi, [pm_gname+4]
@@ -1230,6 +1808,8 @@ pm_tslot dd 0
 pm_ticon dd 0
 pm_tx dd 0
 pm_ty dd 0
+pm_atx dd 0
+pm_aty dd 0
 pm_kmove db 0
 pm_dirty db 0
 pm_open db 0
@@ -1247,3 +1827,27 @@ pm_t_calc db 'calc', 0
 pm_bye db 'Program Manager closed.', 10, 0
 pm_pass db 'pm: PASS', 10, 0
 pm_fail db 'pm: FAIL at ', 0
+pm_ctx_items dd pm_ctx_open, pm_ctx_oas, pm_ctx_set, pm_ctx_arr
+pm_ctx_open db 'Open', 0
+pm_ctx_oas db 'Open as...', 0
+pm_ctx_set db 'Settings', 0
+pm_ctx_arr db 'Arrange', 0
+align 4
+pm_oaitems dd pm_oa_icon, pm_oa_tree, pm_oa_det, pm_oa_set
+pm_oa_icon db 'Icon', 0
+pm_oa_tree db 'Tree', 0
+pm_oa_det db 'Details', 0
+pm_oa_set db 'Settings', 0
+pm_set_title db 'Settings', 0
+pm_set_t0 db 'General', 0
+pm_set_t1 db 'View', 0
+pm_set_tabs dd pm_set_t0, pm_set_t1
+dkctx_pass db 'dk-ctx: PASS', 10, 0
+dkctx_fail db 'dk-ctx: FAIL', 10, 0
+align 4
+pm_ctx_last dd -1
+pm_oa_last dd -1
+pm_set_win dd -1
+pm_set_nb dd -1
+pm_rbtn db 0
+pm_oa_pend db 0

@@ -54,3 +54,6 @@ net_nodhcp=No DHCP server answered
 net_nohost=Host not found
 fe_nodrive=No such drive (see mount)
 fe_xdev=Cannot move between drives
+wc_btn=Squirrel
+wc_bye=WarpCenter closed.
+lp_bye=LaunchPad closed.

@@ -1,14 +1,17 @@
-; Squirrel-OS/2 — File Manager (2.3-filemgr). Original code.
+; Squirrel-OS/2 — File Manager (2.3-filemgr), folder views (W.4-views),
+; and Open as (W.5-openas). Original code.
 ;
-; filemgr: one window, two panes. Left, the directory tree of the data
-; disk; right, the chosen directory's entries (directories first). The
-; left and right arrows choose the pane, up and down the row; in the tree
-; the list follows the row. Enter opens a directory in the list,
-; Backspace goes up. c copies, m moves, r renames, n makes a directory
-; (each asks on the status line; a name is in the shown directory, a path
-; starting with / is absolute, and a directory as the target keeps the
-; name), Delete deletes after y. A file dragged from the list onto a
-; directory in the tree moves there (copies with Ctrl held). Esc quits.
+; filemgr: one window. In Details view (default) it is two panes: left the
+; directory tree, right the chosen directory's entries (directories first,
+; with size or <dir>). Tree view is the tree alone; Icon view lays the
+; entries out as 32x32 icons with captions. i / t / d switch Icon / Tree /
+; Details (fm_setview). Right-button on a directory opens Open as
+; (Icon / Tree / Details / Settings) through wg_menu; Settings opens a
+; notebook. Left and right arrows choose the pane in Details; up and down
+; the row (in Icon view a grid). Enter opens a directory, Backspace goes
+; up. c copies, m moves, r renames, n makes a directory (each asks on the
+; status line), Delete deletes after y. A file dragged from the list onto
+; a directory in the tree moves there (copies with Ctrl held). Esc quits.
 ; Starts in the shell's current directory. See documentation/apps/filemgr.md.
 
 FM_MAXT     equ 32              ; tree rows
@@ -17,6 +20,20 @@ FM_ROW      equ 11              ; a row: the window face and a margin
 FM_INDENT   equ 8               ; per tree level
 FM_INMAX    equ 40              ; characters typed on the status line
 FM_PATH     equ 80
+FM_ICELL_W  equ 72              ; Icon view: one icon + caption
+FM_ICELL_H  equ 52
+FM_IPAD     equ 4
+FM_ICON_PX  equ 32              ; SQIC icons are 32 x 32 (icons.md)
+
+FMV_ICON    equ 0               ; W.4: Icon / Tree / Details
+FMV_TREE    equ 1
+FMV_DETAILS equ 2
+
+FM_OA_ICON      equ 0           ; W.5: Open as submenu
+FM_OA_TREE      equ 1
+FM_OA_DETAILS   equ 2
+FM_OA_SETTINGS  equ 3
+FM_OA_N         equ 4
 
 FMO_COPY    equ 'c'
 FMO_MOVE    equ 'm'
@@ -39,6 +56,7 @@ cmd_filemgr_run:
     mov [fm_cur], eax
     mov dword [fm_pane], 1
     mov dword [fm_lsel], 0
+    mov dword [fm_view], FMV_DETAILS
     mov byte [fm_op], 0
     mov dword [fm_stat], fm_s_help
     mov dword [fm_drag], -1
@@ -92,15 +110,22 @@ cmd_filemgr_run:
 .prompt:
     call fm_pkey
     jmp .draw
-.menu:                          ; a File menu item chosen (key or mouse)
+.menu:                          ; File menu or Open as (W.5) choice
     mov eax, [dk_menu]
     test eax, eax
     jz .key
     mov dword [dk_menu], 0
+    cmp byte [fm_menu_kind], 1
+    je .openas
     mov al, [fm_mkeys+eax-1]
     cmp byte [fm_op], 0
     jne .draw
     call fm_key
+    jmp .draw
+.openas:
+    mov byte [fm_menu_kind], 0
+    dec eax                     ; item index
+    call fm_openas_do
     jmp .draw
 .quit:
     mov eax, [fm_win]
@@ -337,8 +362,46 @@ fm_chosen:
 
 ; ---------- keys ----------
 
+; eax = FMV_ICON / FMV_TREE / FMV_DETAILS: switch the folder view (W.4).
+; Keeps the shown directory; updates the help line. Used by filemgr keys,
+; foldview, and Open as (W.5).
+fm_setview:
+    cmp eax, FMV_DETAILS
+    ja .r
+    mov [fm_view], eax
+    mov dword [fm_stat], fm_s_help
+    cmp eax, FMV_ICON
+    jne .t
+    mov dword [fm_stat], fm_s_icon
+    jmp .ok
+.t:
+    cmp eax, FMV_TREE
+    jne .ok
+    mov dword [fm_stat], fm_s_tree
+.ok:
+    cmp dword [fm_view], FMV_DETAILS
+    je .pane
+    mov dword [fm_pane], 0      ; Tree: the tree; Icon: treated as list
+    cmp dword [fm_view], FMV_ICON
+    jne .dirt
+    mov dword [fm_pane], 1
+.dirt:
+    mov byte [fm_dirty], 1
+.r:
+    ret
+.pane:
+    mov dword [fm_pane], 1
+    mov byte [fm_dirty], 1
+    ret
+
 ; al = a key in the normal mode
 fm_key:
+    cmp al, 'i'
+    je .vicon
+    cmp al, 't'
+    je .vtree
+    cmp al, 'd'
+    je .vdet
     cmp al, WK_LEFT
     je .left
     cmp al, WK_RIGHT
@@ -364,22 +427,46 @@ fm_key:
     cmp al, 'f'
     je fm_menu
     ret
+.vicon:
+    mov eax, FMV_ICON
+    jmp fm_setview
+.vtree:
+    mov eax, FMV_TREE
+    jmp fm_setview
+.vdet:
+    mov eax, FMV_DETAILS
+    jmp fm_setview
 .left:
+    cmp dword [fm_view], FMV_ICON
+    je .ileft
+    cmp dword [fm_view], FMV_TREE
+    je .r
     mov dword [fm_pane], 0
     mov byte [fm_dirty], 1
     ret
 .right:
+    cmp dword [fm_view], FMV_ICON
+    je .iright
+    cmp dword [fm_view], FMV_TREE
+    je .r
     mov dword [fm_pane], 1
     mov byte [fm_dirty], 1
     ret
 .up:
+    cmp dword [fm_view], FMV_ICON
+    je .iup
     mov ecx, -1
     jmp .move
 .down:
+    cmp dword [fm_view], FMV_ICON
+    je .idown
     mov ecx, 1
 .move:
+    cmp dword [fm_view], FMV_TREE
+    je .tmove
     cmp dword [fm_pane], 0
     jne .lmove
+.tmove:
     mov eax, [fm_tsel]          ; the tree: the list follows
     add eax, ecx
     js .r
@@ -399,9 +486,35 @@ fm_key:
     mov byte [fm_dirty], 1
 .r:
     ret
+.ileft:
+    mov ecx, -1
+    jmp .istep
+.iright:
+    mov ecx, 1
+    jmp .istep
+.iup:
+    call fm_icols
+    neg ecx
+    jmp .istep
+.idown:
+    call fm_icols
+.istep:
+    mov eax, [fm_lsel]
+    add eax, ecx
+    js .r
+    cmp eax, [fm_ln]
+    jae .r
+    mov [fm_lsel], eax
+    mov byte [fm_dirty], 1
+    ret
 .enter:
+    cmp dword [fm_view], FMV_TREE
+    je .r                       ; tree: arrows already open the directory
+    cmp dword [fm_view], FMV_ICON
+    je .eopen
     cmp dword [fm_pane], 1
     jne .r
+.eopen:
     call fm_chosen
     jc .r
     jmp fm_open
@@ -445,8 +558,26 @@ fm_key:
     mov byte [fm_dirty], 1
     ret
 
+; -> ecx = Icon-view columns that fit in the pane
+fm_icols:
+    push eax
+    push edx
+    mov eax, [fm_tw]
+    sub eax, 2 * TH_BEVEL_W + 2
+    xor edx, edx
+    mov ecx, FM_ICELL_W
+    div ecx
+    mov ecx, eax
+    test ecx, ecx
+    jnz .ok
+    inc ecx
+.ok:
+    pop edx
+    pop eax
+    ret
+
 ; The File menu: Copy, Move, Rename, New directory, Delete, as a pop-up
-; at the chosen list row (f), or at the pointer (the right button)
+; at the chosen list row (f), or at the pointer (the right button on a file)
 fm_menu:
     pushad
     mov eax, [fm_lx]
@@ -463,11 +594,113 @@ fm_menu:
 ; eax, ebx = where: the File menu opens there
 fm_popup:
     pushad
+    mov byte [fm_menu_kind], 0
     mov esi, fm_mitems
     mov edx, FM_MITEMS
     mov ecx, [fm_win]
     call wm_popup
     mov byte [fm_dirty], 1
+    popad
+    ret
+
+; ---------- Open as (W.5-openas) ----------
+; Right-button on a directory: Icon / Tree / Details / Settings.
+
+; eax, ebx = where: the Open as menu opens there
+fm_openas_popup:
+    pushad
+    mov byte [fm_menu_kind], 1
+    mov esi, fm_oaitems
+    mov edx, FM_OA_N
+    mov ecx, [fm_win]
+    call wg_menu
+    mov byte [fm_dirty], 1
+    popad
+    ret
+
+; Right-button at (dk_lmx, dk_lmy): Open as on a directory, else File menu.
+fm_ctx_at:
+    pushad
+    mov eax, [dk_lmx]
+    mov ebx, [dk_lmy]
+    call fm_hit                 ; ecx = pane, edx = row
+    jc .file
+    test ecx, ecx
+    jz .tree                    ; tree rows are directories
+    mov eax, [fm_lent+edx*4]    ; list / Icon: directory?
+    push esi
+    mov esi, eax
+    shl esi, 5
+    cmp byte [FS_DIR+esi+DE_KIND], DK_DIR
+    pop esi
+    jne .file
+    mov [fm_lsel], edx
+    call fm_open                ; show that directory, then Open as
+    jmp .oas
+.tree:
+    mov eax, [fm_tid+edx*4]
+    mov [fm_cur], eax
+    mov dword [fm_lsel], 0
+    call fm_scan
+.oas:
+    mov eax, [dk_lmx]
+    mov ebx, [dk_lmy]
+    call fm_openas_popup
+    jmp .r
+.file:
+    mov eax, [dk_lmx]
+    mov ebx, [dk_lmy]
+    call fm_popup
+.r:
+    popad
+    ret
+
+; eax = FM_OA_*: apply Icon / Tree / Details, or open Settings.
+fm_openas_do:
+    pushad
+    mov [fm_oa_last], eax
+    cmp eax, FM_OA_SETTINGS
+    je .set
+    cmp eax, FM_OA_DETAILS
+    ja .r
+    call fm_setview             ; eax already FMV_* (== FM_OA_* for 0..2)
+    call wm_redraw
+    jmp .r
+.set:
+    call fm_settings
+.r:
+    popad
+    ret
+
+; Settings notebook for the shown folder (General / View), as on objects.
+fm_settings:
+    pushad
+    cmp dword [fm_set_win], -1
+    je .mk
+    mov eax, [fm_set_win]
+    call wm_close
+    mov dword [fm_set_win], -1
+    mov dword [fm_set_nb], -1
+.mk:
+    mov eax, 100
+    mov ebx, 80
+    mov ecx, 280
+    mov edx, 160
+    mov esi, fm_set_title
+    call wm_create
+    cmp eax, -1
+    je .r
+    mov [fm_set_win], eax
+    mov ebx, 8
+    mov ecx, 8
+    mov esi, fm_set_tabs
+    mov edx, 2
+    mov edi, 260
+    mov ebp, 120
+    call wg_notebook
+    mov [fm_set_nb], eax
+    call wm_redraw
+.r:
     popad
     ret
 
@@ -732,18 +965,21 @@ fm_drop:
 ; ---------- painting ----------
 
 ; The panes inside the client area eax, ebx, ecx (width), edx (height):
-; fm_tx.. (tree), fm_lx.. (list), fm_sy (the status line's top)
+; fm_tx.. (tree), fm_lx.. (list), fm_sy (the status line's top). In Icon
+; or Tree view there is one full-width pane (fm_tx/fm_tw = fm_lx/fm_lw).
 fm_layout:
     pushad
     mov [fm_cx], eax
     mov [fm_cy], ebx
-    lea esi, [edx-FM_ROW-8]     ; the panes' height
+    lea esi, [edx-FM_ROW-10]    ; panes' height (margin for status + bevel)
     mov [fm_ph], esi
     lea esi, [ebx+edx-FM_ROW-2]
     mov [fm_sy], esi
     mov esi, eax
     add esi, 4
     mov [fm_tx], esi
+    cmp dword [fm_view], FMV_DETAILS
+    jne .one
     mov eax, ecx
     xor edx, edx
     mov esi, 3
@@ -758,6 +994,17 @@ fm_layout:
     sub esi, 4
     sub esi, eax
     mov [fm_lw], esi
+    jmp .py
+.one:
+    mov eax, [fm_cx]
+    add eax, ecx
+    sub eax, 4
+    sub eax, [fm_tx]
+    mov [fm_tw], eax
+    mov [fm_lw], eax
+    mov eax, [fm_tx]
+    mov [fm_lx], eax
+.py:
     add ebx, 4
     mov [fm_py], ebx
     popad
@@ -769,19 +1016,33 @@ fm_paint:
     call fm_layout
     call pm_clipin              ; (2.3-groups: cut to the client area)
     mov byte [gfx_colour], TH_BTN_FACE
-    mov eax, [fm_tx]            ; the panes: white, sunken
+    mov eax, [fm_tx]            ; the pane(s): white, sunken
     mov ebx, [fm_py]
     mov ecx, [fm_tw]
     mov edx, [fm_ph]
     call gfx_fillrect
     mov esi, 1
     call gfx_bevel
+    cmp dword [fm_view], FMV_DETAILS
+    jne .body
     mov eax, [fm_lx]
     mov ecx, [fm_lw]
     call gfx_fillrect
     call gfx_bevel
+.body:
+    cmp dword [fm_view], FMV_ICON
+    je .icon
+    cmp dword [fm_view], FMV_TREE
+    je .tree
     call fm_drawtree
     call fm_drawlist
+    jmp .stat
+.tree:
+    call fm_drawtree
+    jmp .stat
+.icon:
+    call fm_drawicons
+.stat:
     call fm_drawstat
     call pm_clipout
     popad
@@ -923,6 +1184,103 @@ fm_drawlist:
     popad
     ret
 
+; Icon view: a grid of 32x32 icons (folder / file) with captions under them.
+fm_drawicons:
+    pushad
+    call fm_icols
+    mov [fm_icol], ecx
+    mov eax, [fm_ph]
+    sub eax, 2 * TH_BEVEL_W + 2
+    xor edx, edx
+    mov ebx, FM_ICELL_H
+    div ebx
+    mov [fm_irows], eax         ; rows that fit
+    test eax, eax
+    jnz .vis
+    inc eax
+    mov [fm_irows], eax
+.vis:
+    imul eax, [fm_icol]         ; icons on screen
+    mov ebx, [fm_lsel]          ; keep the selection in view
+    cmp ebx, [fm_ltop]
+    jae .below
+    mov [fm_ltop], ebx
+    jmp .draw
+.below:
+    mov edx, [fm_ltop]
+    add edx, eax
+    cmp ebx, edx
+    jb .draw
+    sub ebx, eax
+    inc ebx
+    mov [fm_ltop], ebx
+.draw:
+    xor ebp, ebp                ; index among visible cells
+.cell:
+    mov esi, [fm_ltop]
+    add esi, ebp                ; list index
+    cmp esi, [fm_ln]
+    jae .r
+    mov eax, ebp
+    xor edx, edx
+    mov ecx, [fm_icol]
+    div ecx                     ; eax = row, edx = col
+    cmp eax, [fm_irows]
+    jae .r
+    imul ebx, eax, FM_ICELL_H
+    add ebx, [fm_py]
+    add ebx, TH_BEVEL_W + FM_IPAD
+    imul eax, edx, FM_ICELL_W
+    add eax, [fm_tx]
+    add eax, TH_BEVEL_W + FM_IPAD
+    push esi                    ; list index
+    push eax
+    push ebx
+    cmp esi, [fm_lsel]          ; chosen: band covers icon and caption
+    jne .ico
+    push eax
+    push ebx
+    mov byte [gfx_colour], TH_SELECT
+    mov ecx, FM_ICON_PX + 4
+    mov edx, FM_ICON_PX + 4 + GFX_CELL_H + 2
+    sub eax, 2
+    sub ebx, 2
+    call gfx_fillrect
+    pop ebx
+    pop eax
+.ico:
+    mov edx, [esp+8]            ; list index
+    mov edi, [fm_lent+edx*4]
+    shl edi, 5
+    add edi, FS_DIR
+    mov esi, icon_file
+    cmp byte [edi+DE_KIND], DK_DIR
+    jne .drawico
+    mov esi, icon_folder
+.drawico:
+    call gfx_drawicon
+    pop ebx
+    pop eax
+    pop edx                     ; list index
+    add ebx, FM_ICON_PX + 4     ; caption under the icon
+    mov esi, [fm_lent+edx*4]
+    shl esi, 5
+    add esi, FS_DIR
+    mov ecx, FM_ICELL_W - 2 * FM_IPAD
+    mov byte [gfx_colour], TH_TEXT
+    mov byte [gfx_bg], 0xFF     ; transparent on the white pane (no grey box)
+    cmp edx, [fm_lsel]
+    jne .cap
+    mov byte [gfx_colour], TH_SELECT_TEXT
+    mov byte [gfx_bg], TH_SELECT
+.cap:
+    call wm_drawtitle
+    inc ebp
+    jmp .cell
+.r:
+    popad
+    ret
+
 ; eax, ebx = where, ecx = room, esi = text, dl = 1 the chosen row, dh = 1
 ; its pane has the focus: the row's band and text
 fm_drawrow:
@@ -1024,12 +1382,12 @@ fm_wm:
     mov [dk_lmx], eax
     mov [dk_lmy], ebx
     mov [dk_lmb], cl
-    test cl, 2                  ; the right button: the File menu there
+    test cl, 2                  ; right button: Open as on a dir, else File
     jz .noright
     test byte [fm_lbtn], 2
     jnz .noright
     mov [fm_lbtn], cl
-    call fm_popup
+    call fm_ctx_at
     jmp .upd
 .noright:
     mov [fm_lbtn], cl
@@ -1053,7 +1411,7 @@ fm_wm:
     pop eax
 .down:
     call wm_mouse
-    cmp eax, WME_MENU           ; a File menu item clicked
+    cmp eax, WME_MENU           ; File menu or Open as item clicked
     jne .notmenu
     inc ecx
     mov [dk_menu], ecx
@@ -1061,6 +1419,14 @@ fm_wm:
 .notmenu:
     cmp eax, WME_CLOSE
     jne .client
+    cmp ebx, [fm_set_win]       ; Settings notebook (W.5)
+    jne .fmclose
+    mov eax, ebx
+    call wm_close
+    mov dword [fm_set_win], -1
+    mov dword [fm_set_nb], -1
+    jmp .upd
+.fmclose:
     cmp ebx, [fm_win]
     je .quit
     jmp .upd
@@ -1115,10 +1481,12 @@ fm_wm:
     ret
 
 ; eax, ebx = a place on the screen -> ecx = 0 tree / 1 list, edx = the
-; row under it (scroll included), CF clear; CF set if no row is there
+; row (or icon index) under it (scroll included), CF clear; CF set if none
 fm_hit:
     push eax
     push ebx
+    cmp dword [fm_view], FMV_ICON
+    je .icon
     mov edx, ebx
     sub edx, [fm_py]
     sub edx, TH_BEVEL_W + 1
@@ -1136,6 +1504,8 @@ fm_hit:
     js .no
     cmp ebx, [fm_tw]
     jb .tree
+    cmp dword [fm_view], FMV_TREE
+    je .no                      ; Tree view: only the tree pane
     mov ebx, eax
     sub ebx, [fm_lx]
     js .no
@@ -1155,6 +1525,42 @@ fm_hit:
     pop eax
     clc
     ret
+.icon:
+    mov edx, ebx
+    sub edx, [fm_py]
+    sub edx, TH_BEVEL_W + FM_IPAD
+    js .no
+    mov ebx, eax
+    sub ebx, [fm_tx]
+    sub ebx, TH_BEVEL_W + FM_IPAD
+    js .no
+    push eax
+    mov eax, edx
+    xor edx, edx
+    mov ecx, FM_ICELL_H
+    div ecx                     ; eax = row
+    push eax
+    mov eax, ebx
+    xor edx, edx
+    mov ecx, FM_ICELL_W
+    div ecx                     ; eax = col
+    mov ebx, eax
+    pop eax                     ; row
+    cmp eax, [fm_irows]
+    jae .ino
+    cmp ebx, [fm_icol]
+    jae .ino
+    imul eax, [fm_icol]
+    add eax, ebx
+    add eax, [fm_ltop]
+    cmp eax, [fm_ln]
+    jae .ino
+    mov edx, eax
+    mov ecx, 1
+    pop eax
+    jmp .yes
+.ino:
+    pop eax
 .no:
     pop ebx
     pop eax
@@ -1301,10 +1707,462 @@ cmd_fmtest_run:
 .say:
     jmp puts
 
+; ---------- foldview (W.4-views) ----------
+; Makes /fv with sub/ and a.txt, opens a File Manager window on /fv, and
+; checks Details (two panes, list has sub then a.txt), Tree (one full-width
+; pane, tree depth of /fv is 1), and Icon (folder icon yellow body pixel,
+; selection band over the caption, fm_hit / Right arrow on the grid).
+; Removes /fv and prints foldview: PASS or foldview: FAIL at N.
+cmd_foldview_run:
+    cmp byte [fs_mounted], 0
+    jne .fs
+    mov byte [fs_errno], FE_NOFS
+    jmp fs_why
+.fs:
+    mov byte [fm_tok], 1
+    mov byte [fm_tstep], 1
+    mov esi, fv_d
+    call fs_mkdir
+    cmp eax, -1
+    je .bad
+    mov byte [fm_tstep], 2
+    mov esi, fv_sub
+    call fs_mkdir
+    cmp eax, -1
+    je .bad
+    mov byte [fm_tstep], 3
+    mov esi, fv_f
+    mov ecx, O_CREATE|O_TRUNC
+    call fs_open
+    cmp eax, -1
+    je .bad
+    mov ebx, eax
+    mov esi, fv_hello
+    mov ecx, 5
+    call fs_write
+    call fs_close
+    mov byte [fm_tstep], 4
+    mov esi, fv_d
+    call fs_find_dir
+    jc .bad
+    movzx eax, dl
+    mov [fm_cur], eax
+    mov dword [fm_lsel], 0
+    mov dword [fm_ltop], 0
+    mov dword [fm_view], FMV_DETAILS
+    call fm_scan
+    mov byte [fm_tstep], 5
+    cmp dword [fm_ln], 2
+    jne .bad
+    call wm_screen
+    mov byte [fm_tstep], 6
+    jc .bad
+    cmp dword [gfx_width], 640
+    jb .small
+    mov eax, 20
+    mov ebx, 20
+    mov ecx, 600
+    mov edx, 440
+    jmp .win
+.small:
+    xor eax, eax
+    xor ebx, ebx
+    mov ecx, GFX_W
+    mov edx, GFX_H
+.win:
+    mov esi, fm_title
+    call wm_create
+    mov [fm_win], eax
+    mov byte [fm_tstep], 7
+    cmp eax, -1
+    je .bad
+    imul edi, eax, WIN_SIZE
+    mov dword [wm_table+edi+WIN_PAINT], fm_paint
+    ; ---- Details ----
+    mov byte [fm_tstep], 8
+    mov eax, FMV_DETAILS
+    call fm_setview
+    call wm_redraw
+    cmp dword [fm_view], FMV_DETAILS
+    jne .bad
+    cmp dword [fm_ln], 2
+    jne .bad
+    mov eax, [fm_lent]
+    shl eax, 5
+    cmp byte [FS_DIR+eax+DE_KIND], DK_DIR
+    jne .bad
+    mov ecx, [fm_tsel]
+    cmp dword [fm_tdep+ecx*4], 1
+    jne .bad
+    mov eax, [fm_tw]            ; Details: tree is the left third
+    cmp eax, 100
+    jb .bad
+    cmp eax, 250
+    ja .bad
+    ; ---- Tree ----
+    mov byte [fm_tstep], 9
+    mov eax, FMV_TREE
+    call fm_setview
+    call wm_redraw
+    cmp dword [fm_view], FMV_TREE
+    jne .bad
+    mov eax, [fm_tw]            ; Tree: one full-width pane
+    cmp eax, 400
+    jb .bad
+    cmp dword [fm_tn], 2        ; at least / and /fv
+    jb .bad
+    mov ecx, [fm_tsel]
+    cmp dword [fm_tdep+ecx*4], 1
+    jne .bad
+    ; ---- Icon ----
+    mov byte [fm_tstep], 'a'
+    mov eax, FMV_ICON
+    call fm_setview
+    call wm_redraw
+    cmp dword [fm_view], FMV_ICON
+    jne .bad
+    mov eax, [fm_tw]
+    cmp eax, 400
+    jb .bad
+    ; first icon top-left: yellow folder body (as icontest)
+    mov eax, [fm_tx]
+    add eax, TH_BEVEL_W + FM_IPAD + 10
+    mov ebx, [fm_py]
+    add ebx, TH_BEVEL_W + FM_IPAD + 15
+    call gfx_getpixel
+    mov byte [fm_tstep], 'b'
+    cmp cl, 0x3E
+    jne .bad
+    ; outline pixel near the left of the icon
+    mov eax, [fm_tx]
+    add eax, TH_BEVEL_W + FM_IPAD + 2
+    mov ebx, [fm_py]
+    add ebx, TH_BEVEL_W + FM_IPAD + 9
+    call gfx_getpixel
+    mov byte [fm_tstep], 'c'
+    cmp cl, 0x00
+    jne .bad
+    ; selection band includes the caption row (Sarah #190)
+    mov dword [fm_lsel], 0
+    call wm_redraw
+    mov eax, [fm_tx]
+    add eax, TH_BEVEL_W + FM_IPAD
+    mov ebx, [fm_py]
+    add ebx, TH_BEVEL_W + FM_IPAD + FM_ICON_PX + 6
+    call gfx_getpixel
+    mov byte [fm_tstep], 'e'
+    cmp cl, TH_SELECT
+    jne .bad
+    ; unselected: caption row stays pane white (transparent glyph bg)
+    mov dword [fm_lsel], 1
+    call wm_redraw
+    mov eax, [fm_tx]
+    add eax, TH_BEVEL_W + FM_IPAD
+    mov ebx, [fm_py]
+    add ebx, TH_BEVEL_W + FM_IPAD + FM_ICON_PX + 6
+    call gfx_getpixel
+    mov byte [fm_tstep], 'f'
+    cmp cl, TH_BTN_FACE
+    jne .bad
+    mov dword [fm_lsel], 0
+    ; fm_hit on the second icon (a.txt) and Right arrow (Sarah #190)
+    mov eax, [fm_tx]
+    add eax, TH_BEVEL_W + FM_IPAD + FM_ICELL_W + 8
+    mov ebx, [fm_py]
+    add ebx, TH_BEVEL_W + FM_IPAD + 8
+    call fm_hit
+    mov byte [fm_tstep], 'g'
+    jc .bad
+    cmp ecx, 1
+    jne .bad
+    cmp edx, 1
+    jne .bad
+    mov dword [fm_lsel], 0
+    mov al, WK_RIGHT
+    call fm_key
+    mov byte [fm_tstep], 'h'
+    cmp dword [fm_lsel], 1
+    jne .bad
+    ; switch back to Details with the key path
+    mov byte [fm_tstep], 'd'
+    mov al, 'd'
+    call fm_key
+    cmp dword [fm_view], FMV_DETAILS
+    jne .bad
+    jmp .clean
+.bad:
+    mov byte [fm_tok], 0
+.clean:
+    mov eax, [fm_win]
+    cmp eax, -1
+    je .gone
+    call wm_close
+    mov dword [fm_win], -1
+.gone:
+    call gfx_text
+    mov esi, fv_f
+    call fs_delete
+    mov esi, fv_sub
+    call fs_delete
+    mov esi, fv_d
+    call fs_delete
+    mov esi, fv_pass
+    cmp byte [fm_tok], 1
+    je .say
+    mov esi, fv_fail
+    call puts
+    movzx eax, byte [fm_tstep]
+    cmp al, 'a'
+    jb .num
+    call putc
+    mov esi, pm_nl
+    jmp puts
+.num:
+    call itoa
+    mov esi, num_buf
+    call puts
+    mov esi, pm_nl
+.say:
+    jmp puts
+
+; ---------- openas (W.5-openas) ----------
+; Makes /oa with sub/ and a.txt, opens File Manager on /oa, drives the
+; Open as menu (Icon / Tree / Details / Settings) through wm_menuchoose,
+; checks each view and a Settings notebook tab face; then Open as →
+; Settings on a Program Manager object (calc). Removes /oa and prints
+; openas: PASS or openas: FAIL at N.
+cmd_openas_run:
+    cmp byte [fs_mounted], 0
+    jne .fs
+    mov byte [fs_errno], FE_NOFS
+    jmp fs_why
+.fs:
+    mov byte [fm_tok], 1
+    mov byte [fm_tstep], 1
+    mov dword [fm_set_win], -1
+    mov dword [fm_set_nb], -1
+    mov dword [fm_win], -1
+    mov dword [pm_set_win], -1
+    mov dword [pm_set_nb], -1
+    xor eax, eax                ; PM windows closed until pm_build
+    dec eax
+    mov ecx, PM_GMAX
+    mov edi, pm_gwin
+    rep stosd
+    mov esi, oa_d
+    call fs_mkdir
+    cmp eax, -1
+    je .bad
+    mov byte [fm_tstep], 2
+    mov esi, oa_sub
+    call fs_mkdir
+    cmp eax, -1
+    je .bad
+    mov byte [fm_tstep], 3
+    mov esi, oa_f
+    mov ecx, O_CREATE|O_TRUNC
+    call fs_open
+    cmp eax, -1
+    je .bad
+    mov ebx, eax
+    mov esi, oa_hello
+    mov ecx, 5
+    call fs_write
+    call fs_close
+    mov byte [fm_tstep], 4
+    mov esi, oa_d
+    call fs_find_dir
+    jc .bad
+    movzx eax, dl
+    mov [fm_cur], eax
+    mov dword [fm_lsel], 0
+    mov dword [fm_ltop], 0
+    mov dword [fm_view], FMV_DETAILS
+    call fm_scan
+    call wm_screen
+    mov byte [fm_tstep], 5
+    jc .bad
+    cmp dword [gfx_width], 640
+    jb .small
+    mov eax, 20
+    mov ebx, 20
+    mov ecx, 600
+    mov edx, 440
+    jmp .win
+.small:
+    xor eax, eax
+    xor ebx, ebx
+    mov ecx, GFX_W
+    mov edx, GFX_H
+.win:
+    mov esi, fm_title
+    call wm_create
+    mov [fm_win], eax
+    mov byte [fm_tstep], 6
+    cmp eax, -1
+    je .bad
+    imul edi, eax, WIN_SIZE
+    mov dword [wm_table+edi+WIN_PAINT], fm_paint
+    ; Open as → Icon
+    mov byte [fm_tstep], 7
+    mov eax, 40
+    mov ebx, 40
+    mov [dk_lmx], eax
+    mov [dk_lmy], ebx
+    call fm_openas_popup
+    cmp dword [wm_mn], FM_OA_N
+    jne .bad
+    mov dword [wm_msel], FM_OA_ICON
+    call wm_menuchoose
+    cmp eax, WME_MENU
+    jne .bad
+    mov eax, ecx
+    call fm_openas_do
+    cmp dword [fm_oa_last], FM_OA_ICON
+    jne .bad
+    cmp dword [fm_view], FMV_ICON
+    jne .bad
+    call wm_redraw
+    ; Open as → Tree
+    mov byte [fm_tstep], 8
+    call fm_openas_popup
+    mov dword [wm_msel], FM_OA_TREE
+    call wm_menuchoose
+    mov eax, ecx
+    call fm_openas_do
+    cmp dword [fm_view], FMV_TREE
+    jne .bad
+    ; Open as → Details
+    mov byte [fm_tstep], 9
+    call fm_openas_popup
+    mov dword [wm_msel], FM_OA_DETAILS
+    call wm_menuchoose
+    mov eax, ecx
+    call fm_openas_do
+    cmp dword [fm_view], FMV_DETAILS
+    jne .bad
+    ; Open as → Settings (folder notebook)
+    mov byte [fm_tstep], 'a'
+    call fm_openas_popup
+    mov dword [wm_msel], FM_OA_SETTINGS
+    call wm_menuchoose
+    mov eax, ecx
+    call fm_openas_do
+    cmp dword [fm_oa_last], FM_OA_SETTINGS
+    jne .bad
+    cmp dword [fm_set_win], -1
+    je .bad
+    cmp dword [fm_set_nb], -1
+    je .bad
+    mov eax, [fm_set_win]
+    call wm_record
+    jc .bad
+    mov eax, [edi+WIN_X]
+    mov ebx, [edi+WIN_Y]
+    add eax, 1 + 8 + TH_BEVEL_W + 2
+    add ebx, 1 + WM_TITLE_H + 8 + TH_BEVEL_W + 1
+    call gfx_getpixel
+    mov byte [fm_tstep], 'b'
+    cmp cl, TH_FACE
+    jne .bad
+    mov eax, [fm_set_win]
+    call wm_close
+    mov dword [fm_set_win], -1
+    mov dword [fm_set_nb], -1
+    ; Settings on any object (Program Manager calc) via 2.6-context
+    mov byte [fm_tstep], 'c'
+    call dk_mkobjs
+    call pm_build
+    xor ebp, ebp
+    mov esi, pm_t_calc
+    call pm_find
+    jc .bad
+    mov [pm_gsel], ebx
+    mov dword [pm_set_win], -1
+    mov dword [pm_set_nb], -1
+    call pm_ctx_popup
+    mov dword [wm_msel], PM_CTX_OPENAS
+    call wm_menuchoose
+    cmp eax, WME_MENU
+    jne .bad
+    mov eax, ecx
+    call pm_ctx_do              ; opens Open as submenu
+    cmp byte [pm_oa_pend], 1
+    jne .bad
+    mov dword [wm_msel], PM_OA_SETTINGS
+    call wm_menuchoose
+    mov eax, ecx
+    mov byte [pm_oa_pend], 0
+    call pm_openas_do
+    cmp dword [pm_set_win], -1
+    je .bad
+    jmp .clean
+.bad:
+    mov byte [fm_tok], 0
+.clean:
+    cmp dword [fm_set_win], -1
+    je .noset
+    mov eax, [fm_set_win]
+    call wm_close
+    mov dword [fm_set_win], -1
+.noset:
+    cmp dword [pm_set_win], -1
+    je .nopmset
+    mov eax, [pm_set_win]
+    call wm_close
+    mov dword [pm_set_win], -1
+.nopmset:
+    xor ebp, ebp
+.pmclose:
+    mov eax, [pm_gwin+ebp*4]
+    cmp eax, -1
+    je .pmcn
+    call wm_close
+.pmcn:
+    inc ebp
+    cmp ebp, PM_GMAX
+    jb .pmclose
+    call dk_freeobjs
+    mov eax, [fm_win]
+    cmp eax, -1
+    je .gone
+    call wm_close
+    mov dword [fm_win], -1
+.gone:
+    call gfx_text
+    mov esi, oa_f
+    call fs_delete
+    mov esi, oa_sub
+    call fs_delete
+    mov esi, oa_d
+    call fs_delete
+    mov esi, oa_pass
+    cmp byte [fm_tok], 1
+    je .say
+    mov esi, oa_fail
+    call puts
+    movzx eax, byte [fm_tstep]
+    cmp al, 'a'
+    jb .num
+    call putc
+    mov esi, pm_nl
+    jmp puts
+.num:
+    call itoa
+    mov esi, num_buf
+    call puts
+    mov esi, pm_nl
+.say:
+    jmp puts
+
 align 4
 fm_win dd -1
 fm_cur dd 0                     ; the shown directory's id
 fm_pane dd 1                    ; 0 tree, 1 list
+fm_view dd FMV_DETAILS          ; W.4: Icon / Tree / Details
+fm_oa_last dd -1                ; W.5: last Open as choice
+fm_set_win dd -1
+fm_set_nb dd -1
 fm_tn dd 0
 fm_tsel dd 0
 fm_ttop dd 0
@@ -1314,6 +2172,8 @@ fm_ln dd 0
 fm_lsel dd 0
 fm_ltop dd 0
 fm_lent times FM_MAXL dd 0      ; entry indices
+fm_icol dd 1                    ; Icon view columns / rows that fit
+fm_irows dd 1
 fm_chain times 16 dd 0
 fm_stat dd 0                    ; the status line, or 0: the question
 fm_ask dd 0
@@ -1339,6 +2199,7 @@ fm_lbtn db 0
 fm_dirty db 0
 fm_tok db 0
 fm_tstep db 0
+fm_menu_kind db 0               ; 0 File menu, 1 Open as (W.5)
 fm_in times FM_INMAX + 2 db 0
 fm_p1 times FM_PATH db 0
 fm_p2 times FM_PATH db 0
@@ -1354,7 +2215,19 @@ fm_m_move db 'Move...', 0
 fm_m_ren db 'Rename...', 0
 fm_m_mkdir db 'New directory...', 0
 fm_m_del db 'Delete', 0
-fm_s_help db 'f menu  c copy  m move  r rename  n new dir  Del delete  Esc quit', 0
+align 4
+fm_oaitems dd fm_oa_icon, fm_oa_tree, fm_oa_det, fm_oa_set
+fm_oa_icon db 'Icon', 0
+fm_oa_tree db 'Tree', 0
+fm_oa_det db 'Details', 0
+fm_oa_set db 'Settings', 0
+fm_set_title db 'Settings', 0
+fm_set_t0 db 'General', 0
+fm_set_t1 db 'View', 0
+fm_set_tabs dd fm_set_t0, fm_set_t1
+fm_s_help db 'i/t/d views  f menu  c copy  m move  r rename  n new  Del  Esc', 0
+fm_s_icon db 'Icon view  i/t/d views  Enter open  Bksp up  Esc quit', 0
+fm_s_tree db 'Tree view  i/t/d views  arrows open  Bksp up  Esc quit', 0
 fm_s_copy db 'Copy to: ', 0
 fm_s_move db 'Move to: ', 0
 fm_s_ren db 'Rename to: ', 0
@@ -1371,3 +2244,15 @@ fmt_sub db '/fmt/sub', 0
 fmt_f db '/fmt/f', 0
 fmt_subf db '/fmt/sub/f', 0
 fmt_abc db 'abc'
+fv_d db '/fv', 0
+fv_sub db '/fv/sub', 0
+fv_f db '/fv/a.txt', 0
+fv_hello db 'hello'
+fv_pass db 'foldview: PASS', 10, 0
+fv_fail db 'foldview: FAIL at ', 0
+oa_d db '/oa', 0
+oa_sub db '/oa/sub', 0
+oa_f db '/oa/a.txt', 0
+oa_hello db 'hello'
+oa_pass db 'openas: PASS', 10, 0
+oa_fail db 'openas: FAIL at ', 0

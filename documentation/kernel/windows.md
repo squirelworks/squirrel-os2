@@ -174,7 +174,7 @@ This section is the window, event and drawing interface that the 2.2 boxes in `T
 | `gfx_setclip` | eax, ebx = top left, ecx = width, edx = height | every later draw and blit is cut to that rectangle (and to the screen) (**2.1-blit-clip**) |
 | `gfx_noclip` | — | the clip is the whole screen again |
 | `gfx_copyrect` | eax, ebx = source top left, ecx = width, edx = height, esi, edi = destination top left | copies within the draw target, overlapping rectangles allowed; the destination is clipped (**2.1-blit-clip**) |
-| `gfx_bevel` | eax, ebx = top left, ecx = width, edx = height, esi = 0 raised / 1 sunken | a `TH_BEVEL_W` bevel around the rectangle's edge, face not filled (**W.1-theme**) |
+| `gfx_bevel` | eax, ebx = top left, ecx = width, edx = height, esi = 0 raised / 1 sunken / 2 etched | a `TH_BEVEL_W` bevel around the rectangle's edge, face not filled (**W.1-theme**, etched in **2.3-bevel-default**) |
 | `gfx_drawstr_p` | esi = string, eax, ebx = top left, ecx = face (`FONT_9` / `FONT_12`), colours in `gfx_colour` / `gfx_bg` (`0xFF` bg = transparent) | eax = x after the last character's spacing column (**2.2-propfont**) |
 | `gfx_strwidth_p` | esi = string, ecx = face | eax = width in pixels, spacing columns included (what `gfx_drawstr_p` advances) |
 
@@ -220,9 +220,8 @@ The calls are in `kernel/winsys.asm`, numbers 37–44 (`SYS_COUNT` is 45; 35 is 
 | `WD_PTEXT` (3) | the proportional string at `ptr`, background `a` (−1: none, only the ink), face `b` (0 `FONT_9`, 1 `FONT_12`); returns its width in pixels (**2.2-propfont**) |
 | `WD_BLIT` (4) | a × b bytes of 8-bit pixels at `ptr` (rows packed) to x, y; `colour` = an index left transparent, or −1 |
 | `WD_BEVEL` (5) | bevel around x, y, a × b; `colour` 0 raised / 1 sunken |
+| `WD_SBLIT` (6) | a × b source pixels at `ptr` drawn at `colour`× scale (1 or 2) with no transparency (**P.8-dos-window**) |
 | `WD_PIXEL` (7) | returns the colour at x, y on the visible page (for checks) |
-
-`WD_COPY` (6) comes later.
 
 There is no backing store. When the window manager repaints part of a program's window (uncovered, moved, focus changed), it paints the frame and a plain client area and posts `WE_PAINT`; the program draws again.
 

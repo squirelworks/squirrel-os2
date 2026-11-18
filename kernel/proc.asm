@@ -155,6 +155,26 @@ proc_trampoline:
 proc_exit:
     call ws_procgone            ; its windows close (2.2-progwin)
     cli
+    ; If this exit is from inside lm64_call32 (syscall / exception under
+    ; permanent stay), free nest frames on this kernel stack so the pool
+    ; is not leaked when call32_ret never runs (2.9-lm-ring3-stay).
+    cmp dword [lm_perm], 0
+    je .no_nest
+    mov eax, [proc_cur]
+    sub eax, proc_table
+    jz .shell_nest
+    shr eax, 6                  ; slot
+    imul eax, PROC_STACK_SIZE
+    add eax, PROC_STACK_BASE    ; stack top (ESP0)
+    mov edx, eax
+    sub eax, PROC_STACK_SIZE
+    call lm_nest_free_range
+    jmp .no_nest
+.shell_nest:
+    mov eax, SHELL_STACK-0x10000
+    mov edx, SHELL_STACK
+    call lm_nest_free_range
+.no_nest:
     mov esi, [proc_cur]
     call dbg_exit               ; what it traced runs on untraced (A.4)
     call tty_exit               ; its terminals close (A.3)
@@ -538,7 +558,8 @@ proc_any_aprun:
     ret
 
 ; edi = PCB: TSS.ESP0 = the top of its kernel stack, where ring-3 code
-; enters the kernel (2.4). Clobbers eax.
+; enters the kernel (2.4). Also keeps the 64-bit TSS RSP0 in sync while
+; a permanent long-mode stay is active (2.9). Clobbers eax.
 proc_set_esp0:
     mov eax, edi
     sub eax, proc_table
@@ -547,10 +568,10 @@ proc_set_esp0:
     imul eax, PROC_STACK_SIZE
     add eax, PROC_STACK_BASE
     mov [tss_main+TSS_ESP0], eax
-    ret
+    jmp lm_sync_rsp0
 .shell:
     mov dword [tss_main+TSS_ESP0], SHELL_STACK
-    ret
+    jmp lm_sync_rsp0
 
 ; Priority aging (2.0.2). Each slot keeps the tick at which it last got
 ; or gave up the CPU (proc_since). A READY process that has waited

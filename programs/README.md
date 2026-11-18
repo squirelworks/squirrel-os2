@@ -57,7 +57,7 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `cas.asm` | SQX | CAS: exact fractions and roots, simplify, expand, factor, solve, diff, integrate, definite integrals, limits and Taylor series in a console (`run cas`, `run cas test`, C.5) |
 | `sysmon.asm` | SQX | System Monitor: CPU use and its graph, memory, processes with their CPU share, CPU time, memory and priority (+/- changes it), from `GUI_SYSINFO` (`run sysmon`, `run sysmon test`, A.5) |
 | `logview.asm` | SQX | Log Viewer: the kernel log or a text file, scrolling, a filter with the word marked, following the end (`run logview [file]`, `run logview test`, A.5) |
-| `diskutil.asm` | SQX | Disk Utility: the disks, how full hd1 is, a sector map, the largest files, a file system check and a surface scan, read-only (`run diskutil`, `run diskutil test`, A.5) |
+| `diskutil.asm` | SQX | Disk Utility: the disks, how full hd1 is, a sector map, the largest files, a file system check and a surface scan; SQFS long names, other disks and FAT12/16/32 volumes and format (`run diskutil [hd2]`, `run diskutil format hd2 16`, `run diskutil test [format] [hd2]`, A.5, 2.7) |
 | `notebook.asm` | SQX | Notebook: cells of notes, Nut code, graphs, tables, geometry and math (sqmath) that share their variables, run from the top; an editor for each cell; saved as text with `%% kind` lines (`run notebook [file]`, `run notebook test`, C.8) |
 | `nut.inc` | include | Nut, a small scripting language (numbers and strings, `if`/`while`/`for`, functions), with a host interface for programs (C.8) |
 | `sqmath.inc` | include | sqmath, the expression engine v2: real and complex numbers, decimals to 150 places, SI units with `to` conversion, variables and user functions; the notebook's math cells (C.1) |
@@ -72,7 +72,7 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | `doshello.asm` | DOS .COM | INT 21h output, the BIOS teletype, the command tail (`run doshello.com acorns`, P.8) |
 | `doscpu.asm` | DOS .COM | 8086/186 instructions and flags, steps a–k (`run doscpu.com`, P.8) |
 | `dosfile.asm` | DOS .COM | DOS files, memory blocks and buffered input (`run dosfile.com`, P.8) |
-| `dosgfx.asm` | DOS .COM | VGA mode 13h: A000, INT 10h pixels and DAC, ports, teletype text in graphics (`run dosgfx.com`, then a key; P.8) |
+| `dosgfx.asm` | DOS .COM | VGA mode 13h in a 2.2 window: A000, INT 10h pixels and DAC, ports, teletype text in graphics (`run dosgfx.com`, then a key; P.8-dos-window) |
 | `dosexe.asm` | DOS .EXE | Hand-written MZ with relocations, three segments and a far call (`run dosexe.exe`, P.8) |
 | `os2run.asm` | SQX | OS/2 32-bit LX loader with DOSCALLS shims; the kernel runs it for `MZ` files with an `LX` header (`run os2run prog.exe`, P.9) |
 | `os2hello.asm` | LX | Hand-written OS/2 text-mode program: objects, fixups, DOSCALLS by ordinal, TIB/PIB, files, memory (`run os2hello`, P.9) |

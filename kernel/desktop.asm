@@ -11,7 +11,7 @@
 DK_X equ 40                     ; the desktop's window
 DK_Y equ 24
 DK_W equ 240
-DK_H equ 150
+DK_H equ 160                    ; room for list chrome + help row (2.3-bevel)
 
 cmd_desktop_run:
     call wm_screen              ; 640 x 480 x 8 VBE, or mode 13h (2.2-vbe-wm)
@@ -30,6 +30,7 @@ cmd_desktop_run:
     mov [dk_oy], eax
     add [mouse_y], eax
     call dk_mkobjs              ; the entries are objects (1.7.6)
+    call stu_run                ; W.6: open Startup contents
     mov dword [dk_cur], 0       ; the top level (1.9.0)
     mov eax, DK_X
     mov ebx, DK_Y
@@ -262,9 +263,12 @@ dk_cpy:
 
 ; Drop the held object into the folder shown: set its in and save its file.
 ; A folder can only be dropped at the top level (folders do not nest).
+; A Template (W.2) creates a new object of its class here and stays put.
 dk_drop:
     pushad
     mov eax, [dk_held]
+    cmp dword [eax+OBJ_CLASS], wps_c_tmpl
+    je .tmpl
     mov ecx, [dk_cur]
     test ecx, ecx
     jnz .infolder
@@ -276,6 +280,7 @@ dk_drop:
 .set:
     mov ebx, 1
     call obj_set                ; in
+    push ecx                    ; the new in (folder name or empty)
     mov edx, [dk_heldk]
     mov esi, [dk_files+edx*4]
     test esi, esi
@@ -283,9 +288,26 @@ dk_drop:
     call dk_path
     call obj_save               ; (no data disk: kept until the desktop closes)
 .nofile:
+    mov eax, [dk_held]          ; 2.6-shadows: move follows into Shadow files
+    xor ebx, ebx
+    call obj_get                ; name
+    mov esi, eax
+    pop edi                     ; new in
+    call sh_follow_move
     call dk_unhold
     call dk_relist
 .r:
+    popad
+    ret
+.tmpl:
+    mov esi, [dk_cur]
+    test esi, esi
+    jnz .tdrop
+    mov esi, dk_empty
+.tdrop:
+    call wps_create_from        ; leaves the template held? unhold either way
+    call dk_unhold
+    call dk_relist
     popad
     ret
 
@@ -323,7 +345,7 @@ dk_rename:
     mov ebx, DK_Y + 50
     call dk_org
     mov ecx, DK_W - 40
-    mov edx, 34
+    mov edx, 40                 ; room for the field's WG_CHROME (2.3-bevel)
     mov esi, dk_rtitle
     call wm_create
     cmp eax, -1
@@ -362,11 +384,11 @@ dk_rename:
     call obj_set
     call dk_save
     cmp dword [eax+OBJ_CLASS], dk_c_fold
-    jne .close
+    jne .shadows
     xor edx, edx                ; a folder: what was in it moves with it
 .f:
     cmp edx, [dk_n]
-    jae .close
+    jae .shadows
     mov eax, [dk_objs+edx*4]
     push ecx
     mov ebx, 1
@@ -383,6 +405,10 @@ dk_rename:
 .fn:
     inc edx
     jmp .f
+.shadows:                       ; 2.6-shadows: rename follows into Shadow files
+    mov esi, ebp
+    mov edi, ecx
+    call sh_follow_rename
 .close:
     mov eax, [dk_rwin]
     call wm_close
@@ -508,10 +534,10 @@ dk_mkobjs:
     xor eax, eax
     mov [dk_n], eax
     mov edi, dk_objs
-    mov ecx, DK_NDEF
+    mov ecx, DK_MAX
     rep stosd
     mov edi, dk_files
-    mov ecx, DK_NDEF
+    mov ecx, DK_MAX
     rep stosd
     mov esi, dk_c_dobj
     call obj_class
@@ -519,6 +545,9 @@ dk_mkobjs:
     call obj_class
     mov esi, dk_c_fold
     call obj_class
+    mov esi, dk_c_file         ; 2.6-drag
+    call obj_class
+    call sh_register            ; Shadow (2.6-shadows)
     cmp byte [fs_mounted], 0
     je .builtin
     mov esi, dk_dir             ; the first time: write the defaults (1.8.3)
@@ -538,7 +567,7 @@ dk_mkobjs:
     cmp edi, DK_NDEF
     jb .l
     cmp dword [dk_n], 0
-    jne .out
+    jne .wps
     cmp byte [dk_wrote], 0      ; none loaded (files from 1.8 have one
     jne .builtin                ; field fewer): write the defaults again
 .write:
@@ -564,6 +593,10 @@ dk_mkobjs:
     inc edi
     cmp edi, DK_NDEF
     jb .b
+.wps:
+    call wps_attach             ; W.2: Templates folder + templates
+    call stu_attach             ; W.6: Startup folder
+    call ss_attach              ; W.6: System Setup + Drive/Shredder
 .out:
     mov byte [dk_wrote], 0
     popad
@@ -604,7 +637,7 @@ dk_add:
     jz .r
     push edx
     mov edx, [dk_n]
-    cmp edx, DK_NDEF
+    cmp edx, DK_MAX
     jae .full
     mov [dk_objs+edx*4], eax
     push eax
@@ -615,6 +648,24 @@ dk_add:
 .full:
     pop edx
 .r:
+    ret
+
+; eax = object, esi = short file name (no path): append to dk_objs. CF set
+; if the table is full. Used for File objects created at run time (2.6).
+dk_addobj:
+    push edx
+    mov edx, [dk_n]
+    cmp edx, DK_MAX
+    jae .full
+    mov [dk_objs+edx*4], eax
+    mov [dk_files+edx*4], esi
+    inc dword [dk_n]
+    pop edx
+    clc
+    ret
+.full:
+    pop edx
+    stc
     ret
 
 ; esi = an entry's name -> esi = "/desktop/<name>.obj" in dk_pbuf
@@ -652,11 +703,16 @@ dk_freeobjs:
     pushad
     xor edi, edi
 .f:
+    cmp edi, [dk_n]
+    jae .done
     mov eax, [dk_objs+edi*4]
     call obj_free               ; refuses 0
+    mov dword [dk_objs+edi*4], 0
+    mov dword [dk_files+edi*4], 0
     inc edi
-    cmp edi, DK_NDEF
-    jb .f
+    jmp .f
+.done:
+    mov dword [dk_n], 0
     popad
     ret
 
@@ -673,6 +729,39 @@ dk_fold_open:                   ; show the folder's contents (1.9.0)
     mov byte [dk_opened], 1
     xor eax, eax
     ret
+dk_file_open:                   ; a File alone: nothing to run (2.6)
+    mov eax, -1
+    ret
+
+; Program drop (2.6-drag): eax = Program, ebx = dropped object. A File's
+; path goes into dk_arg and the Program opens with that argument.
+dk_prog_drop:
+    test ebx, ebx
+    jz .no
+    cmp dword [ebx+OBJ_CLASS], dk_c_file
+    jne .no
+    push eax                    ; Program
+    mov eax, ebx
+    mov ebx, 2
+    call obj_get                ; path
+    test eax, eax
+    jz .bad
+    mov esi, eax
+    mov edi, dk_arg
+.c:
+    lodsb
+    stosb
+    test al, al
+    jnz .c
+    pop eax                     ; Program
+    jmp dk_prog_open
+.bad:
+    pop eax
+.no:
+    mov byte [dk_arg], 0
+    mov eax, -1
+    ret
+
 dk_prog_open:                   ; dk_textwin(entry, name)
     push eax
     mov ebx, 2
@@ -689,11 +778,17 @@ dk_prog_open:                   ; dk_textwin(entry, name)
     cmp ecx, DK_NAPPS
     jb .f
     pop eax                     ; no such program: nothing opens
+    mov byte [dk_arg], 0
     mov eax, -1
     ret
 .found:
     mov edx, [dk_run+ecx*4]
     pop eax
+    cmp byte [dki_test], 0       ; self-check: leave dk_arg, do not open
+    je .run
+    xor eax, eax
+    ret
+.run:
     xor ebx, ebx
     call obj_get
     mov esi, eax
@@ -736,7 +831,13 @@ dk_textwin:
     mov dword [cur], 0
     mov dword [txt_cols], DKT_COLS ; what the program may use (1.6.4)
     mov dword [txt_rows], DKT_ROWS
-    mov byte [run_arg], 0       ; no file name: edit asks when it saves
+    mov byte [run_arg], 0       ; default: no file name
+    cmp byte [dk_arg], 0        ; a drop / open-with path (2.6-drag)
+    je .noarg
+    mov edi, dk_arg
+    call set_run_arg
+    mov byte [dk_arg], 0
+.noarg:
     mov eax, DKT_X
     mov ebx, DKT_Y
     call dk_org
@@ -875,7 +976,8 @@ dk_mouse:
     jae .no
     mov eax, [mouse_y]
     sub eax, [edi+WIN_Y]
-    sub eax, 1 + WM_TITLE_H + 16
+    ; list at client y=16; content starts after the sunken chrome
+    sub eax, 1 + WM_TITLE_H + 16 + TH_BEVEL_W + WG_BTN_PAD
     js .no
     xor edx, edx
     mov ebx, GFX_CELL_H
@@ -1050,6 +1152,7 @@ wg_getkey:
 
 DK_NAPPS equ 5                  ; programs
 DK_NDEF equ DK_NAPPS + 1        ; and the Tools folder (1.9.0)
+DK_MAX equ 24                   ; Templates (W.2) + Startup/Setup/Drive/Shredder (W.6)
 dk_title db 'Squirrel-OS/2 Desktop', 0
 dk_heading db 'Programs:', 0
 dk_help db 'Enter: open  Bksp: up  Esc: shell', 0
@@ -1064,9 +1167,12 @@ dk_bye db 'Desktop closed.', 10, 0
 dk_cn_dobj db 'DesktopObject', 0
 dk_cn_prog db 'Program', 0
 dk_cn_fold db 'Folder', 0
+dk_cn_file db 'File', 0         ; 2.6-drag: a path that opens on a Program
 dk_f_in db 'in', 0
+dk_f_path db 'path', 0
 dk_s_name db 'name', 0
 dk_s_open db 'open', 0
+dk_s_drop db 'drop', 0          ; Program: open with a dropped File (2.6-drag)
 dk_dir db '/desktop', 0
 dk_ext db '.obj', 0
 dk_pbuf times 32 db 0
@@ -1076,21 +1182,24 @@ align 4
 dk_apps dd dk_a0, dk_a1, dk_a2, dk_a3, dk_a4
 dk_defs dd dk_a0, dk_a1, dk_a2, dk_a3, dk_a4, dk_a5 ; the files in /desktop
 dk_run dd fb_main, run_calc, run_edit, run_vedit, run_draw ; each Program's entry
-dk_objs times DK_NDEF dd 0
+dk_objs times DK_MAX dd 0
 dk_n dd 0                       ; objects loaded (1.8.3)
-dk_files times DK_NDEF dd 0     ; each object's file name, or 0 (1.9.1)
-dk_vis times DK_NDEF dd 0       ; the objects listed, by their index (1.9.0)
+dk_files times DK_MAX dd 0      ; each object's file name, or 0 (1.9.1)
+dk_vis times DK_MAX dd 0        ; the objects listed, by their index (1.9.0)
 dk_nvis dd 0
-dk_names times DK_NDEF dd 0
+dk_names times DK_MAX dd 0
 dk_cur dd 0                     ; the folder shown: its name, or 0 for the top
 dk_c_dobj dd dk_cn_dobj, 0, dk_dobj_m, dk_dobj_f, 3 ; name and in are text
 dk_c_prog dd dk_cn_prog, dk_c_dobj, dk_prog_m, dk_prog_f, 1 ; entry is text
 dk_c_fold dd dk_cn_fold, dk_c_dobj, dk_fold_m, 0, 0
+dk_c_file dd dk_cn_file, dk_c_dobj, dk_file_m, dk_file_f, 1 ; path is text (2.6)
 dk_dobj_m dd dk_s_name, dk_dobj_name, dk_s_open, dk_dobj_open, 0
-dk_prog_m dd dk_s_open, dk_prog_open, 0
+dk_prog_m dd dk_s_open, dk_prog_open, dk_s_drop, dk_prog_drop, 0
 dk_fold_m dd dk_s_open, dk_fold_open, 0
+dk_file_m dd dk_s_open, dk_file_open, 0
 dk_dobj_f dd dk_s_name, dk_f_in, 0 ; fields 0 and 1
 dk_prog_f dd dk_f_entry, 0      ; field 2
+dk_file_f dd dk_f_path, 0       ; field 2: the file's path
 dk_opened db 0                  ; a folder's open ran
 dk_held dd 0                    ; the object picked up, or 0 (1.9.1)
 dk_heldk dd 0                   ; its index in dk_objs
@@ -1116,3 +1225,4 @@ dk_page dd 0
 dk_mclicks dd 0                 ; mouse_clicks already handled (1.9.10)
 dk_oldbase dd 0
 dk_oldcur dd 0
+dk_arg times 96 db 0            ; path for the next dk_textwin open (2.6-drag)

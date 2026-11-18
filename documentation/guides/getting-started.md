@@ -3,7 +3,7 @@
 ## Building and running
 
 Requirements: NASM and Python 3 to build; QEMU (or another PC emulator) to run.
-The machine needs a Pentium-class CPU (CPUID, FPU, 4 MB pages) and at least 4 MB of memory.
+The machine needs a Pentium Pro-class CPU (CPUID, FPU, PAE) and at least 4 MB of memory.
 
 The quick way (0.9.3):
 
@@ -73,7 +73,12 @@ The hidden shell command `trap` executes `ud2` to show the CPU exception report,
 GitHub Actions runs the same suite on every pull request and every push to main
 (`.github/workflows/ci.yml`): a quick `build` job, then `regress`, the whole of
 `tools/regress.sh` with OVMF installed. A green `regress` check means every check passed;
-the run's summary lists any `FAIL` lines and the full log is kept as an artifact.
+the run's summary lists any `FAIL` lines and each shard's log is kept as an artifact.
+The checks run in parallel shards (`regress shard N`): each builds the images and runs
+some of the check groups, the `if in_group NAME` blocks in `tools/regress.sh`, as in
+`REGRESS_GROUPS='progs wps' tools/regress.sh`. A group keeps its disk images and servers
+to itself, so a new check goes into the group whose disk it uses. A new group also needs
+a place in one shard of the CI matrix; `regress` fails if a group is left out.
 
 ## Stress run
 

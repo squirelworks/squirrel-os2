@@ -105,10 +105,14 @@ agreed with the desktop stream: it owns these classes, the desktop only sends th
   `open` does nothing.
 - The classes are recorded at mount, and at boot when `/desktop` exists, so they are known before
   the desktop loads its object files.
+- **W.6 desktop wiring** (`kernel/syssetup.asm`): `ss_attach` loads `shredder.obj` and any
+  `drive-?.obj` into `dk_objs` with System Setup; `ss_drive_live` keeps a newly mounted Drive in
+  the live desktop table; `ss_drive_drop` (from `umount`) removes it again (#235). Settings
+  notebooks and icons use the same path as other objects.
 - `fsobjtest` checks the classes, a Drive's `path` through `obj_save`/`obj_load`, the inherited
   `name`, and the shredder deleting a file with a long name and refusing a Drive and a missing
   path. Regress: `fsobjtest`, `drive-obj`, `drive-obj-boot`, `drive-browse`, `drive-show`,
-  `drive-up`.
+  `drive-up`, `w6-setup`.
 
 ## Tests
 
@@ -125,7 +129,8 @@ agreed with the desktop stream: it owns these classes, the desktop only sends th
   `fsck.fat -n` and `mtools` while this was written.
 
 `tools/fatimg.py` is the host side: `format SIZE_KB [12|16|32] [--part]`, `ls`, `put`, `get`,
-`mkdir`, `check`.
+`mkdir`, `check`. The same empty-volume layout is written in the OS by
+`run diskutil format hd2 12|16|32` (`../apps/diskutil.md`).
 
 ## Limitations
 

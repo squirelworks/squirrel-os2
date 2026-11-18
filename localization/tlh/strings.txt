@@ -54,3 +54,6 @@ net_nodhcp=DHCP jang pagh
 net_nohost=Qum tu'lu'be'
 fe_nodrive=Hew tu'lu'be' (mount yIlegh)
 fe_xdev=Hew latlh Daq vIHlaHbe'
+wc_btn=Squirrel
+wc_bye=WarpCenter SoQlu'pu'.
+lp_bye=LaunchPad SoQlu'pu'.

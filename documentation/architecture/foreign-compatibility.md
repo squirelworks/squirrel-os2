@@ -327,21 +327,24 @@ wide-character stdio, `msvcrt` math and time, PE32+ (P.7).
 ### Windows GUI, registry and DLLs (P.6)
 
 **USER32 and GDI32** (`programs/wingui.inc`) put GUI-subsystem programs (subsystem 2) on
-`SYS_GUI`'s 320 x 200 screen, drawn in a back buffer. Top-level windows (up to 4) get a frame
-and a title bar; the newest is on top and has the keyboard. One message queue per program hands
-out posted messages, then `WM_PAINT` for invalid windows, `WM_TIMER` for due timers (10 ms
-ticks), then keys (`WM_KEYDOWN`, `WM_CHAR` through `TranslateMessage`) and left clicks (a click
-at the right end of a title bar is `WM_CLOSE`). COLORREFs go to the nearest of the 64 EGA
-colours. USER32: `RegisterClass(Ex)A`, `CreateWindowExA`, `ShowWindow`, `UpdateWindow`,
-`DestroyWindow`, `DefWindowProcA`, `Get/PeekMessageA`, `TranslateMessage`, `DispatchMessageA`,
-`PostQuitMessage`, `Post/SendMessageA`, `BeginPaint`/`EndPaint`, `GetDC`/`ReleaseDC`,
-`Invalidate/ValidateRect`, `GetClientRect`, `FillRect`, `DrawTextA`, `MessageBoxA`,
-`LoadCursorA`/`LoadIconA`, `GetSystemMetrics`, `Set/KillTimer`, `SetWindowTextA`,
-`MessageBeep`, `wsprintfA`. GDI32: `GetStockObject`, `CreateSolidBrush`, `CreatePen`,
-`DeleteObject`, `SelectObject`, `SetTextColor`/`SetBkColor`/`SetBkMode`, `TextOutA`,
-`Set/GetPixel`, `MoveToEx`/`LineTo`, `Rectangle`. Not provided: child windows and controls,
-menus, resources, fonts beyond the system one, bitmaps. Each window becomes a real desktop
-window once program windows arrive with 2.2. A MinGW `-mwindows` program was checked by hand.
+real 2.2 desktop windows through `SYS_WINOPEN`…`SYS_WININFO` (`kernel/winsys.asm`). Top-level
+windows (up to 4) share the window manager's title bar, move, size, z-order and close box with
+native programs; the close box, system menu Close and Alt+F4 become `WE_CLOSE` and then
+`WM_CLOSE`. Drawing is `SYS_WINDRAW` into the client area. One message queue per program hands
+out posted messages, then `WM_PAINT` for invalid windows, `WM_TIMER` for due timers (`GUI_TICKS`,
+10 ms), then keys and clicks from `SYS_WINEVENT` (which pumps the window manager). COLORREFs go
+to the nearest of the 64 EGA colours. `CW_USEDEFAULT` places a window so its close box sits near
+the default pointer, for scripted clicks. USER32: `RegisterClass(Ex)A`, `CreateWindowExA`,
+`ShowWindow`, `UpdateWindow`, `DestroyWindow`, `DefWindowProcA`, `Get/PeekMessageA`,
+`TranslateMessage`, `DispatchMessageA`, `PostQuitMessage`, `Post/SendMessageA`,
+`BeginPaint`/`EndPaint`, `GetDC`/`ReleaseDC`, `Invalidate/ValidateRect`, `GetClientRect`,
+`FillRect`, `DrawTextA`, `MessageBoxA`, `LoadCursorA`/`LoadIconA`, `GetSystemMetrics`,
+`Set/KillTimer`, `SetWindowTextA`, `MessageBeep`, `wsprintfA`. GDI32: `GetStockObject`,
+`CreateSolidBrush`, `CreatePen`, `DeleteObject`, `SelectObject`, `SetTextColor`/`SetBkColor`/
+`SetBkMode`, `TextOutA`, `Set/GetPixel`, `MoveToEx`/`LineTo`, `Rectangle`. Not provided: child
+windows and controls, menus, resources, fonts beyond the system one, bitmaps. Written from the
+documented Win32 API and PE subsystem-2 convention; no Wine or ReactOS code. A MinGW
+`-mwindows` program was checked by hand.
 
 **Registry** (`programs/winreg.inc`): ADVAPI32 `RegOpenKeyExA`, `RegCreateKeyExA`,
 `RegCloseKey`, `RegSetValueExA`, `RegQueryValueExA` (with `ERROR_MORE_DATA`) and

@@ -141,12 +141,26 @@ This avoids retargeting chains and confirmation steps.
 | 2.0.1   | 2026-11-04 | Mouse on IRQ 12, no pointer trail    |
 | 2.0.2   | 2026-11-04 | 2.0 clean-up, part two               |
 | 2.1.0   | 2026-11-13 | Framebuffer, ring 3, apps, games, foreign programs |
+| 2.3.0   | 2026-11-14 | Real windows, Program Manager, FAT/LFN, UEFI/SMP, net/audio |
+| 2.3.1   | 2026-11-16 | Ring-3 under permanent long-mode stay (M2 / #211) |
+| 2.9.0   | 2026-11-16 | Everyday long-mode kernel / x86_64 suite flavour (M6) |
 
 ## Next planned release
 
-**2.1** — framebuffer graphics, the first milestone of the 2.0.0 → 4.x plan in `../../ROADMAP.md` (then 2.2 real windows, and so on). Its PR-sized boxes are in `../../TODO.md` (**2.1-vbe-mode** … **2.1-blit-clip**). Work resumed 2026-11-07.
+**2.9.0** — tick `2.9-lm-kernel` (`REGRESS_FLAVOUR=lm64` + i386); notes in
+`2.9.0.md`. Owner tags when ready. Agents never tag. Fine-grain ladder through
+**3.0.0**: [`TO_3.0.0.md`](TO_3.0.0.md). Checklist: `../../HANDOFF.md`. Boxes:
+`../../TODO.md`.
 
-**2.0.2** is published (`2.0.2.md`). **2.0.1** is published (`v2.0.1`).
+**2.3.1** — ring-3 under stay (#211 / #231); notes in `2.3.1.md`.
+
+**2.3.0** is published (tip cut after #184 / #197 / #204 / #205).
+
+**Version bump guide (tip → 3.0.0):** `+0.0.1` = one small box; `+0.0.25` = small
+multi-file / pair-closing slice; jump to `2.6.0` / `2.9.0` / `3.0.0` when a
+ROADMAP generation or bridge ships (see TO_3.0.0 scheme table).
+
+**2.1.0** is published (`2.1.0.md`). **2.0.2** is published (`2.0.2.md`). **2.0.1** is published (`v2.0.1`).
 
 2.0.0 is the Warp-style tag of the 1.9.12 system (`2.0.0.md`).
 

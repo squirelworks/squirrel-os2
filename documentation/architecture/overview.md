@@ -59,6 +59,41 @@ Firmware (BIOS)
 - Prefer small, testable steps over large rewrites.
 - Maintain separation from the contemporary / third-party collections.
 
+## Language for new kernel subsystems (CONTINUANCE 3a)
+
+**Decision (before 2.9-lm-kernel):** new kernel subsystems from 2.9 onward
+may be written in freestanding C. NASM stays for boot, entry stubs, and all
+existing assembly. This records
+[squirrelsoft `docs/CONTINUANCE.md` decision 3a](https://github.com/squirelworks/squirrelsoft/blob/main/docs/CONTINUANCE.md#3a-write-new-kernel-code-in-freestanding-c).
+
+**Recommendation / intended compile and link story**
+
+- Compile C with `-ffreestanding -mno-red-zone -fno-pic` (and the usual
+  freestanding companions the build will pin when C lands: no libc, no
+  red-zone on x86-64, position-dependent code matching the flat kernel image).
+- Link the resulting objects into the same flat kernel image the NASM build
+  already produces; C entry points are called from NASM stubs (and the reverse
+  as needed). No separate C runtime or ELF kernel image is implied yet.
+- Keep rewriting existing NASM out of scope unless a subsystem is being
+  replaced on purpose.
+
+**Why**
+
+- Single files such as `kernel/control.asm` are already past ~1,400 lines;
+  freestanding C keeps new 64-bit work reviewable without growing those units.
+- squirrelsoft cores (`sqmath`, `sqqr`, `sqdsp`, `sqfelica`, `sqgui`) and
+  SquirrelBIOS `common/efi` drivers are already freestanding C and can be
+  linked rather than re-implemented in NASM (suite decision 3b follows later).
+
+**What this change does *not* do**
+
+- No C sources land in this documentation PR.
+- The build (`tools/build.sh`) is not switched; only the intended flags and
+  flat-image link story are recorded so 2.9-lm-kernel can adopt them without
+  re-opening the language question.
+
+See also `HANDOFF.md` (2.9-lm-kernel) and `ROADMAP.md` (2.8–2.9).
+
 ## Next Architectural Targets
 
 The forward plan is [`../../ROADMAP.md`](../../ROADMAP.md), with PR-sized tasks in [`../../TODO.md`](../../TODO.md):

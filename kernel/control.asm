@@ -702,7 +702,8 @@ cmd_control_run:
     mov eax, 150
     mov ebx, 100
     mov ecx, 340
-    mov edx, 124
+    ; 8 rows of CP_ROW plus top/status margins; room after WG_CHROME growth
+    mov edx, 4 + CP_ROWS * CP_ROW + CP_ROW + 8 + WM_TITLE_H + 2
     jmp .win
 .small:
     xor eax, eax

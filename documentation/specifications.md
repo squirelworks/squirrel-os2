@@ -119,7 +119,7 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 
 | Item | Description |
 |------|-------------|
-| Hardware | Pentium-class CPU or later with CPUID, an FPU and 4 MB pages. BIOS boot only. A PS/2 keyboard (or BIOS emulation of one), VGA text mode, and ATA disks on the primary channel. Tested in QEMU and Bochs. VirtualBox, VMware and real hardware are untested. |
+| Hardware | Pentium Pro-class CPU or later with CPUID, an FPU and PAE. BIOS boot only. A PS/2 keyboard (or BIOS emulation of one), VGA text mode, and ATA disks on the primary channel. Tested in QEMU and Bochs. VirtualBox, VMware and real hardware are untested. |
 | Memory | Pages above 256 MB are not used. Tested from 4 MB to 128 MB. |
 | Ring 0 | Programs run in ring 0. Paging keeps program areas apart, but a program can write over kernel memory. User mode is 2.x. |
 | Stacks | 8 KB per process slot, not grown. A stack overflow resets the machine (`kernel/crash-reports.md`). |
@@ -385,6 +385,15 @@ The system that 1.0.0 will tag. Each line names where it is described and, where
 - `SYS_DEVUNREG` (34) removes a run-time device and frees its slot, so programs can register and remove devices any number of times (`kernel/drivers.md`; `drv-devices`, `drv-again`).
 - Priority aging: a ready process that has waited two seconds runs for one slice whatever its priority, so priority 0 cannot starve (`kernel/processes.md`; `age`).
 - A list widget with more items than fit in its window scrolls to keep the selection shown, and a click maps to the item under the pointer (`kernel/widgets.md`; `scrolltest`).
+
+## 2.1.0
+
+- VBE framebuffer modes, double buffering, dirty rectangles, blitter and clip regions; the kernel high image above 1 MB; programs in ring 3 with checked syscall pointers and growing stacks; first graphical apps, games and foreign programs (`releases/2.1.0.md`; `ver-banner`).
+
+## 2.3.0
+
+- Real windows on the VBE framebuffer (2.2) and the Program Manager / Warp 3 desktop (2.3): icon groups, File Manager, clipboard, Control Panel, bevelled widgets. Also on this tag: SQFS long names and FAT read/write with drive objects, UEFI and modern disks/USB, long-mode entry and SMP, DHCP/DNS/HTTP and AC'97/HDA audio, the full apps/games/calculator suite, and foreign programs through P.6 (except desktop windows) and P.8 (except a DOS window), plus P.9 LX and P.10 FreeBSD (`releases/2.3.0.md`; `ver-banner`, `lang-banner`).
+- Limits that stay open: Win32 top-level windows as desktop windows, DOS screen in its own window, staying in long mode (2.9), Generation 2 desktop (2.5/2.6), and the rest of 3.0 (accounts, permissions, services, themes).
 
 ## Notes
 

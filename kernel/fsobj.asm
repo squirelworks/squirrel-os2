@@ -111,7 +111,8 @@ fsobj_mounted:
     call obj_set                ; path "D:/"
     mov esi, fo_file
     call obj_save
-    call obj_free
+    mov cl, [fo_file+FO_LETTER]
+    call ss_drive_live          ; W.6: keep on the desktop when live
     call fsobj_shredder
 .r:
     popad
@@ -127,6 +128,8 @@ fsobj_unmounted:
     mov [fo_file+FO_LETTER], al
     mov esi, fo_file
     call fs_delete
+    mov cl, [fo_file+FO_LETTER]
+    call ss_drive_drop          ; W.6 #235: drop live dk_objs slot
 .r:
     popad
     ret

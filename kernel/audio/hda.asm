@@ -124,28 +124,33 @@ hda_probe:
     stc
     ret
 
-; The MMIO page directory entry may be missing in a program's page
-; directory made before the probe: copy it there from the kernel's.
+; The MMIO page-directory entry may be missing in a program's tables
+; made before the probe: copy the PDE from the kernel's (PAE, 2.8-pae).
 hda_mapcheck:
+    pushad
+    mov esi, [hd_base]
+    mov eax, cr3
+    cmp eax, [kernel_pd]
+    je .r
+    mov eax, [kernel_pd]
+    call vm_pde_in_root         ; ebx = &kernel PDE
+    jc .r
+    mov eax, [ebx]
+    mov edx, [ebx+4]
     push eax
-    push ebx
-    push ecx
-    mov eax, [hd_base]
-    shr eax, 22
-    mov ebx, cr3
-    mov ecx, [kernel_pd]
-    cmp ebx, ecx
-    je .r
-    mov ecx, [ecx + eax * 4]
-    cmp [ebx + eax * 4], ecx
-    je .r
-    mov [ebx + eax * 4], ecx
-    mov ebx, cr3
-    mov cr3, ebx
-.r:
-    pop ecx
-    pop ebx
+    push edx
+    mov eax, cr3
+    mov esi, [hd_base]
+    call vm_pde_in_root         ; ebx = &current PDE (PD made if needed)
+    pop edx
     pop eax
+    jc .r
+    mov [ebx], eax
+    mov [ebx+4], edx
+    mov eax, cr3
+    mov cr3, eax
+.r:
+    popad
     ret
 
 hda_wait_crst0:

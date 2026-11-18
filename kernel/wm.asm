@@ -25,7 +25,8 @@ WIN_STATE       equ 60          ; WS_* (2.2-mouse)
 WIN_REST        equ 64          ; x, y, w, h to restore from maximised
 WIN_ICONIC      equ 80          ; 1 while minimised to an icon (2.2-minmax)
 WIN_OWNER       equ 84          ; pid whose program opened it, -1 = kernel
-WIN_TBUF        equ 88          ; a program window's title, copied (2.2-progwin)
+WIN_TBUF        equ 88          ; a program window's title, copied (2.2-progwin);
+                                ; Win32 top-level windows (P.6-win32-windows) use this too
 WM_TBUF         equ 32
 WIN_PAINT       equ WIN_TBUF + WM_TBUF  ; 0, or code that paints the client (2.3-groups)
 WIN_SIZE        equ WIN_PAINT + 4
@@ -113,6 +114,7 @@ wm_create:
     mov dword [edi+WIN_PAINT], 0
     call wm_markwin             ; its place needs painting (2.2-clip-z)
     call wm_marktop             ; the old top loses the focus colour
+    mov dword [wg_cur], -1      ; new top: drop stale widget focus (Sarah #175)
     mov eax, ebp
     mov ebp, [wm_zn]            ; on top
     mov [wm_z+ebp], al
@@ -244,9 +246,19 @@ wm_zremove:
     ret
 
 ; eax = window id: puts it on top of the z-order, which gives it the focus.
-; CF if the id is not open. The caller redraws.
+; CF if the id is not open. The caller redraws. Switching focus clears
+; wg_cur so Tab does not keep a stale widget id from another window
+; (Sarah #175).
 wm_raise:
     push edi
+    push ebx
+    mov ebx, eax                ; the window being raised
+    call wm_focus
+    cmp eax, ebx
+    je .same
+    mov dword [wg_cur], -1
+.same:
+    mov eax, ebx
     call wm_record
     jc .r
     call wm_markwin             ; all of it is on top now
@@ -259,6 +271,7 @@ wm_raise:
     pop ebp
     clc
 .r:
+    pop ebx
     pop edi
     ret
 
@@ -325,6 +338,7 @@ wm_paint:
     mov al, [th_desk]           ; the live scheme (2.3-control)
     mov [gfx_colour], al
     call gfx_fillrect
+    call dki_paint              ; desktop icons on the surface (2.6-icons)
     call wm_icons               ; minimised windows (2.2-minmax)
     xor ebp, ebp
 .w:
@@ -344,6 +358,8 @@ wm_paint:
     call wm_draw
     jmp .w
 .done:
+    call wc_paint               ; WarpCenter bar above windows (2.5-bar)
+    call lp_paint               ; LaunchPad pads on/above the strip (W.3)
     call wm_menudraw            ; a pop-up menu and the Alt+Tab box are on
     call wm_tabdraw             ; top of everything (2.2-sysmenu, 2.2-alttab)
     popad

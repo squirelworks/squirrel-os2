@@ -91,3 +91,15 @@ A field whose bit is set in its class's `CLS_TEXT` holds the address of an ASCII
 ## objcat (1.8.2)
 
 `objcat <file>` loads an object file and prints `class <name>` and one line per field. When the class is recorded it prints each field's name and value (text fields as text, others as a decimal number) and frees the loaded object. When the class is not recorded yet (for example after a reboot, before `objtest`), it still prints the class name and the field values from the file, so a saved object can be checked across boots (check `obj-persist`: after `objstore`, a new boot's `objcat objtest.obj` shows `class Square`, `0: 5` and `1: red`).
+
+## Templates (W.2)
+
+`Template` under the desktop's `DesktopObject` (`kernel/wps.asm`) adds text fields `of` (class to create) and `seed` (Program entry name). Dragging a Template creates a new object of that class; see `documentation/apps/desktop.md` ("Templates"). Check `wps-tmpl` → `wps: PASS`.
+
+## Shadow (2.6-shadows)
+
+`Shadow` under the desktop's `DesktopObject` (`kernel/shadow.asm`,
+`../apps/desktop.md`) adds text fields `target` and `at`: the original's name
+and its folder. Renaming or moving the original walks every file under
+`/desktop` and updates each matching Shadow so the link survives a reboot.
+`dkshadow` → `dk-shadow: PASS`.

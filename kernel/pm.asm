@@ -35,8 +35,8 @@ stage2:
     mov es, ax
     mov [ld_drive], dl          ; the boot drive, from the boot sector
     mov dword [UEFI_INFO], 0    ; a BIOS boot: no UEFI hand-off (H.1, drivers/gopcon.asm)
-    ; the CPU must have CPUID, an FPU and 4 MB pages (PSE): a Pentium or
-    ; later (0.9.3). Say so instead of crashing later.
+    ; the CPU must have CPUID, an FPU and PAE: a Pentium Pro or later
+    ; (2.8-pae). Say so instead of crashing later.
     pushfd
     pop eax
     mov ecx, eax
@@ -51,8 +51,8 @@ stage2:
     jz .oldcpu
     mov eax, 1
     cpuid
-    and edx, (1 << 0)|(1 << 3)  ; FPU, PSE
-    cmp edx, (1 << 0)|(1 << 3)
+    and edx, (1 << 0)|(1 << 6)  ; FPU, PAE
+    cmp edx, (1 << 0)|(1 << 6)
     je .cpuok
 .oldcpu:
     mov si, msg_oldcpu
@@ -118,6 +118,8 @@ gdt_cs64:                       ; 0x40: 64-bit kernel code, long mode (2.8, lm.a
     dw 0xFFFF,0,0x9A00,0x00AF
 gdt_tss_cpu:                    ; 0x48 on: one TSS per CPU record (2.8, smp.asm)
     times 16 dq 0               ; SMP_MAX
+gdt_tss64:                      ; 0xC8: 64-bit TSS (16-byte system descriptor; 2.9)
+    times 2 dq 0
 gdt_desc:
     dw $-gdt-1
     dd gdt
@@ -126,7 +128,7 @@ e820_count dw 0                 ; written in real mode, so also below 32 KB
 ; fills E820_BUF, e820_count, ld_drive and UEFI_INFO, copies the two
 ; images and enters pm through this GDT. See documentation/kernel/hardware.md.
 uefi_hdr dd 'S2UE', pm, gdt_desc, ld_drive, e820_count, KERNEL_SIZE, KHIGH_BASE
-msg_oldcpu db 'Squirrel-OS/2 needs a Pentium-class CPU (CPUID, FPU, 4 MB pages).', 13, 10, 0
+msg_oldcpu db 'Squirrel-OS/2 needs a Pentium Pro-class CPU (CPUID, FPU, PAE).', 13, 10, 0
 %include "khigh.asm"
 
 BITS 32
@@ -214,6 +216,11 @@ pm:
     out 0x40, al
     mov al, ah
     out 0x40, al
+
+%ifdef LM_BOOT64
+    ; 2.9-lm-boot64: stay in IA-32e for the whole run (compat CS, 64-bit IDT)
+    call lm_boot_enter
+%endif
 
     xor eax, eax                ; English until "lang" says otherwise
     call lang_select
@@ -455,12 +462,36 @@ run_simple:
     mov edi, cmd_lmtest         ; 2.8-lm-entry
     call streq
     je .lmtest
+    mov edi, cmd_lmstay         ; 2.9-lm-kernel: 64-bit IDT stay
+    call streq
+    je .lmstay
+    mov edi, cmd_lmpage         ; 2.9-lm-kernel: 4-level per-process paging
+    call streq
+    je .lmpage
+    mov edi, cmd_lmthunk        ; 2.9-lm-kernel: permanent stay + compat thunks
+    call streq
+    je .lmthunk
+    mov edi, cmd_lmboot         ; 2.9-lm-kernel: everyday / boot stay
+    call streq
+    je .lmboot
     mov edi, cmd_cliptest       ; 2.1-blit-clip
     call streq
     je .cliptest
     mov edi, cmd_bevtest        ; W.1-theme
     call streq
     je .bevtest
+    mov edi, cmd_bevwidgets     ; 2.3-bevel-default
+    call streq
+    je .bevwidgets
+    mov edi, cmd_nbtest         ; 2.6-notebook
+    call streq
+    je .nbtest
+    mov edi, cmd_dkctx          ; 2.6-context
+    call streq
+    je .dkctx
+    mov edi, cmd_wpstmpl        ; W.2-templates
+    call streq
+    je .wpstmpl
     mov edi, cmd_winvbe         ; 2.2-vbe-wm
     call streq
     je .winvbe
@@ -500,12 +531,52 @@ run_simple:
     mov edi, cmd_fmtest
     call streq
     je .fmtest
+    mov edi, cmd_foldview       ; W.4-views
+    call streq
+    je .foldview
+    mov edi, cmd_openas         ; W.5-openas
+    call streq
+    je .openas
     mov edi, cmd_progman        ; 2.3-groups
     call streq
     je .progman
     mov edi, cmd_pmtest
     call streq
     je .pmtest
+    mov edi, cmd_warpcenter     ; 2.5-bar / menu / clock
+    call streq
+    je .warpcenter
+    mov edi, cmd_wcbar
+    call streq
+    je .wcbar
+    mov edi, cmd_wcmenu
+    call streq
+    je .wcmenu
+    mov edi, cmd_wcclock
+    call streq
+    je .wcclock
+    mov edi, cmd_launchpad      ; W.3-launchpad
+    call streq
+    je .launchpad
+    mov edi, cmd_wclp
+    call streq
+    je .wclp
+    mov edi, cmd_dkicons        ; 2.6-icons
+    call streq
+    je .dkicons
+    mov edi, cmd_dkdrag         ; 2.6-drag
+    call streq
+    je .dkdrag
+    mov edi, cmd_dkshadow       ; 2.6-shadows
+    call streq
+    je .dkshadow
+    mov edi, cmd_w6startup      ; W.6-startup
+    call streq
+    je .w6startup
+    mov edi, cmd_w6setup        ; W.6-syssetup
+    call streq
+    je .w6setup
+
     mov edi, cmd_winalttab      ; 2.2-alttab
     call streq
     je .winalttab
@@ -766,6 +837,18 @@ run_simple:
 .bevtest:
     call cmd_bevtest_run
     jmp .empty
+.bevwidgets:
+    call cmd_bevwidgets_run
+    jmp .empty
+.nbtest:
+    call cmd_nbtest_run
+    jmp .empty
+.dkctx:
+    call cmd_dkctx_run
+    jmp .empty
+.wpstmpl:
+    call cmd_wpstmpl_run
+    jmp .empty
 .winvbe:
     call cmd_winvbe_run
     jmp .empty
@@ -805,12 +888,52 @@ run_simple:
 .fmtest:
     call cmd_fmtest_run
     jmp .empty
+.foldview:
+    call cmd_foldview_run
+    jmp .empty
+.openas:
+    call cmd_openas_run
+    jmp .empty
 .progman:
     call cmd_progman_run
     jmp .empty
 .pmtest:
     call cmd_pmtest_run
     jmp .empty
+.warpcenter:
+    call cmd_warpcenter_run
+    jmp .empty
+.wcbar:
+    call cmd_wcbar_run
+    jmp .empty
+.wcmenu:
+    call cmd_wcmenu_run
+    jmp .empty
+.wcclock:
+    call cmd_wcclock_run
+    jmp .empty
+.launchpad:
+    call cmd_launchpad_run
+    jmp .empty
+.wclp:
+    call cmd_wclp_run
+    jmp .empty
+.dkicons:
+    call cmd_dkicons_run
+    jmp .empty
+.dkdrag:
+    call cmd_dkdrag_run
+    jmp .empty
+.dkshadow:
+    call cmd_dkshadow_run
+    jmp .empty
+.w6startup:
+    call cmd_w6startup_run
+    jmp .empty
+.w6setup:
+    call cmd_w6setup_run
+    jmp .empty
+
 .winalttab:
     call cmd_winalttab_run
     jmp .empty
@@ -822,6 +945,18 @@ run_simple:
     jmp .empty
 .lmtest:
     call cmd_lmtest_run
+    jmp .empty
+.lmstay:
+    call cmd_lmstay_run
+    jmp .empty
+.lmpage:
+    call cmd_lmpage_run
+    jmp .empty
+.lmthunk:
+    call cmd_lmthunk_run
+    jmp .empty
+.lmboot:
+    call cmd_lmboot_run
     jmp .empty
 .desktop:
     call cmd_desktop_run
@@ -1054,8 +1189,19 @@ cursor_sync:
     ret
 
 ; ---------- ISRs ----------
+; Bodies end with ret so the 64-bit IDT (2.9 lm_boot / everyday stay) can
+; call them through lm64_call32. lm_irq_cs is the interrupted CS (set by
+; the 32-bit or 64-bit stub before the body runs).
 timer_isr:
     KSEGS
+    push eax
+    mov eax, [esp+8]            ; CS from the 32-bit interrupt frame
+    mov [lm_irq_cs], eax
+    pop eax
+    call timer_isr_body
+    iretd
+
+timer_isr_body:
     push eax
     inc dword [ticks]
     call sysinfo_tick           ; CPU time (A.5)
@@ -1070,17 +1216,21 @@ timer_isr:
     ; reentrant), so the check waits for the next tick instead.
     dec dword [sched_left]
     jg .out
-    test byte [esp+8], 3        ; interrupted CS: only ring-3 code (2.4)
+    test byte [lm_irq_cs], 3    ; interrupted CS: only ring-3 code (2.4)
     jz .out
     call proc_preempt
 .out:
     pop eax
-    iretd
+    ret
 
 ; IRQ1: queue the raw scancode (dropped if the ring is full), and post
 ; a key event if a process asked for them (msg.asm)
 kbd_isr:
     KSEGS
+    call kbd_isr_body
+    iretd
+
+kbd_isr_body:
     push eax
     push ebx
     push ecx
@@ -1107,7 +1257,7 @@ kbd_isr:
     pop ecx
     pop ebx
     pop eax
-    iretd
+    ret
 .aux:
     in al, 0x60
     test byte [mouse_up], 1
@@ -1204,7 +1354,7 @@ default_isr:
 
 ; ---------- data ----------
 banner db 'Squirrel-OS/2'          ; (the "help" file: the English banner)
-banner_rest db ' 2.1.0', 10  ; OS version: here only (see releases/PROCESS.md)
+banner_rest db ' 2.9.0', 10  ; OS version: here only (see releases/PROCESS.md)
        db 'Commands: ls | cat <f> | run <app|file> | put <f> <text> | mk <f> | rm <f>', 10
        db '          mv <f> <new> | mkdir <d> | cd <d> | pwd | echo | batch <f> | format', 10
        db '          ps | disk | mem | devices | lang <en|la|tlh> | desktop | install', 10
@@ -1354,6 +1504,10 @@ cmd_gfxtext db 'gfxtext', 0
 cmd_vbetest db 'vbetest', 0
 cmd_cliptest db 'cliptest', 0
 cmd_bevtest db 'bevtest', 0
+cmd_bevwidgets db 'bevwidgets', 0
+cmd_nbtest db 'nbtest', 0
+cmd_dkctx db 'dkctx', 0
+cmd_wpstmpl db 'wpstmpl', 0
 cmd_winvbe db 'winvbe', 0
 cmd_winclip db 'winclip', 0
 cmd_winhit db 'winhit', 0
@@ -1368,7 +1522,21 @@ cmd_control_a db 'control ', 0
 cmd_cptest db 'cptest', 0
 cmd_cbtest db 'cbtest', 0
 cmd_fmtest db 'fmtest', 0
+cmd_foldview db 'foldview', 0
+cmd_openas db 'openas', 0
 cmd_pmtest db 'pmtest', 0
+cmd_warpcenter db 'warpcenter', 0
+cmd_wcbar db 'wcbar', 0
+cmd_wcmenu db 'wcmenu', 0
+cmd_wcclock db 'wcclock', 0
+cmd_launchpad db 'launchpad', 0
+cmd_wclp db 'wclp', 0
+cmd_dkicons db 'dkicons', 0
+cmd_dkdrag db 'dkdrag', 0
+cmd_dkshadow db 'dkshadow', 0
+cmd_w6startup db 'w6startup', 0
+cmd_w6setup db 'w6setup', 0
+
 cmd_pfont db 'pfont', 0
 cmd_icontest db 'icontest', 0
 cmd_wintest db 'wintest', 0
@@ -1595,6 +1763,9 @@ khigh_start:
 %include "widget.asm"
 %include "desktop.asm"
 %include "progman.asm"
+%include "warpcenter.asm"      ; 2.5-bar / menu / clock
+%include "launchpad.asm"       ; W.3-launchpad
+%include "deskicons.asm"       ; 2.6-icons / 2.6-drag
 %include "filemgr.asm"
 %include "control.asm"         ; 2.3-control
 %include "object.asm"
@@ -1616,6 +1787,10 @@ khigh_start:
 %include "volume.asm"
 %include "fat.asm"
 %include "fsobj.asm"
+%include "wps.asm"              ; W.2-templates
+%include "shadow.asm"           ; 2.6-shadows
+%include "startup.asm"          ; W.6-startup
+%include "syssetup.asm"         ; W.6-syssetup
 %include "debug.asm"
 %include "tty.asm"
 %include "drivers/hw.asm"

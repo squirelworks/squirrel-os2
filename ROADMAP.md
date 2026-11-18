@@ -20,8 +20,7 @@ The code in this tree is project-native. Early releases are not described as OS/
 | **4.x** | The "Windows 10/11 class" generation: HiDPI, touch, accessibility, a package manager. |
 
 1.0.0 is released (2026-10-31, `documentation/releases/1.0.0.md`).
-**2.0.0** is released (2026-11-01, `documentation/releases/2.0.0.md`), and so are **2.0.1** and **2.0.2** (2026-11-04), which finish the 2.0.x clean-up. **2.1.0** (2.1 framebuffer graphics and 2.4 ring 3, plus apps, games and foreign programs) is prepared in `documentation/releases/2.1.0.md`.
-**Resumed 2026-11-07:** work continues at **2.1** (framebuffer graphics), then the GUI generations below. Modern hardware H.1–H.6 is scheduled in the 64-bit bridge (2.8–2.9). The PR-sized boxes for 2.1 are in `TODO.md`.
+**2.0.0** is released (2026-11-01, `documentation/releases/2.0.0.md`), and so are **2.0.1** and **2.0.2** (2026-11-04), which finish the 2.0.x clean-up. **2.1.0** (2.1 framebuffer graphics and 2.4 ring 3, plus apps, games and foreign programs) was released 2026-11-13 (`documentation/releases/2.1.0.md`). **2.3.0** is released (2026-11-15, tip `59069e3` after #184/#197/#204/#205; notes in `documentation/releases/2.3.0.md`). Fine-grain marks through **3.0.0**: [`documentation/releases/TO_3.0.0.md`](documentation/releases/TO_3.0.0.md). Boxes in `TODO.md` and `HANDOFF.md`.
 
 SquirrelBIOS (github.com/squirelworks/squirrelbios) is the firmware this system is meant to sit on; booting Squirrel-OS/2 is its main acceptance test. Squirrel-OS/2 keeps booting under SeaBIOS in QEMU as well. Many built-in applications are first built as desktop programs in squirrelsoft and then ported here.
 
@@ -37,20 +36,27 @@ Every change follows these:
 
 Also already true of this project: document hardware assumptions, keep accepted limits in `documentation/specifications.md`, and follow `documentation/releases/PROCESS.md`.
 
-## Hand-off status (2026-11-14)
+## Hand-off status (2026-11-14; ownership 2026-11-15)
 
 The remaining work is left for Cursor / Codex. **[HANDOFF.md](HANDOFF.md)** has a card for every open
-item (files, acceptance, how to test) and the suggested order. In this file: `- [x]` is done on `main`;
-`- [ ]` is **open for Cursor/Codex**; *(in progress)* means a branch exists, finish it rather than redo it;
-*(Squirrel)* means only the owner can do it. The same states are labels on the GitHub issues
-(`status: done`, `status: in progress`, `cursor-codex`, `needs: squirrel`). The suite-wide continuation
-plan is `docs/CONTINUANCE.md` in squirrelsoft.
+item (files, acceptance, how to test), the suggested order, and **Agent ownership** for the two
+parallel Cursor lanes (`*-b55f` = 2.9 long-mode; `*-2eaf` = desktop/Warp). In this file: `- [x]` is
+done on `main`; `- [ ]` is **open for Cursor/Codex** (respect ownership); *(in progress)* means a
+branch exists, finish it rather than redo it; *(Squirrel)* means only the owner can do it. The same
+states are labels on the GitHub issues (`status: done`, `status: in progress`, `cursor-codex`,
+`needs: squirrel`). The suite-wide continuation plan is `docs/CONTINUANCE.md` in squirrelsoft.
 
-**`main` is ahead of the 2.1.0 release** (as of `7844b67`): 2.2 (real windows), most of 2.3, 2.7 (long
-names, FAT, drive and shredder objects), 2.8 long-mode entry and SMP, H.1–H.6, the 3.0 networking and
-sound half, A.1–A.7 except A.3's Control Panel, every game, the whole calculator suite, and foreign
-programs P.1, P.2, P.5, P.6 (all but windows), P.8 (all but windows), P.9 (32-bit LX) and P.10 (FreeBSD). The next
-release (2.3.0) needs only 2.3-control and 2.3-bevel-default, then release notes for Squirrel to publish.
+**`main` has finished 2.2 and 2.3** (as of #172): Program Manager desktop, clipboard, Control Panel,
+bevelled widgets, plus 2.7 (long names, FAT, drive objects; diskutil view/check/format), 2.8
+long-mode entry, SMP and PAE/NX, H.1–H.6, the 3.0 networking and sound half, A.1–A.7, every game,
+the whole calculator suite, foreign programs P.1, P.2, P.5, P.6 (including Win32 windows), P.8
+(including DOS window), P.9 (32-bit LX) and P.10 (FreeBSD), 2.5 WarpCenter, 2.6-context/notebook/shadows,
+W.2-templates (#191), W.3-launchpad (#183), W.4-views, W.5-openas (#192), and the 2.9 IDT/TSS stay +
+paging + thunks + boot64 slices (#189, #193, #196, #204 / `lmboot` / `os-lm64.img`).
+**Release (2026-11-16):** published tag **`v2.3.0`** (2026-11-15, tip `59069e3` after
+#184 / #197 / #204 / #205). Banner remains `2.3.0` until a later mark. Ladder to 3.0.0:
+[`documentation/releases/TO_3.0.0.md`](documentation/releases/TO_3.0.0.md). See `HANDOFF.md`
+**Release coordination** (MERGE-WAIT lifted; next `-b55f` = ring-3 stay #211).
 
 ## Where things were at the 2.1.0 release
 
@@ -136,7 +142,7 @@ The GUI grows in generations, and each generation is a shippable milestone (epic
 
 - [x] **2.1 Framebuffer graphics** — A VBE linear framebuffer at 640×480, 800×600 and 1024×768 in 8, 16 and 32 bpp (from SquirrelBIOS or a real VGA BIOS). Mode 13h stays as the fallback. Double buffering, dirty rectangles, a blitter and clip regions. Test: set a mode, draw, read pixels back; regress in both 13h and VBE. PR-sized boxes: `TODO.md` **2.1-vbe-mode** … **2.1-blit-clip**.
 - [x] **2.2 Real windows** — Overlapping windows that move and resize, with title bar, minimise / maximise / close, a system menu, z-order by mouse, focus, and Alt+Tab. Original proportional bitmap fonts. Test: scripted window-manager operations produce the expected window list and pixel probes.
-- [ ] **2.3 Program Manager / Warp 3 desktop** *(in progress: icons, groups, File Manager and clipboard are on `main`; Control Panel on branch `int/os2-control`; 2.3-bevel-default open)* — Icon groups, double-click to launch, a two-pane File Manager, a clipboard, Control Panel v1 (colours, mouse, date and time, keyboard). Warp-style bevelled 3D controls are the default theme.
+- [x] **2.3 Program Manager / Warp 3 desktop** — Icon groups, double-click to launch, a two-pane File Manager, a clipboard, Control Panel v1 (colours, mouse, date and time, keyboard). Warp-style bevelled 3D controls are the default theme.
 
 ### 2.4 — Ring 3 and protection
 
@@ -144,32 +150,70 @@ The GUI grows in generations, and each generation is a shippable milestone (epic
 
 ### 2.5–2.7 — Generation 2: "Windows 95 / OS/2 Warp 4 class"
 
-- [ ] **2.5** — A WarpCenter-style bar (the default; a taskbar layout is a setting), a Squirrel menu, a tray clock.
-- [ ] **2.6** — Desktop objects with icons, drag and drop between folders and onto programs, context menus on the right button, Warp-style settings notebooks with tabs, shadows (shortcuts).
-- [ ] **2.7** — Long file names, FAT12/16/32 read and write for exchanging media, drive objects, a shredder object.
+- [x] **2.5** — A WarpCenter-style bar (the default; a taskbar layout is a setting), a Squirrel menu, a tray clock. PR-sized boxes: `TODO.md` **2.5-bar**, **2.5-menu**, **2.5-clock** (W.3 LaunchPad is **W.3-launchpad** with them).
+  - [x] **2.5-bar**, **2.5-menu**, **2.5-clock** (`warpcenter` / `wcbar` / `wcmenu` / `wcclock`)
+  - [x] **W.3-launchpad** (`wclp`; lane `-2eaf`)
+- [x] **2.6** — Desktop objects with icons, drag and drop between folders and onto programs, context menus on the right button, Warp-style settings notebooks with tabs, shadows (shortcuts). PR-sized boxes: `TODO.md` **2.6-icons** … **2.6-shadows**, plus **W.2-templates**, **W.4-views**, **W.5-openas**.
+  - [x] **2.6-icons**, **2.6-drag** (`dkicons` / `dkdrag`)
+  - [x] **2.6-context**, **2.6-notebook** (`dkctx` / `nbtest`)
+  - [x] **W.2-templates** (`wpstmpl` / `wps-tmpl`)
+  - [x] **W.4-views** (`foldview` / `fold-views`)
+  - [x] **W.5-openas** (`openas`)
+  - [x] **2.6-shadows** (`dkshadow` → `dk-shadow: PASS`; object-file links under `/desktop`)
+- [x] **2.7** — Long file names, FAT12/16/32 read and write for exchanging media, drive objects, a shredder object.
   - [x] Long names, FAT12/16/32 read and write, drive and shredder objects (#162)
-  - [ ] `diskutil` on FAT volumes (2.7-diskutil; head start on branch `ws/os2-fs/diskutil`)
+  - [x] `diskutil` on FAT volumes (2.7-diskutil; view/check #171, format FAT from the OS)
 
 ### 2.8–2.9 — 64-bit bridge
 
 The old 2.1–2.9 bridge plan in `documentation/plannedmilestones.md`, renumbered here. 32-bit programs keep running in compatibility mode. The H boxes (with acceptance) are in `TODO.md`. The BIOS boot path keeps working throughout.
 
-- [ ] x86-64 long-mode kernel and 64-bit paging (long-mode entry is on `main`, #154; the kernel staying in long mode is 2.9-lm-kernel)
+**CONTINUANCE 3a (before 2.9-lm-kernel):** new 2.9+ kernel subsystems may use
+freestanding C; NASM remains for boot/entry stubs and existing code. Recorded
+in `documentation/architecture/overview.md` (cite squirrelsoft
+`docs/CONTINUANCE.md` decision 3a). Docs only until a later PR wires the
+compiler into `tools/build.sh`.
+
+- [x] x86-64 long-mode kernel and 64-bit paging (entry #154; IDT stay #189; paging #193; stay+thunks #196; boot64 #204; ring-3 stay #231; x86_64 suite flavour / `REGRESS_FLAVOUR=lm64` → mark **`2.9.0`**)
 - [x] SMP scheduler (2.8-smp-ap, 2.8-smp-sched, #154)
-- [ ] PAE and NX (2.8-pae)
+- [x] PAE and NX (2.8-pae, #180)
 - [x] H.1 UEFI loader
 - [x] H.2 GOP text console
 - [x] H.3 AHCI
 - [x] H.4 NVMe
 - [x] H.5 USB keyboard (xHCI)
 - [x] H.6 USB storage
-- [ ] 64-bit syscall ABI
+- [ ] 64-bit syscall ABI *(2.9-syscall64 → mark **`2.9.1`**, lane `-b55f` after lm-kernel; Linux/BSD under LM stay still `-ENOSYS` until this box — #221 / #222)*
+
+### Path index: tip → 3.0.0
+
+Numbered marks, owners, acceptance, and depends-on live in
+[`documentation/releases/TO_3.0.0.md`](documentation/releases/TO_3.0.0.md). Summary:
+
+| Mark | Title | Lane |
+|------|-------|------|
+| **2.3.0** | Tip cut after #184/#197/#204/#205 — **tagged** | owner |
+| **2.3.1** | W.6-startup | `-2eaf` |
+| **2.3.1** | ring-3 under permanent stay (#211 / #231) | `-b55f` |
+| **2.3.25** | W.6-syssetup | `-2eaf` |
+| **2.6.0** | Generation 2 declared complete | shared / owner |
+| **2.9.0** | tick `2.9-lm-kernel` (this cut) | `-b55f` |
+| **2.9.1** | `2.9-syscall64` / `hello64` | `-b55f` |
+| **2.9.25** | freestanding C in build | `-b55f` / shared |
+| **2.9.2–2.9.7** | 3.0-users … 3.0-themes | `-b55f` / `-2eaf` |
+| **3.0.0** | 64-bit Warp ship | owner |
 
 ### 3.0 — Generation 3: "NT / XP class" (3.0.0 is the 64-bit Warp)
 
 - [ ] **3.0** — User accounts and a login screen, file permissions, services, an event log, a task manager, a theme engine (Warp 4 by default, plus original "Classic" and "Luna-like" themes), audio (HDA / AC97 and a mixer), a network settings GUI, DHCP, DNS and an HTTP client.
   - [x] DHCP, DNS, HTTP client and `wget`, network settings program, AC'97, HDA, mixer (#160)
-  - [ ] User accounts and login, file permissions, services, event log, task manager, theme engine
+  - [ ] User accounts and login *(3.0-users, mark 2.9.2, `-b55f` / shared)*
+  - [ ] File permissions *(3.0-perms, 2.9.3, `-b55f`)*
+  - [ ] Services *(3.0-services, 2.9.4, `-b55f`)*
+  - [ ] Event log *(3.0-eventlog, 2.9.5, `-b55f`)*
+  - [ ] Task manager *(3.0-taskmgr, 2.9.6, `-2eaf`)*
+  - [ ] Theme engine *(3.0-themes, 2.9.7, `-2eaf`)*
+  - [ ] **3.0.0** ship tag *(owner, after 2.9.1 + remainder boxes)*
 
 ### 3.x — Generation 4: "Windows 7 / modern Unix desktops"
 
@@ -220,12 +264,14 @@ Each has its rules core with unit tests in squirrelsoft first; card and board gr
 
 ### Warp styling (W.1–W.6, every generation, epic #117)
 
-- [ ] **W.1** *(in progress: `theme.inc`, `gfx_bevel` and the proportional fonts are on `main`; finishes with 2.3-bevel-default)* — Warp 4 colour scheme, bevels and fonts (original bitmaps that give the feel, not copies).
-- [ ] **W.2** — The Workplace Shell object model in the GUI: everything is an object with a settings notebook; a templates folder; drag a template to create an object.
-- [ ] **W.3** — WarpCenter / LaunchPad bar.
-- [ ] **W.4** — Folder views: icon, tree, details.
-- [ ] **W.5** — Context menu "Open as → Icon / Tree / Details / Settings".
-- [ ] **W.6** — Startup folder, Shredder, Drives and System Setup objects.
+- [x] **W.1** — Warp 4 colour scheme, bevels and fonts (original bitmaps that give the feel, not copies).
+- [x] **W.2** — The Workplace Shell object model in the GUI: everything is an object with a settings notebook; a templates folder; drag a template to create an object. Box: `TODO.md` **W.2-templates** (with 2.6).
+- [x] **W.3** — WarpCenter / LaunchPad bar (pads on the shared top chrome with
+  **2.5-bar** / **2.5-menu** / **2.5-clock**; lane `-2eaf`). Box: `TODO.md`
+  **W.3-launchpad**.
+- [x] **W.4** — Folder views: icon, tree, details. Box: `TODO.md` **W.4-views** (with 2.6).
+- [x] **W.5** — Context menu "Open as → Icon / Tree / Details / Settings". Box: `TODO.md` **W.5-openas** (with 2.6).
+- [x] **W.6** *(lane `-2eaf`)* — Startup folder, Shredder, Drives and System Setup objects. Boxes: `TODO.md` **W.6-startup**, **W.6-syssetup** (after 2.6; Drive/Shredder classes from **2.7-objects**).
 
 ### Running other systems' programs (P.1–P.12, extends F.1–F.10, epic #118)
 
@@ -238,13 +284,13 @@ Each P step ships a tiny original test binary in the tree and a regression `PASS
 - [ ] **P.3** — Dynamic ELF with a glibc / musl loader, ELF64.
 - [ ] **P.4** — An X11-protocol (or Wayland) server that maps foreign windows onto Squirrel windows.
 - [x] **P.5** (= F.5 / F.9) — Win32 PE console subset.
-- [ ] **P.6** — Win32 GUI subset (USER / GDI onto the Squirrel window manager and graphics), registry emulation, an original DLL loader (a Wine-like design, no Wine code).
+- [x] **P.6** — Win32 GUI subset (USER / GDI onto the Squirrel window manager and graphics), registry emulation, an original DLL loader (a Wine-like design, no Wine code).
   - [x] USER32/GDI32 subset, registry over `registry.dat`, DLL loader (#163)
-  - [ ] Win32 top-level windows as real desktop windows (P.6-win32-windows)
+  - [x] Win32 top-level windows as real desktop windows (P.6-win32-windows)
 - [ ] **P.7** — PE64.
-- [ ] **P.8** — A DOS personality (V86 mode or an emulator) for DOS programs in a window.
+- [x] **P.8** — A DOS personality (V86 mode or an emulator) for DOS programs in a window.
   - [x] `dosrun` (8086/186 interpreter, `INT 21h`), `.com`/`.exe` launch, mode 13h graphics (#146, #149, #153)
-  - [ ] The DOS screen in a window of its own (P.8-dos-window)
+  - [x] The DOS screen in a window of its own (P.8-dos-window)
 - [ ] **P.9** — OS/2 16/32-bit text-mode API (`DosWrite` and the like), optional and late.
   - [x] 32-bit LX text-mode programs: `os2run`, DOSCALLS by ordinal (#163)
   - [ ] 16-bit NE text-mode programs (DOSCALLS 16-bit entry points, thunks)
@@ -253,6 +299,22 @@ Each P step ships a tiny original test binary in the tree and a regression `PASS
   - [ ] Solaris and other BSD call tables
 - [ ] **P.11** — Darwin Mach-O command-line programs (research).
 - [ ] **P.12** (= F.10) — Sandbox and capability flags, plus seamless-window integration (taskbar, clipboard, drag and drop shared with native programs).
+
+## ISM Flight Lab / ground station (issue #225, lane `-b55f`)
+
+Make OS/2 usable as the **ground / lab** host for International Squirrel Machines
+fighter-jet tooling (Steve’s Flight Lab in squirrelsoft, HIL with Eric’s RC
+controller). Flight-critical FBW stays on a small RTOS + SquirrelBIOS.
+
+Gap matrix (item 1): [`documentation/guides/ism-flightlab-gaps.md`](documentation/guides/ism-flightlab-gaps.md).
+PR-sized boxes: `TODO.md` **ISM-gaps-b55f** … **ISM-lab-setup-b55f**. Soft owns
+the Flight Lab app (`squirrelflightlab/`); this tree owns the host capabilities.
+
+- [x] Gap list (runtime, numerics, file formats, plotting) — **ISM-gaps-b55f**
+- [ ] Serial/USB data path — **ISM-serial-b55f**
+- [ ] Soft-real-time HIL timing — **ISM-hil-timing-b55f**
+- [ ] Package Flight Lab for OS/2 — **ISM-flightlab-pkg-b55f**
+- [ ] Lab setup guide — **ISM-lab-setup-b55f**
 
 ## Explicitly later
 

@@ -10,6 +10,13 @@
 ; client area and kept off every window above (gfx_occ). If the screen was
 ; in text mode, the first window enters the window manager's screen and the
 ; last one to close goes back to text. See documentation/kernel/windows.md.
+;
+; P.6-win32-windows: winrun's USER32 (programs/wingui.inc) opens top-level
+; Win32 windows with these calls, so CreateWindowEx windows share the same
+; title bar, move, z-order and close box as native program windows.
+; P.8-dos-window: dosrun blits its text screen and mode 13h buffer into a
+; program window with WD_BLIT (1x) or WD_SBLIT (2x); keys while focused
+; arrive as WE_KEY.
 
 WE_KEY      equ 1
 WE_DOWN     equ 2
@@ -22,6 +29,7 @@ WD_TEXT     equ 2
 WD_PTEXT    equ 3
 WD_BLIT     equ 4
 WD_BEVEL    equ 5
+WD_SBLIT    equ 6               ; scaled blit (P.8-dos-window): colour = 1 or 2
 WD_PIXEL    equ 7
 
 WS_RING     equ 16              ; events per process
@@ -570,6 +578,8 @@ sys_windraw:
     je .bevel
     cmp esi, WD_BLIT
     je .blit
+    cmp esi, WD_SBLIT
+    je .sblit
     call gfx_noclip
     jmp sys_winopen.bad
 .fill:
@@ -655,6 +665,71 @@ sys_windraw:
     inc ebx
     inc edi
     jmp .brow
+.sblit:                         ; a x b at ptr, colour = scale 1 or 2 (P.8)
+    mov esi, [ebp+20]
+    cmp esi, 1
+    je .sok
+    cmp esi, 2
+    jne .badc
+.sok:
+    mov [ws_scale], esi
+    push ecx                    ; source width
+    push edx                    ; source height
+    imul ecx, edx
+    mov esi, [ebp+24]
+    call ws_uchk
+    pop edx
+    pop ecx
+    jc .badc
+    mov [ws_bx], eax            ; destination left
+    mov [ws_by], ebx            ; destination top of the current source row
+    mov [ws_sw], ecx
+    mov [ws_sh], edx
+    xor edi, edi                ; source row
+.srow:
+    cmp edi, [ws_sh]
+    jge .done
+    xor ebp, ebp                ; source column
+.scol:
+    cmp ebp, [ws_sw]
+    jge .snext
+    movzx ecx, byte [esi]       ; pixel colour (kept in ecx through the copies)
+    inc esi
+    push esi
+    push edi
+    push ebp
+    mov eax, ebp
+    imul eax, [ws_scale]
+    add eax, [ws_bx]            ; destination x of this pixel's block
+    mov ebx, [ws_by]            ; destination y of this pixel's block
+    mov edx, [ws_scale]
+.sy:
+    push eax
+    push edx
+    mov edx, [ws_scale]
+.sx:
+    push ecx
+    mov cl, cl                  ; colour already in cl / ecx low
+    call gfx_putpixel
+    pop ecx
+    inc eax
+    dec edx
+    jnz .sx
+    pop edx
+    pop eax
+    inc ebx
+    dec edx
+    jnz .sy
+    pop ebp
+    pop edi
+    pop esi
+    inc ebp
+    jmp .scol
+.snext:
+    mov eax, [ws_scale]
+    add [ws_by], eax
+    inc edi
+    jmp .srow
 .pixel:                         ; read back from the visible page
     mov eax, [ebp+4]
     add eax, [ws_cx]
@@ -837,6 +912,10 @@ align 4
 ws_cx dd 0
 ws_cy dd 0
 ws_bx dd 0
+ws_by dd 0                      ; WD_SBLIT destination row top
+ws_sw dd 0                      ; WD_SBLIT source width
+ws_sh dd 0                      ; WD_SBLIT source height
+ws_scale dd 1                   ; WD_SBLIT scale (1 or 2)
 ws_lmx dd -1
 ws_lmy dd -1
 ws_head times PROC_MAX dd 0
