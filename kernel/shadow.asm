@@ -56,7 +56,7 @@ sh_scan:
     jc .r
     mov [sh_dirid], dl
     mov edi, FS_DIR
-    mov ecx, FS_MAXFILES
+    mov ecx, [fs_maxfiles]
 .l:
     cmp byte [edi], 0
     je .n

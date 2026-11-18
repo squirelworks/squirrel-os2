@@ -272,7 +272,7 @@ ls_en_fe_nofs db 'No file system mounted (attach a data disk).', 0
 ls_en_fe_name db 'Bad name: 1 to 63 characters, not . or ..', 0
 ls_en_fe_exists db 'Already exists', 0
 ls_en_fe_nodir db 'No such directory', 0
-ls_en_fe_table db 'Directory table full (64 entries)', 0
+ls_en_fe_table db 'Directory table full', 0
 ls_en_fe_busy db 'File is open', 0
 ls_en_fe_notempty db 'Directory not empty', 0
 ls_en_fe_cwd db 'That is the current directory', 0
@@ -331,7 +331,7 @@ ls_la_fe_nofs db 'Nullum systema tabularum (disci datorum adiunge).', 0
 ls_la_fe_name db 'Nomen malum: I ad LXIII litterae, non . vel ..', 0
 ls_la_fe_exists db 'Iam exstat', 0
 ls_la_fe_nodir db 'Nullum tale directorium', 0
-ls_la_fe_table db 'Tabula directorii plena (LXIV)', 0
+ls_la_fe_table db 'Tabula directorii plena', 0
 ls_la_fe_busy db 'Tabula aperta est', 0
 ls_la_fe_notempty db 'Directorium non vacuum', 0
 ls_la_fe_cwd db 'Id est directorium praesens', 0
@@ -390,7 +390,7 @@ ls_tlh_fe_nofs db "teywI' pat tu'lu'be' (De' Hew yIrar).", 0
 ls_tlh_fe_name db "pong QIH: 1 vo' 63 ngutlh, . pagh .. ghobe'", 0
 ls_tlh_fe_exists db "tu'lu'pu'", 0
 ls_tlh_fe_nodir db "ghItlh pa' tu'lu'be'", 0
-ls_tlh_fe_table db "ghItlh pa' tetlh teb (64)", 0
+ls_tlh_fe_table db "ghItlh pa' tetlh teb", 0
 ls_tlh_fe_busy db "teywI' poSmoHlu'", 0
 ls_tlh_fe_notempty db "ghItlh pa' chImbe'", 0
 ls_tlh_fe_cwd db "DaH ghItlh pa' 'oH", 0
