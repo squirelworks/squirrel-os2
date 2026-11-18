@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Host-side SQFS tool for Squirrel-OS/2 data disks (original code).
 
-  sqfs.py IMAGE format [SIZE_KB]     create/overwrite IMAGE as an empty SQFS disk
+  sqfs.py IMAGE format [SIZE_KB] [--v1]
+                                     create/overwrite IMAGE as an empty SQFS disk
+                                     (256 entries; --v1: the 64 of version 1)
   sqfs.py IMAGE ls                   list every file and directory, with paths
   sqfs.py IMAGE put HOSTFILE [PATH]  copy a host file in (replaces PATH)
   sqfs.py IMAGE get PATH [HOSTFILE]  copy a file out (stdout without HOSTFILE)
@@ -12,6 +14,9 @@ Paths use '/' between directories (0.8.0); they always start at the root.
 Names may have up to 63 characters (2.7): a longer one than 15 gets a short
 alias ("quarterly-rep~1") in its entry and its whole name in continuation
 entries, as kernel/fslfn.asm writes them; either name finds it.
+Since 2.7 a disk's table has the size its superblock gives (version 2:
+16 sectors, 256 entries); version 1 disks keep 4 sectors, 64 entries.
+Directories go only in entries 0..253 (an id is the index + 1, in a byte).
 The format matches kernel/fs.asm and documentation/kernel/filesystem.md.
 """
 import os
@@ -20,11 +25,10 @@ import sys
 
 SECTOR = 512
 MAGIC = 0x53465153
-VERSION = 1
-DIR_LBA, DIR_SECTS = 1, 4
-DATA_LBA = DIR_LBA + DIR_SECTS
+VERSION = 2
+DIR_LBA, DIR_SECTS, DIR_SECTS1 = 1, 16, 4   # 2.7: 256 entries; version 1: 64
 DIRENT = 32
-MAXFILES = DIR_SECTS * SECTOR // DIRENT
+MAXDIRS = 254                               # directories in entries 0..253
 NAMELEN = 16
 KIND_FILE, KIND_DIR, KIND_LFN = 0, 1, 2
 LNAMEMAX, PART = 63, 23            # 2.7: long names, characters per part
@@ -66,14 +70,20 @@ class Disk:
         self.path = path
         with open(path, 'rb') as f:
             self.data = bytearray(f.read())
-        if len(self.data) < (DATA_LBA + 2) * SECTOR:
+        if len(self.data) < (DIR_LBA + DIR_SECTS1 + 2) * SECTOR:
             sys.exit('sqfs: image too small')
-        magic, ver, self.total = struct.unpack_from('<III', self.data, 0)
+        magic, ver, self.total, dlba, dsects, data = struct.unpack_from('<IIIIII', self.data, 0)
         if magic != MAGIC:
             sys.exit('sqfs: not an SQFS disk (run format first)')
+        if ver < 2:
+            dsects = DIR_SECTS1
+        elif dlba != DIR_LBA or not 0 < dsects <= DIR_SECTS or data != DIR_LBA + dsects:
+            sys.exit('sqfs: unknown directory layout')
+        self.data_lba = DIR_LBA + dsects
+        self.maxfiles = dsects * SECTOR // DIRENT
         base = DIR_LBA * SECTOR
         self.entries = [Entry(self.data[base + i * DIRENT:base + (i + 1) * DIRENT])
-                        for i in range(MAXFILES)]
+                        for i in range(self.maxfiles)]
 
     def save(self):
         base = DIR_LBA * SECTOR
@@ -156,7 +166,7 @@ class Disk:
     def path_of(self, e):
         names = [self.long_name(e)]
         seen = 0
-        while e.parent and seen < MAXFILES:
+        while e.parent and seen < self.maxfiles:
             e = self.entries[e.parent - 1]
             names.append(self.long_name(e))
             seen += 1
@@ -165,7 +175,8 @@ class Disk:
     def new_entry(self, path, kind):
         parent, name = self.split(path)
         check_name(name)
-        free = [x for x in self.entries if not x.name]
+        room = self.entries[:MAXDIRS] if kind == KIND_DIR else self.entries
+        free = [x for x in room if not x.name]
         if not free:
             sys.exit('sqfs: directory full')
         e = free[0]
@@ -175,7 +186,7 @@ class Disk:
         return e
 
     def alloc(self, sectors):
-        lba = DATA_LBA
+        lba = self.data_lba
         while lba + sectors <= self.total:
             clash = [e for e in self.entries if e.name and e.cap
                      and e.start < lba + sectors and lba < e.start + e.cap]
@@ -196,11 +207,16 @@ def main(argv):
         sys.exit(__doc__)
     path, cmd, args = argv[1], argv[2], argv[3:]
     if cmd == 'format':
+        v1 = '--v1' in args
+        args = [a for a in args if a != '--v1']
         size = int(args[0]) * 1024 if args else 1024 * 1024
+        sects = DIR_SECTS1 if v1 else DIR_SECTS
+        if size // SECTOR < DIR_LBA + sects + 2:
+            sys.exit('sqfs: image too small')
         with open(path, 'wb') as f:
             f.truncate(size)
-            sb = struct.pack('<IIIIII', MAGIC, VERSION, size // SECTOR - 1,
-                             DIR_LBA, DIR_SECTS, DATA_LBA)
+            sb = struct.pack('<IIIIII', MAGIC, 1 if v1 else VERSION, size // SECTOR - 1,
+                             DIR_LBA, sects, DIR_LBA + sects)
             f.write(sb)
         return
     d = Disk(path)

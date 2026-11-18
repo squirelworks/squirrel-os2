@@ -585,7 +585,7 @@ sys_readdir:
     je .r
 .l:
     xor eax, eax
-    cmp ebx, FS_MAXFILES
+    cmp ebx, [fs_maxfiles]
     jae .r
     mov esi, ebx
     shl esi, 5                  ; * FS_DIRENT

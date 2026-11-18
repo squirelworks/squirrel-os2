@@ -84,7 +84,7 @@ lfn_name:
     cmp eax, ebp
     ja .done
     mov esi, FS_DIR
-    mov ecx, FS_MAXFILES
+    mov ecx, [fs_maxfiles]
 .find:
     xchg esi, edi
     call lfn_is_part
@@ -120,7 +120,7 @@ lfn_find_in:
     push ebx
     mov ebx, esi
     mov edi, FS_DIR
-    mov ecx, FS_MAXFILES
+    mov ecx, [fs_maxfiles]
 .l:
     cmp byte [edi], 0
     je .n
@@ -158,7 +158,7 @@ lfn_drop:
     mov bl, al
     mov byte [edi+DE_LFN], 0
     mov edi, FS_DIR
-    mov ecx, FS_MAXFILES
+    mov ecx, [fs_maxfiles]
 .l:
     call lfn_is_part
     jc .n
@@ -204,7 +204,7 @@ lfn_set_name:
     mov bl, al
     xor edx, edx
     mov edi, FS_DIR
-    mov ecx, FS_MAXFILES
+    mov ecx, [fs_maxfiles]
 .room:
     cmp byte [edi], 0
     je .free
@@ -325,7 +325,7 @@ lfn_alias:
     stosb
     ; used by another entry of the directory?
     mov edi, FS_DIR
-    mov ecx, FS_MAXFILES
+    mov ecx, [fs_maxfiles]
     mov dl, [lfn_dir]
 .l:
     cmp edi, [lfn_entry]
@@ -370,12 +370,12 @@ lfn_sweep:
     pushad
     xor ebp, ebp
     mov edi, FS_DIR
-    mov ecx, FS_MAXFILES
+    mov ecx, [fs_maxfiles]
 .l:
     call lfn_is_part
     jc .n
     movzx esi, byte [edi+LFN_OWNER]
-    cmp esi, FS_MAXFILES
+    cmp esi, [fs_maxfiles]
     jae .drop
     shl esi, 5
     add esi, FS_DIR
@@ -568,7 +568,7 @@ lfn_free_count:
     push edi
     xor eax, eax
     mov edi, FS_DIR
-    mov ecx, FS_MAXFILES
+    mov ecx, [fs_maxfiles]
 .l:
     cmp byte [edi], 0
     jne .n
