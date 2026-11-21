@@ -21,7 +21,7 @@
 ;
 ; Self-check: dkctx -> dk-ctx: PASS; openas (filemgr) -> openas: PASS.
 
-PM_GMAX     equ 4               ; groups: Main and up to three folders
+PM_GMAX     equ 8               ; groups: Main + up to seven folders (#236)
 PM_IMAX     equ 8               ; icons in a group
 PM_CW       equ 64              ; an icon's cell: the icon and its caption
 PM_CH       equ 48
@@ -1631,7 +1631,7 @@ cmd_pmtest_run:
     call dk_mkobjs
     call pm_build
     mov byte [pm_tok], 1
-    cmp dword [pm_ng], 2        ; Main and Tools (Templates/Startup too)
+    cmp dword [pm_ng], 4        ; Main + Tools + Templates + Startup (#236)
     mov byte [pm_tstep], 1
     jb .bad
     cmp dword [pm_gn], 7        ; 5 programs + System Setup + Shredder
@@ -1641,6 +1641,16 @@ cmd_pmtest_run:
     mov edi, pm_t_tools
     call streq
     mov byte [pm_tstep], 3
+    jne .bad
+    mov esi, [pm_gname+8]
+    mov edi, pm_t_templates
+    call streq
+    mov byte [pm_tstep], 'A'
+    jne .bad
+    mov esi, [pm_gname+12]
+    mov edi, pm_t_startup
+    call streq
+    mov byte [pm_tstep], 'B'
     jne .bad
     xor ebp, ebp                ; Main: find calc
     mov esi, pm_t_calc
@@ -1823,6 +1833,8 @@ pm_fbuf times PM_FBUF db 0
 pm_path db '/desktop/progman.pos', 0
 pm_t_main db 'Main', 0
 pm_t_tools db 'Tools', 0
+pm_t_templates db 'Templates', 0
+pm_t_startup db 'Startup', 0
 pm_t_calc db 'calc', 0
 pm_bye db 'Program Manager closed.', 10, 0
 pm_pass db 'pm: PASS', 10, 0

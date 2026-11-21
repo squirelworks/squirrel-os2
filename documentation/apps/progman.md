@@ -2,7 +2,7 @@
 
 `progman` shows the desktop as group windows full of icons, on the window manager's screen (640 × 480 through VBE, or mode 13h). It works on the same objects as `desktop` (`desktop.md`): the `Program` and `Folder` objects in `/desktop` (1.7.6, 1.9.0). The object model stays underneath; the Program Manager is a view of it.
 
-- **Main** holds the top-level programs. Each top-level folder is a group of its own (by default **Tools**), holding the objects whose `in` is that folder. At most four groups of eight icons.
+- **Main** holds the top-level programs. Each top-level folder is a group of its own (by default **Tools**, plus **Templates** and **Startup** from W.2 / W.6), holding the objects whose `in` is that folder. At most eight groups of eight icons (`PM_GMAX` / `PM_IMAX`; raised in #236 so Templates and Startup are not capped out).
 - Each icon is the object's icon (`icons.md`): a folder's, the program's own (the built-in icon named like its `entry`), or the generic program icon. Its caption, the object's name, is centred under it in the window face (`FONT_9`); the chosen icon's caption is highlighted.
 - Group windows sit in two columns on a 640-wide screen and cascade on a small one. They move, size, maximise and minimise like any window (`windows.md`). A group's close box minimises it (double-click its icon to bring it back); Main's close box, Alt+F4 on Main and Esc quit.
 
@@ -34,7 +34,7 @@ Each group window's record has `WIN_PAINT = pm_paint` (2.3-groups adds the field
 
 ## Checks
 
-`pmtest` builds the groups without the loop: Main has the five programs and Tools is a group; a press on calc chooses it, a drag of (40, 16) moves it and saves, the file read back puts it there again; two presses 20 ticks apart are a double-click and two far apart are not; arrange puts it back. It prints `pm: PASS` or `pm: FAIL at N` (the check that failed). It needs a data disk for the places file.
+`pmtest` builds the groups without the loop: Main has the five programs plus System Setup and Shredder; Tools, Templates and Startup are groups; a press on calc chooses it, a drag of (40, 16) moves it and saves, the file read back puts it there again; two presses 20 ticks apart are a double-click and two far apart are not; arrange puts it back. It prints `pm: PASS` or `pm: FAIL at N` (the check that failed). It needs a data disk for the places file.
 
 On a disk of their own (`pm.img`): `pmtest`, `pm-groups` (the group titles and captions read off the screen), `pm-launch` (calc opened with Enter computes 2 + 2), `pm-move` (m and arrows: `calc 88 12` in the file), `pm-move-reboot` (the next run starts from that place: one more step right gives `calc 96 12`), `pm-arrange` (`calc 72 4` again) and `pm-text`.
 

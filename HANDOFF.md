@@ -28,15 +28,16 @@ files need coordinated rebases; do not race edits. Suite-wide checklist:
 
 **Agent GitHub write path (2026-11-15):** Cloud agent `gh` uses a GitHub App installation token (`cursor[bot]` / `ghs_…`). **Works:** `gh issue create` (title/body only — labels are silently dropped), git push / open PRs. **Fails with 403** (`Resource not accessible by integration`): issue/PR comments (`addComment`), edit issue/PR body, close issues, add/change labels. Do **not** ask Sarah to paste comments or file issues — create a new issue or land text in-repo (HANDOFF / TODO / this PR). Tip-cut handshake stand-in for a #201 comment: [#208](https://github.com/squirelworks/squirrel-os2/issues/208) (**closed** after tip). Filed ladder issues: #209–#218. **No Sarah action required for this coordination sync.**
 
-### Soft relay (for Soft agent `bc-2818ce82`, 2026-11-16)
+### Soft relay (for Soft / `-2eaf`, wrap 2026-11-17)
 
-Soft agent owns Soft tracks (ISM fighter-jet Soft UI apps / Eric companion apps) —
-**not** OS/2 2.9. Soft-bound facts from OS/2 `-b55f`:
+Soft tracks (ISM Soft UI / Eric companions) and OS/2 Gen2 desktop are the
+`-2eaf` lane — **not** OS/2 2.9 (`-b55f`). Soft-bound facts:
 
 - OS/2 tip cut **done:** `v2.3.0` published; Soft `PATH_TO_3.0.0.md` stays **suite index only** (OS ladder = this repo `TO_3.0.0.md`).
-- Soft #163 / #164 still carry stale tip-cut wording — Soft/`-2eaf` may rewrite when convenient; do not treat them as OS/2 SoT.
-- OS/2 next core after lm-kernel tick: `2.9-syscall64-b55f` on lane `-b55f` — Soft must **not** open competing OS/2 lm PRs.
-- OS/2 #225 (ISM Flight Lab / ground station) is **background** on OS/2: gaps landed (#227); further serial/HIL/pkg only when natural and **not** ahead of 2.9 core. Soft Flight Lab stays in Soft (`squirrelflightlab/`).
+- Soft #203 / #204 landed; OS/2 W.6 + #235/#236 landed (this PR #239). **Paused** — next Soft coding is Soft **#207** live HID.
+- Soft #163 / #164 still carry stale tip-cut wording — rewrite when convenient; do not treat them as OS/2 SoT.
+- OS/2 core after lm-kernel: `2.9-syscall64-b55f` on `-b55f` — Soft must **not** open competing OS/2 lm PRs.
+- OS/2 #225 is **background** on OS/2: gaps landed (#227); further serial/HIL/pkg only when natural and **not** ahead of 2.9 core. Soft Flight Lab stays in Soft (`squirrelflightlab/`).
 
 ### Progress notes `-b55f`
 
@@ -63,17 +64,27 @@ Soft agent owns Soft tracks (ISM fighter-jet Soft UI apps / Eric companion apps)
 
 ### Progress notes `-2eaf`
 
-- **Landed:** `W.2-templates-2eaf` (#191); `W.5-openas-2eaf` (#192); `W.3-launchpad-2eaf` (#183); `2.6-shadows-2eaf` (#188); Sarah Gen2 follow-ups (#197); `2.6-icons-2eaf` / `2.6-drag-2eaf` (#184).
-- **Next:** Gen2 ship `2.6.0` (owner) → later `3.0-taskmgr` (#217) / `3.0-themes` (#218).
+- **Landed (OS/2 Gen2 / W.6):** `W.2-templates` (#191); `W.5-openas` (#192); `W.3-launchpad` (#183); `2.6-shadows` (#188); Sarah Gen2 follow-ups (#197); `2.6-icons` / `2.6-drag` (#184); `W.6-startup` (#209 / #234); `W.6-syssetup` (#210 / #237); live Drive unmount drop (#235 / #238); `PM_GMAX` raise (#236 / this PR #239).
+- **Landed (Soft, same lane):** Soft #203 SPD CDC (#213); Soft #204 PSRAM live march (#215).
+- **Next (pause / wrap 2026-11-17):** do **not** start new code until Sarah says go. Queue when resumed:
+  1. Soft **#207** live USB HID host (`libusb` / WinUSB / IOHID) — highest Soft coding item.
+  2. Soft live lab soaks **#212** / **#214** only when Eric ACM / MEM CDC board is available (otherwise leave open).
+  3. OS/2: Gen2 ship **`2.6.0`** *(owner)* → then `3.0-taskmgr` (#217) / `3.0-themes` (#218).
+  4. Soft live printer USB / plotter fab / live HIL serial — after HID, when SoT lands.
 
-### Tasks `-2eaf` (other lane)
+### Tasks `-2eaf` (this lane)
 
 - [x] `W.3-launchpad-2eaf` — PR #183
 - [x] `2.6-icons-2eaf` / `2.6-drag-2eaf` — PR #184
 - [x] `2.6-shadows-2eaf` — PR #188
 - [x] `W.5-openas-2eaf` — PR #192
 - [x] `W.6-startup-2eaf` — #209 / #234
-- [x] `W.6-syssetup-2eaf` — this PR (#210)
+- [x] `W.6-syssetup-2eaf` — #210 / #237
+- [x] `W.6-umount-drive-2eaf` — #235 / #238
+- [x] `W.6-pm-gmax-2eaf` — #236 / this PR #239
+- [ ] `soft-hid-live-2eaf` — Soft #207 (next coding when resumed)
+- [ ] `3.0-taskmgr-2eaf` — #217 (after Gen2 `2.6.0` ship)
+- [ ] `3.0-themes-2eaf` — #218 (after or with taskmgr)
 
 **`-b55f` does not take** desktop/Warp boxes while `-2eaf` owns them.  
 **`-2eaf` does not take** `2.9-lm-*-b55f` / `2.9-syscall64-b55f` while `-b55f` owns them.
@@ -97,7 +108,7 @@ Soft agent owns Soft tracks (ISM fighter-jet Soft UI apps / Eric companion apps)
 **Handshake (`-b55f` ↔ `-2eaf`) after tip:**
 
 1. **MERGE-WAIT over** — Sarah via relay (2026-11-16): keep working the normal ladder.
-2. **`-2eaf` next:** Gen2 ship `2.6.0` (owner) → later `3.0-taskmgr` (#217) / `3.0-themes` (#218).
+2. **`-2eaf` next (paused 2026-11-17):** Soft #207 live HID → (board soaks #212/#214 if ready) → Gen2 ship `2.6.0` (owner) → `3.0-taskmgr` (#217) / `3.0-themes` (#218).
 3. **`-b55f` next:** ~~ring-3 under stay (#231)~~ → ~~`2.9-lm-kernel-tick` (`2.9.0`)~~ (this PR) → `2.9-syscall64-b55f` → freestanding C (#212) → `3.0-users`…`3.0-eventlog` (#213–#216). Soft only if Sarah notes. #225 ISM is background only.
 4. Agents **never** tag. Tip-cut mirror [#208](https://github.com/squirelworks/squirrel-os2/issues/208) is closed.
 5. **#132 note (agents cannot edit issue bodies):** tick “x86-64 long-mode kernel and 64-bit paging” when this PR merges.
@@ -173,7 +184,9 @@ Lanes run in parallel (see **Agent ownership**). Within a lane, keep the order.
 2. ~~**2.7-diskutil** remainder~~ Done (#179). ~~**P.6 / P.8 windows**~~ Done (#177, #182).
 3. **Generation 2 desktop `-2eaf`:** ~~**2.5-***~~ / ~~W.3~~ / ~~context/notebook~~ /
    ~~templates/views/shadows/openas~~ / ~~#197~~ / ~~`2.6-icons`/`drag` #184~~ /
-   ~~tip cut `v2.3.0`~~ done → ~~W.6-startup~~ → ~~W.6-syssetup~~ → Gen2 ship `2.6.0`.
+   ~~tip cut `v2.3.0`~~ done → ~~W.6-startup~~ → ~~W.6-syssetup~~ →
+   ~~#235 umount Drive~~ → ~~#236 `PM_GMAX`~~ → Gen2 ship `2.6.0` (owner) /
+   Soft #207 when coding resumes.
 4. **2.9 path `-b55f`:** ~~pae / IDT / paging / thunks / boot64 / ring-3 stay~~
    done; ~~`2.9-lm-kernel-tick` (`2.9.0`)~~ (this PR) → `2.9-syscall64` →
    freestanding C → Gen3.
@@ -250,12 +263,14 @@ host `fatimg.py check`, and `fattest` on the formatted images.
 - `kernel/startup.asm`: `stu_attach` / `stu_run`; wired from `dk_mkobjs`,
   `desktop`, `progman`. Check `w6-startup` → `startup: PASS`.
 
-### W.6-syssetup — System Setup object  `-2eaf`  `status: done` (this PR, #210)
+### W.6-syssetup — System Setup object  `-2eaf`  `status: done` (#210 / #237)
 - `kernel/syssetup.asm`: `ss_attach` loads System Setup + Shredder + Drives
   into `dk_objs`; open runs Control Panel; Settings notebook works. Check
   `w6-setup` → `syssetup: PASS`.
-- **Gaps:** ~~#235 umount vs live Drive~~ (this PR); #236 (`PM_GMAX` saturated).
-- **Next:** Gen2 ship `2.6.0` (owner); #236 when sized.
+- **Gaps closed:** ~~#235 umount vs live Drive~~ (#238); ~~#236 `PM_GMAX`~~
+  (this PR #239: `PM_GMAX` 4→8 + `pmtest` Templates/Startup).
+- **Next after this PR:** Soft #207 (coding) / Gen2 ship `2.6.0` (owner). No
+  new OS/2 W.6 boxes — Gen2 desktop object set is complete.
 
 ### 2.8-pae — PAE paging and NX  `status: done`
 PAE + NX on `main`. Checks `nx-heap`, `nx-stack`, `cpu-pentium3`.
