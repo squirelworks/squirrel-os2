@@ -141,8 +141,8 @@ Used here, in `ROADMAP.md`, `TODO.md` and on the issues (as labels).
 - **Test gate:** `tools/regress.sh` and GitHub CI (`.github/workflows/ci.yml`:
   `build` and `regress`, on every PR). Wait for a green `regress` before
   calling a PR ready.
-- **Open PRs (2026-11-16):** tip-cut gates + ring-3 stay (#231) on `main`. This
-  PR: lm-kernel tick (`-b55f`). W.6 (`-2eaf`, #209/#210). #225 ISM background only.
+- **Open PRs:** this PR #233 (`2.9-syscall64-b55f`). W.6 / Gen2 follow-ups on
+  `main` (#234–#239). #225 ISM background only.
 
 ## Rules (Squirrel's; do not break)
 
@@ -269,7 +269,7 @@ host `fatimg.py check`, and `fattest` on the formatted images.
   into `dk_objs`; open runs Control Panel; Settings notebook works. Check
   `w6-setup` → `syssetup: PASS`.
 - **Gaps closed:** ~~#235 umount vs live Drive~~ (#238); ~~#236 `PM_GMAX`~~
-  (this PR #239: `PM_GMAX` 4→8 + `pmtest` Templates/Startup).
+  (#239: `PM_GMAX` 4→8 + `pmtest` Templates/Startup).
 - **Next after this PR:** Soft #207 (coding) / Gen2 ship `2.6.0` (owner). No
   new OS/2 W.6 boxes — Gen2 desktop object set is complete.
 

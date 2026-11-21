@@ -1253,7 +1253,9 @@ check_all notepad   'gfx: Notepad - memo|gfx: Hello notepad!|gfx: second line|gf
 check notepad-save  'Hello notepad!'        'run notepad memo' '<ret>' '<pause>' 'Hello notepad!' '<ctrl-s>' '<pause>' '<esc>' '<pause>' 'cat memo' '<ret>'
 check notepad-open  'gfx: Hello notepad!'   'run notepad memo' '<ret>' '<pause>' '<gfx>'
 check notepad-ask   'gfx: Save changes? y/n' 'run notepad' '<ret>' '<pause>' 'x' '<esc>' '<pause>' '<gfx>'
-check notepad-quit  'systest: PASS'         'run notepad' '<ret>' '<pause>' 'x' '<esc>' 'n' '<pause>' systest '<ret>'
+# lm64: esc must settle into Save? before n (write-quit already pauses; without
+# it n lands in the editor and systest never runs under CI load).
+check_retry notepad-quit 'systest: PASS'    'run notepad' '<ret>' '<pause>' 'x' '<esc>' '<pause>' 'n' '<pause>' '<pause>' systest '<ret>'
 check_retry notepad-hl 'notepad: PASS'      'run notepad -test' '<ret>' '<wait-text:notepad: PASS>'
 # C.2: grapher (explicit, polar, parametric, implicit, inequalities, sliders; roots, extrema, intersections, trace)
 # 1.25s lm64 pauses: self-test needs ~30s wall-clock under CI (ccf061b still
@@ -1276,7 +1278,8 @@ check charmap-save  'AB~'                   'run charmap' '<ret>' '<pause>' '<re
 check paint         'paint: PASS'           'run paint test' '<ret>' '<pause>' '<pause>' '<pause>'
 check_all paint-keys 'gfx: Paint - pic.bmp|gfx: Saved' 'run paint' '<ret>' '<pause>' 's' '<spc>' '<ctrl-right>' '<ctrl-down>' '<spc>' '<ctrl-s>' 'pic.bmp' '<ret>' '<pause>' '<gfx>'
 check_all paint-open 'gfx: Paint - pic.bmp|gfx: Opened' 'run paint pic.bmp' '<ret>' '<pause>' '<pause>' '<gfx>'
-check paint-quit    'systest: PASS'         'run paint' '<ret>' '<pause>' '<spc>' '<esc>' '<esc>' 'n' '<pause>' systest '<ret>'
+# lm64: same Save? race as notepad-quit — pause after esc before n.
+check_retry paint-quit 'systest: PASS'      'run paint' '<ret>' '<pause>' '<spc>' '<esc>' '<esc>' '<pause>' 'n' '<pause>' '<pause>' systest '<ret>'
 check_all viewer    'viewer: ptest.bmp 272 x 160, 8 bits|viewer: PASS' 'run viewer ptest.bmp test' '<ret>' '<pause>' '<pause>'
 check_all viewer-24 'viewer: grad.bmp 64 x 48, 24 bits|viewer: PASS' 'run viewer grad.bmp test' '<ret>' '<pause>' '<pause>'
 check_all viewer-gfx 'gfx: grad.bmp|gfx: 64 x 48, 24 bits|gfx: 2:1' 'run viewer grad.bmp' '<ret>' '<pause>' '<pause>' '+' '<pause>' '<gfx>'
@@ -1391,7 +1394,9 @@ python3 "$root/tools/sqfs.py" "$sq" get 'disk image.img' "$out/floppy27b.img"
 fatok fat-loop-fsck "$out/floppy27b.img"
 disk=$saved_disk; target=$saved_target
 # C.4: spreadsheet with charts
-check_retry sheet   'sheet: PASS'           'run sheet test' '<ret>' '<wait-text:sheet: PASS>'
+# lm64: fill-down to G99 + chart ink under CI load exceeds the default 45s
+# wait (8× timeouts on #233 shard 2); poll up to 120s.
+check_retry sheet   'sheet: PASS'           'run sheet test' '<ret>' '<wait-text:sheet: PASS:120>'
 check_all sheet-calc 'gfx: A3: =A1*A2+1|gfx: = 7' 'run sheet' '<ret>' '<pause>' '2' '<ret>' '3' '<ret>' '=A1*A2+1' '<ret>' '<up>' '<pause>' '<gfx>'
 check_all sheet-chart 'gfx: Line A1:B3|gfx: one|gfx: two' 'run sheet' '<ret>' '<pause>' 'one' '<tab>' 'two' '<ret>' '<left>' '1' '<ret>' '2' '<ret>' '<up>' '<up>' '<right>' '3' '<ret>' '5' '<ret>' '<up>' '<f3>' '<left>' '<up>' '<up>' '<ctrl-g>' '<pause>' '<pause>' '<gfx>'
 check sheet-cyc     'gfx: #CYC: it depends on itself' 'run sheet' '<ret>' '<pause>' '=A2' '<ret>' '=A1+1' '<ret>' '<up>' '<pause>' '<gfx>'
@@ -1422,7 +1427,8 @@ check_all logview-file 'gfx: lv.txt|gfx: acorns and oak' 'put lv.txt acorns and 
 check logview-quit  'systest: PASS'         'run logview' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
 check diskutil      'diskutil: PASS'        'run diskutil test' '<ret>' '<pause>' '<pause>' '<pause>' '<pause>'
 check_all diskutil-check 'gfx: hd1 (data disk): SQFS, 2048 sectors, 1024 KB|gfx: Check: no problems found' 'run diskutil' '<ret>' '<pause>' 'c' '<pause>' '<gfx>'
-check diskutil-scan 'gfx: Surface scan: 2048 sectors read, 0 failed' 'run diskutil' '<ret>' '<pause>' 's' '<pause>' '<pause>' '<pause>' '<gfx>'
+# lm64: 2048-sector surface scan lags under CI; extra settle + retry OCR.
+check_retry diskutil-scan 'gfx: Surface scan: 2048 sectors read, 0 failed' 'run diskutil' '<ret>' '<pause>' 's' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<pause>' '<gfx>'
 check diskutil-quit 'systest: PASS'         'run diskutil' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
 # 2.7 (OS2-FS): diskutil on a FAT disk (hd2, mounted first so that it is a
 # block device), and on the FAT images the 2.7 checks above wrote to
@@ -1494,7 +1500,8 @@ if [ "$sqv" = "(1, 2047, 1, 4, 5)" ] && [ "$sqout" = pinecones ]; then echo "ok 
 disk=$saved_disk2
 # C.8: notebooks (notes, Nut code, graphs, tables, geometry; C.1: math cells by sqmath)
 check_retry notebook 'notebook: PASS'       'run notebook test' '<ret>' '<wait-text:notebook: PASS>'
-check_all notebook-code 'gfx: 42|gfx: 7 12' 'run notebook' '<ret>' '<pause>' 'c' 'x = 6' '<ret>' 'print x*7' '<ret>' 'print x+1, x*2' '<esc>' '<pause>' '<gfx>'
+# lm64: Nut eval + redraw trails esc under CI; retry OCR like notebook-cells.
+check_all_retry notebook-code 'gfx: 42|gfx: 7 12' 'run notebook' '<ret>' '<pause>' '<pause>' 'c' 'x = 6' '<ret>' 'print x*7' '<ret>' 'print x+1, x*2' '<esc>' '<pause>' '<pause>' '<pause>' '<gfx>'
 check_all_retry notebook-cells 'gfx: y = sin(x)|gfx: x: -10 .. 10|gfx: y: -1 .. 1|gfx: d = 5|gfx: 2 hi' 'run notebook' '<ret>' '<pause>' '<pause>' 'g' 'sin(x)' '<esc>' 'o' 'A = (0,0)' '<ret>' 'B = (3,4)' '<ret>' 'seg A B' '<ret>' 'd = dist A B' '<esc>' 't' '=d-3 | hi' '<esc>' '<pause>' '<pause>' '<gfx>'
 check notebook-err  'gfx: ! line 2: division by zero' 'run notebook' '<ret>' '<pause>' 'c' 'x = 1' '<ret>' 'print x/0' '<esc>' '<pause>' '<gfx>'
 check_all notebook-save '%% code|print 5|%% note|acorns' 'run notebook n.nb' '<ret>' '<pause>' 'n' 'acorns' '<esc>' 'c' 'print 5' '<esc>' '<ctrl-s>' '<pause>' '<esc>' '<pause>' 'cat n.nb' '<ret>'
