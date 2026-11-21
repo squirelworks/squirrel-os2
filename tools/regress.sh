@@ -1261,7 +1261,9 @@ check_retry notepad-hl 'notepad: PASS'      'run notepad -test' '<ret>' '<wait-t
 # 1.25s lm64 pauses: self-test needs ~30s wall-clock under CI (ccf061b still
 # red after 14 pauses × 5 retries). Extra pauses + 8× retry.
 check_retry grapher 'grapher: PASS'         'run grapher test' '<ret>' '<wait-text:grapher: PASS>'
-check_all grapher-roots 'gfx: 1: sin(x)|gfx: roots: -9.4248|gfx: -3.1416' 'run grapher sin(x)' '<ret>' '<pause>' 'z' '<pause>' '<gfx>'
+# lm64: root-find + OCR after the long grapher self-test lags under CI
+# (eab8f70 shard 2 missed both root lines). Extra settle + retry OCR.
+check_all_retry grapher-roots 'gfx: 1: sin(x)|gfx: roots: -9.4248|gfx: -3.1416' 'run grapher sin(x)' '<ret>' '<pause>' '<pause>' 'z' '<pause>' '<pause>' '<pause>' '<gfx>'
 check_all grapher-ext 'gfx: min(-7.854, -1)|gfx: max(-4.7124, 1)' 'run grapher sin(x)' '<ret>' '<pause>' 'm' '<pause>' '<gfx>'
 check_all_retry grapher-meet 'gfx: meet: (-1, 0)|gfx: (2, 3)' 'run grapher x^2-1' '<ret>' '<pause>' '<pause>' '<tab>' '<ret>' 'y = x + 1' '<ret>' '<pause>' '<tab>' '<tab>' '<tab>' 'i' '<pause>' '<pause>' '<pause>' '<gfx>'
 check_all grapher-trace 'gfx: 2: x = 4*cos(t), y = 2*sin(t)|gfx: t=0.0262|gfx: x=3.9986' 'run grapher' '<ret>' '<pause>' 'sin(x)' '<ret>' '<tab>' '<ret>' 'x = 4*cos(t), y = 2*sin(t)' '<ret>' 't' '<right>' '<pause>' '<pause>' '<gfx>'
@@ -1306,7 +1308,9 @@ check stats-differ  'gfx: L1 and L2 must have the same length' 'run stats' '<ret
 check_all stats-csv 'gfx: Saved|gfx: n = 2|gfx: mean = 7.5' 'run stats' '<ret>' '<pause>' '7' '<ret>' '8' '<ret>' '<ctrl-s>' '<pause>' '<gfx>' '<esc>' '<pause>' 'run stats stats.csv' '<ret>' '<pause>' 'v' '<pause>' '<gfx>'
 check stats-quit    'systest: PASS'         'run stats' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
 # C.7: 3D graphing (surfaces, space curves)
-check graph3d       'graph3d: PASS'         'run graph3d test' '<ret>' '<pause>' '<pause>' '<pause>'
+# lm64: self-test ink lags like grapher/stats; 3 pauses timed out on eab8f70
+# shard 2 while interactive graph3d-* OCR checks still passed.
+check_retry graph3d 'graph3d: PASS'         'run graph3d test' '<ret>' '<wait-text:graph3d: PASS>'
 check_all graph3d-surf 'gfx: sin(x)*cos(y)|gfx: x, y: -3 to 3|gfx: z: -0.9975 to 0.9975' 'run graph3d sin(x)*cos(y)' '<ret>' '<pause>' '<left>' '<up>' '<pause>' '<gfx>'
 check_all graph3d-curve 'gfx: t: 0 to 2 pi|gfx: z: 0 to 1.2566' 'run graph3d' '<ret>' '<pause>' 'x = cos(t), y = sin(t), z = t/5' '<ret>' '<pause>' '<gfx>'
 check_all graph3d-size 'gfx: x, y: -6 to 6|gfx: z: 0 to 72' 'run graph3d x^2+y^2' '<ret>' '<pause>' '<pgup>' '<pause>' '<gfx>'
@@ -1398,7 +1402,9 @@ disk=$saved_disk; target=$saved_target
 # wait (8× timeouts on #233 shard 2); poll up to 120s.
 check_retry sheet   'sheet: PASS'           'run sheet test' '<ret>' '<wait-text:sheet: PASS:120>'
 check_all sheet-calc 'gfx: A3: =A1*A2+1|gfx: = 7' 'run sheet' '<ret>' '<pause>' '2' '<ret>' '3' '<ret>' '=A1*A2+1' '<ret>' '<up>' '<pause>' '<gfx>'
-check_all sheet-chart 'gfx: Line A1:B3|gfx: one|gfx: two' 'run sheet' '<ret>' '<pause>' 'one' '<tab>' 'two' '<ret>' '<left>' '1' '<ret>' '2' '<ret>' '<up>' '<up>' '<right>' '3' '<ret>' '5' '<ret>' '<up>' '<f3>' '<left>' '<up>' '<up>' '<ctrl-g>' '<pause>' '<pause>' '<gfx>'
+# lm64: chart redraw after ctrl-g trails under CI load (eab8f70 shard 2
+# missed Line/one/two). Extra settle + retry OCR like notebook-code.
+check_all_retry sheet-chart 'gfx: Line A1:B3|gfx: one|gfx: two' 'run sheet' '<ret>' '<pause>' 'one' '<tab>' 'two' '<ret>' '<left>' '1' '<ret>' '2' '<ret>' '<up>' '<up>' '<right>' '3' '<ret>' '5' '<ret>' '<up>' '<f3>' '<left>' '<up>' '<up>' '<ctrl-g>' '<pause>' '<pause>' '<pause>' '<pause>' '<gfx>'
 check sheet-cyc     'gfx: #CYC: it depends on itself' 'run sheet' '<ret>' '<pause>' '=A2' '<ret>' '=A1+1' '<ret>' '<up>' '<pause>' '<gfx>'
 check sheet-csv     '1,=A1*2'               'run sheet s.csv' '<ret>' '<pause>' '1' '<tab>' '=A1*2' '<ret>' '<ctrl-s>' '<pause>' '<esc>' '<pause>' 'cat s.csv' '<ret>'
 check sheet-quit    'systest: PASS'         'run sheet' '<ret>' '<pause>' 'x' '<ret>' '<esc>' '<pause>' 'n' '<pause>' systest '<ret>'
