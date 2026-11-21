@@ -161,28 +161,30 @@ dd if=/dev/zero of="$out/data.img" bs=1024 count=1024 2>/dev/null
 fail=0
 disk=$out/data.img              # data disk attached as primary slave
 nl=$(printf '\n_'); nl=${nl%_}  # a newline, for expected text that spans two lines (POSIX sh has no $'\n')
+# LM stay (os-lm64.img under qemu-system-x86_64): timer IRQs thunk 64→32, so
+# guest work lags wall-clock under CI load. Policy (prefer this over stacking
+# ever more one-off pauses):
+#   1. check / check_all retry the whole boot+keys sequence on lm64 (8×).
+#   2. Long self-tests / format PASS: <wait-text:NEEDLE> (poll) instead of
+#      pause stacks.
+#   3. Settle <pause> only where a later key must land after guest redraw
+#      (Save?, AI reply, quit-before-mem, heavy OCR after plot).
+# check_retry / check_all_retry stay as named aliases for call-site clarity.
 check() {   # check NAME EXPECTED KEYS...
     name=$1; want=$2; shift 2
-    screen=$(python3 "$root/tools/qemu_screen.py" ${disk:+--disk "$disk"} ${target:+--target "$target"} ${nic:+--nic} ${boot:-"$default_boot"} "$@")
-    case $screen in
-        *"$want"*) echo "ok   $name" ;;
-        *) echo "FAIL $name (expected: $want)"; fail=1 ;;
-    esac
+    tries=1
+    [ "$flavour" = lm64 ] && tries=8
+    n=1
+    while [ "$n" -le "$tries" ]; do
+        screen=$(python3 "$root/tools/qemu_screen.py" ${disk:+--disk "$disk"} ${target:+--target "$target"} ${nic:+--nic} ${boot:-"$default_boot"} "$@")
+        case $screen in
+            *"$want"*) echo "ok   $name"; return ;;
+        esac
+        n=$((n + 1))
+    done
+    echo "FAIL $name (expected: $want)"; fail=1
 }
 check_all() {   # check_all NAME 'WANT1|WANT2|...' KEYS...: every WANT must be on the screen
-    name=$1; wants=$2; shift 2
-    screen=$(python3 "$root/tools/qemu_screen.py" ${disk:+--disk "$disk"} ${target:+--target "$target"} ${nic:+--nic} ${boot:-"$default_boot"} "$@")
-    missing=
-    oldifs=$IFS; IFS='|'
-    for want in $wants; do
-        case $screen in *"$want"*) ;; *) missing="$missing [$want]" ;; esac
-    done
-    IFS=$oldifs
-    if [ -z "$missing" ]; then echo "ok   $name"; else echo "FAIL $name (missing:$missing)"; fail=1; fi
-}
-# lm64: VBE terminal child stdin (wc / dbg>) trails LM thunks under CI load.
-# Retry several times before failing the OCR goldens.
-check_all_retry() {
     name=$1; wants=$2; shift 2
     tries=1
     [ "$flavour" = lm64 ] && tries=8
@@ -200,22 +202,8 @@ check_all_retry() {
     done
     echo "FAIL $name (missing:$missing)"; fail=1
 }
-# lm64: long self-tests (grapher/sheet/sysmon) and timing-sensitive shell
-# checks lag under CI load; retry like check_all_retry.
-check_retry() {
-    name=$1; want=$2; shift 2
-    tries=1
-    [ "$flavour" = lm64 ] && tries=8
-    n=1
-    while [ "$n" -le "$tries" ]; do
-        screen=$(python3 "$root/tools/qemu_screen.py" ${disk:+--disk "$disk"} ${target:+--target "$target"} ${nic:+--nic} ${boot:-"$default_boot"} "$@")
-        case $screen in
-            *"$want"*) echo "ok   $name"; return ;;
-        esac
-        n=$((n + 1))
-    done
-    echo "FAIL $name (expected: $want)"; fail=1
-}
+check_all_retry() { check_all "$@"; }
+check_retry() { check "$@"; }
 check_none() {   # check_none NAME UNWANTED SEEN KEYS...: UNWANTED must not be on the screen, SEEN must
     name=$1; unwanted=$2; seen=$3; shift 3
     screen=$(python3 "$root/tools/qemu_screen.py" ${disk:+--disk "$disk"} ${target:+--target "$target"} ${nic:+--nic} ${boot:-"$default_boot"} "$@")
@@ -547,7 +535,8 @@ check_all graph     'graph> y = x|Plotted y = x for x from -10 to 10: 320 points
 check graph-domain  'Plotted y = sqrt(x) for x from -10 to 10: 160 points, 160 on screen' \
                     'run graph' '<ret>' 'y = sqrt(x)' '<ret>' '<pause>' ' ' '<pause>'
 check graph-syntax  'Error: syntax at column 8'  'run graph' '<ret>' 'y = x +' '<ret>'
-check graph-mem     "$free_kb"        'run graph' '<ret>' 'y = x' '<ret>' '<pause>' ' ' '<pause>' '<esc>' mem '<ret>'
+# lm64: graph must finish quitting before mem (fea2716 shard 1); settle after esc.
+check graph-mem     "$free_kb"        'run graph' '<ret>' 'y = x' '<ret>' '<pause>' ' ' '<pause>' '<esc>' '<pause>' mem '<ret>'
 # 1.4.0: a window created, a frame pixel read back, closed, read again
 check wintest      'win: PASS'             wintest '<ret>'
 check wintest-text 'systest: PASS'         wintest '<ret>' systest '<ret>'
@@ -1189,7 +1178,8 @@ disk=$out/games.img
 check mines-test    'mines: PASS'           'run mines test' '<ret>'
 check_all_retry mines-play '  1 F |Mines left: 9' 'run mines 5' '<ret>' '<pause>' '<pause>' e5 '<ret>' '<pause>' '<pause>' 'f a1' '<ret>' '<pause>' '<pause>'
 check reversi-test  'reversi: PASS'         'run reversi test' '<ret>' '<pause>' '<pause>'
-check_all reversi-play 'Computer plays c3|You (X): 3   Computer (O): 3' 'run reversi 1' '<ret>' d3 '<ret>'
+# lm64: computer reply after d3 lags under CI (fea2716 shard 3); settle like checkers.
+check_all reversi-play 'Computer plays c3|You (X): 3   Computer (O): 3' 'run reversi 1' '<ret>' '<pause>' d3 '<ret>' '<pause>' '<pause>'
 check klondike-test 'klondike: PASS'        'run klondike test' '<ret>'
 check_all klondike-play 'Stock 23|That move is not allowed' 'run klondike 3' '<ret>' d '<ret>' 12 '<ret>'
 check freecell-test 'freecell: PASS'        'run freecell test' '<ret>'
@@ -1198,7 +1188,8 @@ check_retry freecell-play 'Cells (a b c d) 9C  -  -  -' 'run freecell 2' '<ret>'
 check hearts-test   'hearts: PASS'          'run hearts test' '<ret>' '<pause>'
 check_all hearts-play 'You received:  JH  6H  4H|North plays 2C|You cannot play that card now' 'run hearts 3' '<ret>' 'ah kh jc' '<ret>' 2s '<ret>'
 check chess-test    'chess: PASS'           'run chess test' '<ret>' '<pause>' '<pause>'
-check_all chess-pgn '[Black "Squirrel Chess"]|1. e4 d5 *' 'run chess 1' '<ret>' e2e4 '<ret>' '<pause>' 'save g.pgn' '<ret>' q '<ret>' 'cat g.pgn' '<ret>'
+# lm64: AI reply + PGN write before save/cat (fea2716 shard 3).
+check_all chess-pgn '[Black "Squirrel Chess"]|1. e4 d5 *' 'run chess 1' '<ret>' e2e4 '<ret>' '<pause>' '<pause>' '<pause>' 'save g.pgn' '<ret>' '<pause>' q '<ret>' 'cat g.pgn' '<ret>'
 check mahjongg-test 'mahjongg: PASS'        'run mahjongg test' '<ret>' '<pause>'
 check_all mahjongg-play 'Try j1 a3|Tiles left: 106' 'run mahjongg 2' '<ret>' h '<ret>' 'j1 a3' '<ret>'
 check bridge-test   'bridge: PASS'          'run bridge test' '<ret>' '<pause>'
@@ -1270,7 +1261,8 @@ check_all grapher-trace 'gfx: 2: x = 4*cos(t), y = 2*sin(t)|gfx: t=0.0262|gfx: x
 check grapher-zoom  'gfx: roots: -3.1416'   'run grapher sin(x)' '<ret>' '<pause>' '+' 'z' '<pause>' '<gfx>'
 check grapher-syn   'gfx: Error: syntax at column 4' 'run grapher' '<ret>' '<pause>' 'y = 2*(' '<ret>' '<pause>' '<gfx>'
 check grapher-quit  'systest: PASS'         'run grapher sin(x)' '<ret>' '<pause>' '<esc>' '<pause>' systest '<ret>'
-check_all grapher-impl 'gfx: 1: x^2+y^2=25|gfx: only for y = f(x)' 'run grapher x^2+y^2=25' '<ret>' '<pause>' '<pause>' 'z' '<pause>' '<gfx>'
+# lm64: implicit plot + OCR after roots work lags under CI (fea2716 shard 2).
+check_all grapher-impl 'gfx: 1: x^2+y^2=25|gfx: only for y = f(x)' 'run grapher x^2+y^2=25' '<ret>' '<pause>' '<pause>' 'z' '<pause>' '<pause>' '<pause>' '<gfx>'
 check_all grapher-ineq 'gfx: 1: y >= x^2|gfx: Trace is for y =, r = and x =, y =' 'run grapher' '<ret>' '<pause>' 'y >= x^2' '<ret>' '<pause>' '<pause>' 't' '<pause>' '<pause>' '<gfx>'
 check_retry grapher-slider 'gfx: a = 2.2'   'run grapher y=a*sin(x)' '<ret>' '<pause>' '<pause>' 'a' '<pause>' '<right>' '<pause>' '<right>' '<pause>' '<up>' '<pause>' '<pause>' '<pause>' '<gfx>'
 check grapher-form  'gfx: Use y = f(x), r = f(t), x = f(t), y = g(t), = < >' 'run grapher' '<ret>' '<pause>' 'y < x < 2' '<ret>' '<pause>' '<gfx>'
@@ -1311,7 +1303,8 @@ check stats-quit    'systest: PASS'         'run stats' '<ret>' '<pause>' '<esc>
 # lm64: self-test ink lags like grapher/stats; 3 pauses timed out on eab8f70
 # shard 2 while interactive graph3d-* OCR checks still passed.
 check_retry graph3d 'graph3d: PASS'         'run graph3d test' '<ret>' '<wait-text:graph3d: PASS>'
-check_all graph3d-surf 'gfx: sin(x)*cos(y)|gfx: x, y: -3 to 3|gfx: z: -0.9975 to 0.9975' 'run graph3d sin(x)*cos(y)' '<ret>' '<pause>' '<left>' '<up>' '<pause>' '<gfx>'
+# lm64: first surface after self-test lags under CI (fea2716 shard 2).
+check_all graph3d-surf 'gfx: sin(x)*cos(y)|gfx: x, y: -3 to 3|gfx: z: -0.9975 to 0.9975' 'run graph3d sin(x)*cos(y)' '<ret>' '<pause>' '<pause>' '<left>' '<up>' '<pause>' '<pause>' '<pause>' '<gfx>'
 check_all graph3d-curve 'gfx: t: 0 to 2 pi|gfx: z: 0 to 1.2566' 'run graph3d' '<ret>' '<pause>' 'x = cos(t), y = sin(t), z = t/5' '<ret>' '<pause>' '<gfx>'
 check_all graph3d-size 'gfx: x, y: -6 to 6|gfx: z: 0 to 72' 'run graph3d x^2+y^2' '<ret>' '<pause>' '<pgup>' '<pause>' '<gfx>'
 check graph3d-syn   'gfx: Error: syntax at column 4' 'run graph3d' '<ret>' '<pause>' 'z = x*(' '<ret>' '<pause>' '<gfx>'
@@ -1454,11 +1447,13 @@ dd if=/dev/zero of="$out/dufmt12.img" bs=1024 count=1440 2>/dev/null
 dd if=/dev/zero of="$out/dufmt16.img" bs=1024 count=16384 2>/dev/null
 dd if=/dev/zero of="$out/dufmt32.img" bs=1024 count=40960 2>/dev/null
 target=$out/dufmt12.img
-check diskutil-fmt12 'diskutil: PASS'       'mount d: hd2' '<ret>' 'run diskutil test format hd2 12' '<ret>' '<pause>' '<pause>'
+# lm64: format PASS lags like fmt32; poll instead of two pauses (fea2716 shard 2
+# wrote the image — fmt16-fsck/use passed — but missed the PASS ink).
+check_retry diskutil-fmt12 'diskutil: PASS' 'mount d: hd2' '<ret>' 'run diskutil test format hd2 12' '<ret>' '<wait-text:diskutil: PASS>'
 fatok diskutil-fmt12-fsck "$out/dufmt12.img"
 check_all diskutil-fmt12-use 'D: FAT12, 1440 KB, hd2|fattest: PASS' 'mount d: hd2' '<ret>' 'fattest d:' '<ret>' '<pause>' '<pause>'
 target=$out/dufmt16.img
-check diskutil-fmt16 'diskutil: PASS'       'mount d: hd2' '<ret>' 'run diskutil test format hd2 16' '<ret>' '<pause>' '<pause>'
+check_retry diskutil-fmt16 'diskutil: PASS' 'mount d: hd2' '<ret>' 'run diskutil test format hd2 16' '<ret>' '<wait-text:diskutil: PASS>'
 fatok diskutil-fmt16-fsck "$out/dufmt16.img"
 check_all diskutil-fmt16-use 'D: FAT16, 15 MB, hd2|fattest: PASS' 'mount d: hd2' '<ret>' 'fattest d:' '<ret>' '<pause>' '<pause>'
 check_all diskutil-fmt-gui 'gfx: Formatted FAT16' 'mount d: hd2' '<ret>' 'run diskutil hd2' '<ret>' '<pause>' 'f' '<pause>' 'y' '<pause>' '<pause>' '<gfx>'
