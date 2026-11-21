@@ -6,6 +6,7 @@ not part of the kernel image. See `documentation/kernel/loader.md`.
 | File | Format | What it does |
 |------|--------|--------------|
 | `hello.asm` | SQX | Greets and echoes its argument (`run hello world`) |
+| `hello64.asm` | ELF64 | 64-bit `syscall`/`sysret` hello (`run hello64`, `run hello64 badptr`, 2.9-syscall64) |
 | `wc.asm` | SQX | Lines, words and bytes of a file (`run wc notes`), or of its input (`ls \| run wc`) |
 | `elfhello.asm` | ELF32 | Hand-written ELF header; checks its bss is zeroed |
 | `ls.asm` | SQX | Lists the disk with sizes; `run ls txt` filters by substring |

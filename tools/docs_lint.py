@@ -10,9 +10,10 @@ A box "names a check" when its text contains:
   - a backtick token of the form `name: PASS` (the check is `name`), or
   - a backtick glob like `fat12-*` / `cp-*` that matches regress check names.
 
-Harness inventory is the set of names passed to `check`, `check_all` and
-`check_none` in tools/regress.sh. Known historical mismatches can be listed
-in tools/docs_lint_allowlist.txt without reticking many boxes.
+Harness inventory is the set of names passed to `check`, `check_all`,
+`check_all_retry`, `check_retry` and `check_none` in tools/regress.sh.
+Known historical mismatches can be listed in tools/docs_lint_allowlist.txt
+without reticking many boxes.
 """
 
 from __future__ import annotations
@@ -46,9 +47,11 @@ API_GLOB_RE = re.compile(r"^[A-Z][A-Z0-9_]*\*$")
 # Abbreviated slash forms after a full name: `diskutil-fmt12` / `16` / `32`.
 SHORT_SUFFIX_RE = re.compile(r"^[0-9]{1,4}$")
 
-# check / check_all / check_none NAME ...
+# check / check_all / check_all_retry / check_retry / check_none NAME ...
+# Leading whitespace is allowed (flavour-split bodies indent the call).
 CHECK_DEF_RE = re.compile(
-    r"^(?:check|check_all|check_none)\s+(\S+)\b", re.MULTILINE
+    r"^\s*(?:check|check_all|check_all_retry|check_retry|check_none)\s+(\S+)\b",
+    re.MULTILINE,
 )
 
 
@@ -233,7 +236,7 @@ def collect_harness(root: Path) -> dict[str, set[str] | dict[str, str]]:
 
     # Optional: map name → first expected string for PASS-prefix matching.
     exp_re = re.compile(
-        r"^(?:check|check_all|check_none)\s+(\S+)\s+'([^']*)'",
+        r"^\s*(?:check|check_all|check_all_retry|check_retry|check_none)\s+(\S+)\s+'([^']*)'",
         re.MULTILINE,
     )
     for m in exp_re.finditer(text):

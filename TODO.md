@@ -373,7 +373,7 @@ Index also in `ROADMAP.md`. Tick the matching mark when that cut’s last PR lan
 - [x] **M3 / 2.3.25** *(`-2eaf`, #210)* — `W.6-syssetup-2eaf` → `syssetup: PASS`
 - [ ] **M4 / 2.6.0** *(shared / owner)* — Generation 2 declared complete; banner `2.6.0`
 - [x] **M6 / 2.9.0** *(`-b55f`)* — tick `2.9-lm-kernel` (stay + boot64 + ring-3 stay + x86_64 flavour)
-- [ ] **M7 / 2.9.1** *(`-b55f`)* — `2.9-syscall64` / `hello64`
+- [x] **M7 / 2.9.1** *(`-b55f`)* — `2.9-syscall64` / `hello64`
 - [ ] **M8 / 2.9.25** *(`-b55f` / shared, #212)* — freestanding C objects in `tools/build.sh`
 - [ ] **M10–M15 / 2.9.2–2.9.7** — `3.0-users` … `3.0-themes` (#213–#218; boxes below)
 - [ ] **M16 / 3.0.0** *(owner)* — ship tag when M7 + remainder boxes are done
@@ -473,7 +473,7 @@ From the 2.8–2.9 bridge in `ROADMAP.md` (the hardware drivers H.1–H.6 are th
 - [x] **2.9-lm-boot64** *(landed #204 + follow-ups #222, lane `-b55f`)* — Boot-time / `LM_BOOT64` everyday long-mode stay (`lmboot` command, os-lm64.img; nestable `lm64_call32`, everyday IRQ0/1/12 + `int 0x80` gates, `lm_enter_everyday` / `lm_boot_enter`). #222: nest EOI on overflow, nestable thunk CR3 frames, syscall return in eax. Checks `lm-boot`, `lm-boot-again`, `lm-boot64`, `lm-boot64-again`, `lm-boot-nolm`, `lm-boot64-nolm`. Does **not** alone tick `2.9-lm-kernel`.
 - [x] **2.9-lm-ring3-stay** *(lane `-b55f`; mark **2.3.1** this cut / ladder M2; #211)* — Ring-3 programs run while permanent stay is active. Checks `lm64-hello`, `lm64-ring3`.
 - [x] **2.9-lm-kernel** *(IDT stay #189 + paging #193 + stay+thunks #196 + boot64 #204/#222 + ring3-stay #231 + x86_64 suite flavour — mark **2.9.0**, lane `-b55f`)* — The kernel stays in long mode: 64-bit IDT and TSS (IST for double faults), 4-level per-process address spaces, the 32-bit kernel code reached through compatibility-mode thunks until it is ported, and 32-bit programs in compatibility mode. REGRESS_FLAVOUR=lm64 runs the suite on the LM_BOOT64 image under qemu-system-x86_64; the i386 flavour stays green. Foreign personalities under stay skip until 2.9-syscall64.
-- [ ] **2.9-syscall64** *(claimed lane `-b55f` — after 2.9-lm-kernel; mark **2.9.1**; also #221)* — 64-bit programs: an ELF64 loader and the `syscall`/`sysret` ABI (STAR/LSTAR, 64-bit call table, pointer checks), with `int 0x80` unchanged for 32-bit programs. A `hello64` check. **Also:** under permanent LM stay, Linux/BSD `int 0x80` currently returns `-ENOSYS` from `lm64_syscall_isr` because `lx_isr` still `iretd`s; teach the personality a returnable body through `lm64_call32` (or native `syscall`) so `lxhello` works on `os-lm64.img`.
+- [x] **2.9-syscall64** *(landed lane `-b55f`; mark **2.9.1**; also #221)* — 64-bit programs: ELF64 loader and `syscall`/`sysret` (STAR/LSTAR, native table via `lm64_call32`, pointer checks); `int 0x80` unchanged for 32-bit. Checks `hello64`, `hello64-badptr`, `lx-hello` (Linux stay body). BSD/Win32 under stay still follow-up.
 - [ ] **2.9-freestanding-c** *(claimed lane `-b55f` / shared — mark **2.9.25**; #212; CONTINUANCE 3a)* — Wire freestanding C objects into `tools/build.sh`; one trivial linked symbol; NASM boot/entry unchanged.
 
 ## Modern hardware (2.8–2.9)

@@ -129,7 +129,7 @@ Lanes run **in parallel**. Within a lane, keep order.
 | **Acceptance** | Full suite both flavours; box ticked; note `2.9.0.md` |
 | **Non-goals** | ELF64 `syscall` (that is M7); foreign personality under stay (skip on lm64 until M7) |
 
-### M7 — `2.9.1` `2.9-syscall64` / `hello64`  ·  `-b55f`  ·  depends: M6
+### M7 — `2.9.1` `2.9-syscall64` / `hello64`  ·  `-b55f`  ·  depends: M6  ·  **done (this PR)**
 
 | Field | Value |
 |-------|-------|

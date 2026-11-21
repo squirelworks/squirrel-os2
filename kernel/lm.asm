@@ -22,6 +22,14 @@
 LM_EFER      equ 0xC0000080
 LM_EFER_LME  equ 1 << 8
 LM_EFER_LMA  equ 1 << 10
+LM_EFER_SCE  equ 1 << 0            ; syscall/sysret enable (2.9-syscall64)
+LM_STAR      equ 0xC0000081
+LM_LSTAR     equ 0xC0000082
+LM_SFMASK    equ 0xC0000084
+LM_STAR_CS   equ 0xD8               ; gdt_star_kcs (SYSCALL_CS)
+LM_STAR_USER equ 0xE8               ; gdt_star_ucs32 (SYSRET_CS)
+; SFMASK: clear IF, TF, DF, NT, AC on syscall entry
+LM_SFMASK_BITS equ (1<<9)|(1<<8)|(1<<10)|(1<<14)|(1<<18)
 LM_CS64      equ 0x40               ; 64-bit kernel code (gdt_cs64, pm.asm)
 
 ; -> CF clear when the CPU has long mode (CPUID 0x80000001 EDX bit 29).
@@ -574,9 +582,8 @@ lm64_mouse_isr:
 ; lm64_call32 (not lm_sysret), so a yield/switch inside syscall_isr_body
 ; cannot race another process's return value. Nest frames are free-list
 ; allocated and the frame pointer rides the process stack across a switch.
-; Linux personality: lx_isr still uses iretd (32-bit frame). Under a
-; permanent stay return -ENOSYS here until 2.9-syscall64 (and ring-3 under
-; stay) wire a 64-bit-safe Linux body — see TODO.md / #221.
+; Linux/BSD (2.9-syscall64): returnable lx_syscall_body / bsd_syscall_body
+; through lm64_call32 (no iretd). BSD plants RFLAGS.CF from lm_bsd_cf.
 lm64_syscall_isr:
     push rax
     push rbx
@@ -601,18 +608,19 @@ lm64_syscall_isr:
     mov [rel lm_sys_edi], eax
     mov eax, [rsp]
     mov [rel lm_sys_ebp], eax
-    ; TODO(2.9-syscall64): Linux/BSD int 0x80 under stay needs a body that
-    ; returns (no iretd) and runs through lm64_call32; until then ENOSYS.
+    mov eax, [rsp+80]               ; user RSP (for a later BSD-stay body)
+    mov [rel lm_sys_uesp], eax
     mov esi, [rel proc_cur]
     cmp dword [esi+PCB_LINUX], 0
-    jne .enosys
+    jne .linux
     mov eax, lm64_syscall_body
+    jmp .call
+.linux:
+    mov eax, lx_syscall_body
+.call:
     call lm64_call32
     jc .nosys_ret                   ; nest overflow: treat as ENOSYS
     mov [rsp+48], rax               ; result from body (eax), not lm_sysret
-    jmp .out
-.enosys:
-    mov qword [rsp+48], -38         ; LX_ENOSYS (linux.asm); not SYS_ENOSYS
     jmp .out
 .nosys_ret:
     mov qword [rsp+48], -1          ; SYS_ENOSYS
@@ -1210,6 +1218,7 @@ lm_enter64:
     mov al, 0xFF
     out 0xA1, al
     mov dword [rel lm_perm], 1
+    call lm_syscall64_msr_init      ; STAR/LSTAR/EFER.SCE for ELF64
     push qword 0x08
     lea rax, [rel lm_enter_compat]
     push rax
@@ -1255,6 +1264,11 @@ lm_leave64:
     out 0x21, al
     mov al, [rel lm_pic2]
     out 0xA1, al
+    ; drop SCE with LME (syscall/sysret only while staying)
+    mov ecx, LM_EFER
+    rdmsr
+    and eax, ~LM_EFER_SCE
+    wrmsr
     mov dword [rel lm_perm], 0
     push qword 0x08
     lea rax, [rel lm_leave_compat]
@@ -1580,6 +1594,104 @@ lmboot_m_fail db 'lmboot: FAIL', 10, 0
 lmboot_m_nolm db 'lmboot: no long mode', 10, 0
 cmd_lmboot db 'lmboot', 0
 
+; ---------- 2.9-syscall64: STAR/LSTAR + ELF64 enter + syscall entry ----------
+; Called from lm_enter64 while CS is 64-bit. Enables EFER.SCE and loads
+; STAR/LSTAR/SFMASK. Keeps rax-rdx. Clobber-safe for the enter path.
+BITS 64
+lm_syscall64_msr_init:
+    push rax
+    push rcx
+    push rdx
+    mov ecx, LM_EFER
+    rdmsr
+    or eax, LM_EFER_SCE
+    wrmsr
+    ; STAR: [63:48]=SYSRET_CS (0xE8), [47:32]=SYSCALL_CS (0xD8)
+    mov edx, (LM_STAR_USER << 16) | LM_STAR_CS
+    xor eax, eax
+    mov ecx, LM_STAR
+    wrmsr
+    lea rax, [rel syscall64_entry]
+    mov rdx, rax
+    shr rdx, 32
+    mov ecx, LM_LSTAR
+    wrmsr
+    mov eax, LM_SFMASK_BITS
+    xor edx, edx
+    mov ecx, LM_SFMASK
+    wrmsr
+    pop rdx
+    pop rcx
+    pop rax
+    ret
+
+; iretq into a 64-bit ring-3 ELF (from lm_thunk64). Does not return.
+lm_enter_user64_go:
+    mov ax, USER_DS
+    mov ds, ax
+    mov es, ax
+    xor eax, eax
+    mov fs, ax
+    mov gs, ax
+    mov edi, [rel lm_u64_arg]       ; System V: rdi = first arg
+    mov esi, [rel lm_u64_rsp]
+    mov edx, [rel lm_u64_rip]
+    xor eax, eax
+    xor ebx, ebx
+    xor ecx, ecx
+    xor ebp, ebp
+    xor r8, r8
+    xor r9, r9
+    xor r10, r10
+    xor r11, r11
+    xor r12, r12
+    xor r13, r13
+    xor r14, r14
+    xor r15, r15
+    push qword USER64_DS            ; ss
+    push rsi                        ; rsp
+    push qword 0x202                ; rflags: IF
+    push qword USER64_CS            ; cs
+    push rdx                        ; rip
+    iretq
+
+; SYSCALL from 64-bit ring 3. RCX=rip, R11=rflags, RAX=number,
+; RDI/RSI/RDX = args (mapped onto ebx/ecx/edx for the 32-bit table).
+; Stack stays the user's until we load TSS.RSP0.
+syscall64_entry:
+    mov [rel lm_sys_eax], eax
+    mov [rel lm_sys_ebx], edi
+    mov [rel lm_sys_ecx], esi
+    mov [rel lm_sys_edx], edx
+    mov [rel lm_u64_rcx], rcx       ; return rip
+    mov [rel lm_u64_r11], r11       ; return rflags
+    mov [rel lm_u64_sav_rsp], rsp
+    mov rsp, [rel lm64_tss+LM64_RSP0]
+    push qword [rel lm_u64_sav_rsp]
+    push qword [rel lm_u64_rcx]
+    push qword [rel lm_u64_r11]
+    mov ax, USER_DS
+    mov ds, ax
+    mov es, ax
+    mov dword [rel lm_irq_cs], USER64_CS
+    mov esi, [rel proc_cur]
+    cmp dword [esi+PCB_LINUX], 0
+    jne .bad                        ; ELF64 is native only
+    mov eax, lm64_syscall_body
+    call lm64_call32
+    jc .bad
+.back:
+    mov r8d, eax                    ; result (do not use rcx — restored next)
+    pop r11                         ; user rflags
+    pop rcx                         ; user rip
+    pop rsp                         ; user rsp
+    mov eax, r8d
+    db 0x48, 0x0F, 0x07             ; rex.w sysret (sysretq)
+.bad:
+    mov eax, -1
+    jmp .back
+BITS 32
+
 align 4
 lm_idt_ready  dd 0
 lm_ist1_page  dd 0
@@ -1602,6 +1714,14 @@ lm_sys_edx    dd 0
 lm_sys_esi    dd 0
 lm_sys_edi    dd 0
 lm_sys_ebp    dd 0
+lm_sys_uesp   dd 0             ; user ESP from the 64-bit int 0x80 frame (BSD)
+lm_u64_arg    dd 0             ; ELF64 enter: rdi
+lm_u64_rip    dd 0             ; ELF64 enter: entry RIP
+lm_u64_rsp    dd 0             ; ELF64 enter: user RSP
+align 8
+lm_u64_rcx    dq 0             ; syscall: saved user RIP (RCX)
+lm_u64_r11    dq 0             ; syscall: saved user RFLAGS (R11)
+lm_u64_sav_rsp dq 0            ; syscall: saved user RSP
 ; Saved exception state for lm64_exc_* → exc_report (2.9-lm-ring3-stay)
 lm_exc_vec    dd 0
 lm_exc_err    dd 0

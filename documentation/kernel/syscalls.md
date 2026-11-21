@@ -1,6 +1,7 @@
 # System Call Interface (0.1.1)
 
-Location: `../../kernel/syscall.asm` (included from `kernel/pm.asm`)
+Location: `../../kernel/syscall.asm` (included from `kernel/pm.asm`);
+64-bit `syscall`/`sysret` entry in `../../kernel/lm.asm` (`2.9-syscall64`).
 
 ## Gate
 
@@ -10,7 +11,7 @@ Location: `../../kernel/syscall.asm` (included from `kernel/pm.asm`)
 - DPL 3: loaded programs run in ring 3 since 2.4 and call it from there. Their pointer
   arguments are checked first (`ring3.md`); a bad one makes the call return −1 without running.
 
-## Calling convention
+## Calling convention (32-bit `int 0x80`)
 
 | Register | Role |
 |----------|------|
@@ -22,6 +23,21 @@ Location: `../../kernel/syscall.asm` (included from `kernel/pm.asm`)
 All registers other than `eax` are preserved (`pushad`/`popad` around the handler).
 Flags are restored by `iretd`.
 A call number `>= SYS_COUNT` returns `SYS_ENOSYS` (`-1`) without touching anything else.
+
+## Calling convention (64-bit `syscall`, 2.9-syscall64)
+
+ELF64 programs under permanent long-mode stay use `syscall` / `sysret`
+(STAR/LSTAR). The same call numbers apply; arguments map onto the 32-bit table:
+
+| Register | Role |
+|----------|------|
+| `rax` | Call number in, 32-bit return value out (high half cleared) |
+| `rdi` | Argument 1 (→ `ebx`) |
+| `rsi` | Argument 2 (→ `ecx`) |
+| `rdx` | Argument 3 (→ `edx`) |
+
+Pointer checks use `USER64_CS` and the same `sys_uargs` rules. See
+`long-mode.md` and `programs/hello64.asm`.
 
 ## Dispatch
 

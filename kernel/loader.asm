@@ -2,9 +2,11 @@
 ; Included from pm.asm. Original code.
 ;
 ; Loads a program file from SQFS into the program area and starts it as
-; a process. Two formats are accepted:
-;   SQX  flat binary with a 16-byte header (see programs/sqx.inc)
-;   ELF  32-bit, little-endian, ET_EXEC, i386, PT_LOAD segments only
+; a process. Formats accepted:
+;   SQX    flat binary with a 16-byte header (see programs/sqx.inc)
+;   ELF32  little-endian, ET_EXEC, i386, PT_LOAD segments only
+;   ELF64  little-endian, ET_EXEC, x86-64, PT_LOAD (2.9-syscall64);
+;          requires a permanent long-mode stay (lm_perm)
 ; Both must be linked to run inside the program area. Each program gets
 ; an address space of its own (vm.asm), so several can be alive at once.
 ; See documentation/kernel/loader.md.
@@ -166,6 +168,7 @@ prog_exec:
     mov [ld_as], eax
     mov dword [ld_linux], 0
     mov dword [ld_bsd], 0
+    mov dword [ld_elf64_flag], 0
     ; Under permanent stay CR3 must be the process PML4 (2.9-lm-ring3-stay)
     cmp dword [lm_perm], 0
     jne .stay_cr3
@@ -181,7 +184,19 @@ prog_exec:
     call ld_sqx
     jmp .loaded
 .elf:
+    cmp byte [LD_STAGE+4], 2        ; ELFCLASS64
+    je .elf64
     call ld_elf
+    jmp .loaded
+.elf64:
+    cmp dword [lm_perm], 0          ; ELF64 needs stay (syscall/sysret)
+    jne .elf64go
+    mov eax, [ld_as]
+    call as_release
+    mov eax, LD_EFORMAT
+    jmp .out
+.elf64go:
+    call ld_elf64
 .loaded:
     call vm_reload
     test eax, eax
@@ -232,6 +247,8 @@ prog_exec:
     mov [edi+PCB_AS], eax
     mov eax, [ld_linux]         ; a Linux ELF: entered by lx_enter_user (P.1)
     mov [edi+PCB_LINUX], eax
+    mov eax, [ld_elf64_flag]    ; 64-bit ELF: syscall/sysret (2.9-syscall64)
+    mov [edi+PCB_ELF64], eax
     mov eax, [ld_bsd]           ; and FreeBSD on top of that (P.10)
     call bsd_mark
     mov esi, [esp+12]           ; the file name (saved esi), for ps and crash reports
@@ -291,8 +308,107 @@ ld_sqx:
     mov eax, LD_EBIG
     ret
 
+; ELF64 image at LD_STAGE, edx = length -> eax = entry or LD_EFORMAT/LD_EBIG.
+; Sets ld_elf64_flag = 1 on success. Same PROG_BASE window as ELF32.
+ld_elf64:
+    push ebp
+    call .load
+    pop ebp
+    ret
+.load:
+    cmp edx, 64                     ; ELF64 header
+    jb .bad
+    cmp word [LD_STAGE+4], 0x0102   ; ELFCLASS64, ELFDATA2LSB
+    jne .bad
+    cmp word [LD_STAGE+16], 2       ; ET_EXEC
+    jne .bad
+    cmp word [LD_STAGE+18], 62      ; EM_X86_64
+    jne .bad
+    cmp word [LD_STAGE+54], 56      ; e_phentsize
+    jne .bad
+    movzx ecx, word [LD_STAGE+56]   ; e_phnum
+    mov esi, [LD_STAGE+32]          ; e_phoff (low 32)
+    cmp dword [LD_STAGE+36], 0      ; e_phoff high must be 0
+    jne .bad
+    mov eax, ecx
+    imul eax, 56
+    add eax, esi
+    jc .bad
+    cmp eax, edx
+    ja .bad
+    add esi, LD_STAGE
+    xor ebp, ebp
+    push ecx
+    mov edi, PROG_BASE
+    mov ecx, PROG_MAX/4
+    xor eax, eax
+    rep stosd
+    pop ecx
+    jecxz .done
+.ph:
+    cmp dword [esi], 1              ; PT_LOAD
+    jne .next
+    mov eax, [esi+32]               ; p_filesz low
+    cmp dword [esi+36], 0
+    jne .bad
+    cmp eax, [esi+40]               ; p_memsz low
+    ja .bad
+    cmp dword [esi+44], 0           ; p_memsz high
+    jne .bad
+    mov ebx, [esi+8]                ; p_offset low
+    cmp dword [esi+12], 0
+    jne .bad
+    add ebx, eax
+    jc .bad
+    cmp ebx, edx
+    ja .bad
+    mov ebx, [esi+16]               ; p_vaddr low
+    cmp dword [esi+20], 0
+    jne .bad
+    sub ebx, PROG_BASE
+    jb .big
+    cmp ebx, PROG_MAX
+    ja .big
+    mov eax, PROG_MAX
+    sub eax, ebx
+    cmp [esi+40], eax
+    ja .big
+    push ecx
+    push esi
+    mov edi, [esi+16]
+    mov ecx, [esi+32]
+    mov esi, [esi+8]
+    add esi, LD_STAGE
+    rep movsb
+    pop esi
+    pop ecx
+    inc ebp
+.next:
+    add esi, 56
+    loop .ph
+.done:
+    test ebp, ebp
+    jz .bad
+    cmp dword [LD_STAGE+28], 0      ; e_entry high
+    jne .bad
+    mov eax, [LD_STAGE+24]          ; e_entry low
+    sub eax, PROG_BASE
+    jb .bad
+    cmp eax, PROG_MAX
+    jae .bad
+    mov eax, [LD_STAGE+24]
+    mov dword [ld_elf64_flag], 1
+    ret
+.bad:
+    mov eax, LD_EFORMAT
+    ret
+.big:
+    mov eax, LD_EBIG
+    ret
+
 ; ELF32 image at LD_STAGE, edx = length -> eax = entry or LD_EFORMAT/LD_EBIG
 ld_elf:
+
     push ebp
     call .load
     pop ebp
@@ -407,6 +523,7 @@ sys_exec:                       ; ebx = name, ecx = argument (or 0)
 ld_as dd 0
 ld_linux dd 0
 ld_bsd dd 0
+ld_elf64_flag dd 0
 ld_winrun db 'winrun', 0
 ld_dosrun db 'dosrun', 0
 ld_os2run db 'os2run', 0

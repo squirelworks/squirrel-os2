@@ -46,6 +46,7 @@ PCB_AS          equ 32          ; address space record, 0 = the kernel's
 ; same stride, so [pcb+PCBX_*] reaches it (the PCB itself is full)
 PCBX            equ proc_ext-proc_table
 PCB_UFRAME      equ PCBX+0      ; 1: stopped by a ring-3 preemption, so any CPU may resume it
+PCB_ELF64       equ PCBX+4      ; 1: 64-bit ELF (syscall/sysret, 2.9-syscall64)
 PCB_NAME        equ 40          ; 16 bytes: program or app name (0.8.2)
 PROC_NAMELEN    equ 16
 PCB_PRIO        equ 56          ; 0..3; higher runs first (1.9.9)
@@ -99,6 +100,7 @@ proc_spawn:
     mov [edi+PCB_ARG], ecx
     mov dword [edi+PCB_CODE], 0
     mov dword [edi+PCB_UFRAME], 0   ; starts in the kernel: the BSP's (2.8)
+    mov dword [edi+PCB_ELF64], 0    ; native 32-bit unless the loader says so
     mov dword [edi+PCB_WAITPID], 0
     mov byte [edi+PCB_NAME], 0
     mov dword [edi+PCB_PRIO], PRIO_NORM
@@ -233,6 +235,8 @@ proc_enter_user:
 .arg:
     cmp dword [ebx+PCB_LINUX], 0
     jne lx_enter_user           ; a Linux program: its own start-up stack (P.1)
+    cmp dword [ebx+PCB_ELF64], 0
+    jne proc_enter_user64       ; 64-bit ELF: syscall/sysret (2.9-syscall64)
     mov [edi-4], eax            ; entry(arg)
     mov [edi-8], esi            ; returns into the stub
     lea eax, [edi-8]
@@ -251,6 +255,38 @@ proc_enter_user:
     xor ebp, ebp
     iretd
 .fail:
+    mov ebx, -1
+    jmp proc_exit
+
+; 64-bit ELF under permanent stay: rewrite the exit stub for syscall,
+; then iretq from a 64-bit thunk into USER64_CS. edi = arg string on the
+; user stack, esi = exit-stub address, eax = arg pointer (from above).
+; Requires lm_perm (the loader refuses ELF64 otherwise).
+proc_enter_user64:
+    cmp dword [lm_perm], 0
+    je .fail64
+    ; exit stub at esi (16 bytes reserved): mov rdi,rax / mov eax,SYS_EXIT / syscall
+    mov byte [esi], 0x48        ; rex.w
+    mov byte [esi+1], 0x89
+    mov byte [esi+2], 0xC7      ; mov rdi, rax
+    mov byte [esi+3], 0xB8
+    mov dword [esi+4], SYS_EXIT ; mov eax, imm32
+    mov word [esi+8], 0x050F    ; syscall
+    mov word [esi+10], 0xF4EB   ; jmp $ (hlt-ish loop if exit returns)
+    mov [lm_u64_arg], eax       ; rdi on entry (= arg pointer)
+    mov edx, [ebx+PCB_ENTRY]
+    mov [lm_u64_rip], edx
+    ; 64-bit ret pops a qword: return address zero-extended, then
+    ; align so RSP % 16 == 8 at entry (SysV). Arg lives only in rdi.
+    sub edi, 8
+    and edi, -16
+    sub edi, 8                  ; rsp % 16 == 8 after this points at retaddr
+    mov [edi], esi              ; return → exit stub (low 32)
+    mov dword [edi+4], 0
+    mov [lm_u64_rsp], edi
+    mov eax, lm_enter_user64_go
+    call lm_thunk64
+.fail64:
     mov ebx, -1
     jmp proc_exit
 
